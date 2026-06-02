@@ -1,0 +1,171 @@
+/* Shared styles for Radix-based UI primitives. */
+
+/* === Dropdown menus (Menu + ContextMenu share these via shared classes set in wrappers) === */
+
+.ui-menu__content {
+  min-width: 220px;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-default);
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.6);
+  padding: 4px 0;
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: var(--text-primary);
+  z-index: 1000;
+  user-select: none;
+}
+
+.ui-menu__label {
+  font-size: 10px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--text-quaternary);
+  padding: 6px 12px 2px;
+}
+
+.ui-menu__item {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 24px;
+  padding: 5px 12px;
+  cursor: pointer;
+  outline: none;
+}
+.ui-menu__item[data-highlighted],
+.ui-menu__item:focus {
+  background: var(--bg-tertiary);
+  color: var(--accent-mint);
+}
+.ui-menu__item[data-disabled] {
+  color: var(--text-quaternary);
+  cursor: not-allowed;
+  pointer-events: none;
+}
+.ui-menu__item--danger { color: var(--accent-coral); }
+.ui-menu__item--danger[data-highlighted] { color: var(--accent-coral); }
+
+.ui-menu__shortcut {
+  color: var(--text-quaternary);
+  font-size: 11px;
+}
+
+.ui-menu__sep {
+  height: 1px;
+  background: var(--border-default);
+  margin: 4px 0;
+}
+
+.ui-menu__trigger {
+  background: transparent;
+  border: none;
+  color: var(--text-secondary);
+  font-family: var(--font-mono);
+  font-size: 12px;
+  padding: 6px 10px;
+  cursor: pointer;
+  outline: none;
+}
+.ui-menu__trigger:hover,
+.ui-menu__trigger[data-state="open"] {
+  color: var(--accent-mint);
+  background: var(--bg-tertiary);
+}
+
+/* === Dialogs === */
+
+.ui-dialog__overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.5);
+  z-index: 1000;
+}
+
+.ui-dialog__content {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  min-width: 340px;
+  max-width: 480px;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-default);
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.7);
+  padding: 16px 18px;
+  font-family: var(--font-mono);
+  font-size: 13px;
+  color: var(--text-primary);
+  z-index: 1001;
+  outline: none;
+}
+
+.ui-dialog__title {
+  margin: 0 0 4px;
+  font-size: 14px;
+  color: var(--text-heading);
+}
+
+.ui-dialog__desc {
+  margin: 0 0 12px;
+  color: var(--text-secondary);
+  font-size: 12px;
+}
+
+.ui-dialog__form { display: flex; flex-direction: column; gap: 12px; }
+
+.ui-dialog__input {
+  background: var(--bg-primary);
+  border: 1px solid var(--border-default);
+  color: var(--text-primary);
+  font-family: var(--font-mono);
+  font-size: 13px;
+  padding: 6px 8px;
+  outline: none;
+}
+.ui-dialog__input:focus { border-color: var(--accent-mint); }
+
+.ui-dialog__actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.ui-dialog__btn {
+  background: transparent;
+  border: 1px solid var(--border-default);
+  color: var(--text-secondary);
+  font-family: var(--font-mono);
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  padding: 5px 12px;
+  cursor: pointer;
+}
+.ui-dialog__btn:hover { color: var(--accent-mint); border-color: var(--accent-mint); }
+.ui-dialog__btn--primary { color: var(--accent-mint); border-color: var(--accent-mint); }
+.ui-dialog__btn--primary:hover { background: var(--bg-tertiary); }
+.ui-dialog__btn--danger { color: var(--accent-coral); border-color: var(--accent-coral); }
+.ui-dialog__btn--danger:hover { background: var(--bg-tertiary); color: var(--accent-coral); }
+
+/* === Tooltips === */
+
+.ui-tooltip {
+  background: var(--bg-primary);
+  border: 1px solid var(--border-default);
+  color: var(--text-primary);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  padding: 4px 8px;
+  display: inline-flex;
+  gap: 8px;
+  align-items: baseline;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.6);
+  z-index: 1100;
+  user-select: none;
+}
+
+.ui-tooltip__shortcut {
+  color: var(--text-quaternary);
+  font-size: 10px;
+}

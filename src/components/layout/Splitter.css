@@ -1,0 +1,14 @@
+.splitter {
+  width: 4px;
+  background: var(--border-default);
+  cursor: col-resize;
+  position: relative;
+  user-select: none;
+}
+.splitter:hover { background: var(--accent-mint); }
+.splitter::before {
+  /* widen the hit area without changing layout */
+  content: "";
+  position: absolute;
+  inset: 0 -3px;
+}

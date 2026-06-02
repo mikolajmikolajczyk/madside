@@ -1,0 +1,41 @@
+.dbgbar {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  background: var(--bg-secondary);
+  border-bottom: 1px solid var(--border-default);
+  padding: 4px 8px;
+  user-select: none;
+}
+
+.dbgbar__btn {
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 3px;
+  color: var(--text-secondary);
+  padding: 4px 6px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  line-height: 1;
+}
+.dbgbar__btn:hover {
+  color: var(--accent-mint);
+  border-color: var(--border-default);
+  background: var(--bg-tertiary);
+}
+.dbgbar__btn:disabled {
+  color: var(--text-quaternary);
+  cursor: not-allowed;
+  background: transparent;
+  border-color: transparent;
+}
+.dbgbar__btn--highlight { color: var(--accent-mint); }
+
+.dbgbar__sep {
+  width: 1px;
+  height: 16px;
+  background: var(--border-default);
+  margin: 0 6px;
+}

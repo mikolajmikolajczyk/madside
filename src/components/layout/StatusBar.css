@@ -1,0 +1,24 @@
+.status {
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  align-items: center;
+  background: var(--bg-secondary);
+  border-top: 1px solid var(--border-default);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 0.04em;
+  color: var(--text-tertiary);
+  padding: 4px 12px;
+  gap: 16px;
+  user-select: none;
+}
+
+.status__cell { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.status__cell--left { text-align: left; }
+.status__cell--right { text-align: right; }
+.status__cell--ok { color: var(--accent-mint); }
+.status__cell--err { color: var(--accent-coral); }
+
+.status__project { color: var(--text-primary); }
+.status__sep { margin: 0 6px; color: var(--text-quaternary); }
+.status__path { color: var(--text-secondary); }

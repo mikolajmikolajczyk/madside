@@ -1,0 +1,25 @@
+.editor {
+  height: 100%;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.editor .cm-editor {
+  height: 100%;
+  font-size: 13px;
+}
+
+.editor .cm-scroller {
+  font-family: var(--font-mono);
+  overflow: auto;
+}
+
+/* Token coloring for hover/info popup code previews. Lives outside the
+ * scoped EditorView.theme so it applies inside body-portaled tooltips too. */
+.cm-mads-tok-comment   { color: var(--text-tertiary); font-style: italic; }
+.cm-mads-tok-keyword   { color: var(--accent-mint); }
+.cm-mads-tok-directive { color: var(--accent-mint); font-style: italic; }
+.cm-mads-tok-number    { color: var(--accent-amber); }
+.cm-mads-tok-string    { color: var(--accent-coral); }
+.cm-mads-tok-op        { color: var(--text-secondary); }
+.cm-mads-tok-ident     { color: var(--text-primary); }

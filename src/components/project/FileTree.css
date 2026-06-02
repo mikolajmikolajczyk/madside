@@ -1,0 +1,80 @@
+.filetree {
+  flex: 1;
+  overflow: auto;
+  padding: 4px 0;
+  font-family: var(--font-mono);
+  font-size: 12px;
+  user-select: none;
+}
+
+.filetree__empty {
+  padding: 8px 12px;
+  color: var(--text-quaternary);
+}
+
+.filetree__row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 2px 8px 2px 6px;
+  color: var(--text-secondary);
+  cursor: pointer;
+  outline: none;
+}
+.filetree__row:hover { background: var(--bg-tertiary); }
+.filetree__row:focus { background: var(--bg-tertiary); }
+.filetree__row--active { color: var(--accent-mint); background: var(--bg-tertiary); }
+.filetree__row--main .filetree__name { font-weight: 500; }
+
+.filetree__caret {
+  width: 10px;
+  text-align: center;
+  color: var(--text-quaternary);
+  font-size: 10px;
+}
+
+.filetree__icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  color: var(--text-tertiary);
+  flex-shrink: 0;
+}
+
+.filetree__icon--folder { color: var(--accent-amber); }
+.filetree__icon--code   { color: var(--accent-mint); }
+.filetree__icon--json   { color: var(--accent-amber); }
+.filetree__icon--image  { color: var(--accent-peach); }
+.filetree__icon--binary { color: var(--accent-coral); }
+.filetree__icon--text   { color: var(--text-secondary); }
+.filetree__icon--file   { color: var(--text-tertiary); }
+
+.filetree__name {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  flex: 1;
+}
+
+.filetree__badge {
+  font-size: 9px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--accent-mint);
+  border: 1px solid var(--accent-mint);
+  padding: 0 4px;
+  border-radius: 2px;
+}
+
+.filetree__input {
+  background: var(--bg-primary);
+  border: 1px solid var(--accent-mint);
+  color: var(--text-primary);
+  font-family: var(--font-mono);
+  font-size: 12px;
+  padding: 1px 4px;
+  flex: 1;
+  outline: none;
+  min-width: 60px;
+}

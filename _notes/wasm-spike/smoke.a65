@@ -1,0 +1,4 @@
+	org $2000
+start	lda #0
+	rts
+	run start

@@ -1,0 +1,27 @@
+/* Tokens copied from mikolajczyk.org blog. Keep in sync. */
+:root {
+  --bg-primary: #0d1117;
+  --bg-secondary: #161b22;
+  --bg-tertiary: #0a0e14;
+  --bg-outer: #1a1a1a;
+
+  --border-subtle: #161b22;
+  --border-default: #21262d;
+  --border-muted: #4a5159;
+
+  --text-primary: #c9d1d9;
+  --text-heading: #f0f6fc;
+  --text-secondary: #8b949e;
+  --text-tertiary: #6e7681;
+  --text-quaternary: #4a5159;
+
+  --accent-mint: #4ade80;
+  --accent-amber: #fbbf24;
+  --accent-coral: #f87171;
+  --accent-peach: #f0883e;
+
+  --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+
+  --fs-label: 11px;
+  --ls-badge: 0.06em;
+}

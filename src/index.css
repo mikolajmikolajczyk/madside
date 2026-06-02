@@ -1,0 +1,41 @@
+@import "./tokens.css";
+
+*, *::before, *::after { box-sizing: border-box; }
+
+html, body, #root {
+  margin: 0;
+  padding: 0;
+  height: 100vh;
+  overflow: hidden;
+}
+
+body {
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  font-family: var(--font-mono);
+  font-size: 13px;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+}
+
+button {
+  font-family: inherit;
+  font-size: var(--fs-label);
+  letter-spacing: var(--ls-badge);
+  text-transform: uppercase;
+  background: transparent;
+  border: 1px solid var(--border-default);
+  color: var(--text-secondary);
+  padding: 4px 10px;
+  border-radius: 3px;
+  cursor: pointer;
+}
+button:hover { color: var(--accent-mint); border-color: var(--accent-mint); }
+button:disabled { opacity: 0.4; cursor: not-allowed; }
+
+.label {
+  font-size: var(--fs-label);
+  letter-spacing: var(--ls-badge);
+  text-transform: uppercase;
+  color: var(--text-tertiary);
+}

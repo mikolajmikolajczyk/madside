@@ -1,0 +1,23 @@
+.plugin-editor {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0;
+  background: var(--bg-secondary);
+}
+.plugin-editor__header {
+  padding: 4px 12px;
+  border-bottom: 1px solid var(--border-default);
+  color: var(--text-quaternary);
+}
+.plugin-editor__host {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: auto;
+}
+.plugin-editor__error {
+  padding: 16px;
+  color: var(--accent-coral);
+  font-family: var(--font-mono);
+  font-size: 12px;
+}
