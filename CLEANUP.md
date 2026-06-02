@@ -69,17 +69,22 @@ log w EnsureInitialized (init fail diagnostyka).
 
 ## 🟡 Strukturalne (większy zysk)
 
-### 7. `App.tsx` 824 linie, 55 hooków ⏳
+### 7. `App.tsx` 824 linie, 55 hooków ✅ — split do 539 linii
 
-Kandydaci do wyciągnięcia w `src/hooks/`:
-- **`useAutoAssemble`** — debounce + race-guard seq + setResult logic
-- **`usePluginEditor`** — `editorSources` + `editorRegistry` + `activeEditorModule` + `pluginAssets`
-- **`useBreakpointAddrs`** — sourceMap + bpLinesByFile → addr set
-- **`useCursorMemory`** — `cursorHighlight` + memBase auto-follow
-- **`useGotoLabel`** — `gotoTarget` + `onJumpToLabel`
-- **`useDebuggerShortcuts`** — keyboard handler F5/F6/F9/F10/F11 + Ctrl+B/S/R/P
+Wyciągnięte do `src/hooks/`:
+- `useAutoAssemble` (99) — debounce + race-guard seq + setResult
+- `usePluginEditor` (78) — editorSources + registry + activeModule + assets
+- `useBreakpointAddrs` (32) — sourceMap + bpLinesByFile → addr set
+- `useCursorMemory` (55) — cursorHighlight + memBase auto-follow
+- `useProjectLabels` (50) — scan + .lab merge
+- `useDebuggerShortcuts` (68) — keyboard handler F5/F6/F9/F10/F11 + Ctrl+B/S/R/P
+- `useSplitterWidth` (15) — width + localStorage persist
 
-Cel: App.tsx ~300 linii (orchestration tylko).
+Plus utility extract: `src/lib/labels.ts` (64) — `extractPreview`,
+`extractDoc`, `scanFileLabels`.
+
+`useGotoLabel` — nie wyciągnięte (mocno splecione z project + setActivePath
++ gotoTarget; inline cleaner niż prop-drilling całego project context).
 
 ### 8. `Emulator.tsx` — `keyCode` deprecated ⏳
 TS warning ★ na linii 156. Migracja na `event.code` (physical key) +
