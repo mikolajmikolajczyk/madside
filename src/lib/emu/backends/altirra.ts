@@ -97,16 +97,15 @@ export class AltirraBackend implements EmuBackend {
   }
 
   loadXEX(xex: Uint8Array) {
-    console.log("[altirra-backend] loadXEX called, bytes =", xex.length);
     try {
       this.core.loadXEX(xex);
     } catch (e) {
+      // Embind throws Wasm exceptions as `{ excPtr }` — decode if we
+      // have the message helper bound.
       const ePtr = (e as { excPtr?: number })?.excPtr;
       if (ePtr != null && modulePromiseRef?.getExceptionMessage) {
-        console.error("[altirra-backend] loadXEX excPtr =", ePtr,
-          "msg =", modulePromiseRef.getExceptionMessage(ePtr));
-      } else {
-        console.error("[altirra-backend] loadXEX threw", e);
+        const msg = modulePromiseRef.getExceptionMessage(ePtr);
+        throw new Error(`AltirraCore.loadXEX: ${msg}`);
       }
       throw e;
     }
@@ -170,7 +169,6 @@ export class AltirraBackend implements EmuBackend {
   }
 
   private audioCtx: AudioContext | null = null;
-  private audioNode: ScriptProcessorNode | null = null;
   private audioQueue: Float32Array[] = [];
   private audioQueueOffset = 0;
 
@@ -209,7 +207,6 @@ export class AltirraBackend implements EmuBackend {
     };
     node.connect(ctx.destination);
     this.audioCtx = ctx;
-    this.audioNode = node;
   }
 
   async suspendAudio(): Promise<void> {

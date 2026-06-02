@@ -23,12 +23,8 @@ import { parseLabFile } from "./lib/labParser";
 import { MADS_DIRECTIVES, MADS_OPCODES, type LabelInfo } from "./lib/madsLang";
 import { buildEditorRegistry, resolveEditorId } from "./lib/editors/registry";
 import type { EditorModule } from "./lib/editors/types";
+import { basename, extOf } from "./lib/util/path";
 import "./App.css";
-
-function basename(p: string): string {
-  const i = p.lastIndexOf("/");
-  return i >= 0 ? p.slice(i + 1) : p;
-}
 
 const ASSET_EXTENSIONS = new Set([
   "png","jpg","jpeg","gif","bmp",
@@ -36,15 +32,7 @@ const ASSET_EXTENSIONS = new Set([
 ]);
 
 function isAssetPath(path: string): boolean {
-  const dot = path.lastIndexOf(".");
-  if (dot < 0) return false;
-  return ASSET_EXTENSIONS.has(path.slice(dot + 1).toLowerCase());
-}
-
-function extOf(path: string): string {
-  const dot = path.lastIndexOf(".");
-  if (dot < 0) return "";
-  return path.slice(dot + 1).toLowerCase();
+  return ASSET_EXTENSIONS.has(extOf(path));
 }
 
 // Pull a short body preview starting at the label's declaration line.
@@ -270,9 +258,6 @@ export default function App() {
         if (addr != null) addrs.add(addr);
       }
     }
-    console.log("[App] breakpoints addrs =", [...addrs].map(a => "$" + a.toString(16).padStart(4, "0")),
-      "from lines:", Object.fromEntries([...bpLinesByFile].map(([f, ls]) => [f, [...ls]])),
-      "sourceMap files:", sourceMap ? [...sourceMap.locToAddr.keys()] : null);
     return addrs;
   }, [sourceMap, bpLinesByFile]);
 
@@ -391,19 +376,13 @@ export default function App() {
           augmented = overlaid;
         }
       }
-      console.log("[App] runAssemble: calling assemble main=", projectMain);
       const r = await assemble(projectMain, augmented, ["-i:."]);
-      console.log("[App] runAssemble: assemble returned ok=", r.ok, "xex=", r.xex?.length, "stderr=", r.stderr?.slice(0, 200));
       if (seq === assembleSeqRef.current) {
         if (recipeStderr) r.stderr = recipeStderr + r.stderr;
         setResult(r);
-        console.log("[App] runAssemble: setResult committed");
-      } else {
-        console.log("[App] runAssemble: seq stale, drop");
       }
       return r;
     } catch (e) {
-      console.error("[App] runAssemble: caught", e);
       const r: AssembleResult = {
         ok: false, stdout: "", stderr: `[runtime] ${String(e)}`, exitCode: 1,
       };
@@ -420,11 +399,9 @@ export default function App() {
   }, [runAssemble]);
 
   const onRun = useCallback(async () => {
-    console.log("[App] onRun start, result.ok =", result?.ok, "xex bytes =", result?.xex?.length);
     let r = result;
     if (!r) r = await runAssemble();
-    if (!r?.ok || !r.xex) { console.log("[App] onRun bail: no ok/xex"); return; }
-    console.log("[App] onRun setLoadedXex + running");
+    if (!r?.ok || !r.xex) return;
     setLoadedXex(r.xex);
     setBrokeOn(null);
     setRunning(true);
@@ -551,7 +528,6 @@ export default function App() {
   }, []);
 
   const canRun = !!result?.ok || !!loadedXex;
-  console.log("[App] render canRun =", canRun, "running =", running, "result.ok =", result?.ok, "result.xex =", result?.xex?.length, "loadedXex =", loadedXex?.length);
 
   const toggleBpAtCursor = useCallback(() => {
     const v = editorViewRef.current;

@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from "react";
+import { hex } from "../../lib/util/hex";
 import "./Debug.css";
 
 export interface CpuState {
@@ -15,7 +16,6 @@ const EMPTY: CpuState = {
   flags: { n: false, v: false, b: false, d: false, i: false, z: false, c: false },
 };
 
-const hex = (n: number, w: number) => n.toString(16).toUpperCase().padStart(w, "0");
 
 interface Props {
   state?: CpuState;

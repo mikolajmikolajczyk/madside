@@ -3,15 +3,7 @@
 // reference hashes. Unchanged files dedupe automatically.
 
 import { getDB } from "./db";
-
-async function sha256Hex(data: Uint8Array): Promise<string> {
-  const copy = new Uint8Array(data).buffer;
-  const buf = await crypto.subtle.digest("SHA-256", copy);
-  const arr = new Uint8Array(buf);
-  let hex = "";
-  for (let i = 0; i < arr.length; i++) hex += arr[i].toString(16).padStart(2, "0");
-  return hex;
-}
+import { sha256Hex } from "../util/hash";
 
 export interface SnapshotMeta {
   id: string;

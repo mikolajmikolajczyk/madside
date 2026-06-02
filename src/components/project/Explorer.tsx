@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { basename, dirname as parentDir } from "../../lib/util/path";
 import { FileTree } from "./FileTree";
 import { TextPromptDialog, ConfirmDialog } from "../ui/Dialog";
 import { Tip } from "../ui/Tooltip";
@@ -32,8 +33,6 @@ type DialogState =
   | { kind: "deleteFolder"; prefix: string };
 
 const joinPath = (dir: string, name: string) => (dir ? `${dir}/${name}` : name);
-const parentDir = (p: string) => { const i = p.lastIndexOf("/"); return i >= 0 ? p.slice(0, i) : ""; };
-const basename = (p: string) => { const i = p.lastIndexOf("/"); return i >= 0 ? p.slice(i + 1) : p; };
 
 export function Explorer(props: Props) {
   const [dialog, setDialog] = useState<DialogState>({ kind: "none" });

@@ -64,11 +64,7 @@ function parseCodeLine(s: string): LstCode | null {
 // MADS .lst emits `Source: leaf.a65` without the directory prefix even when we
 // pass it a path like "src/leaf.a65", so source-map keys are basenames. App
 // callers need to match by basename of their project path.
-function basename(p: string): string {
-  const cleaned = p.replace(/\\/g, "/").trim();
-  const i = cleaned.lastIndexOf("/");
-  return i >= 0 ? cleaned.slice(i + 1) : cleaned;
-}
+import { basename } from "./util/path";
 
 export function parseSourceMap(lst: string): SourceMap {
   const addrToLoc = new Map<number, SourceLoc>();

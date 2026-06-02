@@ -3,6 +3,7 @@
 // haven't changed since last run (sha-256 cache keyed by [projectId, output]).
 
 import { saveFile } from "../storage/project";
+import { sha256Hex } from "../util/hash";
 import { buildRegistry, type ProjectConverterSource } from "./registry";
 import type { Recipe } from "./types";
 
@@ -26,17 +27,6 @@ const hashCache = new Map<string, string>();   // key: projectId::output → "<i
 
 function recipeKey(projectId: string, output: string) {
   return projectId + "::" + output;
-}
-
-async function sha256Hex(data: Uint8Array): Promise<string> {
-  // Materialize a fresh ArrayBuffer copy so TS doesn't fret about
-  // ArrayBuffer vs SharedArrayBuffer in the digest input type.
-  const copy = new Uint8Array(data).buffer;
-  const buf = await crypto.subtle.digest("SHA-256", copy);
-  const arr = new Uint8Array(buf);
-  let hex = "";
-  for (let i = 0; i < arr.length; i++) hex += arr[i].toString(16).padStart(2, "0");
-  return hex;
 }
 
 function canonicalize(opts: Record<string, unknown> | undefined): string {

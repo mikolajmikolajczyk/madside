@@ -1,22 +1,26 @@
 // Editor resolver. Project `editors/*.js` shadow built-ins by meta.id; lookup
 // happens by file extension via `manifest.editors` map.
 
+import { createPluginLoader, type PluginSource } from "../util/pluginLoader";
 import type { EditorModule } from "./types";
 import bitmap from "./builtins/bitmap";
 
 const BUILTINS: EditorModule[] = [bitmap];
 
-interface CachedProjectModule {
-  hash: string;
-  module: EditorModule;
-  url: string;
-}
-const projectCache = new Map<string, CachedProjectModule>();   // key: path
+export type ProjectEditorSource = PluginSource;
 
-export interface ProjectEditorSource {
-  path: string;             // e.g. "editors/tilemap.js"
-  content: string;
-}
+const loader = createPluginLoader<EditorModule>((mod) => {
+  const m = mod as { meta?: unknown; default?: unknown };
+  // Default export is the EditorModule (`{ mount }`) or a function returning one.
+  const def = m.default as { mount?: unknown } | undefined;
+  if (!m.meta || !def || typeof def.mount !== "function") {
+    throw new Error(`editor module missing meta or default.mount`);
+  }
+  return {
+    meta: m.meta as EditorModule["meta"],
+    mount: def.mount as EditorModule["mount"],
+  };
+});
 
 export async function buildEditorRegistry(
   projectSources: ProjectEditorSource[],
@@ -25,53 +29,13 @@ export async function buildEditorRegistry(
   for (const b of BUILTINS) out.set(b.meta.id, b);
   for (const src of projectSources) {
     try {
-      const mod = await loadProjectModule(src);
-      if (mod) out.set(mod.meta.id, mod);
+      const mod = await loader.load(src);
+      out.set(mod.meta.id, mod);
     } catch (e) {
       console.warn(`editor load failed: ${src.path}`, e);
     }
   }
   return out;
-}
-
-async function loadProjectModule(src: ProjectEditorSource): Promise<EditorModule | null> {
-  const hash = await contentHashHex(src.content);
-  const cached = projectCache.get(src.path);
-  if (cached && cached.hash === hash) return cached.module;
-  if (cached) URL.revokeObjectURL(cached.url);
-
-  const blob = new Blob([src.content], { type: "text/javascript" });
-  const url = URL.createObjectURL(blob);
-  let mod: unknown;
-  try {
-    mod = await import(/* @vite-ignore */ url);
-  } catch (e) {
-    URL.revokeObjectURL(url);
-    throw e;
-  }
-  const m = mod as { meta?: unknown; default?: unknown };
-  // Default export is the EditorModule (`{ mount }`) or a function returning one.
-  const def = m.default as { mount?: unknown } | undefined;
-  if (!m.meta || !def || typeof def.mount !== "function") {
-    URL.revokeObjectURL(url);
-    throw new Error(`editor module missing meta or default.mount`);
-  }
-  const finalModule: EditorModule = {
-    meta: m.meta as EditorModule["meta"],
-    mount: def.mount as EditorModule["mount"],
-  };
-  projectCache.set(src.path, { hash, module: finalModule, url });
-  return finalModule;
-}
-
-async function contentHashHex(s: string): Promise<string> {
-  const bytes = new TextEncoder().encode(s);
-  const copy = new Uint8Array(bytes).buffer;
-  const buf = await crypto.subtle.digest("SHA-256", copy);
-  const arr = new Uint8Array(buf);
-  let hex = "";
-  for (let i = 0; i < arr.length; i++) hex += arr[i].toString(16).padStart(2, "0");
-  return hex;
 }
 
 export function listBuiltinEditors(): EditorModule[] {
@@ -89,12 +53,9 @@ export function resolveEditorId(
   const lc = ext.toLowerCase();
   const explicit = manifestEditors?.[lc];
   if (explicit) {
-    // Manifest holds a path like "editors/tilemap.js"; find the module whose
-    // source path matches (loader keys by meta.id, so we search by path key
-    // via a side-channel: store source path on meta? simpler — registry was
-    // built from source list, but we already returned the module by id. Here
-    // we accept either an id or a path; if it's a path we look up by id
-    // stripped from the basename).
+    // Manifest holds a path like "editors/tilemap.js". Registry keys
+    // are meta.id, so first try the raw value (a user may stick the id
+    // there directly) then strip path + ".js" extension.
     if (registry.has(explicit)) return explicit;
     const base = explicit.replace(/^.*\//, "").replace(/\.js$/, "");
     if (registry.has(base)) return base;

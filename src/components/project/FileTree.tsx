@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import * as ContextMenu from "@radix-ui/react-context-menu";
+import { basename, dirname as parentDir } from "../../lib/util/path";
 import "./FileTree.css";
 import "../ui/ui.css";
 
@@ -352,12 +353,3 @@ function collectFolderPaths(nodes: TreeNode[]): Set<string> {
   return out;
 }
 
-function parentDir(path: string): string {
-  const i = path.lastIndexOf("/");
-  return i >= 0 ? path.slice(0, i) : "";
-}
-
-function basename(path: string): string {
-  const i = path.lastIndexOf("/");
-  return i >= 0 ? path.slice(i + 1) : path;
-}
