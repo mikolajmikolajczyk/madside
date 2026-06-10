@@ -14,6 +14,10 @@ In-browser Web IDE pivoting from Atari-only to a plugin-based retro-development 
 | [`testing/`](testing/) | Both | Testing strategy + contract-test harness usage. To land in Foundation. |
 | [`skills/`](skills/) | AI agents | Local copies of `radicle` + `radboard` skills used by this project. |
 
+## When to write an ADR
+
+See [`adr/README.md`](adr/README.md) for the bar. ADRs are for decisions that constrain the app or plugin contracts; tooling / DX choices live in [`agents/dev-setup.md`](agents/dev-setup.md) instead.
+
 ## ADR index
 
 - [ADR-0001 — Plugin-based retro-development workbench](adr/0001-plugin-based-workbench.md)

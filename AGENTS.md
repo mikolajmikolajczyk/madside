@@ -17,6 +17,8 @@ In-browser Web IDE for retro hardware. Currently Atari 8-bit (MADS + Altirra was
 | Coding conventions, TypeScript rules, file naming | [`wiki/agents/conventions.md`](wiki/agents/conventions.md) |
 | Feature status (what works, what's in flight) | [`wiki/agents/status.md`](wiki/agents/status.md) |
 | Common dev commands (build, dev, typecheck) | [`wiki/agents/commands.md`](wiki/agents/commands.md) |
+| Tooling (Nix flake, direnv, pre-commit, static analysis) | [`wiki/agents/dev-setup.md`](wiki/agents/dev-setup.md) |
+| When to write an ADR vs update dev-setup | [`wiki/adr/README.md`](wiki/adr/README.md) |
 | Atari + plugin terminology | [`wiki/agents/glossary.md`](wiki/agents/glossary.md) |
 | How `mads.wasm` was built / how to rebuild | [`wiki/agents/mads-wasm-build.md`](wiki/agents/mads-wasm-build.md) |
 | How `altirra-core.wasm` was built / how to rebuild | [`wiki/agents/altirra-wasm-build.md`](wiki/agents/altirra-wasm-build.md) |
