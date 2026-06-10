@@ -15,6 +15,17 @@
     "noEmit": true,
     "jsx": "react-jsx",
 
+    /* Layer aliases (ADR-0002) */
+    "paths": {
+      "@core/*":     ["./src/core/*"],
+      "@ports/*":    ["./src/ports/*"],
+      "@adapters/*": ["./src/adapters/*"],
+      "@services/*": ["./src/services/*"],
+      "@plugins/*":  ["./src/plugins/*"],
+      "@app/*":      ["./src/app/*"],
+      "@ui/*":       ["./src/ui/*"]
+    },
+
     /* Linting */
     "noUnusedLocals": true,
     "noUnusedParameters": true,

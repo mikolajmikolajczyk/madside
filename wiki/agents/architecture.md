@@ -1,48 +1,71 @@
 # Architecture (current state)
 
-> This is the **current** as-built layout. Target architecture (plugin-based workbench, layered) lives in [`../adr/0001-plugin-based-workbench.md`](../adr/0001-plugin-based-workbench.md) and lands across milestones M2.5–M9.
+> Layered layout from [ADR-0002](../adr/0002-layering.md). Service extraction + plugin contracts arrive in M3–M9; for now the folders are placeholders for services and ports while business logic still mostly lives wherever it has lived since Phase 12.
 
-## Repo shape
+## Repo shape (ADR-0002 layout)
 
 ```
 src/
-  App.tsx          # root, layout, state glue (cpu, bp lines per file, sourceMap)
-  App.css          # grid: toolbar / [explorer | (editor + output) | (emu + debug)]
-  tokens.css       # design tokens (CSS variables — colors, type, spacing)
-  index.css        # global resets + button + .label utility
-  main.tsx         # createRoot, StrictMode
-  lib/
-    mads.ts        # WASI shim runner. assemble() emits xex/lst/lab.
-    madsLang.ts    # CodeMirror StreamLanguage. OPCODES + DIRECTIVES sets.
-    store.ts       # useProject() hook — files + activeName + updateActive.
-    emu.ts         # Emu wrapper: create/reset/loadXEX/advanceFrame/step/cpuState/readMem + start/suspendAudio
-    audio.ts       # WebAudioSink — implements SampledAudioSink, AudioContext @ machine rate, ScriptProcessorNode + ring buffer
-    sourceMap.ts   # MADS .lst parser. addrToLoc + locToAddr maps with include stack heuristic.
-    emu/backends/altirra.ts   # AltirraBackend implements EmuBackend
-    storage/                  # IDB schema, projects/files/blobs/snapshots
-    converters/               # built-in converter registry + builtins
-    editors/                  # plugin editor registry + builtins
-    util/{hash,path,hex,pluginLoader}.ts  # cross-cutting utilities
-  components/
-    layout/{MenuBar,DebugBar,StatusBar}.tsx
-    project/{Explorer,FileTree}.tsx
-    editor/Editor.tsx
-    debug/{Emulator,Debug,Output}.tsx
-    ui/                # Radix wrappers + reusable Dialog/Form atoms
-  hooks/               # split from App.tsx during Phase 12 cleanup
-    useAutoAssemble.ts
-    useBreakpointAddrs.ts
-    useCursorMemory.ts
-    useDebuggerShortcuts.ts
-    usePluginEditor.ts
-    useProjectLabels.ts
-    useSplitterWidth.ts
+  main.tsx               # Vite entry; renders @ui/App into #root
+
+  core/                  # pure utilities, zero side effects
+    hash.ts              # sha256 over Uint8Array / string
+    path.ts              # basename / dirname / extOf
+    hex.ts               # number → hex formatting / parsing
+
+  ports/                 # interfaces only (populated as services land in M3+)
+    index.ts
+
+  services/              # BuildService / RunService / DebugService / … (M3)
+    index.ts
+
+  adapters/              # port implementations
+    plugin-loader.ts     # Blob URL + dynamic import + sha256 cache
+    storage-idb/         # IDB schema, projects/files/blobs/snapshots
+    wasm-mads/           # MADS WASI runner + .lst source-map + .lab parser
+    emu/                 # EmuBackend interface + AltirraBackend impl
+
+  plugins/               # built-in plugin instances + registries (M3 splits registries into services)
+    converters/          # asset converters (Phase 7)
+    editors/             # plugin file editors (Phase 11)
+
+  app/                   # workbench wiring + non-React state
+    state/store.ts       # useProject() — files, activeName, updateActive
+    fileTemplates.ts     # seed text for "new file" of each known ext
+    labels.ts            # MADS label / equate / token registry
+
+  ui/                    # React tree + react-bound hooks + assets
+    App.tsx              # root; owns cpu / bp lines / source map / polling
+    App.css / tokens.css / index.css
+    components/
+      layout/{MenuBar,DebugBar,StatusBar,Splitter}.tsx
+      project/{Explorer,FileTree}.tsx
+      editor/{Editor,PluginEditor}.tsx
+      debug/{Emulator,Debug,Output}.tsx
+      asset/AssetPanel.tsx
+      history/HistoryDialog.tsx
+      ui/                # Radix wrappers + reusable Dialog/Form atoms
+    hooks/               # extracted from App.tsx in Phase 12
+      useAutoAssemble.ts
+      useBreakpointAddrs.ts
+      useCursorMemory.ts
+      useDebuggerShortcuts.ts
+      usePluginEditor.ts
+      useProjectLabels.ts
+      useSplitterWidth.ts
+    codemirror/          # CodeMirror StreamLanguage definitions
+      madsLang.ts
+      jsConverterLang.ts
+    assets/              # static assets (hero.png, svgs)
+
 public/
   wasm/mads.wasm              # MADS FPC → wasm32-wasip1 (1.9 MB)
   altirra/altirra-core.{wasm,js}  # Altirra wasm core (~4.6 MB + 133 KB)
 _notes/altirra/                # Fork sibling: mikolajmikolajczyk/AltirraSDL, branch madside-embed
 wiki/                          # All project documentation
 ```
+
+Path aliases follow the layer table — `@core/...`, `@ports/...`, `@adapters/...`, `@services/...`, `@plugins/...`, `@app/...`, `@ui/...`. Defined in `tsconfig.app.json` and `vite.config.ts` (single source of truth lives in tsconfig; Vite mirrors it for runtime).
 
 ## Data flow (current)
 
