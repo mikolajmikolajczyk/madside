@@ -5,7 +5,7 @@
 ## Status
 
 - **Nix flake (`d8935a9`)** — ✅ landed. `flake.nix` + `.envrc` at repo root, `nix develop` and `nix develop .#wasm` shells defined.
-- **Pre-commit + static analysis (`fa6ff3a`)** — ⏳ Foundation. Tools are provisioned by the flake; the `.pre-commit-config.yaml` lands with that issue.
+- **Pre-commit + static analysis (`fa6ff3a`)** — ✅ landed. `.pre-commit-config.yaml` at repo root, hook stack below. Most hooks are `stages: [manual]` during the Foundation baseline-cleanup pass; flip to `pre-commit` stage as each hook's baseline goes green.
 
 ## Toolchain: Nix flake (primary) + npm-only fallback
 

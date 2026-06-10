@@ -352,4 +352,3 @@ function collectFolderPaths(nodes: TreeNode[]): Set<string> {
   walk(nodes);
   return out;
 }
-

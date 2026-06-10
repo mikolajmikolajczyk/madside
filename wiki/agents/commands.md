@@ -19,6 +19,17 @@ pnpm preview         # serve dist/
 pnpm tsc --noEmit    # typecheck only
 ```
 
+## Lint / static analysis
+
+```sh
+pre-commit install                              # one-time per clone
+pre-commit run --all-files                      # default-stage hooks only (cheap, every commit)
+pre-commit run --all-files --hook-stage manual  # full suite — prettier, eslint, knip, madge, markdownlint, shellcheck, nixfmt, trivy, gitleaks
+pre-commit run <hook-id> --all-files --hook-stage manual   # one specific hook
+```
+
+Most hooks are still `stages: [manual]` during the Foundation cleanup pass. They get promoted to `pre-commit` stage as their baseline goes clean.
+
 ## Wasm rebuilds (rare, deliberate)
 
 ```sh

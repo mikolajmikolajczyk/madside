@@ -1,0 +1,133 @@
+# Pre-commit configuration for madside.
+#
+# Tooling runs from the Nix devShell (`nix develop`) or from
+# node_modules/.bin (`pnpm install`). Activate the hook in your local
+# clone with `pre-commit install`.
+#
+# Most hooks ship as `stages: [manual]` for the Foundation rollout —
+# they're available via `pre-commit run --all-files --hook-stage manual`
+# but don't block commits. Flip to `pre-commit` stage once each hook's
+# baseline is clean. UID-guard runs at every commit because it already
+# passes.
+
+default_install_hook_types: [pre-commit]
+default_stages: [pre-commit]
+
+repos:
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v6.0.0
+    hooks:
+      - id: trailing-whitespace
+      - id: end-of-file-fixer
+      - id: check-merge-conflict
+      - id: check-yaml
+        exclude: '^pnpm-lock\.yaml$'
+      - id: check-json
+        exclude: '^(\.vscode/|tsconfig.*\.json$)'
+      - id: check-added-large-files
+        args: ['--maxkb=8192']
+        # Wasm artifacts (mads.wasm ~1.9 MB, altirra-core.wasm ~4.6 MB)
+        # are intentionally committed. 8 MB cap catches accidents while
+        # leaving the bundled cores room.
+
+  - repo: local
+    hooks:
+      - id: prettier
+        name: prettier
+        language: system
+        entry: pnpm exec prettier --check
+        files: '\.(ts|tsx|js|jsx|css|md|json|yaml|yml)$'
+        exclude: '(^pnpm-lock\.yaml|^flake\.lock|^LICENSE|^public/(wasm|altirra)/|^wiki/skills/(radicle|radboard)\.md|^\.claude/skills/)'
+        stages: [manual]
+
+      - id: eslint
+        name: eslint
+        language: system
+        entry: pnpm exec eslint
+        files: '\.(ts|tsx|js|jsx)$'
+        exclude: '^(dist|node_modules)/'
+        stages: [manual]
+
+      - id: typecheck
+        name: tsc --noEmit
+        language: system
+        entry: pnpm exec tsc -p tsconfig.app.json --noEmit
+        pass_filenames: false
+        files: '\.(ts|tsx)$'
+        stages: [manual]
+
+      - id: knip
+        name: knip
+        language: system
+        entry: pnpm exec knip
+        pass_filenames: false
+        stages: [manual]
+
+      - id: madge-circular
+        name: madge --circular
+        language: system
+        entry: pnpm exec madge --circular --extensions ts,tsx src
+        pass_filenames: false
+        stages: [manual]
+
+      - id: markdownlint
+        name: markdownlint
+        language: system
+        entry: pnpm exec markdownlint
+        files: '\.md$'
+        exclude: '(^wiki/skills/(radicle|radboard)\.md|^\.claude/skills/|^LICENSE)'
+        stages: [manual]
+
+      - id: shellcheck
+        name: shellcheck
+        language: system
+        entry: shellcheck
+        files: '\.(sh|bash)$'
+        stages: [manual]
+
+      - id: nixfmt
+        name: nixfmt
+        language: system
+        entry: nixfmt --check
+        files: '\.nix$'
+        stages: [manual]
+
+      - id: statix
+        name: statix
+        language: system
+        entry: statix check
+        pass_filenames: false
+        files: '\.nix$'
+        stages: [manual]
+
+      - id: deadnix
+        name: deadnix
+        language: system
+        entry: deadnix --fail
+        files: '\.nix$'
+        stages: [manual]
+
+      - id: gitleaks
+        name: gitleaks
+        language: system
+        entry: gitleaks protect --staged --verbose
+        pass_filenames: false
+        stages: [manual]
+
+      - id: trivy-fs
+        name: trivy fs scan
+        language: system
+        entry: trivy fs --scanners vuln,secret,misconfig --exit-code 1 --severity HIGH,CRITICAL .
+        pass_filenames: false
+        stages: [manual]
+
+      # Active on every commit — already passes for the current repo
+      # state. Refuses to sign when user.email has no matching UID on
+      # the configured GPG signing key. Vendored in scripts/ so the
+      # repo is self-contained for non-home-manager hosts.
+      - id: gpg-uid-guard
+        name: gpg UID matches user.email
+        language: script
+        entry: scripts/uid-guard.sh
+        pass_filenames: false
+        always_run: true
