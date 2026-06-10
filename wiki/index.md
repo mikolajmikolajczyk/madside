@@ -23,7 +23,7 @@ See [`adr/README.md`](adr/README.md) for the bar. ADRs are for decisions that co
 - [ADR-0001 — Plugin-based retro-development workbench](adr/0001-plugin-based-workbench.md)
 - [ADR-0002 — Layering rules + dependency direction](adr/0002-layering.md)
 - [ADR-0003 — Plugin host model: main thread vs Web Worker](adr/0003-plugin-host-model.md)
-- ADR-0004 — Error boundary + degradation strategy *(Foundation, planned)*
+- [ADR-0004 — Error boundary + degradation strategy](adr/0004-error-boundaries.md)
 - ADR-0005 — Testing strategy: contract + headless integration hybrid *(Foundation, planned)*
 
 ## Conventions
