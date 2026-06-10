@@ -31,3 +31,4 @@ _notes/wasm-spike/build/
 # github.com/mikolajmikolajczyk/AltirraSDL on branch `madside-embed`.
 # See justfile (`just build-altirra-wasm`).
 _notes/altirra/
+_notes
