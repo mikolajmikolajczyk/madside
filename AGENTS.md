@@ -18,7 +18,8 @@ In-browser Web IDE for retro hardware. Currently Atari 8-bit (MADS + Altirra was
 | Feature status (what works, what's in flight) | [`wiki/agents/status.md`](wiki/agents/status.md) |
 | Common dev commands (build, dev, typecheck) | [`wiki/agents/commands.md`](wiki/agents/commands.md) |
 | Tooling (Nix flake, direnv, pre-commit, static analysis) | [`wiki/agents/dev-setup.md`](wiki/agents/dev-setup.md) |
-| When to write an ADR vs update dev-setup | [`wiki/adr/README.md`](wiki/adr/README.md) |
+| Working on issues (state columns, branch naming, patch flow, session handoff) | [`wiki/agents/working-on-issues.md`](wiki/agents/working-on-issues.md) |
+| Where to capture decisions (ADR vs decision log vs comment) | [`wiki/adr/README.md`](wiki/adr/README.md) |
 | Atari + plugin terminology | [`wiki/agents/glossary.md`](wiki/agents/glossary.md) |
 | How `mads.wasm` was built / how to rebuild | [`wiki/agents/mads-wasm-build.md`](wiki/agents/mads-wasm-build.md) |
 | How `altirra-core.wasm` was built / how to rebuild | [`wiki/agents/altirra-wasm-build.md`](wiki/agents/altirra-wasm-build.md) |
@@ -32,6 +33,20 @@ In-browser Web IDE for retro hardware. Currently Atari 8-bit (MADS + Altirra was
 ## Load-on-demand rule
 
 Don't read every wiki file at session start. Pick the file matching the task — they are sized to be loaded individually.
+
+## Session handoff
+
+When ending a session mid-issue, drop a one-line comment on the active issue describing what's done, what's next, and any blocker:
+
+```sh
+rad issue comment <hex7> -m "Session pause $(date -I). Done: <X>. Next: <Y>. Blocker: <Z|none>."
+```
+
+When starting a session, read recent comments on the most-recently-touched in-progress issue (`rad issue list --label state:in-progress`, then `rad issue show <hex7>`) before doing anything else. Forge-visible, agent-agnostic.
+
+For Claude Code specifically, the same handoff doubles into auto-memory at `~/.claude/projects/-home-mikolaj-src-madside/memory/`. Use whichever fits, but issue comments are the canonical surface.
+
+Details: [`wiki/agents/working-on-issues.md`](wiki/agents/working-on-issues.md).
 
 ## Working on issues / patches
 

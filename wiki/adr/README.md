@@ -2,6 +2,18 @@
 
 ADRs are append-only records of decisions that are **expensive to reverse**, **constrain future choices**, or **need explaining a year from now**. They are not a journal of every change. The bar for adding one is deliberately high so the index stays scannable.
 
+## The three-way split
+
+Madside captures decisions in three places. Pick the right one:
+
+| Surface | Use when | Lifetime |
+|---------|----------|----------|
+| **ADR** (this folder) | Decision constrains app shape, plugin contracts, layering, error/test/runtime semantics. Hard to reverse. Affects every future contributor and plugin author. | Project-lifetime, append-only |
+| **Decision log** ([`../decisions/`](../decisions/)) | Cross-cutting tool / library / process choice not tied to a single issue. Reversible in days. Examples: which EventBus library, whether wasm artifacts get rebuilt in CI, AI-agent permissions. | Until superseded; lightweight |
+| **Issue comment / commit message** | Decision tied to one issue or one commit. Examples: "for `c5aaf5a` we encode F-keys via POKEY high-range KBCODE not console keys." | Bound to that issue / commit |
+
+If a decision spans more than the immediate work but isn't an architectural promise, it belongs in `../decisions/` — not as a fourth ADR. ADR overhead (full template, ceremony, numbered slot, append-only discipline) is wasted on a library swap.
+
 ## Write an ADR when the decision
 
 - **Constrains the shape of the app or plugin contracts** — once shipped, plugin authors and downstream code depend on it.

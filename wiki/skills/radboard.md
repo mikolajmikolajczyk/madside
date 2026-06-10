@@ -61,6 +61,144 @@ This skill assumes you can already drive `rad` (see the `radicle` skill).
 | 7-char hex prefix in **commit subject** | Same — use this for multi-issue patches |
 | Issue `--solved` (not `--closed`) when finishing | Card moves to Closed column with "solved" status |
 
+## Best practices — the end-to-end workflow
+
+This is the canonical lifecycle for an issue once a board adopts radboard.
+Projects can rename or skip columns, but the transitions below cover the
+high-confidence path. Project-specific column names live in the project's
+own docs (e.g. `wiki/agents/working-on-issues.md`).
+
+### 1. Open an issue with priority + milestone (state optional)
+
+```bash
+rad issue open -t "Add CSV export" -d "..." \
+  --labels priority:medium \
+  --labels milestone:v0.1.0
+```
+
+- **Don't add a `state:*` label unless the project uses an explicit
+  intake column.** The built-in **Open** column already shows every
+  open issue with no `state:*` — "no state label" is the default
+  backlog state, not invisibility. Solo / small projects skip
+  `state:triage` entirely.
+- Use one of the four canonical `priority:*` values — anything else is
+  ignored for ordering.
+- Add a milestone label if the work is already scoped.
+
+If the project's workflow does include an intake column (e.g.
+multi-contributor projects that want to distinguish "filed but not yet
+sanity-checked" from "ready to pick up"), add `--labels state:triage`
+or whatever they name it. Check the project's own
+`working-on-issues.md` (or equivalent) before assuming.
+
+### 2. Pick it up: move the card
+
+Before writing code, label the transition. This is the only signal other
+contributors (human or agent) have that you've started.
+
+```bash
+rad issue label <ID> -a state:in-progress
+# if an intake column was set, strip it:
+rad issue label <ID> -d state:triage
+```
+
+If the project doesn't define `state:in-progress`, ask before inventing
+columns — column proliferation is the most common board-mess pattern.
+
+### 3. Encode the issue ID(s) when you push a patch
+
+Patch ↔ issue linking is **automatic** if you put the 7-char hex prefix
+of the issue ID in one of three places: patch title, patch description,
+or any commit subject. Pick the form that matches your patch:
+
+**Single-issue patch** — put it in the title.
+
+```
+[abc1234] feat: add CSV export
+```
+
+**Multi-issue patch** — keep the title clean, put one hex7 per commit
+subject. Radboard scans every commit subject in the patch.
+
+```
+Sprint cleanup batch                          ← patch title (no hex)
+├─ fix: validate input bounds for 0d948aa
+├─ feat: add csv export for 3ca544a
+└─ docs: clarify retry semantics for e9f1c22
+```
+
+Once the patch lands, those three issues will all show patch indicators
+on their cards.
+
+### 4. Move the card to review
+
+```bash
+rad issue label <ID> -d state:in-progress
+rad issue label <ID> -a state:review
+```
+
+Skip this step if the project doesn't use a review column (solo
+projects often don't — `state:in-progress` straight to merge is fine).
+
+### 5. Mark the issue solved when the patch merges
+
+```bash
+rad issue state --solved <ID>
+```
+
+> **Critical — use `--solved`, not `--closed`.** Solved means "the
+> work was done and shipped". Closed means "abandoned / won't fix /
+> obsolete". Radboard renders them with different badges. GitHub
+> muscle memory will lead you astray here — every issue you `--closed`
+> when you meant `--solved` looks like a wontfix on the board.
+
+The card automatically moves to the Closed column regardless of any
+lingering `state:*` label, so you don't need to strip it.
+
+### 6. Track dependencies as you go
+
+If you discover that issue A is blocked by issue B, add the label
+**while you remember**, not later:
+
+```bash
+rad issue label <A> -a blocked:<first-7-of-B>
+```
+
+Same for parent/child relationships once you scope an epic:
+
+```bash
+rad issue label <epic> -a epic
+rad issue label <child> -a parent:<first-7-of-epic>
+```
+
+The blocker graph and the children section in epic detail view both
+populate from these labels — there is no separate "set parent" UI.
+
+### 7. Use reactions, not comments, for "want this"
+
+Vote with `:+1:` / `:-1:` on the root issue body, not on a comment.
+Those reactions drive the 🔥 Most-Wanted toggle in the Open column.
+Comment threads track discussion; reactions track demand.
+
+```bash
+rad issue react <ID> :+1:
+```
+
+### What this earns you
+
+Following the seven steps above means:
+
+- Kanban view is correct without manual board housekeeping
+- Patch indicators light up on the right cards
+- Milestone progress bars are honest
+- Blockers + epics render in detail panels
+- Closed column accurately distinguishes solved vs abandoned
+- Most-Wanted toggle reflects real demand
+
+If you skip steps, none of these break — they just go fuzzy. The
+worst single skip is `--closed` instead of `--solved`, because the
+distinction is irreversible-looking to a casual reader of the board.
+
 ## Label conventions (the contract)
 
 Radboard parses four reserved label prefixes. Anything else is treated as
@@ -304,6 +442,67 @@ brackets, parens — the regex is `/[0-9a-f]{7}/gi`. Be wary of
 accidental matches: 7 consecutive hex chars in a path or random string
 will be treated as an issue prefix. Prefer the `(hex7)` or `[hex7]`
 form for clarity.
+
+## Naming conventions (branch, commit, patch)
+
+Radboard parses hex7 prefixes from branch names, commit subjects, and
+patch titles to link work to issues. Follow these formats so the board
+populates automatically.
+
+### Branch — `<hex7>-<short-slug>`
+
+```bash
+git switch -c abc1234-csv-export
+```
+
+Hex7 first, kebab-case slug after. No `feat/` or `fix/` prefix on
+branches — that belongs in commit subjects.
+
+### Patch title — `[<hex7>] <type>: <summary>`
+
+Single issue:
+
+```bash
+git push rad HEAD:refs/patches \
+  -o patch.message="[abc1234] feat: add csv export"
+```
+
+Multi-issue: clean title, hex7 in each commit subject instead.
+
+### Commit subjects — hex7 per commit for multi-issue patches
+
+Radboard scans every commit subject for hex7. Use one issue ID per
+commit subject when a patch resolves multiple issues:
+
+```
+fix: validate input bounds for 0d948aa
+feat: add csv export for 3ca544a
+docs: clarify retry semantics for e9f1c22
+```
+
+Patch title can stay clean (no hex7 needed when commits carry them).
+
+### Patch description — acceptance criteria as checklist
+
+Copy the issue's acceptance criteria into the patch description as a
+Markdown checklist. Reviewers tick boxes; radboard renders them in the
+patch detail view, keeping issue intent traceable through review.
+
+```
+## Acceptance criteria
+- [x] Export button in toolbar
+- [x] UTF-8 BOM for Excel compatibility
+- [ ] Unit tests for edge cases
+```
+
+### Closing — `--solved`, never `--closed`
+
+```bash
+rad issue state --solved <ID>
+```
+
+`--closed` = abandoned/won't-fix. `--solved` = merged as intended.
+Multi-issue patches: solve each issue separately.
 
 ## Issue state semantics (radicle gotcha worth repeating)
 
