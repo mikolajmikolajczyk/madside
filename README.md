@@ -3,7 +3,7 @@
 > Browser-native IDE for retro hardware. Started as an Atari 8-bit workbench (MADS + Altirra wasm), heading toward a plugin-based workbench that any retro platform can target.
 
 [![Status: alpha](https://img.shields.io/badge/status-alpha-orange)](#status)
-[![License: TBD](https://img.shields.io/badge/license-TBD-lightgrey)](#license)
+[![License: AGPL-3.0-or-later](https://img.shields.io/badge/license-AGPL--3.0--or--later-blue)](LICENSE)
 [![Canonical: Radicle](https://img.shields.io/badge/canonical-radicle-blueviolet)](#contributing)
 
 <!-- TODO: screenshot or animated demo here -->
@@ -90,7 +90,9 @@ For coding conventions see [`wiki/agents/conventions.md`](wiki/agents/convention
 
 ## License
 
-TBD. License decision tracked as a Foundation issue. Until then, treat the code as "all rights reserved, fork at your own risk". Plugin and contributor licensing finalises with the decision.
+[**AGPL-3.0-or-later**](LICENSE). Full text in [`LICENSE`](LICENSE), rationale in [ADR-0006](wiki/adr/0006-license-agpl.md).
+
+Short version: you may use, study, modify, and redistribute madside — including hosting it as a web service — provided that any modified version you distribute or expose over a network is also released under AGPL-3.0-or-later. Plugins may be released under any AGPL-compatible licence (MIT, Apache-2.0, GPL family, LGPL).
 
 ## Acknowledgements
 
