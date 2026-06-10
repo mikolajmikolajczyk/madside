@@ -32,3 +32,9 @@ _notes/wasm-spike/build/
 # See justfile (`just build-altirra-wasm`).
 _notes/altirra/
 _notes
+
+# Nix flake — direnv cache + emscripten cache + build outputs
+.direnv/
+.emcache/
+result
+result-*

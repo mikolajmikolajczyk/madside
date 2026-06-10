@@ -1,12 +1,22 @@
 # Common dev commands
 
+## Shell
+
+```sh
+nix develop          # default dev shell — node, pnpm, just, lint stack, security scanners
+nix develop .#wasm   # heavy: adds cmake, emscripten, fpc for wasm rebuilds
+# direnv users: just `cd` into the repo — .envrc activates the default shell automatically
+```
+
+Fallback path (no Nix): use any Node ≥ 22 + pnpm ≥ 10 on your PATH and skip `nix develop`.
+
 ## App
 
 ```sh
-npm run dev          # vite dev server
-npm run build        # tsc -b && vite build → dist/
-npm run preview      # serve dist/
-npx tsc --noEmit     # typecheck only
+pnpm dev             # vite dev server
+pnpm build           # tsc -b && vite build → dist/
+pnpm preview         # serve dist/
+pnpm tsc --noEmit    # typecheck only
 ```
 
 ## Wasm rebuilds (rare, deliberate)

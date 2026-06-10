@@ -4,7 +4,8 @@
 
 ## Status
 
-Planned in [Foundation milestone](../adr/0001-plugin-based-workbench.md#migration-phases). This page describes the target setup; the actual `flake.nix` / `.pre-commit-config.yaml` will land with issues `d8935a9` and `fa6ff3a`.
+- **Nix flake (`d8935a9`)** — ✅ landed. `flake.nix` + `.envrc` at repo root, `nix develop` and `nix develop .#wasm` shells defined.
+- **Pre-commit + static analysis (`fa6ff3a`)** — ⏳ Foundation. Tools are provisioned by the flake; the `.pre-commit-config.yaml` lands with that issue.
 
 ## Toolchain: Nix flake (primary) + npm-only fallback
 
