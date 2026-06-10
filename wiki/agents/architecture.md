@@ -13,8 +13,15 @@ src/
     path.ts              # basename / dirname / extOf
     hex.ts               # number → hex formatting / parsing
 
-  ports/                 # interfaces only (populated as services land in M3+)
+  ports/                 # interfaces only (implementations live in @adapters)
     index.ts
+    errors.ts            # WorkbenchError hierarchy + Result<T, E> helpers (ADR-0004)
+    logger.ts            # Logger contract
+    event-bus.ts         # EventBus + WorkbenchEvents declaration-merging map
+    command-registry.ts  # CommandRegistry (commands, dispatch, shortcuts)
+    plugin-registry.ts   # PluginRegistry (kinds, entries, project/builtin shadow)
+    project-repository.ts # ProjectRepository + Project / Snapshot models
+    services/            # Build/Run/Debug/AssetPipeline contracts (impl in M3)
 
   services/              # BuildService / RunService / DebugService / … (M3)
     index.ts
