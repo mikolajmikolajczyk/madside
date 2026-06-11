@@ -22,7 +22,7 @@ ADR-0005 mandates `assert<Kind>Plugin(impl)` Vitest fixture suites under `@ports
 | Kind | Harness | Tracked by |
 |------|---------|------------|
 | MachinePlugin | drift contract test (`c7cdf06`) covers bootEquates; full harness pending | — |
-| ToolchainPlugin | ⏳ pending | 6ede5d8 |
+| ToolchainPlugin | ✅ `@ports/test/assertToolchainPlugin` (6ede5d8) | — |
 | EmulatorPlugin / DebugAdapter / PanelPlugin | future (M4 follow / M6 / M7) | — |
 
 Built-in plugins import the harness; external plugin authors get it free.
