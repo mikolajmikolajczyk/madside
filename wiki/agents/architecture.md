@@ -26,6 +26,8 @@ src/
   services/              # workbench-core services (impl)
     index.ts
     event-bus.ts         # createEventBus() — typed pub/sub, hand-rolled, ~50 LOC
+                         #   Services emit; UI subscribes via useWorkbench().events.
+                         #   Replaces prop-drilled onBreak / onBuild / onProject* callbacks.
     command-registry.ts  # createCommandRegistry() — id-keyed Map + when() gate
     plugin-registry.ts   # createPluginRegistry() — per-kind Map; project shadows builtin
     build-service.ts     # createBuildService() — recipe engine → toolchain → events; DI'd via @app

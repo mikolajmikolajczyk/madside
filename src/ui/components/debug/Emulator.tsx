@@ -21,10 +21,12 @@ interface Props {
   memLen?: number;           // bytes to snapshot
   onState?: (s: CpuRegs) => void;
   onMem?: (bytes: Uint8Array) => void;
-  onBreak?: () => void;      // fired when breakpoint hit
+  // BP hits emit 'debug:bp-hit' on the workbench EventBus — consumers
+  // subscribe via useWorkbench().events.on('debug:bp-hit', ...) instead of
+  // prop drilling onBreak.
 }
 
-export function Emulator({ xex, running, stepTick, frameTick, breakpoints, memBase = 0x2000, memLen = 128, onState, onMem, onBreak }: Props) {
+export function Emulator({ xex, running, stepTick, frameTick, breakpoints, memBase = 0x2000, memLen = 128, onState, onMem }: Props) {
   const workbench = useWorkbench();
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const emuRef = useRef<RunBackend | null>(null);
@@ -202,7 +204,7 @@ export function Emulator({ xex, running, stepTick, frameTick, breakpoints, memBa
       blit();
       if (trap && trap()) {
         emit(emu);
-        onBreak?.();
+        workbench.events.emit('debug:bp-hit', { pc: emu.getPC() });
         return;
       }
       if (++snapshotTick >= 10) {
@@ -219,7 +221,7 @@ export function Emulator({ xex, running, stepTick, frameTick, breakpoints, memBa
       // Refresh CPU state on pause so Debug panel reflects where we stopped.
       emit(emu);
     };
-  }, [running, status, breakpoints, onState, onBreak]);
+  }, [running, status, breakpoints, onState, workbench]);
 
   return (
     <div className="emulator">

@@ -191,10 +191,16 @@ export default function App() {
   const onPause = useCallback(() => setRunning(false), []);
   const onStep = useCallback(() => setStepTick((t) => t + 1), []);
   const onStepFrame = useCallback(() => setFrameTick((t) => t + 1), []);
-  const onBreak = useCallback(() => {
-    setRunning(false);
-    setBrokeOn(null);
-  }, []);
+
+  // Subscribe to 'debug:bp-hit' from the workbench bus — Emulator.tsx emits
+  // it on every BP trap inside the frame loop. Replaces the previous onBreak
+  // prop-drilling pattern.
+  useEffect(() => {
+    return workbench.events.on('debug:bp-hit', () => {
+      setRunning(false);
+      setBrokeOn(null);
+    });
+  }, [workbench]);
 
   const onStop = useCallback(() => {
     // Unload the emulator: drop xex from the running side so the next Run
@@ -270,7 +276,8 @@ export default function App() {
   const handleSwitchProject = useCallback(async (id: string) => {
     if (!project.loaded) return;
     await project.switchProject(id);
-  }, [project]);
+    workbench.events.emit('project:switched', { projectId: id });
+  }, [project, workbench]);
 
   const [historyOpen, setHistoryOpen] = useState(false);
 
@@ -457,7 +464,6 @@ export default function App() {
             memLen={128}
             onState={setCpu}
             onMem={setMem}
-            onBreak={onBreak}
           />
           <Debug
             state={cpu ?? undefined}
