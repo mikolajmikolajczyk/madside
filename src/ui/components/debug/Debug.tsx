@@ -1,5 +1,7 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { hex } from "@core/hex";
+import type { MemoryRegion } from "@ports";
+import { useWorkbench } from "@app";
 import "./Debug.css";
 
 export interface CpuState {
@@ -27,6 +29,8 @@ interface Props {
 }
 
 export function Debug({ state = EMPTY, memory, memoryBase = 0x2000, onMemoryBaseChange, highlightStart, highlightLen }: Props) {
+  const workbench = useWorkbench();
+  const memoryMap = workbench.machine.memoryMap;
   return (
     <div className="debug">
       <div className="debug__panel">
@@ -59,6 +63,7 @@ export function Debug({ state = EMPTY, memory, memoryBase = 0x2000, onMemoryBase
           bytes={memory ?? new Uint8Array(0)}
           highlightStart={highlightStart}
           highlightLen={highlightLen}
+          memoryMap={memoryMap}
         />
       </div>
     </div>
@@ -95,10 +100,19 @@ function BaseInput({ value, onChange }: { value: number; onChange?: (addr: numbe
   );
 }
 
-function MemoryView({ base, bytes, highlightStart, highlightLen }:
-    { base: number; bytes: Uint8Array; highlightStart?: number; highlightLen?: number }) {
+function MemoryView({ base, bytes, highlightStart, highlightLen, memoryMap }:
+    { base: number; bytes: Uint8Array; highlightStart?: number; highlightLen?: number; memoryMap?: readonly MemoryRegion[] }) {
   const ROW = 16;
   const MAX_ROWS = 8;
+
+  // Region lookup — first region whose [start,end] contains addr. Memoised
+  // because MemoryView re-renders frequently and memoryMap is stable.
+  const regionAt = useMemo(() => {
+    const map = memoryMap ?? [];
+    return (addr: number): MemoryRegion | undefined =>
+      map.find((r) => addr >= r.start && addr <= r.end);
+  }, [memoryMap]);
+
   if (bytes.length === 0) return <pre className="memview">(empty — load .xex)</pre>;
   const hi0 = highlightStart ?? -1;
   const hi1 = hi0 + (highlightLen ?? 0);
@@ -108,6 +122,8 @@ function MemoryView({ base, bytes, highlightStart, highlightLen }:
   for (let i = 0; i < Math.min(bytes.length, ROW * MAX_ROWS); i += ROW) {
     const slice = Array.from(bytes.subarray(i, i + ROW));
     const rowAddr = base + i;
+    const region = regionAt(rowAddr);
+    const regionTitle = region ? `${region.name} (${region.kind})${region.chip ? ` — ${region.chip}` : ""}` : undefined;
     const hexCells = slice.map((b, j) => {
       const a = rowAddr + j;
       const cls = isHi(a) ? "memview__cell memview__cell--hi" : "memview__cell";
@@ -120,7 +136,7 @@ function MemoryView({ base, bytes, highlightStart, highlightLen }:
       return <span key={j} className={cls}>{ch}</span>;
     });
     rows.push(
-      <div key={i} className="memview__row">
+      <div key={i} className="memview__row" title={regionTitle}>
         <span className="memview__addr">{hex(rowAddr, 4)}</span>
         {"  "}
         <span className="memview__hex">{hexCells.flatMap((c, k) => k === 0 ? [c] : [" ", c])}</span>
