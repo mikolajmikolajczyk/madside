@@ -83,6 +83,17 @@ export const atariXl: MachinePlugin = {
   compatibleToolchains: ['mads'],
   compatibleEmulators: ['altirra-wasm'],
 
-  // bootEquates populated by c4f26da — atari.a65 ships from this plugin once
-  // the seed project flow learns to inject from MachinePlugin.bootEquates.
+  // Common Atari OS equates. Canonical source — @adapters/storage-idb/seed.ts
+  // currently has a parallel copy; the duplicate disappears when v0.5.0
+  // ToolchainPlugin work routes seed injection through workbench.machine.
+  bootEquates: {
+    path: 'src/atari.a65',
+    content: `; common Atari OS equates
+SAVMSC = $58
+COLOR0 = $2C4
+COLOR1 = $2C5
+COLOR2 = $2C6
+EOL    = $9B
+`,
+  },
 }

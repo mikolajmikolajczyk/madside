@@ -32,6 +32,10 @@ hello_world
         dta d'HELLO ATARI!', $ff
 `;
 
+// Parallel copy of @plugins/machine-atari-xl/atari-xl.ts::atariXl.bootEquates.
+// The adapter cannot import from @plugins per ADR-0002; the duplicate
+// disappears when v0.5.0 ToolchainPlugin work routes seed injection through
+// workbench.machine.bootEquates and seed.ts moves to workbench-aware code.
 const SEED_ATARI = `; common Atari OS equates
 SAVMSC = $58
 COLOR0 = $2C4
@@ -39,6 +43,9 @@ COLOR1 = $2C5
 COLOR2 = $2C6
 EOL    = $9B
 `;
+/** Exposed only for the contract test that catches drift vs
+ *  atariXl.bootEquates. Do not consume from app code. */
+export const SEED_ATARI_FOR_TESTS = SEED_ATARI;
 
 const SEED_MANIFEST: Manifest = {
   version: 1,
