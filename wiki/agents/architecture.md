@@ -23,12 +23,18 @@ src/
     project-repository.ts # ProjectRepository + Project / Snapshot models
     services/            # Build/Run/Debug/AssetPipeline contracts (impl in M3)
 
-  services/              # BuildService / RunService / DebugService / … (M3)
+  services/              # workbench-core services (impl)
     index.ts
+    event-bus.ts         # createEventBus() — typed pub/sub, hand-rolled, ~50 LOC
+    command-registry.ts  # createCommandRegistry() — id-keyed Map + when() gate
+    plugin-registry.ts   # createPluginRegistry() — per-kind Map; project shadows builtin
+    # Build/Run/Debug/AssetPipeline impls land here in M3
 
   adapters/              # port implementations
     plugin-loader.ts     # Blob URL + dynamic import + sha256 cache
     storage-idb/         # IDB schema, projects/files/blobs/snapshots
+    storage-memory/      # in-memory ProjectRepository (tests, future CLI)
+    logger/              # Console / Buffered / Noop logger adapters
     wasm-mads/           # MADS WASI runner + .lst source-map + .lab parser
     emu/                 # EmuBackend interface + AltirraBackend impl
 
@@ -37,6 +43,7 @@ src/
     editors/             # plugin file editors (Phase 11)
 
   app/                   # workbench wiring + non-React state
+    createWorkbench.ts   # headless workbench factory (DOM-free, test-friendly)
     state/store.ts       # useProject() — files, activeName, updateActive
     fileTemplates.ts     # seed text for "new file" of each known ext
     labels.ts            # MADS label / equate / token registry

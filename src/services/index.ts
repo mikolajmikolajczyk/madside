@@ -1,1 +1,3 @@
-// @services — populated in M3-services (BuildService, RunService, DebugService, …).
+export { createEventBus } from './event-bus'
+export { createCommandRegistry } from './command-registry'
+export { createPluginRegistry } from './plugin-registry'

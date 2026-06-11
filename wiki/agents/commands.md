@@ -57,9 +57,14 @@ Standard. Conventional Commits. GPG-signed. **Never commit without explicit user
 
 ## Tests
 
-To land in Foundation. When wired:
-
 ```sh
-pnpm test            # vitest run
-pnpm test:watch      # vitest watch
+pnpm test            # vitest --run (one-shot, default)
+pnpm test --watch    # vitest watch mode
 ```
+
+Test layout (ADR-0005):
+
+- `src/**/*.test.ts` — pure-logic units alongside source
+- `tests/integration/*.test.ts` — headless workbench + memory adapters
+- `tests/contract/*.test.ts` — plugin-kind contract harnesses (land per kind)
+- Playwright E2E deferred; guardrails tracked in `7659319`.

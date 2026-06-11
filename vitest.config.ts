@@ -1,12 +1,12 @@
-import { defineConfig } from 'vite'
-import react from '@vitejs/plugin-react'
+import { defineConfig } from 'vitest/config'
 import { fileURLToPath } from 'node:url'
 
 const r = (p: string) => fileURLToPath(new URL(p, import.meta.url))
 
-// https://vite.dev/config/
+// Vitest shares the path aliases with vite.config.ts. Tests run headless
+// (no jsdom by default) per ADR-0005; opt-in environment per test file via
+// `// @vitest-environment happy-dom`.
 export default defineConfig({
-  plugins: [react()],
   resolve: {
     alias: [
       { find: /^@core$/,       replacement: r('./src/core') },
@@ -24,5 +24,10 @@ export default defineConfig({
       { find: /^@ui$/,         replacement: r('./src/ui') },
       { find: /^@ui\//,        replacement: r('./src/ui/') },
     ],
+  },
+  test: {
+    include: ['src/**/*.test.ts', 'tests/**/*.test.ts'],
+    environment: 'node',
+    globals: false,
   },
 })
