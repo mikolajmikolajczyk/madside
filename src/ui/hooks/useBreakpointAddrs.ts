@@ -1,6 +1,5 @@
 import { useMemo } from "react";
 import type { SourceMap } from "@ports";
-import { basename } from "@core/path";
 
 /** Translate a per-file map of source breakpoint lines into a flat set
  *  of PC addresses, using the most recent assemble's source map. Lines
@@ -14,7 +13,10 @@ export function useBreakpointAddrs(
     const addrs = new Set<number>();
     if (!sourceMap) return addrs;
     for (const [file, lines] of bpLinesByFile) {
-      const fileMap = sourceMap.locToAddr.get(basename(file));
+      // SourceMap keys are full project paths post-30be0cf — match BP file
+      // paths verbatim. Avoids the same-basename collision that came up when
+      // the project starts using lib/ with file names mirroring src/.
+      const fileMap = sourceMap.locToAddr.get(file);
       if (!fileMap) continue;
       let sorted: number[] | null = null;
       for (const line of lines) {

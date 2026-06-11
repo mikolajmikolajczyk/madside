@@ -17,7 +17,7 @@ import { TextPromptDialog, ConfirmDialog } from "./components/ui/Dialog";
 import { useProject } from "@app/state";
 import type { CpuRegs } from "./components/debug/Emulator";
 import type { PanelPlugin } from "@ports";
-import { basename, extOf } from "@core/path";
+import { extOf } from "@core/path";
 import { useSplitterWidth } from "./hooks/useSplitterWidth";
 import { useDebuggerShortcuts } from "./hooks/useDebuggerShortcuts";
 import { useBreakpointAddrs } from "./hooks/useBreakpointAddrs";
@@ -133,7 +133,6 @@ export default function App() {
   const breakpoints = useBreakpointAddrs(sourceMap, bpLinesByFile);
 
   const activePath = project.loaded ? project.activePath : "";
-  const activeBase = basename(activePath);
 
   // File switch re-engages auto-follow: when the user opens a different
   // source, they want the memory view to land on that file's emit window.
@@ -142,7 +141,7 @@ export default function App() {
   }, [activePath]);
 
   const cursorHighlight = useCursorMemory({
-    sourceMap, activeBase, cursorLine, memBaseTouched, setMemBase,
+    sourceMap, activePath, cursorLine, memBaseTouched, setMemBase,
   });
 
   const onResumeFollow = useCallback(() => setMemBaseTouched(false), []);
@@ -201,8 +200,8 @@ export default function App() {
     if (!sourceMap || !cpu) return null;
     const loc = sourceMap.addrToLoc.get(cpu.regs.pc & 0xffff);
     if (!loc) return null;
-    return loc.file === activeBase ? loc.line : null;
-  }, [sourceMap, cpu, activeBase, running]);
+    return loc.file === activePath ? loc.line : null;
+  }, [sourceMap, cpu, activePath, running]);
 
   // Follow PC into included files: when the emulator is paused/stepping and
   // the next op lives in a different source file, switch the active editor
@@ -213,18 +212,20 @@ export default function App() {
     if (running || !cpu || !sourceMap || !projectFilesRef || !setActivePathFn) return;
     const loc = sourceMap.addrToLoc.get(cpu.regs.pc & 0xffff);
     if (!loc) return;
-    if (loc.file === activeBase) return;
-    const target = projectFilesRef.find((f) => f.path.endsWith("/" + loc.file) || f.path === loc.file);
+    if (loc.file === activePath) return;
+    // SourceMap keys are full project paths post-30be0cf — exact-match the
+    // file in the project tree, no basename fallback needed.
+    const target = projectFilesRef.find((f) => f.path === loc.file);
     if (target && target.path !== activePath) setActivePathFn(target.path);
-  }, [running, cpu, sourceMap, activeBase, activePath, projectFilesRef, setActivePathFn]);
+  }, [running, cpu, sourceMap, activePath, projectFilesRef, setActivePathFn]);
 
   const breakpointLines = useMemo(() => {
     return bpLinesByFile.get(activePath) ?? new Set<number>();
   }, [bpLinesByFile, activePath]);
 
   const lineAddrs = useMemo(() => {
-    return sourceMap?.locToAddr.get(activeBase) ?? new Map<number, number>();
-  }, [sourceMap, activeBase]);
+    return sourceMap?.locToAddr.get(activePath) ?? new Map<number, number>();
+  }, [sourceMap, activePath]);
 
   const toggleBpRef = useRef<((path: string, line: number) => void) | null>(null);
   toggleBpRef.current = project.loaded ? project.toggleBreakpoint : null;

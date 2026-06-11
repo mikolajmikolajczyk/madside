@@ -6,13 +6,20 @@
 //   "    10 				;==="                            ← comment / non-emitting (skip)
 //
 // Source file context: header "Source: source/main.xasm". When MADS includes,
-// it emits another "Source: <path>" marker. We track current file by basename.
+// it emits another "Source: <name>" marker. MADS strips the path — only the
+// basename appears in `Source:` lines. To uniquely identify files in projects
+// that have multiple files with the same basename (`src/main.a65` +
+// `lib/main.a65`), the parser reconstructs the full project-relative path by
+// walking icl directives in the parent file. Callers supply `files` (path →
+// content) + `main` for resolution; when omitted, the parser falls back to
+// basename keys (back-compat).
 
 // Canonical shape lives in @ports/source-map. Adapter still re-exports the
 // names so call sites that go through @adapters/wasm-mads keep compiling.
 export type { SourceLoc, SourceMap } from "@ports";
 
 import type { SourceLoc, SourceMap } from "@ports";
+import { basename, dirname } from "@core/path";
 
 const SOURCE_RE = /^Source:\s*(.+?)\s*$/;
 const LINENO_RE = /^\s*(\d+)\s/;
@@ -24,6 +31,8 @@ const PREFIX_RE = /^([0-9A-Fa-f]{4})(?:-([0-9A-Fa-f]{4}))?(>)?\s+/;
 const BYTES_RE = /^((?:[0-9A-Fa-f]{2}\s+)+)/;
 // Equate line "= XXXX label = value" — no emission.
 const EQUATE_RE = /^=\s+[0-9A-Fa-f]{4}/;
+// icl directive in MADS source: `icl 'path'` or `icl "path"`.
+const ICL_RE = /^\s*icl\s+['"]([^'"]+)['"]/i;
 
 interface LstCode { lineno: number; addr: number; bytes: number; }
 
@@ -57,12 +66,58 @@ function parseCodeLine(s: string): LstCode | null {
   return { lineno: parseInt(lm[1], 10), addr, bytes };
 }
 
-// MADS .lst emits `Source: leaf.a65` without the directory prefix even when we
-// pass it a path like "src/leaf.a65", so source-map keys are basenames. App
-// callers need to match by basename of their project path.
-import { basename } from "@core/path";
+export interface ParseSourceMapContext {
+  /** POSIX path of the entry file (`manifest.main`). Used to seed the include
+   *  stack with the first `Source:` line. */
+  main: string;
+  /** Project files indexed by full POSIX path. The parser scans them to
+   *  resolve icl targets when the same basename appears in multiple folders. */
+  files: ReadonlyMap<string, string>;
+}
 
-export function parseSourceMap(lst: string): SourceMap {
+/** Resolve an icl target (verbatim string from `icl '...'`) to a full
+ *  project-relative path. Search order:
+ *  1. As-is if it exists in files.
+ *  2. Relative to parent file's directory.
+ *  3. First file matching the basename. */
+function resolveIcl(
+  iclTarget: string,
+  parentPath: string,
+  files: ReadonlyMap<string, string>,
+): string {
+  if (files.has(iclTarget)) return iclTarget;
+  const parentDir = dirname(parentPath);
+  const sameDir = parentDir ? `${parentDir}/${iclTarget}` : iclTarget;
+  if (files.has(sameDir)) return sameDir;
+  const name = basename(iclTarget);
+  for (const p of files.keys()) {
+    if (basename(p) === name) return p;
+  }
+  return iclTarget;
+}
+
+/** Find the most recent icl directive in `parentContent` (up to and
+ *  including line `maxLine`) whose target basename matches `name`. Returns
+ *  the resolved full path, or null when no icl matches. */
+function reconstructIncludePath(
+  name: string,
+  parentPath: string,
+  parentContent: string,
+  maxLine: number,
+  files: ReadonlyMap<string, string>,
+): string | null {
+  const lines = parentContent.split(/\r?\n/);
+  const cap = Math.min(maxLine, lines.length);
+  for (let i = cap - 1; i >= 0; i--) {
+    const m = ICL_RE.exec(lines[i]);
+    if (!m) continue;
+    if (basename(m[1]) !== name) continue;
+    return resolveIcl(m[1], parentPath, files);
+  }
+  return null;
+}
+
+export function parseSourceMap(lst: string, ctx?: ParseSourceMapContext): SourceMap {
   const addrToLoc = new Map<number, SourceLoc>();
   const locToAddr = new Map<string, Map<number, number>>();
 
@@ -76,10 +131,20 @@ export function parseSourceMap(lst: string): SourceMap {
     stack.push({ file, lastLine: 0 });
   };
 
+  const resolveSourceLine = (name: string): string => {
+    if (!ctx) return basename(name);
+    if (stack.length === 0) return ctx.main;
+    const parent = stack[stack.length - 1];
+    const parentContent = ctx.files.get(parent.file);
+    if (!parentContent) return basename(name);
+    const fromIcl = reconstructIncludePath(basename(name), parent.file, parentContent, parent.lastLine || lines(parentContent), ctx.files);
+    return fromIcl ?? resolveIcl(name, parent.file, ctx.files);
+  };
+
   for (const rawLine of lst.split(/\r?\n/)) {
     const srcMatch = SOURCE_RE.exec(rawLine);
     if (srcMatch) {
-      pushFile(basename(srcMatch[1]));
+      pushFile(resolveSourceLine(srcMatch[1]));
       continue;
     }
     if (stack.length === 0) continue;
@@ -121,4 +186,11 @@ export function parseSourceMap(lst: string): SourceMap {
   }
 
   return { addrToLoc, locToAddr };
+}
+
+function lines(content: string): number {
+  // Cap used when we have a Source: but haven't yet seen any line numbers
+  // inside the parent — scan the whole parent. Rare but possible at the very
+  // top of the file.
+  return content.split(/\r?\n/).length;
 }

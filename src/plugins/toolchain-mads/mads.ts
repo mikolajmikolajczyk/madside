@@ -20,6 +20,15 @@ export const madsToolchain: ToolchainPlugin = {
     // MADS resolves icl directives relative to the project root. Pass -i:. so
     // the assembler treats the virtual FS root as the include base.
     const r = await assemble(input.main, sources, ['-i:.'])
+    // Build the text-decoded file map once for the source-map reconstructor —
+    // it scans icl directives in parent files to disambiguate same-basename
+    // includes (e.g. src/main.a65 + lib/main.a65).
+    const fileMap = new Map<string, string>()
+    const decoder = new TextDecoder()
+    for (const f of input.files) {
+      if (typeof f.content === 'string') fileMap.set(f.path, f.content)
+      else fileMap.set(f.path, decoder.decode(f.content))
+    }
     if (!r.ok || !r.xex) {
       // MADS occasionally exits 0 even when it failed to emit a binary
       // (parse errors during pass 2, missing labels reported as warnings).
@@ -42,7 +51,7 @@ export const madsToolchain: ToolchainPlugin = {
       binary: r.xex,
       stdout: r.stdout,
       stderr: r.stderr,
-      sourceMap: r.lst ? parseSourceMap(r.lst) : undefined,
+      sourceMap: r.lst ? parseSourceMap(r.lst, { main: input.main, files: fileMap }) : undefined,
       labels,
       extras: { lst: r.lst, lab: r.lab },
       exitCode: r.exitCode,

@@ -12,7 +12,8 @@ export interface CursorHighlight {
 
 interface Args {
   sourceMap: SourceMap | null;
-  activeBase: string;
+  /** Full project path of the active file (matches SourceMap keys post-30be0cf). */
+  activePath: string;
   cursorLine: number | null;
   memBaseTouched: boolean;
   setMemBase: (addr: number) => void;
@@ -27,11 +28,11 @@ interface Args {
  *  `locToAddr` (line-start map) alone covers the full range — combine
  *  both. */
 export function useCursorMemory({
-  sourceMap, activeBase, cursorLine, memBaseTouched, setMemBase,
+  sourceMap, activePath, cursorLine, memBaseTouched, setMemBase,
 }: Args): CursorHighlight | null {
   const highlight = useMemo<CursorHighlight | null>(() => {
     if (!sourceMap || cursorLine == null) return null;
-    const fileMap = sourceMap.locToAddr.get(activeBase);
+    const fileMap = sourceMap.locToAddr.get(activePath);
     if (!fileMap) return null;
     const entries = [...fileMap.entries()].sort((a, b) => a[0] - b[0]);
     const idx = entries.findIndex(([line]) => line >= cursorLine);
@@ -42,13 +43,13 @@ export function useCursorMemory({
     const start = cur[1];
     let countFromMap = 0;
     for (const [addr, loc] of sourceMap.addrToLoc) {
-      if (loc.file === activeBase && loc.line === cur[0] &&
+      if (loc.file === activePath && loc.line === cur[0] &&
           addr >= start && addr - start < 256) countFromMap++;
     }
     const countFromNext = next ? next[1] - start : 0;
     const len = Math.max(1, countFromMap, countFromNext);
     return { start, len };
-  }, [sourceMap, cursorLine, activeBase]);
+  }, [sourceMap, cursorLine, activePath]);
 
   useEffect(() => {
     if (memBaseTouched || highlight == null) return;
