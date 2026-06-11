@@ -11,7 +11,7 @@ In-browser Web IDE pivoting from Atari-only to a plugin-based retro-development 
 | [`adr/`](adr/) | Both | Architecture Decision Records. Append-only, numbered. |
 | [`architecture/`](architecture/) | Both | Diagrams, dependency graphs, layer overview. See `architecture/README.md`. |
 | [`plugin-api/`](plugin-api/) | Both | Plugin author contracts (Machine, Toolchain, Emulator, DebugAdapter, Panel, Converter, Editor). To land in M7. |
-| [`testing/`](testing/) | Both | Testing strategy + contract-test harness usage. To land in Foundation. |
+| [`testing/`](testing/) | Both | Testing strategy + contract-test harness usage. See `testing/e2e-guardrails.md`. |
 | [`skills/`](skills/) | AI agents | Local copies of `radicle` + `radboard` skills used by this project. |
 
 ## When to write an ADR

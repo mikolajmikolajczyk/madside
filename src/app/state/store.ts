@@ -75,7 +75,11 @@ export function useProject() {
     let cancelled = false;
     (async () => {
       try {
-        const loaded = await ensureActiveProject();
+        const urlProjectId =
+          typeof window !== "undefined"
+            ? new URLSearchParams(window.location.search).get("project") ?? undefined
+            : undefined;
+        const loaded = await ensureActiveProject(urlProjectId);
         const list = await listProjects();
         const bps = await loadBreakpoints(loaded.project.id);
         const snaps = await listSnapshots(loaded.project.id);

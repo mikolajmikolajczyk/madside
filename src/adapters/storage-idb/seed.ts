@@ -47,7 +47,13 @@ const SEED_MANIFEST: Manifest = {
   run: { default: { audio: true } },
 };
 
-export async function ensureActiveProject(): Promise<LoadedProject> {
+export async function ensureActiveProject(preferredId?: string): Promise<LoadedProject> {
+  // E2E + deep-link entry point: URL-supplied id wins if it resolves to a real
+  // project. Otherwise fall back to the persisted active id.
+  if (preferredId) {
+    const p = await loadProject(preferredId);
+    if (p) return p;
+  }
   const activeId = await getActiveProjectId();
   if (activeId) {
     const p = await loadProject(activeId);

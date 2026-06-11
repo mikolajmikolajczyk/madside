@@ -150,6 +150,7 @@ function NodeView(p: NodeViewProps) {
             onDoubleClick={() => p.onBeginRename(node.path, isFolder)}
             onKeyDown={rowKey}
             title={node.path}
+            data-testid={`filetree.row.${node.path}`}
           >
             <span className="filetree__caret">
               {isFolder ? (isExpanded ? "▾" : "▸") : ""}

@@ -37,29 +37,29 @@ export interface MenuBarProps {
 
 export function MenuBar(p: MenuBarProps) {
   return (
-    <div className="menubar">
+    <div className="menubar" data-testid="menubar">
       <Menu>
-        <MenuTrigger>File</MenuTrigger>
+        <MenuTrigger data-testid="menu.file">File</MenuTrigger>
         <MenuContent>
-          <MenuItem onSelect={p.onNewProject}>New project…</MenuItem>
-          <MenuItem onSelect={p.onAssemble} shortcut="Ctrl+S">Save</MenuItem>
+          <MenuItem data-testid="menu.file.new" onSelect={p.onNewProject}>New project…</MenuItem>
+          <MenuItem data-testid="menu.file.save" onSelect={p.onAssemble} shortcut="Ctrl+S">Save</MenuItem>
           <MenuSeparator />
-          <MenuItem onSelect={p.onRenameProject}>Rename…</MenuItem>
-          <MenuItem onSelect={p.onDuplicateProject}>Duplicate…</MenuItem>
-          <MenuItem onSelect={p.onDeleteProject} danger>Delete</MenuItem>
+          <MenuItem data-testid="menu.file.rename" onSelect={p.onRenameProject}>Rename…</MenuItem>
+          <MenuItem data-testid="menu.file.duplicate" onSelect={p.onDuplicateProject}>Duplicate…</MenuItem>
+          <MenuItem data-testid="menu.file.delete" onSelect={p.onDeleteProject} danger>Delete</MenuItem>
           <MenuSeparator />
-          <MenuItem onSelect={p.onExportZip}>Export ZIP</MenuItem>
-          <MenuItem onSelect={p.onImportZip}>Import ZIP…</MenuItem>
+          <MenuItem data-testid="menu.file.export-zip" onSelect={p.onExportZip}>Export ZIP</MenuItem>
+          <MenuItem data-testid="menu.file.import-zip" onSelect={p.onImportZip}>Import ZIP…</MenuItem>
           <MenuSeparator />
           {p.onSnapshotNow && (
-            <MenuItem onSelect={p.onSnapshotNow}>Snapshot now</MenuItem>
+            <MenuItem data-testid="menu.file.snapshot" onSelect={p.onSnapshotNow}>Snapshot now</MenuItem>
           )}
           {p.onOpenHistory && (
-            <MenuItem onSelect={p.onOpenHistory}>History…</MenuItem>
+            <MenuItem data-testid="menu.file.history" onSelect={p.onOpenHistory}>History…</MenuItem>
           )}
           <MenuSeparator />
           <MenuSub>
-            <MenuSubTrigger>Switch project</MenuSubTrigger>
+            <MenuSubTrigger data-testid="menu.file.switch-project">Switch project</MenuSubTrigger>
             <MenuSubContent>
               {p.projects.length === 0 ? (
                 <MenuLabel>(none)</MenuLabel>
@@ -67,6 +67,7 @@ export function MenuBar(p: MenuBarProps) {
                 p.projects.map((proj) => (
                   <MenuItem
                     key={proj.id}
+                    data-testid={`menu.file.switch-project.${proj.id}`}
                     disabled={proj.id === p.activeProjectId}
                     onSelect={() => p.onSwitchProject(proj.id)}
                   >
@@ -80,10 +81,10 @@ export function MenuBar(p: MenuBarProps) {
       </Menu>
 
       <Menu>
-        <MenuTrigger>Edit</MenuTrigger>
+        <MenuTrigger data-testid="menu.edit">Edit</MenuTrigger>
         <MenuContent>
-          <MenuItem onSelect={p.onUndo} shortcut="Ctrl+Z">Undo</MenuItem>
-          <MenuItem onSelect={p.onRedo} shortcut="Ctrl+Shift+Z">Redo</MenuItem>
+          <MenuItem data-testid="menu.edit.undo" onSelect={p.onUndo} shortcut="Ctrl+Z">Undo</MenuItem>
+          <MenuItem data-testid="menu.edit.redo" onSelect={p.onRedo} shortcut="Ctrl+Shift+Z">Redo</MenuItem>
           <MenuSeparator />
           <MenuItem disabled shortcut="Ctrl+X">Cut</MenuItem>
           <MenuItem disabled shortcut="Ctrl+C">Copy</MenuItem>
@@ -95,36 +96,36 @@ export function MenuBar(p: MenuBarProps) {
       </Menu>
 
       <Menu>
-        <MenuTrigger>Run</MenuTrigger>
+        <MenuTrigger data-testid="menu.run">Run</MenuTrigger>
         <MenuContent>
-          <MenuItem onSelect={p.onAssemble} shortcut="Ctrl+B" disabled={p.busy}>Build</MenuItem>
+          <MenuItem data-testid="menu.run.build" onSelect={p.onAssemble} shortcut="Ctrl+B" disabled={p.busy}>Build</MenuItem>
           <MenuSeparator />
-          <MenuItem onSelect={p.onRun} shortcut="F5" disabled={!p.canRun || p.running}>Run</MenuItem>
-          <MenuItem onSelect={p.onPause} shortcut="F6" disabled={!p.running}>Pause</MenuItem>
-          <MenuItem onSelect={p.onStop} shortcut="Shift+F5">Stop</MenuItem>
+          <MenuItem data-testid="menu.run.run" onSelect={p.onRun} shortcut="F5" disabled={!p.canRun || p.running}>Run</MenuItem>
+          <MenuItem data-testid="menu.run.pause" onSelect={p.onPause} shortcut="F6" disabled={!p.running}>Pause</MenuItem>
+          <MenuItem data-testid="menu.run.stop" onSelect={p.onStop} shortcut="Shift+F5">Stop</MenuItem>
           <MenuSeparator />
-          <MenuItem onSelect={p.onStep} shortcut="F10" disabled={p.running}>Step</MenuItem>
-          <MenuItem onSelect={p.onFrame} shortcut="F11" disabled={p.running}>Frame</MenuItem>
+          <MenuItem data-testid="menu.run.step" onSelect={p.onStep} shortcut="F10" disabled={p.running}>Step</MenuItem>
+          <MenuItem data-testid="menu.run.frame" onSelect={p.onFrame} shortcut="F11" disabled={p.running}>Frame</MenuItem>
           {p.onToggleBp && (
-            <MenuItem onSelect={p.onToggleBp} shortcut="F9">Toggle breakpoint</MenuItem>
+            <MenuItem data-testid="menu.run.bp-toggle" onSelect={p.onToggleBp} shortcut="F9">Toggle breakpoint</MenuItem>
           )}
           {p.onClearBp && (
-            <MenuItem onSelect={p.onClearBp}>Clear all breakpoints</MenuItem>
+            <MenuItem data-testid="menu.run.bp-clear" onSelect={p.onClearBp}>Clear all breakpoints</MenuItem>
           )}
           <MenuSeparator />
-          <MenuItem onSelect={p.onReset} shortcut="Ctrl+Shift+F5">Restart</MenuItem>
+          <MenuItem data-testid="menu.run.restart" onSelect={p.onReset} shortcut="Ctrl+Shift+F5">Restart</MenuItem>
         </MenuContent>
       </Menu>
 
       <Menu>
-        <MenuTrigger>Help</MenuTrigger>
+        <MenuTrigger data-testid="menu.help">Help</MenuTrigger>
         <MenuContent>
           <MenuItem disabled>About</MenuItem>
           <MenuItem disabled>Shortcuts…</MenuItem>
         </MenuContent>
       </Menu>
 
-      <div className="menubar__title">{p.activeProjectName}</div>
+      <div className="menubar__title" data-testid="menubar.title">{p.activeProjectName}</div>
     </div>
   );
 }
