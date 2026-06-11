@@ -42,6 +42,15 @@ export function Emulator({ xex, running, stepTick, frameTick, breakpoints, memBa
       try {
         const emu = await workbench.run.boot();
         if (cancelled) return;
+        // v0.4.0 sample-rate sanity check — MachinePlugin is the canonical
+        // truth; the emulator backend must agree. Drift means the wasm
+        // core's hardcoded kSampleRate and the MachinePlugin.audio.sampleRate
+        // diverged — fork rebuild needed (tracked in 40e0373).
+        if (emu.sampleRate !== undefined && emu.sampleRate !== workbench.machine.audio.sampleRate) {
+          workbench.logger.warn(
+            `sample rate drift: emu=${emu.sampleRate} machine=${workbench.machine.audio.sampleRate}`,
+          );
+        }
         emuRef.current = emu;
         setStatus("ready");
       } catch (e) {
