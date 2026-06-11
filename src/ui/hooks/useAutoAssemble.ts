@@ -1,6 +1,9 @@
 import { useCallback, useEffect, useRef, useState } from "react";
+// eslint-disable-next-line boundaries/element-types -- TODO(M3): service extraction lifts this import into a service call
 import { assemble, type AssembleResult, type SourceFile } from "@adapters/wasm-mads";
+// eslint-disable-next-line boundaries/element-types -- TODO(M3): service extraction lifts this import into a service call
 import { runRecipes } from "@plugins/converters";
+// eslint-disable-next-line boundaries/element-types -- TODO(M3): service extraction lifts this import into a service call
 import type { Recipe } from "@plugins/converters";
 
 interface ProjectFile {

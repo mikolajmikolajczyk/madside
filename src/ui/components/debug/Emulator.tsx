@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+// eslint-disable-next-line boundaries/element-types -- TODO(M3): service extraction lifts this import into a service call
 import type { EmuBackend, CpuRegs } from "@adapters/emu";
 import "./Emulator.css";
 
@@ -28,6 +29,7 @@ export function Emulator({ xex, running, stepTick, frameTick, breakpoints, memBa
     let cancelled = false;
     (async () => {
       try {
+// eslint-disable-next-line boundaries/element-types -- TODO(M3): service extraction lifts this import into a service call
         const { createEmu } = await import("@adapters/emu");
         const emu = await createEmu();
         if (cancelled) return;

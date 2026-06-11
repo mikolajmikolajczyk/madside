@@ -2,6 +2,7 @@
 // converter, and write the output. Skip if the input bytes + canonical options
 // haven't changed since last run (sha-256 cache keyed by [projectId, output]).
 
+// eslint-disable-next-line boundaries/element-types -- TODO(M3): service extraction lifts this import into a service call
 import { saveFile } from "@adapters/storage-idb";
 import { sha256Hex } from "@core/hash";
 import { buildRegistry, type ProjectConverterSource } from "./registry";

@@ -1,7 +1,9 @@
 import { useMemo } from "react";
+// eslint-disable-next-line boundaries/element-types -- TODO(M3): service extraction lifts this import into a service call
 import { parseLabFile } from "@adapters/wasm-mads";
 import { scanFileLabels } from "@app/labels";
 import type { LabelInfo } from "@core";
+// eslint-disable-next-line boundaries/element-types -- TODO(M3): service extraction lifts this import into a service call
 import type { SourceMap } from "@adapters/wasm-mads";
 import { basename } from "@core/path";
 

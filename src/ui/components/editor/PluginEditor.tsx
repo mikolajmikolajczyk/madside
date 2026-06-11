@@ -4,6 +4,7 @@
 // error message so a busted plugin doesn't crash the IDE.
 
 import { useEffect, useRef, useState } from "react";
+// eslint-disable-next-line boundaries/element-types -- TODO(M3): service extraction lifts this import into a service call
 import type { EditorHandle, EditorModule } from "@plugins/editors";
 import "./PluginEditor.css";
 

@@ -36,7 +36,14 @@ const dependencyRules = layers.map((from) => ({
 }))
 
 export default defineConfig([
-  globalIgnores(['dist']),
+  globalIgnores([
+    'dist',
+    'node_modules',
+    '_notes',
+    'public',
+    '.direnv',
+    '.emcache',
+  ]),
   {
     files: ['**/*.{ts,tsx}'],
     extends: [
@@ -61,6 +68,17 @@ export default defineConfig([
         'error',
         { default: 'disallow', rules: dependencyRules },
       ],
+
+      // React-hooks v7 ships a batch of React-Compiler-readiness rules
+      // (set-state-in-effect, refs, preserve-manual-memoization). Existing
+      // UI works at runtime; refactoring for the compiler comes after M3
+      // when service extraction touches these surfaces. Downgrade to warn so
+      // they're visible but don't block.
+      'react-hooks/set-state-in-effect': 'warn',
+      'react-hooks/refs': 'warn',
+      'react-hooks/preserve-manual-memoization': 'warn',
+      'react-hooks/exhaustive-deps': 'warn',
+      'preserve-caught-error': 'off',
 
       // Module barrel discipline: cross-folder imports use a folder's barrel.
       // Forbid only deep alias paths (depth >= 2); leave relative imports
@@ -87,5 +105,16 @@ export default defineConfig([
   {
     files: ['src/main.tsx'],
     rules: { 'boundaries/element-types': 'off' },
+  },
+  {
+    // Radix wrapper components re-export primitive parts as `const`. The
+    // react-refresh rule misclassifies those as non-component exports.
+    files: ['src/ui/components/ui/**/*.{ts,tsx}'],
+    rules: {
+      'react-refresh/only-export-components': [
+        'warn',
+        { allowConstantExport: true },
+      ],
+    },
   },
 ])

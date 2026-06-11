@@ -45,8 +45,10 @@ repos:
         language: system
         entry: pnpm exec eslint
         files: '\.(ts|tsx|js|jsx)$'
-        exclude: '^(dist|node_modules)/'
-        stages: [manual]
+        exclude: '^(dist|node_modules|_notes|public)/'
+        # Promoted to pre-commit stage after ad5e6e2 baseline cleanup.
+        # Errors only block; warnings (react-hooks v7 compiler-readiness,
+        # react-refresh re-export shapes) stay visible but don't fail.
 
       - id: typecheck
         name: tsc -b (project references)
