@@ -2,20 +2,50 @@ import React, { useEffect, useMemo, useState } from 'react'
 import type { MemoryRegion, PanelContext } from '@ports'
 import { hex } from '@core/hex'
 
-interface MemoryData {
-  bytes: Uint8Array
+interface MemoryUiData {
   base: number
   onBaseChange?: (addr: number) => void
   highlightStart?: number
   highlightLen?: number
+  /** Bytes to fetch on each refresh. Defaults to 128. */
+  length?: number
 }
 
+/** Auto-refreshes on debug:step-done + debug:bp-hit + run:state via
+ *  ctx.debug.readMemory. UI state (base, highlight, onBaseChange) still flows
+ *  through ctx.data because App.tsx owns the cursor → memBase coupling. */
 export function MemoryPanel({ ctx }: { ctx: PanelContext }) {
-  const data = (ctx.data.memory as MemoryData | undefined) ?? null
+  const data = (ctx.data.memory as MemoryUiData | undefined) ?? null
   const base = data?.base ?? 0x2000
-  const bytes = data?.bytes ?? new Uint8Array(0)
   const onBaseChange = data?.onBaseChange
+  const length = data?.length ?? 128
   const memoryMap = ctx.machine.memoryMap
+  const [bytes, setBytes] = useState<Uint8Array>(new Uint8Array(0))
+
+  useEffect(() => {
+    let cancelled = false
+    const refresh = async () => {
+      if (!ctx.debug.target()) return
+      try {
+        const fresh = await ctx.debug.readMemory(base, length)
+        if (!cancelled) setBytes(fresh)
+      } catch {
+        // Backend not booted yet.
+      }
+    }
+    void refresh()
+    const offs = [
+      ctx.events.on('debug:step-done', () => void refresh()),
+      ctx.events.on('debug:bp-hit', () => void refresh()),
+      ctx.events.on('run:state', (p) => {
+        if (p.status === 'paused' || p.status === 'loaded') void refresh()
+      }),
+    ]
+    return () => {
+      cancelled = true
+      for (const off of offs) off()
+    }
+  }, [ctx.debug, ctx.events, base, length])
 
   return (
     <div className="debug__panel debug__panel--memory">

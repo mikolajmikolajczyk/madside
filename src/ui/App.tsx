@@ -46,7 +46,6 @@ export default function App() {
   const [stepTick, setStepTick] = useState(0);
   const [frameTick, setFrameTick] = useState(0);
   const [cpu, setCpu] = useState<CpuRegs | null>(null);
-  const [mem, setMem] = useState<Uint8Array | null>(null);
   const [memBase, setMemBase] = useState(0x2000);
   const [memBaseTouched, setMemBaseTouched] = useState(false);
   const [brokeOn, setBrokeOn] = useState<number | null>(null);
@@ -81,7 +80,6 @@ export default function App() {
     if (!opts?.keepResult) setResult(null);
     setLoadedXex(null);
     setCpu(null);
-    setMem(null);
     if (!opts?.keepMemTouched) setMemBaseTouched(false);
     setStepTick(0);
     setFrameTick(0);
@@ -169,10 +167,11 @@ export default function App() {
   );
   const outputPanel = panelById.get('output');
 
+  // Live cpu + memory bytes flow through ctx.events now (panels self-fetch
+  // via DebugService on debug:step-done / debug:bp-hit / run:state). App
+  // still owns UI-side state — base addr + highlight + initial output.
   const panelData = useMemo(() => ({
-    cpu,
     memory: {
-      bytes: mem ?? new Uint8Array(0),
       base: memBase,
       onBaseChange: onMemBaseChange,
       highlightStart: cursorHighlight?.start,
@@ -183,7 +182,7 @@ export default function App() {
       stderr: result?.stderr ?? '',
       ok: result ? result.ok : null,
     },
-  }), [cpu, mem, memBase, onMemBaseChange, cursorHighlight, result]);
+  }), [memBase, onMemBaseChange, cursorHighlight, result]);
 
   const pcLine = useMemo(() => {
     // During run the PC moves too fast to track in the editor — hide
@@ -511,10 +510,7 @@ export default function App() {
             stepTick={stepTick}
             frameTick={frameTick}
             breakpoints={breakpoints}
-            memBase={memBase}
-            memLen={128}
             onState={setCpu}
-            onMem={setMem}
           />
           {project.loaded && (
             <Debug

@@ -17,16 +17,14 @@ interface Props {
   stepTick: number;          // bump to advance one CPU instruction
   frameTick: number;         // bump to advance one full frame (display updates)
   breakpoints?: Set<number>; // PC addresses to break on
-  memBase?: number;          // base address for memory snapshot
-  memLen?: number;           // bytes to snapshot
   onState?: (s: CpuRegs) => void;
-  onMem?: (bytes: Uint8Array) => void;
   // BP hits emit 'debug:bp-hit' on the workbench EventBus — consumers
   // subscribe via useWorkbench().events.on('debug:bp-hit', ...) instead of
-  // prop drilling onBreak.
+  // prop drilling onBreak. Memory snapshots flow through MemoryPanel's
+  // own ctx.debug.readMemory polling, not through here.
 }
 
-export function Emulator({ xex, running, stepTick, frameTick, breakpoints, memBase = 0x2000, memLen = 128, onState, onMem }: Props) {
+export function Emulator({ xex, running, stepTick, frameTick, breakpoints, onState }: Props) {
   const workbench = useWorkbench();
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const emuRef = useRef<RunBackend | null>(null);
@@ -95,7 +93,6 @@ export function Emulator({ xex, running, stepTick, frameTick, breakpoints, memBa
       regs: { a: raw.a, x: raw.x, y: raw.y, pc: raw.pc, sp: raw.sp },
       flags: { ...raw.flags },
     });
-    onMem?.(emu.readMem(memBase & 0xffff, memLen));
   };
 
   const pixelFormat = workbench.machine.display.pixelFormat;
@@ -178,13 +175,6 @@ export function Emulator({ xex, running, stepTick, frameTick, breakpoints, memBa
     blit();
     emit(emu);
   }, [frameTick, running, status, onState]);
-
-  // Refresh memory snapshot when base/len change while paused
-  useEffect(() => {
-    const emu = emuRef.current;
-    if (!emu || running || status !== "ready") return;
-    onMem?.(emu.readMem(memBase & 0xffff, memLen));
-  }, [memBase, memLen, running, status, onMem]);
 
   // Keyboard → emu. Listen only while the canvas has focus so the editor
   // remains usable when not interacting with the emu.

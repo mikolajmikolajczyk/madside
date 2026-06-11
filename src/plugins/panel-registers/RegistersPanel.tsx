@@ -1,20 +1,48 @@
-import type { PanelContext } from '@ports'
+import { useEffect, useState } from 'react'
+import type { FlagState, PanelContext, RegState } from '@ports'
 import { hex } from '@core/hex'
 
 interface CpuSnapshot {
-  regs: Record<string, number>
-  flags: Record<string, boolean>
+  regs: RegState
+  flags: FlagState
 }
 
-/** Internal renderer. Consumes ctx.debug.target() for descriptors so the
- *  panel renders identically across any DebugAdapter (Atari 6502 ships
- *  today; NES 6502 reuses the same MOS6502_* tables). */
+/** Subscribes to debug:step-done + debug:bp-hit + run:state and pulls fresh
+ *  register / flag snapshots from DebugService. Descriptors come from the
+ *  active DebugAdapter so the panel renders identically across 6502 machines
+ *  (Atari today, NES at M9). */
 export function RegistersPanel({ ctx }: { ctx: PanelContext }) {
   const target = ctx.debug.target()
   const registers = target?.registers ?? []
   const flags = target?.flags ?? []
-  const cpu = (ctx.data.cpu as CpuSnapshot | null | undefined) ?? null
-  const regs = cpu?.regs ?? {}
+  const [cpu, setCpu] = useState<CpuSnapshot | null>(null)
+
+  useEffect(() => {
+    let cancelled = false
+    const refresh = async () => {
+      if (!ctx.debug.target()) return
+      try {
+        const [regs, flagState] = await Promise.all([ctx.debug.registers(), ctx.debug.flags()])
+        if (!cancelled) setCpu({ regs, flags: flagState })
+      } catch {
+        // Backend not booted yet — re-fired on next event.
+      }
+    }
+    void refresh()
+    const offs = [
+      ctx.events.on('debug:step-done', () => void refresh()),
+      ctx.events.on('debug:bp-hit', () => void refresh()),
+      ctx.events.on('run:state', (p) => {
+        if (p.status === 'paused' || p.status === 'loaded') void refresh()
+      }),
+    ]
+    return () => {
+      cancelled = true
+      for (const off of offs) off()
+    }
+  }, [ctx.debug, ctx.events])
+
+  const regsVals = cpu?.regs ?? {}
   const flagState = cpu?.flags ?? {}
 
   return (
@@ -22,7 +50,7 @@ export function RegistersPanel({ ctx }: { ctx: PanelContext }) {
       <div className="debug__title label">Registers</div>
       <div className="debug__rows">
         {registers.map((d) => {
-          const v = regs[d.id] ?? 0
+          const v = regsVals[d.id] ?? 0
           const hexLen = d.width * 2
           const val = d.width === 2 ? '$' + hex(v, hexLen) : hex(v, hexLen)
           return (
