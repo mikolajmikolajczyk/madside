@@ -1,10 +1,8 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-// eslint-disable-next-line boundaries/element-types -- TODO(M3): service extraction lifts this import into a service call
+// eslint-disable-next-line boundaries/element-types -- TODO(M3): Manifest shape lifts to @ports as ProjectManifest in v0.5.0
 import type { Manifest } from "@adapters/storage-idb";
-// eslint-disable-next-line boundaries/element-types -- TODO(M3): service extraction lifts this import into a service call
-import type { ConverterMeta, ConverterModule, OptionSpec, Recipe } from "@plugins/converters";
-// eslint-disable-next-line boundaries/element-types -- TODO(M3): service extraction lifts this import into a service call
-import { buildRegistry, type ProjectConverterSource } from "@plugins/converters";
+import type { ConverterMeta, ConverterModule, OptionSpec, Recipe } from "@ports";
+import { buildConverterRegistry as buildRegistry, type ProjectConverterSource } from "@app";
 import "./AssetPanel.css";
 
 interface Props {

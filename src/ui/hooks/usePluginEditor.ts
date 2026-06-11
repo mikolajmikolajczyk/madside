@@ -1,8 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
-// eslint-disable-next-line boundaries/element-types -- TODO(M3): service extraction lifts this import into a service call
-import { buildEditorRegistry, resolveEditorId } from "@plugins/editors";
-// eslint-disable-next-line boundaries/element-types -- TODO(M3): service extraction lifts this import into a service call
-import type { EditorModule } from "@plugins/editors";
+import { buildEditorRegistry, resolveEditorId } from "@app";
+import type { EditorModule } from "@ports";
 import { extOf } from "@core/path";
 
 interface ProjectFile {

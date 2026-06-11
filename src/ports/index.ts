@@ -38,6 +38,14 @@ export type {
   OptionType,
   Recipe,
 } from './plugin-converter'
+export type {
+  EditorAsset,
+  EditorContext,
+  EditorHandle,
+  EditorMeta,
+  EditorModule,
+  EditorMount,
+} from './plugin-editor'
 
 // Toolchain output types
 export type { SourceLoc, SourceMap } from './source-map'

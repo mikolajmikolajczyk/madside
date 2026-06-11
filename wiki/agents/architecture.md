@@ -49,6 +49,7 @@ src/
   app/                   # workbench wiring + non-React state
     createWorkbench.ts   # headless workbench factory (DOM-free, test-friendly)
     workbench-context.tsx # React provider + useWorkbench() — wires IDB / console adapters
+    plugin-registry-glue.ts # supervised re-exports of @plugins helpers for @ui
     state/store.ts       # useProject() — files, activeName, updateActive
     fileTemplates.ts     # seed text for "new file" of each known ext
     labels.ts            # MADS label / equate / token registry
