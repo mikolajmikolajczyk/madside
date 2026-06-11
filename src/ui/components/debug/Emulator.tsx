@@ -166,6 +166,10 @@ export function Emulator({ xex, running, stepTick, frameTick, breakpoints, memBa
       const charCode = e.key.length === 1 ? e.key.charCodeAt(0) : 0;
       let mods = 0;
       if (e.shiftKey) mods |= 2;   // KeyFlags.Shift
+      // event.keyCode is deprecated but the C++ sendKey expects a numeric
+      // Win32-style code. v0.4.0 MachinePlugin.input lifts this behind a
+      // proper code → KBCODE map driven by event.code.
+      // eslint-disable-next-line @typescript-eslint/no-deprecated
       emu.sendKey(e.keyCode, charCode, down, mods);
     };
     const onDown = (e: KeyboardEvent) => fwd(e, true);

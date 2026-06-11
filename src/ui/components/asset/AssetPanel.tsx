@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
+import { byteHex, hex } from "@core/hex";
 // eslint-disable-next-line boundaries/element-types -- TODO(M3): Manifest shape lifts to @ports as ProjectManifest in v0.5.0
 import type { Manifest } from "@adapters/storage-idb";
 import type { ConverterMeta, ConverterModule, OptionSpec, Recipe } from "@ports";
@@ -267,9 +268,9 @@ function HexPreview({ bytes }: { bytes: Uint8Array }) {
     const max = Math.min(bytes.length, 256);
     for (let i = 0; i < max; i += 16) {
       const slice = bytes.subarray(i, i + 16);
-      const hex = Array.from(slice, (b) => b.toString(16).padStart(2, "0")).join(" ");
+      const hexBytes = Array.from(slice, (b) => byteHex(b)).join(" ");
       const ascii = Array.from(slice, (b) => (b >= 0x20 && b < 0x7f ? String.fromCharCode(b) : ".")).join("");
-      lines.push(i.toString(16).padStart(4, "0") + "  " + hex.padEnd(48, " ") + "  " + ascii);
+      lines.push(hex(i, 4) + "  " + hexBytes.padEnd(48, " ") + "  " + ascii);
     }
     ref.current.textContent = lines.join("\n");
   }, [bytes]);

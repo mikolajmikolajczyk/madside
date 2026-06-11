@@ -1,6 +1,10 @@
 import { useEffect, useMemo } from "react";
 import type { SourceMap } from "@ports";
 
+/** Memory view aligns the visible window to 128-byte pages — same boundary
+ *  ANTIC display lists use for character data. Mask = page size - 1, inverted. */
+const MEMORY_VIEW_PAGE_MASK = 0xff80;
+
 export interface CursorHighlight {
   start: number;
   len: number;
@@ -48,7 +52,7 @@ export function useCursorMemory({
 
   useEffect(() => {
     if (memBaseTouched || highlight == null) return;
-    setMemBase(highlight.start & 0xff80);   // align to 128-byte page
+    setMemBase(highlight.start & MEMORY_VIEW_PAGE_MASK);
   }, [highlight, memBaseTouched, setMemBase]);
 
   return highlight;
