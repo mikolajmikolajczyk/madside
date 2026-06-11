@@ -18,6 +18,12 @@ export interface EmuBackend {
 
   /** Load a `.xex` image and reset; audio buffers are flushed. */
   loadXEX(xex: Uint8Array): void;
+  /** Load a `.atr` disk image, reset, autoboot if present. */
+  loadATR(atr: Uint8Array): void;
+  /** Load a `.car` cartridge image, reset; autodetects mapper. */
+  loadCAR(car: Uint8Array): void;
+  /** Load a `.cas` cassette image, reset, set up for SIO load. */
+  loadCAS(cas: Uint8Array): void;
 
   /** Advance until next frame or until a breakpoint is hit. Returns cycles used. */
   advanceFrame(trap?: () => boolean): number;

@@ -1,4 +1,5 @@
 import type {
+  EmuMediaFormat,
   EmulatorTrapError as EmulatorTrapErrorType,
   EventBus,
   Logger,
@@ -7,6 +8,21 @@ import type {
   RunStatus,
 } from '@ports'
 import { EmulatorTrapError, err, ok } from '@ports'
+
+/** Detect media format from leading magic bytes. Falls back to 'xex' which
+ *  has the loosest format (any binary). */
+function detectFormat(bytes: Uint8Array): EmuMediaFormat {
+  if (bytes.length >= 2) {
+    // ATR header magic: 0x96 0x02
+    if (bytes[0] === 0x96 && bytes[1] === 0x02) return 'atr'
+  }
+  if (bytes.length >= 4) {
+    const tag = String.fromCharCode(bytes[0]!, bytes[1]!, bytes[2]!, bytes[3]!)
+    if (tag === 'CART') return 'car'
+    if (tag === 'FUJI') return 'cas'
+  }
+  return 'xex'
+}
 
 // RunService wraps an EmuBackend created on first load(). Status transitions
 // emit 'run:state' on the workbench EventBus. Backend instantiation is async
@@ -48,13 +64,17 @@ export function createRunService(deps: RunServiceDeps): RunService {
       return ensureBackend()
     },
 
-    async load(binary) {
+    async load(binary, format) {
       try {
         const b = await ensureBackend()
-        // EmuBackend exposes loadXEX, not load. Cast through the wider shape
-        // — RunBackend doesn't declare loadXEX because once we lift behind a
-        // MachinePlugin (M4) the file format becomes per-machine.
-        ;(b as RunBackend & { loadXEX(bytes: Uint8Array): void }).loadXEX(binary)
+        const fmt = format ?? detectFormat(binary)
+        const loader =
+          fmt === 'atr' ? b.loadATR :
+          fmt === 'car' ? b.loadCAR :
+          fmt === 'cas' ? b.loadCAS :
+          b.loadXEX
+        if (!loader) throw new Error(`backend has no loader for ${fmt}`)
+        loader.call(b, binary)
         setStatus('loaded')
         return ok(undefined)
       } catch (cause) {

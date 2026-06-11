@@ -11,6 +11,9 @@ import type { CpuRegs, EmuBackend } from "./backend";
 interface AltirraCoreInstance {
   reset(): void;
   loadXEX(bytes: Uint8Array): boolean;
+  loadATR(bytes: Uint8Array): boolean;
+  loadCAR(bytes: Uint8Array): boolean;
+  loadCAS(bytes: Uint8Array): boolean;
   advanceFrame(trap?: (() => boolean) | null): number;
   setBreakpoints(addrs: number[]): void;
   step(): number;
@@ -89,16 +92,25 @@ export class AltirraBackend implements EmuBackend {
     this.refreshPixels();
   }
 
-  loadXEX(xex: Uint8Array) {
+  loadXEX(xex: Uint8Array) { this.loadMedia('xex', xex); }
+  loadATR(atr: Uint8Array) { this.loadMedia('atr', atr); }
+  loadCAR(car: Uint8Array) { this.loadMedia('car', car); }
+  loadCAS(cas: Uint8Array) { this.loadMedia('cas', cas); }
+
+  private loadMedia(format: 'xex' | 'atr' | 'car' | 'cas', bytes: Uint8Array) {
+    const fn = format === 'xex' ? this.core.loadXEX
+             : format === 'atr' ? this.core.loadATR
+             : format === 'car' ? this.core.loadCAR
+             : this.core.loadCAS;
     try {
-      this.core.loadXEX(xex);
+      fn.call(this.core, bytes);
     } catch (e) {
       // Embind throws Wasm exceptions as `{ excPtr }` — decode if we
       // have the message helper bound.
       const ePtr = (e as { excPtr?: number })?.excPtr;
       if (ePtr != null && modulePromiseRef?.getExceptionMessage) {
         const msg = modulePromiseRef.getExceptionMessage(ePtr);
-        throw new Error(`AltirraCore.loadXEX: ${msg}`);
+        throw new Error(`AltirraCore.load${format.toUpperCase()}: ${msg}`);
       }
       throw e;
     }

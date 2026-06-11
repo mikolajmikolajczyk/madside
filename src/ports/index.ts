@@ -82,6 +82,7 @@ export type {
   BuildResult,
   BuildService,
   DebugService,
+  EmuMediaFormat,
   FlagState,
   RecipeRunResult,
   RegState,

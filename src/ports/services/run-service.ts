@@ -8,6 +8,10 @@
 
 import type { EmulatorTrapError, Result } from '../errors'
 
+/** Concrete file format the machine's emulator can load. v0.4.0 ships with
+ *  Atari-specific tags; the union widens as machine plugins add formats. */
+export type EmuMediaFormat = 'xex' | 'atr' | 'car' | 'cas'
+
 export type RunStatus = 'idle' | 'loaded' | 'running' | 'paused' | 'crashed'
 
 /** Minimal facade the UI loops touch directly. RunService delegates here for
@@ -17,6 +21,12 @@ export interface RunBackend {
   readonly height: number
   readonly sampleRate?: number
   readonly pixels: Uint32Array
+  /** Per-format media loaders. Backends that only support a single format
+   *  throw from the others. */
+  loadXEX?(bytes: Uint8Array): void
+  loadATR?(bytes: Uint8Array): void
+  loadCAR?(bytes: Uint8Array): void
+  loadCAS?(bytes: Uint8Array): void
   advanceFrame(trap?: () => boolean): number
   step(): number
   frameRefresh(): void
@@ -36,7 +46,7 @@ export interface RunService {
    *  return the same backend instance. */
   boot(): Promise<RunBackend>
 
-  load(binary: Uint8Array): Promise<Result<void, EmulatorTrapError>>
+  load(binary: Uint8Array, format?: EmuMediaFormat): Promise<Result<void, EmulatorTrapError>>
   run(): void
   pause(): void
   reset(): void
