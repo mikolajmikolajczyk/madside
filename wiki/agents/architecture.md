@@ -28,7 +28,8 @@ src/
     event-bus.ts         # createEventBus() — typed pub/sub, hand-rolled, ~50 LOC
     command-registry.ts  # createCommandRegistry() — id-keyed Map + when() gate
     plugin-registry.ts   # createPluginRegistry() — per-kind Map; project shadows builtin
-    # Build/Run/Debug/AssetPipeline impls land here in M3
+    build-service.ts     # createBuildService() — recipe engine → toolchain → events; DI'd via @app
+    # Run/Debug/AssetPipeline impls land here in v0.3.0+
 
   adapters/              # port implementations
     plugin-loader.ts     # Blob URL + dynamic import + sha256 cache
@@ -45,6 +46,7 @@ src/
 
   app/                   # workbench wiring + non-React state
     createWorkbench.ts   # headless workbench factory (DOM-free, test-friendly)
+    workbench-context.tsx # React provider + useWorkbench() — wires IDB / console adapters
     state/store.ts       # useProject() — files, activeName, updateActive
     fileTemplates.ts     # seed text for "new file" of each known ext
     labels.ts            # MADS label / equate / token registry

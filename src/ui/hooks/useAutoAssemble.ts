@@ -1,10 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-// eslint-disable-next-line boundaries/element-types -- TODO(M3): service extraction lifts this import into a service call
-import { assemble, type AssembleResult, type SourceFile } from "@adapters/wasm-mads";
-// eslint-disable-next-line boundaries/element-types -- TODO(M3): service extraction lifts this import into a service call
-import { runRecipes } from "@plugins/converters";
-// eslint-disable-next-line boundaries/element-types -- TODO(M3): service extraction lifts this import into a service call
-import type { Recipe } from "@plugins/converters";
+import type { BuildInput, BuildResult, BuildService, Recipe } from "@ports";
 
 interface ProjectFile {
   path: string;
@@ -12,89 +7,114 @@ interface ProjectFile {
 }
 
 interface Args {
+  buildService: BuildService;
   files: ProjectFile[] | null;
   main: string | null;
   recipes: Recipe[] | null | undefined;
   projectId: string | null;
 }
 
+/** Combined build outcome the editor surfaces — mirrors the legacy
+ *  AssembleResult shape so existing source-map / breakpoint code keeps
+ *  working without an additional adapter layer in the UI. */
+export interface AutoAssembleOutcome {
+  ok: boolean;
+  xex?: Uint8Array;
+  lst?: string;
+  lab?: string;
+  stdout: string;
+  stderr: string;
+  exitCode: number;
+}
+
 interface UseAutoAssembleResult {
-  result: AssembleResult | null;
-  setResult: (r: AssembleResult | null) => void;
+  result: AutoAssembleOutcome | null;
+  setResult: (r: AutoAssembleOutcome | null) => void;
   busy: boolean;
   /** Force-trigger an assemble now (skip the 400ms debounce). Returns
    *  the result whose seq is freshest at completion; stale builds are
    *  dropped silently and yield the latest committed result. */
-  runAssemble: () => Promise<AssembleResult | null>;
+  runAssemble: () => Promise<AutoAssembleOutcome | null>;
 }
 
-/** Auto-assemble pipeline:
+const toOutcome = (r: BuildResult): AutoAssembleOutcome => ({
+  ok: true,
+  xex: r.binary,
+  lst: r.listing,
+  lab: (r.extras as { labels?: string } | undefined)?.labels,
+  stdout: r.stdout,
+  stderr: r.stderr,
+  exitCode: 0,
+});
+
+/** Auto-assemble pipeline. Now a thin React-side wrapper around BuildService:
  *
  *   1. On every change to `files / main / recipes / projectId`, debounce
- *      400 ms then call `runAssemble`.
- *   2. `runAssemble` itself runs the recipe engine first (overlaying
- *      freshly-generated outputs on top of the in-IDB file list so the
- *      assembler sees them this build), then assembles the main file.
- *   3. A monotonically-increasing seq counter race-guards concurrent
- *      builds — only the latest one commits its result.
- *
- *  Caller can force-build (Ctrl+S, Run-without-result-yet) by awaiting
- *  the returned `runAssemble` directly. */
-export function useAutoAssemble({ files, main, recipes, projectId }: Args): UseAutoAssembleResult {
-  const [result, setResult] = useState<AssembleResult | null>(null);
+ *      400 ms and call `runAssemble`.
+ *   2. `runAssemble` delegates to `buildService.build({...})` which runs
+ *      recipes + toolchain in one race-guarded pass.
+ *   3. A monotonically-increasing seq counter on the hook side picks the
+ *      latest committed result — independent of the service's own
+ *      race-guard, so React state isn't clobbered by a late return. */
+export function useAutoAssemble({
+  buildService,
+  files,
+  main,
+  recipes,
+  projectId,
+}: Args): UseAutoAssembleResult {
+  const [result, setResult] = useState<AutoAssembleOutcome | null>(null);
   const [busy, setBusy] = useState(false);
   const seqRef = useRef(0);
 
-  const runAssemble = useCallback(async (): Promise<AssembleResult | null> => {
+  const runAssemble = useCallback(async (): Promise<AutoAssembleOutcome | null> => {
     if (!files || !main || !projectId) return null;
     const seq = ++seqRef.current;
     setBusy(true);
     try {
-      let augmented: SourceFile[] = files.map((f) => ({ path: f.path, content: f.content }));
-      let recipeStderr = "";
-      if (recipes && recipes.length > 0) {
-        const results = await runRecipes(projectId, recipes, files);
-        const generatedByPath = new Map<string, Uint8Array>();
-        for (const r of results) {
-          if (r.output) generatedByPath.set(r.output.path, r.output.bytes);
-          if (!r.ok) recipeStderr += `[recipe] ${r.recipe.converter} (${r.recipe.input} → ${r.recipe.output}): ${r.error}\n`;
-        }
-        if (generatedByPath.size > 0) {
-          const overlaid: SourceFile[] = [];
-          const seen = new Set<string>();
-          for (const f of augmented) {
-            if (generatedByPath.has(f.path)) {
-              overlaid.push({ path: f.path, content: generatedByPath.get(f.path)! });
-              seen.add(f.path);
-            } else {
-              overlaid.push(f);
-            }
-          }
-          for (const [path, bytes] of generatedByPath) {
-            if (!seen.has(path)) overlaid.push({ path, content: bytes });
-          }
-          augmented = overlaid;
-        }
-      }
-      const r = await assemble(main, augmented, ["-i:."]);
-      if (seq === seqRef.current) {
-        if (recipeStderr) r.stderr = recipeStderr + r.stderr;
-        setResult(r);
-      }
-      return r;
-    } catch (e) {
-      const r: AssembleResult = {
-        ok: false, stdout: "", stderr: `[runtime] ${String(e)}`, exitCode: 1,
+      const input: BuildInput = {
+        projectId,
+        files: files.map((f) => ({
+          path: f.path,
+          content: f.content,
+          updatedAt: 0,
+        })),
+        manifest: { main, recipes: recipes ?? [] },
       };
-      if (seq === seqRef.current) setResult(r);
-      return r;
+      const built = await buildService.build(input);
+      if (seq !== seqRef.current) return null;
+      if (built.ok) {
+        const outcome = toOutcome(built.value);
+        setResult(outcome);
+        return outcome;
+      }
+      const outcome: AutoAssembleOutcome = {
+        ok: false,
+        stdout: "",
+        stderr: built.error.stderr ?? built.error.message,
+        exitCode: 1,
+      };
+      setResult(outcome);
+      return outcome;
+    } catch (e) {
+      if (seq !== seqRef.current) return null;
+      const outcome: AutoAssembleOutcome = {
+        ok: false,
+        stdout: "",
+        stderr: `[runtime] ${String(e)}`,
+        exitCode: 1,
+      };
+      setResult(outcome);
+      return outcome;
     } finally {
       if (seq === seqRef.current) setBusy(false);
     }
-  }, [files, main, recipes, projectId]);
+  }, [buildService, files, main, recipes, projectId]);
 
   useEffect(() => {
-    const id = setTimeout(() => { void runAssemble(); }, 400);
+    const id = setTimeout(() => {
+      void runAssemble();
+    }, 400);
     return () => clearTimeout(id);
   }, [runAssemble]);
 

@@ -52,6 +52,7 @@ export type {
 // Service interfaces (implementations land in @services during M3)
 export type {
   AssetPipelineService,
+  BuildInput,
   BuildOptions,
   BuildResult,
   BuildService,

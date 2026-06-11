@@ -1,4 +1,5 @@
 export * from './createWorkbench'
 export * from './fileTemplates'
 export * from './labels'
+export * from './workbench-context'
 export * as state from './state'

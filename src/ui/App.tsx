@@ -25,6 +25,7 @@ import { useCursorMemory } from "./hooks/useCursorMemory";
 import { usePluginEditor } from "./hooks/usePluginEditor";
 import { useProjectLabels } from "./hooks/useProjectLabels";
 import { useAutoAssemble } from "./hooks/useAutoAssemble";
+import { useWorkbench } from "@app";
 import "./App.css";
 
 const ASSET_EXTENSIONS = new Set([
@@ -37,6 +38,7 @@ function isAssetPath(path: string): boolean {
 }
 
 export default function App() {
+  const workbench = useWorkbench();
   const project = useProject();
 
   const [loadedXex, setLoadedXex] = useState<Uint8Array | null>(null);
@@ -51,6 +53,7 @@ export default function App() {
   const [cursorLine, setCursorLine] = useState<number | null>(null);
 
   const { result, setResult, busy, runAssemble } = useAutoAssemble({
+    buildService: workbench.build,
     files: project.loaded ? project.files : null,
     main: project.loaded ? project.manifest.main : null,
     recipes: project.loaded ? project.manifest.recipes : null,
