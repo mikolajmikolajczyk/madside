@@ -87,6 +87,8 @@ export function Emulator({ xex, running, stepTick, frameTick, breakpoints, memBa
     onMem?.(emu.readMem(memBase & 0xffff, memLen));
   };
 
+  const pixelFormat = workbench.machine.display.pixelFormat;
+
   const blit = () => {
     const emu = emuRef.current;
     const canvas = canvasRef.current;
@@ -94,18 +96,25 @@ export function Emulator({ xex, running, stepTick, frameTick, breakpoints, memBa
     if (!emu || !canvas || !buf) return;
     const ctx = canvas.getContext("2d");
     if (!ctx) return;
-    // Wasm core delivers XRGB8888 (alpha unused). Bytes in memory are
-    // [B, G, R, X] (little-endian uint32 = 0xXXRRGGBB). ImageData wants
-    // RGBA byte order — uint32 LE = 0xAABBGGRR. Repack + force alpha.
     const src = emu.pixels;
     const dst = buf.view32;
     const len = Math.min(src.length, dst.length);
-    for (let i = 0; i < len; i++) {
-      const p = src[i];
-      const r = (p >>> 16) & 0xff;
-      const g = (p >>> 8) & 0xff;
-      const b = p & 0xff;
-      dst[i] = (0xff << 24) | (b << 16) | (g << 8) | r;
+    if (pixelFormat === 'rgba8888') {
+      // Backend already delivers ImageData-compatible RGBA — memcpy fast path.
+      dst.set(src.subarray(0, len));
+    } else {
+      // 'xrgb8888' (Atari Altirra core today). Bytes in memory are
+      // [B, G, R, X] (little-endian uint32 = 0xXXRRGGBB). ImageData wants
+      // RGBA byte order — uint32 LE = 0xAABBGGRR. Repack + force alpha.
+      // 4.5 M iter/s @ 60fps; backend-side RGBA emit eliminates this loop —
+      // tracked in the same issue body.
+      for (let i = 0; i < len; i++) {
+        const p = src[i];
+        const r = (p >>> 16) & 0xff;
+        const g = (p >>> 8) & 0xff;
+        const b = p & 0xff;
+        dst[i] = (0xff << 24) | (b << 16) | (g << 8) | r;
+      }
     }
     ctx.putImageData(buf.image, 0, 0);
   };
