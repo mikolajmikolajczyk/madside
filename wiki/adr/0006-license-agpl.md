@@ -63,14 +63,6 @@ No CLA required today. Solo project, all copyright author-held. If the project e
 
 Not added. A `LICENSE` file at the repo root and the `package.json` `license` field are sufficient. Adding a `// SPDX-License-Identifier:` line to every TS file is fine but not mandatory; deferred unless contributors specifically request it.
 
-## Migration
-
-- `LICENSE` added at repo root (full AGPL-3.0 text from gnu.org).
-- `package.json` `license` field set to `"AGPL-3.0-or-later"`.
-- `README.md` "License" section updated from "TBD" to the AGPL summary + link.
-- AGENTS.md and `wiki/index.md` reference unchanged — they already point at this ADR for legal context.
-- No backfill of historical commits or per-file headers.
-
 ## Positive consequences
 
 - Anti-SaaS-fork goal achieved by standard, well-understood, OSI-approved licence.

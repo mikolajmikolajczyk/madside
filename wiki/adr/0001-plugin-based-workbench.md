@@ -113,25 +113,11 @@ NES chosen over C64 because: simpler memory map, PPU is a clean foil to ANTIC/GT
 - Plugin contracts ossify once published; first design needs care.
 - Single-process Vite app limits isolation — a misbehaving plugin can crash the workbench. Acceptable for solo / trusted-plugin era.
 
-## Migration phases
-
-| Milestone | Scope |
-|-----------|-------|
-| M2 | Finish current Atari Phase 12 M2 (existing scope, no architectural change). |
-| M2.5 | Foundation cleanup — layering, folder reorg, headless workbench, testing infra, ADRs 0002–0005. Stable architectural core before any service extraction. |
-| M3 | Services layer + Plugin Registry + Event Bus + Command Registry. Refactor without changing functionality. |
-| M4 | `MachinePlugin` extraction. Atari-XL = first plugin. Hardcoded constants gone. |
-| M5 | `ToolchainPlugin` extraction. MADS = first plugin. Manifest v2 hard cut. |
-| M6 | `DebugAdapter` extraction. Generic 6502 adapter. |
-| M7 | Generic `PanelPlugin`. Memory/registers/ANTIC/GTIA reborn as plugins. |
-| M8 | Monorepo split. `packages/core` + `packages/plugins/*`. |
-| M9 | NES validation. Second machine plugin set. Workbench unchanged. |
-
 ## Open questions
 
 - **Testing strategy** — resolved by ADR-0005 (Foundation): contract + headless integration hybrid (Vitest).
 - **Plugin discovery / registry** beyond per-project `converters/` and `editors/` folders. Marketplace deferred; address when external authors exist.
-- **Event Bus implementation** — `mitt`, RxJS, or hand-rolled. Pick in M3-services.
+- **Event Bus implementation** — resolved by `9ab1bc2` (M3): hand-rolled ~50 LOC typed pub/sub at `@services/event-bus`.
 - **Hot reload** for plugins. Nice-to-have, not required for M3.
 
 ## Documentation convention

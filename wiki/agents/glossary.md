@@ -16,18 +16,18 @@
 - **`.lab`** — MADS label dump. `symbol → addr` table. Used for autocomplete + future symbol panel.
 - **Altirra** — Avery Lee's cycle-exact Atari emulator. The wasm core powers our emulator panel.
 
-## Plugin architecture terms (target)
+## Plugin architecture terms
 
-> Defined in [`../adr/0001-plugin-based-workbench.md`](../adr/0001-plugin-based-workbench.md). Not yet implemented.
+> Defined in [`../adr/0001-plugin-based-workbench.md`](../adr/0001-plugin-based-workbench.md). State noted per term.
 
-- **Workbench Core** — machine-agnostic shell. Services + Plugin Registry + Event Bus + Command Registry.
-- **MachinePlugin** — describes hardware (CPU, memory map, dims, sample rate, input layout).
-- **ToolchainPlugin** — `build(project) → BuildResult`. Wraps an assembler/compiler.
-- **EmulatorPlugin** — `createInstance(MachineConfig) → EmulatorInstance`. Wraps a machine emulator.
-- **DebugAdapter** — generic `DebugTarget` interface (step/BP/registers/memory). Debug UI is machine-agnostic; adapter bridges to a specific emulator.
-- **PanelPlugin** — arbitrary UI panel. May depend on a `MachinePlugin` capability via `supports()`.
-- **AssetPlugin** — `convert(input, opts) → bytes`. Already implemented (Phase 7).
-- **FileEditorPlugin** — Phase 11 contract; generalizes into `PanelPlugin` in M7.
+- **Workbench Core** — machine-agnostic shell. ✅ Services + Plugin Registry + Event Bus + Command Registry (M3, v0.3.0).
+- **MachinePlugin** — describes hardware (CPU, memory map, display, audio, input, media formats, hardware config, boot equates). ✅ contract `@ports/plugin-machine`; first impl `@plugins/machine-atari-xl` (v0.4.0).
+- **ToolchainPlugin** — `build(input) → ToolchainBuildOutput{binary,sourceMap,extras,...}`. Wraps an assembler/compiler. ✅ contract `@ports/plugin-toolchain`; first impl `@plugins/toolchain-mads` (v0.5.0).
+- **EmulatorPlugin** — wraps a machine emulator. ⏳ EmuBackend lives at `@adapters/emu` until contract lands (M4 follow-up).
+- **DebugAdapter** — generic `DebugTarget` interface (step/BP/registers/memory). ⏳ M6 (v0.6.0, e50d1b8).
+- **PanelPlugin** — arbitrary UI panel. ⏳ M7 (v0.7.0, 3000c0e).
+- **AssetPlugin (converter)** — `convert(input, opts) → bytes`. ✅ Phase 7, exposed via AssetPipelineService.
+- **FileEditorPlugin** — Phase 11 contract; generalizes into `PanelPlugin` in M7 (cae0633).
 
 ## Project model terms
 

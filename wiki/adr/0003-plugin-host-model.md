@@ -59,7 +59,7 @@ Default for any future plugin kind: **main thread unless heavy compute or untrus
 All cross-host plugin calls use a typed RPC over `postMessage`. We adopt **Comlink** (≈ 5 KB) for the proxy machinery — it gives `await proxy.build(project)` ergonomics on top of `postMessage` without us writing serialisation glue. Comlink is a hard dep of the workbench, not a per-plugin import.
 
 ```ts
-// In @ports/PluginTransport.ts (lands with the contracts in M3-services)
+// In @ports/PluginTransport.ts (planned — not yet installed; main-thread direct calls used today)
 type PluginEndpoint<T> = {
   call<K extends keyof T>(method: K, ...args: Parameters<T[K]>): Promise<ReturnType<T[K]>>;
   on(event: string, handler: (payload: unknown) => void): () => void;
@@ -99,14 +99,6 @@ Not used at v1. If a future EmulatorPlugin wants zero-copy frame buffers or atom
 - Workers are separate Vite entries (`?worker` import) — first-party (toolchain, emulator, converter pool) ship as part of the workbench bundle.
 - Third-party plugin modules continue to load via Blob URL + dynamic `import()`. For worker-hosted kinds, the plugin module is loaded *inside* the worker (importScripts equivalent). The host policy decides which side of the boundary loads the third-party code.
 - No CSP relaxation is needed — Blob URLs + workers stay within the same origin.
-
-## Migration
-
-- M3-services lands the `PluginRegistry`, `PluginEndpoint` types, and the Comlink dependency. Stubs for each host policy.
-- M4 (MachinePlugin) and M5 (ToolchainPlugin) implement the policies for their kinds. The toolchain-worker pathway is the first real test of the contract; if Comlink ergonomics hurt, this is the moment to swap.
-- M7 (PanelPlugin) keeps main-thread hosting; the contract changes for it are minimal (a `PanelContext` instead of an `EndpointContext`).
-- Emulator-in-worker migration is its own follow-up issue under M4 (not blocking).
-- AssetPlugin (converters) keeps its current Blob-URL loader for now; the worker-pool move lands when there's a recipe slow enough to justify it. Until then, "converter runs in worker" is a host-policy intent that the workbench can satisfy by adding a thin worker shim.
 
 ## Positive consequences
 

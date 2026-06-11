@@ -12,12 +12,12 @@
 A Nix flake at the repo root pins every dev tool to a known version. `nix develop` lands a working shell. `direnv` auto-activates on `cd`.
 
 - **Primary path:** `nix develop` (or auto via direnv `.envrc`)
-- **Fallback path:** plain `npm` / `pnpm` with whatever Node version is on the user's PATH. Best-effort, no version guarantees.
-- The fallback exists so a casual contributor without Nix can still run `pnpm install && pnpm dev`. If a build genuinely requires Nix, that's a separate decision and would deserve an ADR.
+- **Fallback path:** plain `npm` with whatever Node version is on the user's PATH. Best-effort, no version guarantees.
+- The fallback exists so a casual contributor without Nix can still run `npm install && npm run dev`. If a build genuinely requires Nix, that's a separate decision and would deserve an ADR.
 
 ### What lives in the default shell
 
-- Node 22, pnpm 10, just
+- Node 22, npm 10, just
 - typescript, eslint, prettier, knip, madge, markdownlint-cli, shellcheck
 - pre-commit framework
 - trivy, gitleaks

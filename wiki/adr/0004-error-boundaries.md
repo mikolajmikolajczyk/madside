@@ -27,7 +27,7 @@ Without that policy, every layer invents its own and the plugin contract becomes
 1. **No formal policy.** Each layer/component handles errors as it pleases. Rejected: leads exactly to the current state (silent failures, blank screens, inconsistent plugin contracts).
 2. **Result<T,E> everywhere.** Type every fallible API as `Result<T,E>`. Rejected: ergonomically heavy in TypeScript, every call site needs the same boilerplate, errors propagate to UI as much wrapping work as throws. We don't write Rust.
 3. **Throws everywhere + try/catch at boundaries.** Inverse of (2). Rejected: harder to know what can throw without reading source; expected-vs-unexpected distinction collapses.
-4. **Throw for unexpected, Result for expected, React boundaries at layer transitions (chosen).** Pragmatic mix. Matches React conventions for the UI layer and TypeScript idioms for service-level returns. ESLint enforces the boundaries (separate Foundation lint rule, future).
+4. **Throw for unexpected, Result for expected, React boundaries at layer transitions (chosen).** Pragmatic mix. Matches React conventions for the UI layer and TypeScript idioms for service-level returns. ESLint boundary enforcement landed in `01c77ab` (eslint-plugin-boundaries).
 5. **Catastrophic-only handling.** One root error boundary, otherwise let everything propagate. Rejected: a misbehaving plugin would take down the workbench.
 
 ## Decision outcome
@@ -132,13 +132,6 @@ Logs land in the in-app Output panel via the BufferedLogger adapter (Foundation 
 - **Catastrophic / unknown** — full-screen boundary with "reload workbench" and "export to ZIP".
 
 No modal dialogs in any error path. No alerts. Always: banner or panel-level state.
-
-## Migration
-
-- The error class hierarchy lands in `@ports/errors.ts` during Foundation.
-- The three-level React boundary lands when the folder reorg gates UI components on `@ui/...` (Foundation issue `572812b`).
-- Plugin-mount boundary (`714938a`) gets folded into the boundary scheme.
-- Existing throws in `App.tsx` / `Debug.tsx` / `Emulator.tsx` migrate to the typed error contract as part of M3-services service extraction. Services already returning `result | null` from `assemble()` get refactored to `Result<BuildResult, BuildError>`.
 
 ## Positive consequences
 

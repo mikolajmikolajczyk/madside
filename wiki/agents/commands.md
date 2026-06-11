@@ -3,27 +3,27 @@
 ## Shell
 
 ```sh
-nix develop          # default dev shell — node, pnpm, just, lint stack, security scanners
+nix develop          # default dev shell — node, npm, just, lint stack, security scanners
 nix develop .#wasm   # heavy: adds cmake, emscripten, fpc for wasm rebuilds
 # direnv users: just `cd` into the repo — .envrc activates the default shell automatically
 ```
 
-Fallback path (no Nix): use any Node ≥ 22 + pnpm ≥ 10 on your PATH and skip `nix develop`.
+Fallback path (no Nix): use any Node ≥ 22 + npm ≥ 10 on your PATH and skip `nix develop`.
 
 ## App
 
 ```sh
-pnpm dev             # vite dev server
-pnpm build           # tsc -b && vite build → dist/
-pnpm preview         # serve dist/
-pnpm typecheck       # tsc -b — incremental project references
+npm run dev             # vite dev server
+npm run build           # tsc -b && vite build → dist/
+npm run preview         # serve dist/
+npm run typecheck       # tsc -b — incremental project references
 ```
 
 ## Dep graph
 
 ```sh
-pnpm graph             # writes wiki/architecture/dep-graph.svg
-pnpm graph:circular    # exits non-zero if any cycle exists
+npm run graph             # writes wiki/architecture/dep-graph.svg
+npm run graph:circular    # exits non-zero if any cycle exists
 ```
 
 ## Lint / static analysis
@@ -65,8 +65,8 @@ Standard. Conventional Commits. GPG-signed. **Never commit without explicit user
 ## Tests
 
 ```sh
-pnpm test            # vitest --run (one-shot, default)
-pnpm test --watch    # vitest watch mode
+npx vitest run       # one-shot
+npx vitest           # watch mode
 ```
 
 Test layout (ADR-0005):

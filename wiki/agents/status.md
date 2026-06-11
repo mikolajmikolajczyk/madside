@@ -7,30 +7,47 @@
 | Area | State |
 |------|-------|
 | Vite + React + TS skeleton | ✅ |
-| CodeMirror 6 + custom MADS stream highlighter | ✅ (no Lezer grammar yet) |
+| CodeMirror 6 + custom MADS stream highlighter | ✅ (no Lezer grammar yet — deferred) |
 | `mads.wasm` bundled in `public/wasm/` (1.9 MB) | ✅ |
 | WASI shim via `@bjorn3/browser_wasi_shim` | ✅ |
-| `assemble(main, files)` → `{ok, xex, lst, lab, stdout, stderr}` | ✅ |
-| Auto-assemble (debounce 400 ms + race guard via seq counter) | ✅ — xex committed to emu only on Run |
-| Layout: toolbar / [explorer \| editor+output \| emulator+debug side panel] | ✅ vertical right-side panel |
+| `BuildService.build()` via ToolchainPlugin (MADS first impl) | ✅ (v0.5.0 ea35144) |
+| Auto-assemble (debounce 400 ms + race guard) | ✅ — binary committed to emu only on Run |
+| Layout: toolbar / [explorer \| editor+output \| emulator+debug side panel] | ✅ resizable splitter, persisted |
 
-## Emulator (Altirra wasm, Phase 12)
+## Workbench core (services + plugins, v0.3.0 / v0.4.0 / v0.5.0)
 
 | Area | State |
 |------|-------|
-| Altirra (Avery Lee) wasm core via fork `mikolajmikolajczyk/AltirraSDL` branch `madside-embed` | ✅ — `src/adapters/emu/wasm/altirra-core.{wasm,js}` ≈ 4.6 MB + 133 KB; Vite-tracked |
+| BuildService / RunService / DebugService / AssetPipelineService | ✅ (M3, v0.3.0) |
+| EventBus + CommandRegistry + unified PluginRegistry | ✅ (M3) |
+| Headless `createWorkbench()` factory (DOM-free, tests use memory adapters) | ✅ |
+| MachinePlugin port + Atari-XL first impl | ✅ (v0.4.0 a6c310d) |
+| ToolchainPlugin port + MADS first impl | ✅ (v0.5.0 ea35144) |
+| Manifest-driven plugin selection (project.json v2) | ⏳ open — 0897b06 |
+| EmulatorPlugin / DebugAdapter / PanelPlugin contracts | ⏳ M4-follow / M6 / M7 |
+
+## Emulator (Altirra wasm)
+
+| Area | State |
+|------|-------|
+| Altirra core via fork `mikolajmikolajczyk/AltirraSDL` branch `madside-embed` | ✅ — `src/adapters/emu/wasm/altirra-core.{wasm,js}` ≈ 4.6 MB + 133 KB; Vite-tracked |
 | Altirra OS kernel | ✅ built into wasm core (no external ROM file) |
 | Run / pause / step (1 instruction) / frame / reset | ✅ |
-| Source-level breakpoints (gutter click, persist across reassemble) | ✅ label lines resolve to next emitting line |
+| Source-level breakpoints (gutter click, persist across reassemble, IDB schema v2) | ✅ |
 | Active-PC line highlight in editor | ✅ |
 | Addr gutter (4-hex per emitting line) | ✅ |
 | CPU state (registers + flags) | ✅ live on pause/break |
-| Memory view (128 B, hex base input, auto-defaults to xex load addr, auto-follows cursor) | ✅ highlights cursor source-line bytes |
-| POKEY audio (Altirra core POKEY → `IATAudioTap` → JS `ScriptProcessorNode`) | ✅ |
-| Keyboard input (POKEY KBCODE via `PushKey` / `ReleaseAllRawKeys`) | ✅ |
-| Per-step display refresh | ⏳ M2 research — Frame button is workaround |
-| ATR disk loader | ⏳ M2 — no SIO disk drive wired yet |
-| Hosting | ⏳ pick GitHub Pages or Vercel |
+| Memory view (128 B, hex input, auto load-addr default, follows cursor, machine.memoryMap regions) | ✅ (7f0c7f4) |
+| POKEY audio via AudioWorklet | ✅ (27fa821 migrated from ScriptProcessorNode) |
+| POKEY polynomial noise (poly4/9/17) + 16-bit linked channels | ✅ |
+| Keyboard input (KBCODE via MachinePlugin.input.codeToKey) | ✅ (33eb166) |
+| sendKey held-key tracking + force-release on blur | ✅ (c5aaf5a) |
+| Hardware-config Embind setters (mode/memory/BASIC/kernel) | ✅ (40e0373) |
+| Multi-format loader: XEX / ATR / CAR / CAS | ✅ (3b73e5d) |
+| Pixel format from MachinePlugin.display + RGBA fast path | ✅ (4bd1338) |
+| Dynamic canvas dims + sample rate | ✅ (7353947, c2dc46b) |
+| Per-step display refresh | ⏳ Frame button workaround — backlog c309619 |
+| Hosting | ⏳ v0.8.0 efc75d1 |
 
 ## Editor UX
 
@@ -48,29 +65,26 @@
 - Content-addressable snapshots, auto-snap 30 s + Ctrl+S, restore/delete dialog
 - Snapshot GC + prune (keep last 100 auto-snapshots, manual immune)
 - Snapshot diff preview
-- Asset pipeline (Phase 7): recipes, built-in converters, AssetPanel form + previews
+- AssetPipelineService: recipes, built-in converters, runAffected skip-aware (49d594d), AssetPanel form + previews
 - Plugin editors (Phase 11): contract + registry + Blob-URL loader + reference `bitmap` built-in for `.1bpp`/`.bmp1`
 
-## Recently shipped (rapid-fixes / cleanup)
+## Quality / tooling
 
-- Hooks split from App.tsx (824 → 539 lines)
-- Utility dedupe under `src/lib/util/`
-- POKEY polynomial noise (poly4/9/17)
-- POKEY 16-bit linked channels (CH1_CH2 / CH3_CH4)
-- Resizable side panel splitter (persisted)
-- Breakpoints persist across refresh (IDB schema v2)
-- Code-splitting bundle (~223 KB main gzip, down from ~293)
-- Source map: lines with `FFFF>` / `XXXX-XXXX>` prefixes
-- Auto-pause one instruction before BP fires
-- Frame-step reuses step's snapshot/no-cpu trick
+- ADR-0002 layering enforced by eslint-plugin-boundaries (01c77ab)
+- TypeScript project references (9ccb4fa) — incremental layer builds
+- Pre-commit: eslint, madge --circular, typecheck, GPG UID guard (fa6ff3a)
+- Nix flake devShell — pinned toolchain (d8935a9)
+- Vitest + fake-indexeddb; headless workbench tests cover services end-to-end (ADR-0005)
+- E2E-ready guardrails: stable testids, URL-loadable project state (7659319)
 
 ## Active work
 
-Look at Radicle: `rad issue list` (current open). Milestone labels:
+Look at Radicle: `rad issue list`. Current milestones use `milestone:v<X.Y.Z>` labels:
 
-- `milestone:m2` — finish Atari Phase 12 M2 (13 issues)
-- `milestone:m2-5-foundation` — architectural cleanup (16 issues)
-- `milestone:m3-services` — services + plugin registry (16 issues)
-- `milestone:m4-machine-plugin` (6) / `m5-toolchain-plugin` (4) / `m6-debug-adapter` (2) / `m7-panel-plugins` (5)
-- `milestone:m8-monorepo` (1) / `m9-nes` (5)
-- `milestone:phase-13` — Astro Starlight docs (1)
+- `milestone:v0.5.0` — M5 ToolchainPlugin + project.json v2 (open: 0897b06, 6ede5d8, 787075c, 771ce79)
+- `milestone:v0.6.0` — M6 DebugAdapter
+- `milestone:v0.7.0` — M7 PanelPlugin
+- `milestone:v0.8.0` — M8 Monorepo + hosting + GitHub mirror
+- `milestone:v0.9.0` — Phase 13 docs (Astro Starlight, 1116ee3)
+- `milestone:v1.0.0` — M9 NES validation
+- `milestone:backlog` — IDB schema framework, Altirra bindings split, per-step display refresh, BP Map/Record drift

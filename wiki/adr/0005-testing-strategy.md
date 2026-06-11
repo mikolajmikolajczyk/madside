@@ -45,7 +45,7 @@ Initial list:
 - `@core/hash` — sha256 stability across input shapes (string vs Uint8Array).
 - `@core/hex` — formatting/parsing edge cases (negatives, > 16-bit, leading zeros).
 - `@core/path` — basename/dirname/extOf on edge inputs.
-- MADS source-map parser (post-reorg: `@adapters/wasm-mads/sourceMap`) — the parser that resolves `.lst` lines to addresses, including the include-stack heuristic. This is where future regressions are subtle and silent.
+- MADS source-map parser (`@plugins/toolchain-mads/wasm-mads/sourceMap` post-M5 plugin move) — the parser that resolves `.lst` lines to addresses, including the include-stack heuristic. This is where future regressions are subtle and silent.
 - Recipe engine hashing — verify the same recipe + same inputs yields the same hash (drives the "only rerun affected recipes" optimisation, see issue `0b0a786`).
 - Plugin loader (`@adapters/plugin-loader/`) — Blob URL + dynamic import path, including the cache + invalidation behaviour.
 
@@ -108,7 +108,7 @@ External plugin authors ship the same one-line test in their plugin repo. The ha
 
 One or two end-to-end tests in a real browser. Boot the Vite preview, open the seed project, build, run, hit a BP, verify a value in the memory view. Catches the integration cracks the other layers can't see (audio routing, COOP/COEP headers, real wasm in a real browser).
 
-Deferred until after M3-services lands — there's not enough stable surface to write meaningful E2E against today. The "E2E-ready guardrails" issue (`7659319`) keeps the app paintable.
+Deferred. M3 services + M4 MachinePlugin + M5 ToolchainPlugin now provide stable surfaces, but Playwright infra cost still outweighs benefit for a solo dev pre-release. "E2E-ready guardrails" issue (`7659319`, shipped) keeps the app paintable.
 
 ### What we do not test
 
@@ -156,19 +156,10 @@ Even before Playwright lands, the app stays E2E-friendly so that when E2E does l
 
 Tracked as the standalone issue `7659319`.
 
-## Migration
-
-- Vitest config + `pnpm test` script land in Foundation (`Testing infrastructure` is this very ADR's implementation issue, `138303a`).
-- First Layer-1 unit: MADS source-map parser. Proves Vitest works.
-- Memory adapters land alongside their IDB counterparts during the storage repository port refactor.
-- Headless workbench (`createWorkbench()`) lands during the headless workbench Foundation issue. First Layer-2 test: build hello-world.
-- Contract harnesses land per plugin kind alongside that kind's epic (M4 ships `assertMachinePlugin`, M5 ships `assertToolchainPlugin`, M7 ships panel/editor harnesses).
-- Playwright milestone opens after M3-services completes.
-
 ## Positive consequences
 
 - Plugin authors validate against the contract independently — the "M9 NES proof" is largely automated.
-- Service refactors during M3 have a safety net — change the wiring, run `pnpm test`, see immediately what broke.
+- Service refactors during M3 have a safety net — change the wiring, run `npx vitest run`, see immediately what broke.
 - Memory adapters double as test infrastructure and as production code paths (future CLI, future cloud sync mock).
 - Headless workbench is forced into existence by the testing strategy, which makes it real instead of aspirational.
 - Vitest sub-second feedback means tests actually run during development.
@@ -182,7 +173,7 @@ Tracked as the standalone issue `7659319`.
 
 ## Open questions
 
-- **CI runner choice.** GitHub Actions on the mirror is the obvious answer (it's free, mirror already planned). But CI for solo dev = bureaucracy. Decision: skip CI until the first non-trivial regression that local testing missed. Local `pnpm test` is enough until then.
+- **CI runner choice.** GitHub Actions on the mirror is the obvious answer (it's free, mirror lands with `edbc165` v0.8.0). But CI for solo dev = bureaucracy. Decision: skip CI until the first non-trivial regression that local testing missed. Pre-commit hook (`fa6ff3a`) runs typecheck + lint + madge --circular locally; vitest run on demand.
 - **Test data location.** Probably `tests/fixtures/`. Solidify when fixtures grow past three.
 - **Snapshot tests** — likely never. If a use case appears (e.g. "this xex bytes-exact"), add per-test with the binary inline; don't introduce snapshot files.
 

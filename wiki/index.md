@@ -10,7 +10,7 @@ In-browser Web IDE pivoting from Atari-only to a plugin-based retro-development 
 | [`user/`](user/) | End users | Phase 13 manual source. Astro Starlight publishes this to `/docs/` on the site. |
 | [`adr/`](adr/) | Both | Architecture Decision Records. Append-only, numbered. |
 | [`architecture/`](architecture/) | Both | Diagrams, dependency graphs, layer overview. See `architecture/README.md`. |
-| [`plugin-api/`](plugin-api/) | Both | Plugin author contracts (Machine, Toolchain, Emulator, DebugAdapter, Panel, Converter, Editor). To land in M7. |
+| [`plugin-api/`](plugin-api/) | Both | Plugin author contracts (Machine, Toolchain, Emulator, DebugAdapter, Panel, Converter, Editor). MachinePlugin + ToolchainPlugin already in `@ports`; written-up docs land with 8418ac5 (M7, v0.7.0). |
 | [`testing/`](testing/) | Both | Testing strategy + contract-test harness usage. See `testing/e2e-guardrails.md`. |
 | [`skills/`](skills/) | AI agents | Local copies of `radicle` + `radboard` skills used by this project. |
 

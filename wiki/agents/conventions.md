@@ -40,9 +40,9 @@
 - The canonical library lives in a separate repo + blog.
 - Project-local converters in `converters/*.js` shadow built-ins by `meta.id`.
 - Editors follow the same Phase 11 contract (`editors/*.js`).
-- Both will move under a unified `PluginRegistry` in M3.
+- Both registered through the unified `PluginRegistry` (`@services/plugin-registry`, M3 shipped).
 
-## Plugins (Phase 7 / Phase 11 → unified M3)
+## Plugins (Phase 7 / Phase 11 → unified PluginRegistry)
 
 - Self-contained ES modules. No shared utility imports. No other project deps.
 - Drop a file into `converters/` or `editors/` → it works.

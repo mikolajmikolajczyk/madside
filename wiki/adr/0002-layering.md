@@ -7,9 +7,9 @@
 
 ## Context
 
-ADR-0001 commits madside to a plugin-based workbench. That goal only survives if the codebase has a clear shape — services don't import plugin modules directly, UI doesn't reach into adapters, plugins don't depend on the workbench shell. Today none of this is enforced. `App.tsx` and the debug components import `EmuBackend` directly; `lib/mads.ts` (a toolchain) is imported from `App.tsx` (UI). The Phase 12 hook split cleaned up state ownership but did nothing about layer crossings.
+ADR-0001 commits madside to a plugin-based workbench. That goal only survives if the codebase has a clear shape — services don't import plugin modules directly, UI doesn't reach into adapters, plugins don't depend on the workbench shell. Prior to this ADR none of it was enforced: `App.tsx` and the debug components imported `EmuBackend` directly; `lib/mads.ts` (a toolchain) was imported from `App.tsx` (UI). The Phase 12 hook split cleaned up state ownership but did nothing about layer crossings.
 
-Without a layering contract, the M3-services / M4-machine-plugin refactor will perpetuate the same shape under new names. We need rules that ESLint can enforce, names that don't sound architecturally ambiguous, and a folder layout that mirrors them.
+Without a layering contract, the M3 services / M4 machine plugin refactor would perpetuate the same shape under new names. We need rules that ESLint can enforce, names that don't sound architecturally ambiguous, and a folder layout that mirrors them.
 
 ## Decision drivers
 
@@ -87,17 +87,11 @@ There is no `lib/` or `utils/` folder. Pure helpers go in `@core`; anything stat
 
 `vite.config.ts` + `tsconfig.json` both declare `@core / @ports / @adapters / @services / @plugins / @app / @ui`. The ESLint resolver reads from the tsconfig. One source of truth lives in `tsconfig.json`.
 
-## Migration
-
-Folder reorg (Radicle issue `572812b`) executes this ADR. Path aliases, ESLint boundaries, and TypeScript project references land in the same Foundation milestone but as separate patches so they can be reviewed independently.
-
-After the reorg lands, the rule is enforced. Before the reorg lands, this ADR is a forward contract — code under `src/components/`, `src/lib/`, `src/hooks/` doesn't violate ADR-0002 because those layers don't yet exist by name.
-
 ## Positive consequences
 
 - ESLint catches new violations at commit time. No prose-only rule rot.
-- M3-services extraction has a concrete target: services land in `@services`, with imports only from `@ports`.
-- M4 machine plugin lands in `@plugins/machine-atari-xl`, depending only on `@ports` (and `@core` for utilities). Plugin authors get the same surface.
+- M3 services extracted into `@services`, importing only from `@ports` (commits `5889cce` Build / `ee46270` Run / `eac58f1` Debug / `a4a4865` AssetPipeline).
+- M4 MachinePlugin landed in `@plugins/machine-atari-xl` (`a6c310d`), depending only on `@ports` + `@core`. M5 ToolchainPlugin landed in `@plugins/toolchain-mads` (`ea35144`) with its private wasm-mads adapter co-located inside the plugin folder. Plugin authors get the same surface.
 - Testing strategy (ADR-0005) gets a clear target: `@ports` defines the contracts, `@core` is pure (easy to unit-test), `app`-level wiring is the integration boundary.
 - TypeScript project references mirror the layer graph — incremental builds, faster type-checks, monorepo (M8) becomes a mechanical move.
 
@@ -117,8 +111,8 @@ After the reorg lands, the rule is enforced. Before the reorg lands, this ADR is
 - Foundation epic: `b1236bb`
 - This issue: `10cf36f`
 - Folder reorg issue: `572812b`
-- ESLint boundaries issue: separate Foundation child
-- Path aliases issue: separate Foundation child
-- TypeScript project references issue: separate Foundation child
-- Module barrel discipline issue: separate Foundation child
+- ESLint boundaries issue: `01c77ab`
+- Path aliases issue: `35577e6`
+- TypeScript project references issue: `9ccb4fa`
+- Module barrel discipline issue: `2af2cf8`
 - ADR-0001 — Plugin-based retro-development workbench (parent decision)
