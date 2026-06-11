@@ -41,38 +41,51 @@ function loadMadsModule(): Promise<WebAssembly.Module> {
 
 const encoder = new TextEncoder();
 
-// Insert a file at a POSIX-style path into a Directory tree, creating subdirs as needed.
-function placeFile(root: Directory, path: string, data: Uint8Array) {
-  const parts = path.split("/").filter((p) => p.length > 0);
-  if (parts.length === 0) return;
-  let dir: Directory = root;
-  for (let i = 0; i < parts.length - 1; i++) {
-    const part = parts[i];
-    const existing = dir.contents.get(part);
-    let next: Directory;
-    if (existing instanceof Directory) {
-      next = existing;
-    } else {
-      next = new Directory(new Map<string, Inode>());
-      dir.contents.set(part, next);
-    }
+// Split a POSIX path into non-empty segments. Empty path → []; trailing /
+// stripped. Shared by placeFile + readFile.
+function splitPath(path: string): string[] {
+  return path.split("/").filter((p) => p.length > 0);
+}
+
+// Walk dirs, creating Directory inodes on the way. Returns the deepest dir.
+function mkdirP(root: Directory, dirs: string[]): Directory {
+  return dirs.reduce((dir, name) => {
+    const existing = dir.contents.get(name);
+    if (existing instanceof Directory) return existing;
+    const next = new Directory(new Map<string, Inode>());
+    dir.contents.set(name, next);
+    return next;
+  }, root);
+}
+
+// Walk dirs without creating. Returns undefined when any segment is missing
+// or shadowed by a non-Directory inode.
+function resolveDir(root: Directory, dirs: string[]): Directory | undefined {
+  let dir = root;
+  for (const name of dirs) {
+    const next = dir.contents.get(name);
+    if (!(next instanceof Directory)) return undefined;
     dir = next;
   }
-  dir.contents.set(parts[parts.length - 1], new File(data));
+  return dir;
+}
+
+// Insert a file at a POSIX-style path into a Directory tree, creating subdirs as needed.
+function placeFile(root: Directory, path: string, data: Uint8Array) {
+  const parts = splitPath(path);
+  if (parts.length === 0) return;
+  const dir = mkdirP(root, parts.slice(0, -1));
+  dir.contents.set(parts[parts.length - 1]!, new File(data));
 }
 
 // Read a file by POSIX path from the Directory tree. Returns undefined if missing.
 function readFile(root: Directory, path: string): Uint8Array | undefined {
-  const parts = path.split("/").filter((p) => p.length > 0);
-  let dir = root;
-  for (let i = 0; i < parts.length - 1; i++) {
-    const next = dir.contents.get(parts[i]);
-    if (!(next instanceof Directory)) return undefined;
-    dir = next;
-  }
-  const leaf = dir.contents.get(parts[parts.length - 1]);
-  if (!(leaf instanceof File)) return undefined;
-  return leaf.data.length > 0 ? leaf.data : undefined;
+  const parts = splitPath(path);
+  if (parts.length === 0) return undefined;
+  const dir = resolveDir(root, parts.slice(0, -1));
+  const leaf = dir?.contents.get(parts[parts.length - 1]!);
+  if (!(leaf instanceof File) || leaf.data.length === 0) return undefined;
+  return leaf.data;
 }
 
 export async function assemble(
