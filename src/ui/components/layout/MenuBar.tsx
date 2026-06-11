@@ -100,9 +100,9 @@ export function MenuBar(p: MenuBarProps) {
         <MenuContent>
           <MenuItem data-testid="menu.run.build" onSelect={p.onAssemble} shortcut="Ctrl+B" disabled={p.busy}>Build</MenuItem>
           <MenuSeparator />
-          <MenuItem data-testid="menu.run.run" onSelect={p.onRun} shortcut="F5" disabled={!p.canRun || p.running}>Run</MenuItem>
-          <MenuItem data-testid="menu.run.pause" onSelect={p.onPause} shortcut="F6" disabled={!p.running}>Pause</MenuItem>
-          <MenuItem data-testid="menu.run.stop" onSelect={p.onStop} shortcut="Shift+F5">Stop</MenuItem>
+          <MenuItem data-testid="menu.run.run" onSelect={p.onRun} shortcut="Ctrl+Enter" disabled={!p.canRun || p.running}>Run</MenuItem>
+          <MenuItem data-testid="menu.run.pause" onSelect={p.onPause} shortcut="Ctrl+." disabled={!p.running}>Pause</MenuItem>
+          <MenuItem data-testid="menu.run.stop" onSelect={p.onStop} shortcut="Ctrl+Shift+.">Stop</MenuItem>
           <MenuSeparator />
           <MenuItem data-testid="menu.run.step" onSelect={p.onStep} shortcut="F10" disabled={p.running}>Step</MenuItem>
           <MenuItem data-testid="menu.run.frame" onSelect={p.onFrame} shortcut="F11" disabled={p.running}>Frame</MenuItem>
@@ -113,7 +113,7 @@ export function MenuBar(p: MenuBarProps) {
             <MenuItem data-testid="menu.run.bp-clear" onSelect={p.onClearBp}>Clear all breakpoints</MenuItem>
           )}
           <MenuSeparator />
-          <MenuItem data-testid="menu.run.restart" onSelect={p.onReset} shortcut="Ctrl+Shift+F5">Restart</MenuItem>
+          <MenuItem data-testid="menu.run.restart" onSelect={p.onReset} shortcut="Ctrl+Shift+Enter">Restart</MenuItem>
         </MenuContent>
       </Menu>
 

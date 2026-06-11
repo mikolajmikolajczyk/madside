@@ -23,13 +23,13 @@ export function DebugBar(p: Props) {
         <svg viewBox="0 0 16 16" width={14} height={14}><path d="M3 3h10v3H3zM3 7h6v3H3zM3 11h10v2H3z" fill="currentColor"/></svg>
       </IconBtn>
       <div className="dbgbar__sep" />
-      <IconBtn testid="dbg.run" label="Run (F5)" onClick={p.onRun} disabled={!p.canRun || p.running} highlight>
+      <IconBtn testid="dbg.run" label="Run (Ctrl+Enter)" onClick={p.onRun} disabled={!p.canRun || p.running} highlight>
         <svg viewBox="0 0 16 16" width={14} height={14}><path d="M4 3 L13 8 L4 13 Z" fill="currentColor"/></svg>
       </IconBtn>
-      <IconBtn testid="dbg.pause" label="Pause (F6)" onClick={p.onPause} disabled={!p.running}>
+      <IconBtn testid="dbg.pause" label="Pause (Ctrl+.)" onClick={p.onPause} disabled={!p.running}>
         <svg viewBox="0 0 16 16" width={14} height={14}><rect x="4" y="3" width="3" height="10" fill="currentColor"/><rect x="9" y="3" width="3" height="10" fill="currentColor"/></svg>
       </IconBtn>
-      <IconBtn testid="dbg.stop" label="Stop (Shift+F5)" onClick={p.onStop} disabled={!p.hasEmu}>
+      <IconBtn testid="dbg.stop" label="Stop (Ctrl+Shift+.)" onClick={p.onStop} disabled={!p.hasEmu}>
         <svg viewBox="0 0 16 16" width={14} height={14}><rect x="4" y="4" width="8" height="8" fill="currentColor"/></svg>
       </IconBtn>
       <IconBtn testid="dbg.step" label="Step (F10)" onClick={p.onStep} disabled={p.running}>
@@ -44,7 +44,7 @@ export function DebugBar(p: Props) {
           <rect x="11" y="3" width="2" height="10" fill="currentColor"/>
         </svg>
       </IconBtn>
-      <IconBtn testid="dbg.reset" label="Reset (Shift+F5)" onClick={p.onReset}>
+      <IconBtn testid="dbg.reset" label="Restart (Ctrl+Shift+Enter)" onClick={p.onReset}>
         <svg viewBox="0 0 16 16" width={14} height={14}>
           <path d="M12 4 A5 5 0 1 0 13 9" stroke="currentColor" strokeWidth="1.6" fill="none" strokeLinecap="round"/>
           <path d="M12 2 L12 5 L9 5" stroke="currentColor" strokeWidth="1.6" fill="none" strokeLinecap="round" strokeLinejoin="round"/>

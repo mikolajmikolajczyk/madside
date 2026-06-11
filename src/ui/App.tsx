@@ -280,12 +280,12 @@ export default function App() {
   useEffect(() => {
     const disposers = [
       workbench.commands.register({ id: 'build.assemble', title: 'Build', shortcut: 'Ctrl+B', run: () => { void runAssemble(); } }),
-      workbench.commands.register({ id: 'run.start', title: 'Run', shortcut: 'F5', run: () => { void onRun(); } }),
-      workbench.commands.register({ id: 'run.pause', title: 'Pause', shortcut: 'F6', run: () => onPause() }),
-      workbench.commands.register({ id: 'run.stop', title: 'Stop', shortcut: 'Shift+F5', run: () => onStop() }),
+      workbench.commands.register({ id: 'run.start', title: 'Run', shortcut: 'Ctrl+Enter', run: () => { void onRun(); } }),
+      workbench.commands.register({ id: 'run.pause', title: 'Pause', shortcut: 'Ctrl+.', run: () => onPause() }),
+      workbench.commands.register({ id: 'run.stop', title: 'Stop', shortcut: 'Ctrl+Shift+.', run: () => onStop() }),
       workbench.commands.register({ id: 'debug.step', title: 'Step', shortcut: 'F10', run: () => onStep() }),
       workbench.commands.register({ id: 'debug.frame', title: 'Frame', shortcut: 'F11', run: () => onStepFrame() }),
-      workbench.commands.register({ id: 'run.restart', title: 'Restart', shortcut: 'Ctrl+Shift+F5', run: () => { void onReset(); } }),
+      workbench.commands.register({ id: 'run.restart', title: 'Restart', shortcut: 'Ctrl+Shift+Enter', run: () => { void onReset(); } }),
     ];
     return () => { for (const d of disposers) d(); };
   }, [workbench, runAssemble, onRun, onPause, onStop, onStep, onStepFrame, onReset]);
