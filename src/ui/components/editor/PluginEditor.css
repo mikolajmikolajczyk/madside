@@ -21,3 +21,13 @@
   font-family: var(--font-mono);
   font-size: 12px;
 }
+.plugin-editor__error-title {
+  margin-bottom: 8px;
+  font-weight: 600;
+}
+.plugin-editor__error-body {
+  margin: 0 0 12px;
+  white-space: pre-wrap;
+  word-break: break-word;
+  color: var(--text-secondary);
+}
