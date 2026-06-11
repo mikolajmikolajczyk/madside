@@ -1,3 +1,4 @@
+import type { Recipe } from "@ports";
 // Persisted shapes. Schema version bumps require a migration in db.ts.
 
 export const SCHEMA_VERSION = 2;
@@ -7,7 +8,7 @@ export interface Manifest {
   name: string;
   main: string;                          // e.g. "src/main.asm"
   run?: { default?: { audio?: boolean } };
-  recipes?: import("@plugins/converters").Recipe[];
+  recipes?: Recipe[];
   /** Map of file extension (no dot, lowercase) → path of editor module under `editors/`. */
   editors?: Record<string, string>;
 }

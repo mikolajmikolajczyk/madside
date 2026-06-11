@@ -16,7 +16,7 @@ Fallback path (no Nix): use any Node ≥ 22 + pnpm ≥ 10 on your PATH and skip 
 pnpm dev             # vite dev server
 pnpm build           # tsc -b && vite build → dist/
 pnpm preview         # serve dist/
-pnpm tsc --noEmit    # typecheck only
+pnpm typecheck       # tsc -b — incremental project references
 ```
 
 ## Dep graph

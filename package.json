@@ -11,7 +11,8 @@
     "preview": "vite preview",
     "test": "vitest",
     "graph": "madge --extensions ts,tsx --image wiki/architecture/dep-graph.svg src",
-    "graph:circular": "madge --circular --extensions ts,tsx src"
+    "graph:circular": "madge --circular --extensions ts,tsx src",
+    "typecheck": "tsc -b"
   },
   "dependencies": {
     "@bjorn3/browser_wasi_shim": "^0.4.2",

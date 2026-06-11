@@ -6,19 +6,9 @@ import {
 import { StateEffect, StateField } from "@codemirror/state";
 import { hoverTooltip } from "@codemirror/view";
 import { snippet, type CompletionContext, type CompletionResult } from "@codemirror/autocomplete";
+import { MADS_OPCODES as OPCODES, MADS_DIRECTIVES as DIRECTIVES, type LabelInfo } from "@core";
 
-const OPCODES = new Set([
-  "ADC","AND","ASL","BCC","BCS","BEQ","BIT","BMI","BNE","BPL","BRK","BVC","BVS",
-  "CLC","CLD","CLI","CLV","CMP","CPX","CPY","DEC","DEX","DEY","EOR","INC","INX",
-  "INY","JMP","JSR","LDA","LDX","LDY","LSR","NOP","ORA","PHA","PHP","PLA","PLP",
-  "ROL","ROR","RTI","RTS","SBC","SEC","SED","SEI","STA","STX","STY","TAX","TAY",
-  "TSX","TXA","TXS","TYA",
-]);
 
-const DIRECTIVES = new Set([
-  "ORG","EQU","DTA","ICL","INS","RUN","END","OPT","RMB","SET","BLK","RPT","ERT",
-  "MACRO","ENDM","PROC","ENDP","STRUCT","ENDS","SMB","LOCAL","ELS","EIF",
-]);
 
 // Short docs for hover tooltips. [description, affected flags].
 const OPCODE_INFO: Record<string, [string, string]> = {
@@ -106,17 +96,7 @@ const madsStream = StreamLanguage.define({
   tokenTable: {},
 });
 
-export interface LabelInfo {
-  addr?: number;
-  file?: string;       // basename
-  line?: number;
-  preview?: string;    // multi-line source preview starting at declaration
-  doc?: string;        // leading `;` comment block above the declaration
-}
 
-// Re-exported so the App-level scanner can skip opcodes/directives.
-export const MADS_OPCODES = OPCODES;
-export const MADS_DIRECTIVES = DIRECTIVES;
 
 export const setProjectLabels = StateEffect.define<Map<string, LabelInfo>>();
 export const projectLabelsField = StateField.define<Map<string, LabelInfo>>({

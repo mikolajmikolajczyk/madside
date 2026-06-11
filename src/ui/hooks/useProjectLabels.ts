@@ -1,7 +1,7 @@
 import { useMemo } from "react";
 import { parseLabFile } from "@adapters/wasm-mads";
 import { scanFileLabels } from "@app/labels";
-import type { LabelInfo } from "@ui/codemirror";
+import type { LabelInfo } from "@core";
 import type { SourceMap } from "@adapters/wasm-mads";
 import { basename } from "@core/path";
 

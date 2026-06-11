@@ -49,12 +49,13 @@ repos:
         stages: [manual]
 
       - id: typecheck
-        name: tsc --noEmit
+        name: tsc -b (project references)
         language: system
-        entry: pnpm exec tsc -p tsconfig.app.json --noEmit
+        entry: pnpm exec tsc -b
         pass_filenames: false
         files: '\.(ts|tsx)$'
-        stages: [manual]
+        # Incremental — first run primes the cache, subsequent runs cost
+        # only the changed projects. Promoted to pre-commit stage.
 
       - id: knip
         name: knip

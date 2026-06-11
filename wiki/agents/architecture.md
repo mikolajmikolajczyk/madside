@@ -79,7 +79,14 @@ _notes/altirra/                # Fork sibling: mikolajmikolajczyk/AltirraSDL, br
 wiki/                          # All project documentation
 ```
 
-Path aliases follow the layer table — `@core/...`, `@ports/...`, `@adapters/...`, `@services/...`, `@plugins/...`, `@app/...`, `@ui/...`. Defined in `tsconfig.app.json` and `vite.config.ts` (single source of truth lives in tsconfig; Vite mirrors it for runtime).
+Path aliases follow the layer table — `@core/...`, `@ports/...`, `@adapters/...`, `@services/...`, `@plugins/...`, `@app/...`, `@ui/...`. Defined in `tsconfig.base.json` and mirrored in `vite.config.ts` + `vitest.config.ts`.
+
+TypeScript uses **project references**: one tsconfig per layer, root `tsconfig.json` references them all. `tsc -b` builds incrementally; only changed layers recompile. Mirrors the ADR-0002 dependency graph except where current code still violates the layering (transitional references commented `TODO(M3)` — disappear once service extraction lands).
+
+- `tsconfig.base.json` — shared compilerOptions + path aliases (composite, emitDeclarationOnly, declaration cache under `node_modules/.tmp/dts`)
+- `tsconfig.core.json` / `ports.json` / `adapters.json` / `services.json` / `plugins.json` / `app.json` / `ui.json` — per layer
+- `tsconfig.node.json` — Vite config sources
+- Root `tsconfig.json` — references all of the above
 
 ## Data flow (current)
 

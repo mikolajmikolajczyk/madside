@@ -1,0 +1,47 @@
+{
+  "compilerOptions": {
+    "target": "es2023",
+    "lib": ["ES2023", "DOM"],
+    "module": "esnext",
+    "types": ["vite/client"],
+    "skipLibCheck": true,
+
+    /* Bundler mode + project-references emission. Composite projects need
+       emit enabled (TS6310). emitDeclarationOnly + outDir keeps JS out of
+       the repo while letting tsc -b cache type info per layer. */
+    "moduleResolution": "bundler",
+    "allowImportingTsExtensions": false,
+    "verbatimModuleSyntax": false,
+    "moduleDetection": "force",
+    "composite": true,
+    "emitDeclarationOnly": true,
+    "declaration": true,
+    "declarationMap": true,
+    "outDir": "./node_modules/.tmp/dts",
+    "jsx": "react-jsx",
+
+    /* Layer aliases (ADR-0002) — shared across every layer config */
+    "paths": {
+      "@core":       ["./src/core"],
+      "@core/*":     ["./src/core/*"],
+      "@ports":      ["./src/ports"],
+      "@ports/*":    ["./src/ports/*"],
+      "@adapters":   ["./src/adapters"],
+      "@adapters/*": ["./src/adapters/*"],
+      "@services":   ["./src/services"],
+      "@services/*": ["./src/services/*"],
+      "@plugins":    ["./src/plugins"],
+      "@plugins/*":  ["./src/plugins/*"],
+      "@app":        ["./src/app"],
+      "@app/*":      ["./src/app/*"],
+      "@ui":         ["./src/ui"],
+      "@ui/*":       ["./src/ui/*"]
+    },
+
+    /* Linting */
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
+    "erasableSyntaxOnly": true,
+    "noFallthroughCasesInSwitch": true
+  }
+}

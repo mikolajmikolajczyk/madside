@@ -1,0 +1,11 @@
+{
+  "extends": "./tsconfig.base.json",
+  "compilerOptions": {
+    "tsBuildInfoFile": "./node_modules/.tmp/tsconfig.services.tsbuildinfo"
+  },
+  "include": ["src/services/**/*"],
+  "references": [
+    { "path": "./tsconfig.core.json" },
+    { "path": "./tsconfig.ports.json" }
+  ]
+}

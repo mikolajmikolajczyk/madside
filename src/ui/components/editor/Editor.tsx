@@ -5,7 +5,8 @@ import { defaultKeymap, history, historyKeymap, indentWithTab } from "@codemirro
 import { bracketMatching, syntaxHighlighting, HighlightStyle, indentUnit } from "@codemirror/language";
 import { tags as t } from "@lezer/highlight";
 import { autocompletion, completionKeymap } from "@codemirror/autocomplete";
-import { madsLanguage, projectLabelsField, setProjectLabels, type LabelInfo } from "@ui/codemirror";
+import { madsLanguage, projectLabelsField, setProjectLabels } from "@ui/codemirror";
+import type { LabelInfo } from "@core";
 import "./Editor.css";
 
 const theme = EditorView.theme(

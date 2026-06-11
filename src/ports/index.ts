@@ -28,6 +28,17 @@ export type {
   PluginSource,
 } from './plugin-registry'
 
+// Plugin contracts
+export type {
+  ConvertFn,
+  ConverterMeta,
+  ConverterModule,
+  ConvertOutput,
+  OptionSpec,
+  OptionType,
+  Recipe,
+} from './plugin-converter'
+
 // Storage port
 export type {
   Project,
