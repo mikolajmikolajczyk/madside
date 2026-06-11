@@ -186,28 +186,62 @@ export function Emulator({ xex, running, stepTick, frameTick, breakpoints, memBa
     // keycode table. Win32-style virtual-key codes match what the Altirra
     // wasm core's PushKey expects; the C++ table acts as a fallback.
     const codeToKey = workbench.machine.input.codeToKey ?? {};
+
+    // Track held keys → modifier state so we can force-release on focus
+    // loss / blur (stuck Shift bug after Cmd-Tab) and report the correct
+    // composite modifier byte even when a modifier release event is lost.
+    const held = new Map<string, { key: number; mods: number }>();
+
+    const computeMods = (e: KeyboardEvent | null = null): number => {
+      let mods = 0;
+      if (e?.shiftKey) mods |= 2;   // KeyFlags.Shift
+      // Track Shift state via the held map too so synthesized release on
+      // blur gets the same modifier byte the original keydown sent.
+      if (held.has('ShiftLeft') || held.has('ShiftRight')) mods |= 2;
+      return mods;
+    };
+
     const fwd = (e: KeyboardEvent, down: boolean) => {
       // Don't capture browser navigation shortcuts.
       if (e.ctrlKey || e.metaKey || e.altKey) return;
       // Prevent default for keys the browser would scroll on / use for nav.
       e.preventDefault();
       const charCode = e.key.length === 1 ? e.key.charCodeAt(0) : 0;
-      let mods = 0;
-      if (e.shiftKey) mods |= 2;   // KeyFlags.Shift
       // Pull mapped key from MachinePlugin first; fall back to (deprecated
       // but still-supported) event.keyCode for any code not in the table.
       // eslint-disable-next-line @typescript-eslint/no-deprecated
       const key = codeToKey[e.code] ?? e.keyCode;
+      const mods = computeMods(e);
+      if (down) {
+        held.set(e.code, { key, mods });
+      } else {
+        held.delete(e.code);
+      }
       emu.sendKey(key, charCode, down, mods);
     };
+
+    /** Synthesize keyup for every key we still think is held. Called on blur
+     *  and on the effect's cleanup so a stale Shift after Cmd-Tab doesn't
+     *  leave the next emu run in shifted mode. */
+    const releaseAll = () => {
+      for (const [, entry] of held) {
+        emu.sendKey(entry.key, 0, false, entry.mods);
+      }
+      held.clear();
+    };
+
     const onDown = (e: KeyboardEvent) => fwd(e, true);
     const onUp = (e: KeyboardEvent) => fwd(e, false);
+    const onBlur = () => releaseAll();
 
     canvas.addEventListener("keydown", onDown);
     canvas.addEventListener("keyup", onUp);
+    canvas.addEventListener("blur", onBlur);
     return () => {
+      releaseAll();
       canvas.removeEventListener("keydown", onDown);
       canvas.removeEventListener("keyup", onUp);
+      canvas.removeEventListener("blur", onBlur);
     };
   }, [status, workbench]);
 
