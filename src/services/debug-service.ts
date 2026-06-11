@@ -1,53 +1,67 @@
 import type {
+  DebugAdapterPlugin,
   DebugService,
+  DebugTarget,
   EventBus,
   FlagState,
   Logger,
   RegState,
-  RunBackend,
   RunService,
 } from '@ports'
 
-// DebugService wraps the RunBackend debug surface (step / BP / registers /
-// memory) and broadcasts step / bp-hit events on the workbench EventBus. The
-// concrete backend comes from RunService — this service stays adapter-free.
-//
-// Hot-loop paths (Emulator.tsx requestAnimationFrame, the 60-fps blit) keep
-// using RunService.backend() directly. DebugService is the surface debug
-// panels + breakpoint hooks talk to.
+// DebugService delegates to the active DebugAdapterPlugin. The adapter wraps
+// the RunBackend and exposes a CPU-agnostic surface (descriptors + step + BP
+// + memory). DebugService stays adapter-free; createWorkbench injects the
+// plugin selected by `manifest.debugAdapter`.
 
 export interface DebugServiceDeps {
   events: EventBus
   run: RunService
+  adapter: DebugAdapterPlugin
   logger?: Logger
 }
 
 export function createDebugService(deps: DebugServiceDeps): DebugService {
   const log = deps.logger?.child('debug') ?? deps.logger
   const breakpoints = new Set<number>()
+  let cachedTarget: DebugTarget | null = null
+  let cachedBackendId: object | null = null
 
-  const requireBackend = (): RunBackend => {
-    const b = deps.run.backend()
-    if (!b) throw new Error('DebugService called before RunService.boot()')
-    return b
+  const target = (): DebugTarget | null => {
+    const backend = deps.run.backend()
+    if (!backend) {
+      cachedTarget = null
+      cachedBackendId = null
+      return null
+    }
+    if (backend !== cachedBackendId) {
+      cachedTarget = deps.adapter.attach(backend)
+      cachedBackendId = backend
+    }
+    return cachedTarget
+  }
+
+  const requireTarget = (): DebugTarget => {
+    const t = target()
+    if (!t) throw new Error('DebugService called before RunService.boot()')
+    return t
   }
 
   const syncBreakpoints = (): void => {
-    const b = deps.run.backend()
-    if (b) b.setBreakpoints(breakpoints)
+    target()?.setBreakpoints(breakpoints)
   }
 
   return {
     async step() {
-      const b = requireBackend()
-      b.step()
-      deps.events.emit('debug:step-done', { pc: b.getPC() })
+      const t = requireTarget()
+      const pc = await t.step()
+      deps.events.emit('debug:step-done', { pc })
     },
 
     async stepFrame() {
-      const b = requireBackend()
-      b.advanceFrame()
-      deps.events.emit('debug:step-done', { pc: b.getPC() })
+      const t = requireTarget()
+      const pc = await t.stepFrame()
+      deps.events.emit('debug:step-done', { pc })
     },
 
     setBreakpoint(addr) {
@@ -65,26 +79,26 @@ export function createDebugService(deps: DebugServiceDeps): DebugService {
     },
 
     async registers(): Promise<RegState> {
-      const b = requireBackend()
-      const cpu = b.cpuState() as { a: number; x: number; y: number; pc: number; sp: number }
-      return { a: cpu.a, x: cpu.x, y: cpu.y, pc: cpu.pc, sp: cpu.sp }
+      return requireTarget().readRegisters()
     },
 
     async flags(): Promise<FlagState> {
-      const b = requireBackend()
-      const cpu = b.cpuState() as { flags: FlagState }
-      return cpu.flags
+      return requireTarget().readFlags()
     },
 
     async readMemory(addr, len) {
-      const b = requireBackend()
-      return b.readMem(addr & 0xffff, len)
+      return requireTarget().readMemory(addr & 0xffff, len)
     },
 
-    writeMemory: async () => {
-      // RunBackend doesn't expose memory writes today (M6 DebugAdapter does).
-      log?.warn('writeMemory not implemented')
-      throw new Error('writeMemory not implemented in v0.3.0')
+    async writeMemory(addr, bytes) {
+      try {
+        await requireTarget().writeMemory(addr & 0xffff, bytes)
+      } catch (e) {
+        log?.warn('writeMemory rejected by adapter', { addr, len: bytes.length, error: String(e) })
+        throw e
+      }
     },
+
+    target,
   }
 }

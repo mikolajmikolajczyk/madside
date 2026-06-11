@@ -145,7 +145,7 @@ export default function App() {
     // the marker. It reappears on pause / step / BP hit.
     if (running) return null;
     if (!sourceMap || !cpu) return null;
-    const loc = sourceMap.addrToLoc.get(cpu.pc & 0xffff);
+    const loc = sourceMap.addrToLoc.get(cpu.regs.pc & 0xffff);
     if (!loc) return null;
     return loc.file === activeBase ? loc.line : null;
   }, [sourceMap, cpu, activeBase, running]);
@@ -157,7 +157,7 @@ export default function App() {
   const setActivePathFn = project.loaded ? project.setActivePath : null;
   useEffect(() => {
     if (running || !cpu || !sourceMap || !projectFilesRef || !setActivePathFn) return;
-    const loc = sourceMap.addrToLoc.get(cpu.pc & 0xffff);
+    const loc = sourceMap.addrToLoc.get(cpu.regs.pc & 0xffff);
     if (!loc) return;
     if (loc.file === activeBase) return;
     const target = projectFilesRef.find((f) => f.path.endsWith("/" + loc.file) || f.path === loc.file);
@@ -484,7 +484,7 @@ export default function App() {
         busy={busy}
         result={result ? { ok: result.ok, exitCode: result.exitCode } : null}
         running={running}
-        pc={cpu?.pc ?? null}
+        pc={cpu?.regs.pc ?? null}
         brokeOn={brokeOn}
       />
 

@@ -53,6 +53,12 @@ export type {
   ToolchainPlugin,
 } from './plugin-toolchain'
 export type {
+  DebugAdapterPlugin,
+  DebugTarget,
+  FlagDescriptor,
+  RegisterDescriptor,
+} from './plugin-debug'
+export type {
   BootEquates,
   CpuId,
   DeviceDescriptor,

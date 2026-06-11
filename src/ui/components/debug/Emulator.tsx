@@ -3,12 +3,12 @@ import type { RunBackend } from "@ports";
 import { useWorkbench } from "@app";
 import "./Emulator.css";
 
-// Local Cpu shape — mirrors the @adapters/emu.CpuRegs that the parent expects.
-// Re-defined here so @ui doesn't import @adapters; DebugService (M6) lifts this
-// into a proper port type.
+// Generic CPU snapshot — register / flag ids come from the active
+// DebugAdapter's descriptor table (workbench.debug.target()), so this shape
+// is machine-agnostic by construction.
 export interface CpuRegs {
-  a: number; x: number; y: number; pc: number; sp: number;
-  flags: { n: boolean; v: boolean; b: boolean; d: boolean; i: boolean; z: boolean; c: boolean };
+  regs: Record<string, number>;
+  flags: Record<string, boolean>;
 }
 
 interface Props {
@@ -83,7 +83,18 @@ export function Emulator({ xex, running, stepTick, frameTick, breakpoints, memBa
   }, [status, machineWidth, machineHeight]);
 
   const emit = (emu: RunBackend) => {
-    onState?.(emu.cpuState() as CpuRegs);
+    // Project raw cpuState() into the descriptor-keyed shape Debug consumes.
+    // Atari's Altirra backend reports a flat 6502 shape; non-6502 machines
+    // will route this through their own DebugAdapter in the EmulatorPlugin
+    // follow-up so this conversion moves into the adapter itself.
+    const raw = emu.cpuState() as {
+      a: number; x: number; y: number; pc: number; sp: number;
+      flags: Record<string, boolean>;
+    };
+    onState?.({
+      regs: { a: raw.a, x: raw.x, y: raw.y, pc: raw.pc, sp: raw.sp },
+      flags: { ...raw.flags },
+    });
     onMem?.(emu.readMem(memBase & 0xffff, memLen));
   };
 

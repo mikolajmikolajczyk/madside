@@ -2,6 +2,7 @@ import type {
   AssetPipelineService,
   BuildService,
   CommandRegistry,
+  DebugAdapterPlugin,
   DebugService,
   EventBus,
   Logger,
@@ -28,6 +29,7 @@ import {
 import { runRecipes } from '@plugins/converters'
 import { atariXl } from '@plugins/machine-atari-xl'
 import { madsToolchain } from '@plugins/toolchain-mads'
+import { atari6502DebugAdapter } from '@plugins/debug-atari-6502'
 import { createEmu } from '@adapters/emu'
 
 // Workbench Core — the headless workbench instance the rest of the app talks
@@ -45,6 +47,9 @@ export interface WorkbenchDeps {
   recipes?: RecipeRunnerFn
   /** Override the emulator backend factory — defaults to @adapters/emu.createEmu. */
   emuBackendFactory?: RunBackendFactory
+  /** Override the active DebugAdapter — defaults to atari6502DebugAdapter.
+   *  v1.0.0 manifest-driven selection lands with EmulatorPlugin (M4-followup). */
+  debugAdapter?: DebugAdapterPlugin
 }
 
 export interface Workbench {
@@ -126,6 +131,10 @@ export function createWorkbench(deps: WorkbenchDeps): Workbench {
     plugin: { ...madsToolchain, kind: 'toolchain' },
     source: { origin: 'builtin' },
   })
+  plugins.register({
+    plugin: { ...atari6502DebugAdapter, kind: 'debug-adapter' },
+    source: { origin: 'builtin' },
+  })
   const build = createBuildService({
     events,
     logger: deps.logger,
@@ -143,6 +152,7 @@ export function createWorkbench(deps: WorkbenchDeps): Workbench {
     events,
     logger: deps.logger,
     run,
+    adapter: deps.debugAdapter ?? atari6502DebugAdapter,
   })
   const assets = createAssetPipelineService({
     events,

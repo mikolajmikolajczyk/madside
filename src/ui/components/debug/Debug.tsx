@@ -5,19 +5,11 @@ import { useWorkbench } from "@app";
 import "./Debug.css";
 
 export interface CpuState {
-  a: number;
-  x: number;
-  y: number;
-  pc: number;
-  sp: number;
-  flags: { n: boolean; v: boolean; b: boolean; d: boolean; i: boolean; z: boolean; c: boolean };
+  regs: Record<string, number>;
+  flags: Record<string, boolean>;
 }
 
-const EMPTY: CpuState = {
-  a: 0, x: 0, y: 0, pc: 0, sp: 0,
-  flags: { n: false, v: false, b: false, d: false, i: false, z: false, c: false },
-};
-
+const EMPTY: CpuState = { regs: {}, flags: {} };
 
 interface Props {
   state?: CpuState;
@@ -31,24 +23,31 @@ interface Props {
 export function Debug({ state = EMPTY, memory, memoryBase = 0x2000, onMemoryBaseChange, highlightStart, highlightLen }: Props) {
   const workbench = useWorkbench();
   const memoryMap = workbench.machine.memoryMap;
+  // Register / flag labels + widths come from the active DebugAdapter. Atari
+  // ships the generic MOS 6502 layout (A/X/Y/PC/SP + N V B D I Z C). NES will
+  // reuse the same descriptors via the same plugin contract.
+  const target = workbench.debug.target();
+  const regDescriptors = target?.registers ?? [];
+  const flagDescriptors = target?.flags ?? [];
   return (
     <div className="debug">
       <div className="debug__panel">
         <div className="debug__title label">Registers</div>
         <div className="debug__rows">
-          <Reg label="A"  val={hex(state.a, 2)} />
-          <Reg label="X"  val={hex(state.x, 2)} />
-          <Reg label="Y"  val={hex(state.y, 2)} />
-          <Reg label="PC" val={"$" + hex(state.pc, 4)} />
-          <Reg label="SP" val={"$" + hex(state.sp, 2)} />
+          {regDescriptors.map((d) => {
+            const v = state.regs[d.id] ?? 0;
+            const hexLen = d.width * 2;
+            const val = d.width === 2 ? "$" + hex(v, hexLen) : hex(v, hexLen);
+            return <Reg key={d.id} label={d.label} val={val} />;
+          })}
         </div>
       </div>
       <div className="debug__panel">
         <div className="debug__title label">Flags</div>
         <div className="debug__flags">
-          {(["n","v","b","d","i","z","c"] as const).map((k) => (
-            <span key={k} className={"flag" + (state.flags[k] ? " flag--on" : "")}>
-              {k.toUpperCase()}
+          {flagDescriptors.map((d) => (
+            <span key={d.id} className={"flag" + (state.flags[d.id] ? " flag--on" : "")}>
+              {d.label}
             </span>
           ))}
         </div>

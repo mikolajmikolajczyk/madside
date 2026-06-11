@@ -1,26 +1,15 @@
-// DebugService — generic step / BP / register / memory surface. M6 generalises
-// into DebugAdapter plugin per machine; today this wraps the Atari emulator
-// directly via the existing EmuBackend.
+// DebugService — debugger surface decoupled from any specific CPU. Wraps the
+// active DebugAdapterPlugin (M6, v0.6.0) so register/flag names + step /
+// breakpoint / memory primitives come from the adapter, not from a hardcoded
+// 6502 shape.
 
-export interface RegState {
-  // 6502-shape today. M6 widens to Record<string, number> so non-6502 machines
-  // can declare their own register set.
-  a: number
-  x: number
-  y: number
-  pc: number
-  sp: number
-}
+import type { DebugTarget } from '../plugin-debug'
 
-export interface FlagState {
-  n: boolean
-  v: boolean
-  b: boolean
-  d: boolean
-  i: boolean
-  z: boolean
-  c: boolean
-}
+/** Generic register snapshot. Keys come from `target()?.registers` ids. */
+export type RegState = Record<string, number>
+
+/** Generic flag snapshot. Keys come from `target()?.flags` ids. */
+export type FlagState = Record<string, boolean>
 
 export interface DebugService {
   step(): Promise<void>
@@ -33,4 +22,9 @@ export interface DebugService {
   flags(): Promise<FlagState>
   readMemory(addr: number, len: number): Promise<Uint8Array>
   writeMemory(addr: number, bytes: Uint8Array): Promise<void>
+
+  /** Live handle to the attached DebugTarget. Null until RunService.boot()
+   *  completes. UI consumers read `target()?.registers` / `target()?.flags`
+   *  for the descriptor lists shown in the panel. */
+  target(): DebugTarget | null
 }
