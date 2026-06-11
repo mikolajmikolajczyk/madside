@@ -23,6 +23,7 @@ import {
   type RecipeRunnerFn,
   type RunBackendFactory,
   type ToolchainAssembleFn,
+  type ToolchainResolverFn,
 } from '@services'
 import { runRecipes } from '@plugins/converters'
 import { atariXl } from '@plugins/machine-atari-xl'
@@ -37,9 +38,9 @@ import { createEmu } from '@adapters/emu'
 export interface WorkbenchDeps {
   projectRepo: ProjectRepository
   logger: Logger
-  /** Override the assemble path — defaults to @adapters/wasm-mads. Tests pass
-   *  a stub; later toolchain plugins replace this with a registry lookup. */
-  toolchain?: ToolchainAssembleFn
+  /** Override the toolchain resolver — tests pass a stub keyed on the
+   *  manifest.toolchain id. Default uses the PluginRegistry. */
+  toolchain?: ToolchainResolverFn
   /** Override the recipe runner — defaults to @plugins/converters.runRecipes. */
   recipes?: RecipeRunnerFn
   /** Override the emulator backend factory — defaults to @adapters/emu.createEmu. */
@@ -55,17 +56,19 @@ export interface Workbench {
   readonly run: RunService
   readonly debug: DebugService
   readonly assets: AssetPipelineService
-  /** Currently active MachinePlugin. v0.4.0 ships with Atari-XL hardcoded;
-   *  v1.0.0 (NES validation) drives selection from the project manifest. */
+  /** Currently active MachinePlugin. UI panels (Emulator, Debug) read display /
+   *  audio / input / memoryMap from here. Atari-XL hardcoded today; v1.0.0
+   *  (NES validation) drives selection from the active project manifest. */
   readonly machine: MachinePlugin
-  /** Currently active ToolchainPlugin. v0.5.0 ships with MADS hardcoded;
-   *  manifest v2 + plugin-discovery work routes selection. */
+  /** Currently active ToolchainPlugin. BuildService dispatches by
+   *  `manifest.toolchain` id via the PluginRegistry resolver; this field is
+   *  retained for UI introspection only. */
   readonly toolchain: ToolchainPlugin
   readonly logger: Logger
 }
 
-/** Adapt the active ToolchainPlugin into the BuildService's narrower hook
- *  shape. Service stays adapter-free; plugin owns the assemble call. */
+/** Adapt a ToolchainPlugin into the BuildService's narrower hook shape.
+ *  Service stays adapter-free; plugin owns the assemble call. */
 const toolchainToBuildHook = (plugin: ToolchainPlugin): ToolchainAssembleFn =>
   async (mainPath, files) => {
     const out = await plugin.build({
@@ -83,6 +86,15 @@ const toolchainToBuildHook = (plugin: ToolchainPlugin): ToolchainAssembleFn =>
       extras: out.extras,
       exitCode: out.exitCode,
     }
+  }
+
+/** Build the registry-backed toolchain resolver. Used as the default for the
+ *  BuildService.toolchain dep when no override is supplied. */
+const registryToolchainResolver =
+  (plugins: PluginRegistry): ToolchainResolverFn =>
+  (id: string) => {
+    const plugin = plugins.get('toolchain', id) as ToolchainPlugin | undefined
+    return plugin ? toolchainToBuildHook(plugin) : undefined
   }
 
 const defaultRecipes: RecipeRunnerFn = async (projectId, recipes, files) => {
@@ -104,8 +116,8 @@ export function createWorkbench(deps: WorkbenchDeps): Workbench {
   const plugins = createPluginRegistry()
 
   // Register the bundled Atari-XL MachinePlugin + MADS ToolchainPlugin.
-  // v0.5.0 hardcodes both; manifest v2 + plugin-discovery drive selection
-  // dynamically.
+  // BuildService now dispatches via manifest.toolchain → PluginRegistry,
+  // so adding a second toolchain (M9: ca65) is a register() call away.
   plugins.register({
     plugin: { ...atariXl, kind: 'machine' },
     source: { origin: 'builtin' },
@@ -117,7 +129,7 @@ export function createWorkbench(deps: WorkbenchDeps): Workbench {
   const build = createBuildService({
     events,
     logger: deps.logger,
-    toolchain: deps.toolchain ?? toolchainToBuildHook(madsToolchain),
+    toolchain: deps.toolchain ?? registryToolchainResolver(plugins),
     recipes: deps.recipes ?? defaultRecipes,
   })
   const run = createRunService({

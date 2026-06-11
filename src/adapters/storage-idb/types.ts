@@ -1,17 +1,11 @@
-import type { Recipe } from "@ports";
+import type { ProjectManifestV2 } from "@ports";
 // Persisted shapes. Schema version bumps require a migration in db.ts.
 
 export const SCHEMA_VERSION = 2;
 
-export interface Manifest {
-  version: 1;
-  name: string;
-  main: string;                          // e.g. "src/main.asm"
-  run?: { default?: { audio?: boolean } };
-  recipes?: Recipe[];
-  /** Map of file extension (no dot, lowercase) → path of editor module under `editors/`. */
-  editors?: Record<string, string>;
-}
+/** Manifest type alias — IDB persists the v2 shape verbatim. Validation +
+ *  v1 rejection happens at read time via parseProjectManifest. */
+export type Manifest = ProjectManifestV2;
 
 export interface ProjectRow {
   id: string;                            // ULID-ish; for now: slugified name + suffix on collision

@@ -20,7 +20,13 @@ const baseProject = (id: string, content = '; minimal seed\n'): Project => ({
       updatedAt: Date.now(),
     },
   ],
-  manifest: { version: 2, name: `hello-${id}` },
+  manifest: {
+    version: 2,
+    name: `hello-${id}`,
+    main: 'src/main.a65',
+    machine: 'atari-xl',
+    toolchain: 'mads',
+  },
 })
 
 const suites: Array<[string, () => ProjectRepository]> = [

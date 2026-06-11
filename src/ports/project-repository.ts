@@ -3,6 +3,7 @@
 // arrives later.
 
 import type { Result, StorageError } from './errors'
+import type { ProjectManifestV2 } from './project-manifest'
 
 export interface ProjectMeta {
   id: string
@@ -19,8 +20,9 @@ export interface ProjectFile {
 
 export interface Project extends ProjectMeta {
   files: ProjectFile[]
-  /** Parsed project.json manifest. Shape stabilises with v2 (M5). */
-  manifest: Record<string, unknown>
+  /** Parsed + validated project.json (v2). Loader rejects v1 with a clear
+   *  ManifestError before this type is constructed. */
+  manifest: ProjectManifestV2
 }
 
 export interface SnapshotMeta {
@@ -34,7 +36,7 @@ export interface Snapshot extends SnapshotMeta {
   /** Map of file path → content hash. Bytes live in the content-addressable
    *  blob store; this is just the tree. */
   tree: Record<string, string>
-  manifest: Record<string, unknown>
+  manifest: ProjectManifestV2
 }
 
 export interface ProjectRepository {

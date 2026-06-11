@@ -30,6 +30,7 @@ import {
   type SnapshotMeta,
 } from "@adapters/storage-idb";
 import type { FileRow, Manifest, ProjectRow } from "@adapters/storage-idb";
+import { MANIFEST_VERSION } from "@ports";
 
 // Files are stored as bytes end-to-end. Text views (Editor, MADS source list,
 // label scanner, etc.) decode lazily; binary views (AssetPanel, custom Phase 11
@@ -173,9 +174,11 @@ export function useProject() {
   const newProject = useCallback(async (name: string): Promise<ProjectRow> => {
     const trimmed = name.trim() || "project";
     const manifest: Manifest = {
-      version: 1,
+      version: MANIFEST_VERSION,
       name: trimmed,
       main: SEED_NEW_MAIN_PATH,
+      machine: "atari-xl",
+      toolchain: "mads",
       run: { default: { audio: true } },
     };
     const project = await createProject(

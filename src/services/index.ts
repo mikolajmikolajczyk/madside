@@ -9,6 +9,7 @@ export {
   type RecipeRunnerFn,
   type ToolchainAssembleFn,
   type ToolchainAssembleResult,
+  type ToolchainResolverFn,
 } from './build-service'
 export {
   createRunService,

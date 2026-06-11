@@ -2,6 +2,7 @@
 // Export excludes generated/ — those are reproducible by the asset pipeline.
 
 import { unzipSync, zipSync } from "fflate";
+import { MANIFEST_VERSION, parseProjectManifest } from "@ports";
 import { createProject, listProjects, loadProject, MANIFEST_PATH, textToBytes, bytesToText } from "./project";
 import type { Manifest, ProjectRow } from "./types";
 
@@ -29,11 +30,11 @@ export async function importProjectFromZip(zip: Uint8Array, fallbackName: string
 
   let manifest: Manifest;
   if (entries[MANIFEST_PATH]) {
-    try {
-      manifest = JSON.parse(bytesToText(entries[MANIFEST_PATH])) as Manifest;
-    } catch {
-      manifest = synthesizeManifest(entries, fallbackName);
-    }
+    // v1 imports + malformed JSON surface to the caller so the UI can show
+    // the ManifestError ('project.json v1 unsupported, recreate project').
+    const parsed = parseProjectManifest(JSON.parse(bytesToText(entries[MANIFEST_PATH])));
+    if (!parsed.ok) throw parsed.error;
+    manifest = parsed.value;
   } else {
     manifest = synthesizeManifest(entries, fallbackName);
     entries[MANIFEST_PATH] = textToBytes(JSON.stringify(manifest, null, 2) + "\n");
@@ -56,9 +57,11 @@ export async function importProjectFromZip(zip: Uint8Array, fallbackName: string
 function synthesizeManifest(entries: Record<string, Uint8Array>, fallbackName: string): Manifest {
   const sourceCandidate = Object.keys(entries).find((p) => /\.(a65|asm)$/i.test(p) && !p.startsWith(GENERATED_DIR));
   return {
-    version: 1,
+    version: MANIFEST_VERSION,
     name: fallbackName,
     main: sourceCandidate ?? "src/main.asm",
+    machine: "atari-xl",
+    toolchain: "mads",
     run: { default: { audio: true } },
   };
 }

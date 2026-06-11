@@ -17,7 +17,13 @@ describe('createWorkbench', () => {
         updatedAt: Date.now(),
       },
     ],
-    manifest: { version: 2, name: `hello-${id}` },
+    manifest: {
+      version: 2,
+      name: `hello-${id}`,
+      main: 'src/main.a65',
+      machine: 'atari-xl',
+      toolchain: 'mads',
+    },
   })
 
   it('instantiates without a DOM', () => {

@@ -1,5 +1,6 @@
 // First-run bootstrap: if no project exists, create "sandbox" with seed files.
 
+import { MANIFEST_VERSION } from "@ports";
 import { createProject, getActiveProjectId, listProjects, loadProject, MANIFEST_PATH, textToBytes, type LoadedProject } from "./project";
 import type { Manifest } from "./types";
 
@@ -48,9 +49,11 @@ EOL    = $9B
 export const SEED_ATARI_FOR_TESTS = SEED_ATARI;
 
 const SEED_MANIFEST: Manifest = {
-  version: 1,
+  version: MANIFEST_VERSION,
   name: "sandbox",
   main: "src/hello.a65",
+  machine: "atari-xl",
+  toolchain: "mads",
   run: { default: { audio: true } },
 };
 

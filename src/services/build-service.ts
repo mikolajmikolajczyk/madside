@@ -45,6 +45,11 @@ export type ToolchainAssembleFn = (
   files: BuildFileLike[],
 ) => Promise<ToolchainAssembleResult>
 
+/** Resolve the assemble function for a given toolchain id (from manifest.toolchain).
+ *  Undefined means "no plugin of that id registered" — BuildService surfaces
+ *  a clear ManifestError-equivalent. */
+export type ToolchainResolverFn = (toolchainId: string) => ToolchainAssembleFn | undefined
+
 export interface RecipeRunResult {
   ok: boolean
   output?: BuildFileLike
@@ -58,14 +63,11 @@ export type RecipeRunnerFn = (
 
 export interface BuildServiceDeps {
   events: EventBus
-  toolchain: ToolchainAssembleFn
+  /** Manifest-driven toolchain dispatch. Plugin id (from manifest.toolchain)
+   *  → assemble function. */
+  toolchain: ToolchainResolverFn
   recipes: RecipeRunnerFn
   logger?: Logger
-}
-
-interface ManifestShape {
-  main?: string
-  recipes?: Recipe[]
 }
 
 const DEFAULT_DEBOUNCE_MS = 400
@@ -90,10 +92,11 @@ export function createBuildService(deps: BuildServiceDeps): BuildService {
     busy = true
     deps.events.emit('build:start', { projectId: input.projectId })
     try {
-      const manifest = input.manifest as ManifestShape
+      const manifest = input.manifest
       const main = manifest.main
-      if (!main) {
-        throw new BuildError('manifest.main is missing — nothing to assemble')
+      const assemble = deps.toolchain(manifest.toolchain)
+      if (!assemble) {
+        throw new BuildError(`toolchain '${manifest.toolchain}' is not registered`)
       }
 
       const fileLikes: BuildFileLike[] = input.files.map((f) => ({
@@ -119,7 +122,7 @@ export function createBuildService(deps: BuildServiceDeps): BuildService {
         content,
       }))
 
-      const assembleResult = await deps.toolchain(main, assembleInput)
+      const assembleResult = await assemble(main, assembleInput)
 
       if (mySeq !== seq) {
         return err(new BuildError(`build superseded (seq ${mySeq} → ${seq})`))

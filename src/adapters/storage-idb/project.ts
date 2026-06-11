@@ -1,5 +1,6 @@
 // Project-level CRUD. UI layer talks to these, never to idb directly.
 
+import { parseProjectManifest } from "@ports";
 import { getDB } from "./db";
 import type { FileRow, Manifest, ProjectRow } from "./types";
 
@@ -41,8 +42,9 @@ export async function loadProject(id: string): Promise<LoadedProject | null> {
   const files = await db.getAllFromIndex("files", "byProject", id);
   const manifestFile = files.find((f) => f.path === MANIFEST_PATH);
   if (!manifestFile) throw new Error(`project ${id} missing ${MANIFEST_PATH}`);
-  const manifest = JSON.parse(bytesToText(manifestFile.content)) as Manifest;
-  return { project, manifest, files };
+  const parsed = parseProjectManifest(JSON.parse(bytesToText(manifestFile.content)));
+  if (!parsed.ok) throw parsed.error;
+  return { project, manifest: parsed.value, files };
 }
 
 export async function saveFile(projectId: string, path: string, content: Uint8Array): Promise<void> {
@@ -109,13 +111,16 @@ export async function renameProject(id: string, requestedName: string): Promise<
   const manifestRow = await tx.objectStore("files").get([id, MANIFEST_PATH]);
   if (manifestRow) {
     try {
-      const manifest = JSON.parse(bytesToText(manifestRow.content)) as Manifest;
-      manifest.name = name;
-      manifestRow.content = textToBytes(JSON.stringify(manifest, null, 2) + "\n");
-      manifestRow.updatedAt = Date.now();
-      await tx.objectStore("files").put(manifestRow);
+      const parsed = parseProjectManifest(JSON.parse(bytesToText(manifestRow.content)));
+      if (parsed.ok) {
+        const manifest: Manifest = { ...parsed.value, name };
+        manifestRow.content = textToBytes(JSON.stringify(manifest, null, 2) + "\n");
+        manifestRow.updatedAt = Date.now();
+        await tx.objectStore("files").put(manifestRow);
+      }
+      // Invalid manifest (v1 or malformed) — leave on disk; user sees mismatch.
     } catch {
-      // Manifest file invalid JSON — leave it; user will see the mismatch.
+      // JSON.parse failed — same handling.
     }
   }
   await tx.done;

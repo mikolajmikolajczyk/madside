@@ -54,6 +54,10 @@ export class ConfigError extends WorkbenchError {
   readonly kind = 'config' as const
 }
 
+export class ManifestError extends WorkbenchError {
+  readonly kind = 'manifest' as const
+}
+
 export class NetworkError extends WorkbenchError {
   readonly kind = 'network' as const
 }

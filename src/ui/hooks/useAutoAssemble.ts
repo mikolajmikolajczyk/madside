@@ -1,5 +1,11 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import type { BuildInput, BuildResult, BuildService, Recipe, SourceMap } from "@ports";
+import type {
+  BuildInput,
+  BuildResult,
+  BuildService,
+  ProjectManifestV2,
+  SourceMap,
+} from "@ports";
 
 interface ProjectFile {
   path: string;
@@ -9,8 +15,7 @@ interface ProjectFile {
 interface Args {
   buildService: BuildService;
   files: ProjectFile[] | null;
-  main: string | null;
-  recipes: Recipe[] | null | undefined;
+  manifest: ProjectManifestV2 | null;
   projectId: string | null;
 }
 
@@ -59,8 +64,7 @@ const toOutcome = (r: BuildResult): AutoAssembleOutcome => ({
 export function useAutoAssemble({
   buildService,
   files,
-  main,
-  recipes,
+  manifest,
   projectId,
 }: Args): UseAutoAssembleResult {
   const [result, setResult] = useState<AutoAssembleOutcome | null>(null);
@@ -68,7 +72,7 @@ export function useAutoAssemble({
   const seqRef = useRef(0);
 
   const runAssemble = useCallback(async (): Promise<AutoAssembleOutcome | null> => {
-    if (!files || !main || !projectId) return null;
+    if (!files || !manifest || !projectId) return null;
     const seq = ++seqRef.current;
     setBusy(true);
     try {
@@ -79,7 +83,7 @@ export function useAutoAssemble({
           content: f.content,
           updatedAt: 0,
         })),
-        manifest: { main, recipes: recipes ?? [] },
+        manifest,
       };
       const built = await buildService.build(input);
       if (seq !== seqRef.current) return null;
@@ -109,7 +113,7 @@ export function useAutoAssemble({
     } finally {
       if (seq === seqRef.current) setBusy(false);
     }
-  }, [buildService, files, main, recipes, projectId]);
+  }, [buildService, files, manifest, projectId]);
 
   useEffect(() => {
     const id = setTimeout(() => {

@@ -48,7 +48,7 @@ const fromLoaded = (loaded: LoadedProject): Project => {
     createdAt: loaded.project.createdAt,
     updatedAt: loaded.project.updatedAt,
     files,
-    manifest: loaded.manifest as unknown as Record<string, unknown>,
+    manifest: loaded.manifest,
   }
 }
 

@@ -54,8 +54,7 @@ export default function App() {
   const { result, setResult, busy, runAssemble } = useAutoAssemble({
     buildService: workbench.build,
     files: project.loaded ? project.files : null,
-    main: project.loaded ? project.manifest.main : null,
-    recipes: project.loaded ? project.manifest.recipes : null,
+    manifest: project.loaded ? project.manifest : null,
     projectId: project.loaded ? project.projectId : null,
   });
 
