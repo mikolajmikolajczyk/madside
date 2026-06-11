@@ -62,6 +62,8 @@ export type {
   PanelComponent,
   PanelContext,
   PanelData,
+  PanelFile,
+  PanelMount,
   PanelPlugin,
 } from './plugin-panel'
 export type {

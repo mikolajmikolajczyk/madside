@@ -33,6 +33,7 @@ import { atari6502DebugAdapter } from '@plugins/debug-atari-6502'
 import { registersPanel } from '@plugins/panel-registers'
 import { memoryPanel } from '@plugins/panel-memory'
 import { outputPanel } from '@plugins/panel-output'
+import { editorToPanel, listBuiltinEditors } from '@plugins/editors'
 import { createEmu } from '@adapters/emu'
 
 // Workbench Core — the headless workbench instance the rest of the app talks
@@ -141,6 +142,16 @@ export function createWorkbench(deps: WorkbenchDeps): Workbench {
   for (const panel of [registersPanel, memoryPanel, outputPanel]) {
     plugins.register({
       plugin: { ...panel, kind: 'panel' },
+      source: { origin: 'builtin' },
+    })
+  }
+  // Phase 11 built-in editors surface through the unified PluginRegistry as
+  // file-bound panels. Project-side editors (editors/*.js, Blob-URL-loaded)
+  // still go through the legacy buildEditorRegistry path until UI swaps to
+  // PanelSlot for file editing.
+  for (const editor of listBuiltinEditors()) {
+    plugins.register({
+      plugin: { ...editorToPanel(editor), kind: 'panel' },
       source: { origin: 'builtin' },
     })
   }
