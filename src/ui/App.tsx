@@ -224,7 +224,23 @@ export default function App() {
       setLoadedXex(r.xex);
       setRunning(true);
     }
-  }, [running, runAssemble]);
+  }, [running, runAssemble, resetEmuState]);
+
+  // Register the user-action surface on the workbench CommandRegistry.
+  // Toolbar / menu / shortcut dispatch keeps its existing callbacks for now;
+  // future palette UI walks workbench.commands.list() and runs commands by id.
+  useEffect(() => {
+    const disposers = [
+      workbench.commands.register({ id: 'build.assemble', title: 'Build', shortcut: 'Ctrl+B', run: () => { void runAssemble(); } }),
+      workbench.commands.register({ id: 'run.start', title: 'Run', shortcut: 'F5', run: () => { void onRun(); } }),
+      workbench.commands.register({ id: 'run.pause', title: 'Pause', shortcut: 'F6', run: () => onPause() }),
+      workbench.commands.register({ id: 'run.stop', title: 'Stop', shortcut: 'Shift+F5', run: () => onStop() }),
+      workbench.commands.register({ id: 'debug.step', title: 'Step', shortcut: 'F10', run: () => onStep() }),
+      workbench.commands.register({ id: 'debug.frame', title: 'Frame', shortcut: 'F11', run: () => onStepFrame() }),
+      workbench.commands.register({ id: 'run.restart', title: 'Restart', shortcut: 'Ctrl+Shift+F5', run: () => { void onReset(); } }),
+    ];
+    return () => { for (const d of disposers) d(); };
+  }, [workbench, runAssemble, onRun, onPause, onStop, onStep, onStepFrame, onReset]);
 
   // Modal-based dialogs (Radix Dialog) replace native prompt/confirm.
   type DialogKind = "none" | "newProject" | "renameProject" | "duplicateProject" | "deleteProject";
