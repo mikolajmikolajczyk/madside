@@ -53,6 +53,12 @@ export function Emulator({ xex, running, stepTick, frameTick, breakpoints, memBa
     return () => { cancelled = true; };
   }, [workbench]);
 
+  // Canvas dims sourced from workbench.machine (v0.4.0 MachinePlugin) instead
+  // of the emu's own width/height — same values for Atari today, but every
+  // machine the workbench gains in v1.0.0 NES validation drives its own.
+  const machineWidth = workbench.machine.display.width;
+  const machineHeight = workbench.machine.display.height;
+
   // Set up canvas + image buffer when ready
   useEffect(() => {
     const emu = emuRef.current;
@@ -60,12 +66,12 @@ export function Emulator({ xex, running, stepTick, frameTick, breakpoints, memBa
     if (!emu || !canvas || status !== "ready") return;
     const ctx = canvas.getContext("2d");
     if (!ctx) return;
-    canvas.width = emu.width;
-    canvas.height = emu.height;
-    const image = ctx.createImageData(emu.width, emu.height);
+    canvas.width = machineWidth;
+    canvas.height = machineHeight;
+    const image = ctx.createImageData(machineWidth, machineHeight);
     const view32 = new Uint32Array(image.data.buffer);
     imageRef.current = { image, view32 };
-  }, [status]);
+  }, [status, machineWidth, machineHeight]);
 
   const emit = (emu: RunBackend) => {
     onState?.(emu.cpuState() as CpuRegs);
