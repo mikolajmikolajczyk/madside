@@ -60,6 +60,21 @@ export interface MachineAudio {
   channels: number
 }
 
+/** Per-emulator-plugin opaque hardware configuration. Atari maps to
+ *  ATHardwareMode / ATMemoryMode / firmware-id numbers; NES would use its own
+ *  enum. The workbench just forwards these to the matching EmulatorPlugin
+ *  setters at boot — no semantic interpretation here. */
+export interface MachineHardwareConfig {
+  /** Numeric value forwarded to `EmuBackend.setHardwareMode`. */
+  hardwareMode?: number
+  /** Numeric value forwarded to `EmuBackend.setMemoryMode`. */
+  memoryMode?: number
+  /** Internal BASIC enabled at boot. */
+  basic?: boolean
+  /** Firmware ID forwarded to `EmuBackend.setKernel`. */
+  kernel?: number
+}
+
 export interface BootEquates {
   /** POSIX path relative to project root. Seed projects place these under
    *  src/<machine>.a65 (e.g. src/atari.a65). */
@@ -86,4 +101,8 @@ export interface MachinePlugin {
   readonly compatibleEmulators: string[]
   /** Optional file the seed-project flow injects into new projects. */
   readonly bootEquates?: BootEquates
+  /** Hardware-config applied to the emulator backend on boot. Mapped 1:1 to
+   *  the EmuBackend setHardwareMode / setMemoryMode / setBasic / setKernel
+   *  Embind setters. */
+  readonly hardwareConfig?: MachineHardwareConfig
 }

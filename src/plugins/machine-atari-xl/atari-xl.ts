@@ -83,6 +83,16 @@ export const atariXl: MachinePlugin = {
   compatibleToolchains: ['mads'],
   compatibleEmulators: ['altirra-wasm'],
 
+  // Numeric values track ATHardwareMode / ATMemoryMode in
+  // Altirra/h/constants.h. 800XL = 1, 64K = 2. kernel left undefined so the
+  // wasm boot path's hardcoded LLEXL pick stands; project manifest can
+  // override later.
+  hardwareConfig: {
+    hardwareMode: 1, // kATHardwareMode_800XL
+    memoryMode: 2,   // kATMemoryMode_64K
+    basic: false,
+  },
+
   // Common Atari OS equates. Canonical source — @adapters/storage-idb/seed.ts
   // currently has a parallel copy; the duplicate disappears when v0.5.0
   // ToolchainPlugin work routes seed injection through workbench.machine.

@@ -3,6 +3,7 @@ import type {
   EmulatorTrapError as EmulatorTrapErrorType,
   EventBus,
   Logger,
+  MachineHardwareConfig,
   RunBackend,
   RunService,
   RunStatus,
@@ -38,6 +39,9 @@ export interface RunServiceDeps {
   events: EventBus
   backendFactory: RunBackendFactory
   logger?: Logger
+  /** Applied to the backend on first boot. Comes from the active MachinePlugin
+   *  in @app/createWorkbench. */
+  hardwareConfig?: MachineHardwareConfig
 }
 
 export function createRunService(deps: RunServiceDeps): RunService {
@@ -54,7 +58,28 @@ export function createRunService(deps: RunServiceDeps): RunService {
 
   const ensureBackend = async (): Promise<RunBackend> => {
     if (backend) return backend
-    if (!backendPromise) backendPromise = deps.backendFactory()
+    if (!backendPromise) {
+      backendPromise = (async () => {
+        const b = await deps.backendFactory()
+        // Apply MachinePlugin hardware config before any load — Altirra's
+        // setters take effect on the next ColdReset (which loadXEX et al.
+        // trigger).
+        const hw = deps.hardwareConfig
+        if (hw) {
+          const wb = b as RunBackend & {
+            setHardwareMode?(n: number): void
+            setMemoryMode?(n: number): void
+            setBasic?(b: boolean): void
+            setKernel?(n: number): void
+          }
+          if (hw.hardwareMode !== undefined) wb.setHardwareMode?.(hw.hardwareMode)
+          if (hw.memoryMode !== undefined)   wb.setMemoryMode?.(hw.memoryMode)
+          if (hw.basic !== undefined)        wb.setBasic?.(hw.basic)
+          if (hw.kernel !== undefined)       wb.setKernel?.(hw.kernel)
+        }
+        return b
+      })()
+    }
     backend = await backendPromise
     return backend
   }

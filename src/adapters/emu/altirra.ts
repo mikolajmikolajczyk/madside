@@ -14,6 +14,10 @@ interface AltirraCoreInstance {
   loadATR(bytes: Uint8Array): boolean;
   loadCAR(bytes: Uint8Array): boolean;
   loadCAS(bytes: Uint8Array): boolean;
+  setHardwareMode(mode: number): void;
+  setMemoryMode(mode: number): void;
+  setBasic(enabled: boolean): void;
+  setKernel(firmwareId: number): void;
   advanceFrame(trap?: (() => boolean) | null): number;
   setBreakpoints(addrs: number[]): void;
   step(): number;
@@ -223,6 +227,11 @@ export class AltirraBackend implements EmuBackend {
   sendKey(keyCode: number, charCode: number, isDown: boolean, modifiers = 0) {
     this.core.sendKey(keyCode, charCode, isDown, modifiers);
   }
+
+  setHardwareMode(mode: number) { this.core.setHardwareMode(mode); }
+  setMemoryMode(mode: number)   { this.core.setMemoryMode(mode); }
+  setBasic(enabled: boolean)    { this.core.setBasic(enabled); }
+  setKernel(firmwareId: number) { this.core.setKernel(firmwareId); }
 
   setBreakpoints(addrs: Iterable<number>) {
     this.core.setBreakpoints([...addrs].map((a) => a & 0xffff));

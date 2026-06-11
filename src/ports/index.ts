@@ -54,6 +54,7 @@ export type {
   InputLayoutKind,
   MachineAudio,
   MachineDisplay,
+  MachineHardwareConfig,
   MachinePlugin,
   MemoryRegion,
   MemoryRegionKind,

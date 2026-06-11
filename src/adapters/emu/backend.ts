@@ -25,6 +25,13 @@ export interface EmuBackend {
   /** Load a `.cas` cassette image, reset, set up for SIO load. */
   loadCAS(cas: Uint8Array): void;
 
+  /** Hardware-config setters — numeric values match Altirra's ATHardwareMode
+   *  / ATMemoryMode / Atari firmware-id enums. Apply before loading media. */
+  setHardwareMode(mode: number): void;
+  setMemoryMode(mode: number): void;
+  setBasic(enabled: boolean): void;
+  setKernel(firmwareId: number): void;
+
   /** Advance until next frame or until a breakpoint is hit. Returns cycles used. */
   advanceFrame(trap?: () => boolean): number;
 
