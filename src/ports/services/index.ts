@@ -2,6 +2,8 @@ export type { BuildInput, BuildOptions, BuildResult, BuildService } from './buil
 export type { RunBackend, RunService, RunStatus } from './run-service'
 export type { DebugService, FlagState, RegState } from './debug-service'
 export type {
+  AssetPipelineFile,
+  AssetPipelineInput,
   AssetPipelineService,
   RecipeRunResult,
 } from './asset-pipeline-service'

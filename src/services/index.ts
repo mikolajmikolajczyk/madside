@@ -16,3 +16,9 @@ export {
   type RunServiceDeps,
 } from './run-service'
 export { createDebugService, type DebugServiceDeps } from './debug-service'
+export {
+  createAssetPipelineService,
+  type AssetPipelineServiceDeps,
+  type RecipeRunnerFn as AssetRecipeRunnerFn,
+  type RecipeRunnerResultLike,
+} from './asset-pipeline-service'

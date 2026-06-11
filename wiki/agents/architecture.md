@@ -33,7 +33,7 @@ src/
     build-service.ts     # createBuildService() — recipe engine → toolchain → events; DI'd via @app
     run-service.ts       # createRunService() — emulator lifecycle + audio; backend factory DI'd
     debug-service.ts     # createDebugService() — step / BP / cpuState / readMem via RunService.backend()
-    # AssetPipeline impl lands here in v0.3.0
+    asset-pipeline-service.ts # createAssetPipelineService() — runAll / runOne / runAffected; emits recipes:start/done
 
   adapters/              # port implementations
     plugin-loader.ts     # Blob URL + dynamic import + sha256 cache

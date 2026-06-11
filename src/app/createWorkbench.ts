@@ -1,4 +1,5 @@
 import type {
+  AssetPipelineService,
   BuildService,
   CommandRegistry,
   DebugService,
@@ -10,6 +11,7 @@ import type {
   RunService,
 } from '@ports'
 import {
+  createAssetPipelineService,
   createBuildService,
   createCommandRegistry,
   createDebugService,
@@ -49,6 +51,7 @@ export interface Workbench {
   readonly build: BuildService
   readonly run: RunService
   readonly debug: DebugService
+  readonly assets: AssetPipelineService
   readonly logger: Logger
 }
 
@@ -98,6 +101,28 @@ export function createWorkbench(deps: WorkbenchDeps): Workbench {
     logger: deps.logger,
     run,
   })
+  const assets = createAssetPipelineService({
+    events,
+    logger: deps.logger,
+    recipes: async (projectId, recipes, files) => {
+      // runRecipes returns its native shape; map to RecipeRunnerResultLike for
+      // the service. Pass-through recipe object preserves converter/input/output
+      // so AssetPipelineService can index recipes by their output path.
+      const native = await runRecipes(
+        projectId,
+        recipes,
+        files.map((f) => ({ path: f.path, content: new Uint8Array(f.content) })),
+      )
+      return native.map((r) => ({
+        ok: r.ok,
+        output: r.output
+          ? { path: r.output.path, content: new Uint8Array(r.output.bytes) }
+          : undefined,
+        recipe: r.recipe,
+        error: r.error,
+      }))
+    },
+  })
 
   return {
     events,
@@ -107,6 +132,7 @@ export function createWorkbench(deps: WorkbenchDeps): Workbench {
     build,
     run,
     debug,
+    assets,
     logger: deps.logger,
   }
 }
