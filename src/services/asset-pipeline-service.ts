@@ -91,10 +91,16 @@ export function createAssetPipelineService(
     },
 
     async runAffected(input) {
-      // Affected-recipes tracking lives in a follow-up (0b0a786). For now
-      // runAffected is equivalent to runAll — services contract is honest:
-      // returns every recipe's result. The optimisation is opt-in.
-      return runMany(input, input.recipes)
+      // Recipe engine already maintains a per-(projectId, output) fingerprint
+      // cache and skips recipes whose input bytes + options didn't change.
+      // runAffected runs everything through the same path and filters the
+      // skipped entries out so the caller sees only the recipes that actually
+      // re-ran. "No bytes, no error" is the skip signal at this layer — a
+      // re-ran recipe always has bytes (success) or error (failure).
+      const all = await runMany(input, input.recipes)
+      if (!all.ok) return all
+      const reran = all.value.filter((r) => r.bytes !== undefined || r.error !== undefined)
+      return ok(reran)
     },
   }
 }
