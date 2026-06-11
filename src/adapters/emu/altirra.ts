@@ -1,5 +1,5 @@
 // Altirra wasm-core backend. Lazy-loads the Emscripten ES module from
-// `/altirra/altirra-core.js`, instantiates the C++ `AltirraCore` class,
+// `./wasm/altirra-core.js` (Vite-tracked), instantiates the C++ `AltirraCore` class,
 // and forwards all `EmuBackend` calls into it.
 //
 // Compared with the 8bw backend (now retired) this is a thin shim: the
@@ -39,33 +39,26 @@ interface AltirraModule {
   getExceptionMessage?: (excPtr: number) => string;
 }
 
-type CoreFactory = (overrides?: Record<string, unknown>) => Promise<AltirraModule>;
+// Vite hashes both files at build time. The factory is the default export of
+// the emscripten ESM glue; the .wasm sibling is imported as a URL so we can
+// hand it to locateFile() — Emscripten otherwise tries to resolve the wasm
+// relative to import.meta.url, which the bundler scrambles.
+import createAltirraCore from "./wasm/altirra-core.js";
+import altirraWasmUrl from "./wasm/altirra-core.wasm?url";
 
 let modulePromise: Promise<AltirraModule> | null = null;
 let modulePromiseRef: AltirraModule | null = null;
 function loadModule(): Promise<AltirraModule> {
   if (modulePromise) return modulePromise;
-  modulePromise = loadFactory()
-    .then((factory) => factory({ locateFile: (p: string) => `/altirra/${p}` }))
-    .then((mod) => { modulePromiseRef = mod; return mod; });
-  return modulePromise;
-}
-
-let factoryPromise: Promise<CoreFactory> | null = null;
-function loadFactory(): Promise<CoreFactory> {
-  if (!factoryPromise) {
-    // Vite refuses static analysis of `import()` calls that resolve to
-    // `/public/...` assets, even with `@vite-ignore`. The `new Function`
-    // trick hides the dynamic import from the bundler entirely — at
-    // runtime the browser handles it as a native ESM import of the
-    // public asset URL. `-sEXPORT_ES6=1` makes the emscripten loader
-    // export the factory as its default export.
-    const url = `${window.location.origin}/altirra/altirra-core.js`;
-    const dynImport = new Function("u", "return import(u)") as
-      (u: string) => Promise<{ default: CoreFactory }>;
-    factoryPromise = dynImport(url).then((m) => m.default);
-  }
-  return factoryPromise;
+  const p: Promise<AltirraModule> = createAltirraCore({
+    locateFile: () => altirraWasmUrl,
+  }).then((mod) => {
+    const typed = mod as AltirraModule;
+    modulePromiseRef = typed;
+    return typed;
+  });
+  modulePromise = p;
+  return p;
 }
 
 export class AltirraBackend implements EmuBackend {

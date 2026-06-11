@@ -1,6 +1,6 @@
 # Rebuilding `altirra-core.wasm`
 
-Altirra wasm core ships in `public/altirra/altirra-core.{wasm,js}` (~4.6 MB + 133 KB). Built from a fork of `ilmenit/AltirraSDL`.
+Altirra wasm core ships in `src/adapters/emu/wasm/altirra-core.{wasm,js}` (~4.6 MB + 133 KB). Vite hashes both files at build time and `altirra.ts` imports the `.js` statically + the `.wasm` via `?url` (handed to Emscripten's `locateFile`). Built from a fork of `ilmenit/AltirraSDL`.
 
 ## Fork
 
@@ -21,7 +21,7 @@ just build-altirra-wasm     # one-shot: configure → compile → install
 # or split:
 just altirra-configure
 just altirra-compile
-just install-altirra-wasm   # copy artifact to public/altirra/
+just install-altirra-wasm   # copy artifact to src/adapters/emu/wasm/
 just clean-altirra-build    # nuke build/
 ```
 

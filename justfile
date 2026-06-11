@@ -100,7 +100,7 @@ clean-mads-build:
 
 altirra_dir         := justfile_directory() / "_notes/altirra"
 altirra_build_dir   := altirra_dir / "build/wasm-embed"
-altirra_out_dir     := justfile_directory() / "public/altirra"
+altirra_out_dir     := justfile_directory() / "src/adapters/emu/wasm"
 
 # Full pipeline: configure (if needed), build wasm embed core, install to public/altirra/.
 # Requires the nix dev shell from _notes/altirra/flake.nix.
@@ -118,7 +118,8 @@ altirra-compile:
     cd "{{altirra_dir}}" && nix --experimental-features 'nix-command flakes' develop --command bash -c \
         'cmake --build build/wasm-embed -j --target AltirraEmbed'
 
-# Copy altirra-core.{wasm,js} into public/altirra/ so Vite ships them.
+# Copy altirra-core.{wasm,js} into src/adapters/emu/wasm/ so Vite hashes
+# them as proper bundle assets (per aed286f — no more public/ + new Function).
 install-altirra-wasm:
     mkdir -p "{{altirra_out_dir}}"
     cp "{{altirra_build_dir}}/src/AltirraEmbed/altirra-core.wasm" "{{altirra_out_dir}}/altirra-core.wasm"

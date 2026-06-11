@@ -18,7 +18,7 @@
 
 | Area | State |
 |------|-------|
-| Altirra (Avery Lee) wasm core via fork `mikolajmikolajczyk/AltirraSDL` branch `madside-embed` | ✅ — `public/altirra/altirra-core.{wasm,js}` ≈ 4.6 MB + 133 KB |
+| Altirra (Avery Lee) wasm core via fork `mikolajmikolajczyk/AltirraSDL` branch `madside-embed` | ✅ — `src/adapters/emu/wasm/altirra-core.{wasm,js}` ≈ 4.6 MB + 133 KB; Vite-tracked |
 | Altirra OS kernel | ✅ built into wasm core (no external ROM file) |
 | Run / pause / step (1 instruction) / frame / reset | ✅ |
 | Source-level breakpoints (gutter click, persist across reassemble) | ✅ label lines resolve to next emitting line |

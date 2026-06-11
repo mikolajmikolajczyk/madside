@@ -41,7 +41,7 @@ Most hooks are still `stages: [manual]` during the Foundation cleanup pass. They
 
 ```sh
 just build-mads-wasm        # rebuild public/wasm/mads.wasm
-just build-altirra-wasm     # rebuild public/altirra/altirra-core.{wasm,js}
+just build-altirra-wasm     # rebuild src/adapters/emu/wasm/altirra-core.{wasm,js}
 ```
 
 Details: [`mads-wasm-build.md`](mads-wasm-build.md), [`altirra-wasm-build.md`](altirra-wasm-build.md). **Do not rebuild casually.** Bump pinned commits in `justfile` deliberately, rerun, smoke-test, commit the new artifact.
