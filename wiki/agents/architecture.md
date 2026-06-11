@@ -33,6 +33,7 @@ src/
   adapters/              # port implementations
     plugin-loader.ts     # Blob URL + dynamic import + sha256 cache
     storage-idb/         # IDB schema, projects/files/blobs/snapshots
+                         #   + createIdbProjectRepository() — @ports.ProjectRepository impl
     storage-memory/      # in-memory ProjectRepository (tests, future CLI)
     logger/              # Console / Buffered / Noop logger adapters
     wasm-mads/           # MADS WASI runner + .lst source-map + .lab parser

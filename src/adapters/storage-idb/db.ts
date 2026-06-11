@@ -63,3 +63,18 @@ export function getDB(): Promise<IDBPDatabase<MadsideDB>> {
   }
   return dbPromise;
 }
+
+/** Close the cached DB handle (next getDB() reopens). Used by test fixtures
+ *  that wipe the underlying IDBFactory between cases; production code has no
+ *  reason to call this. */
+export async function __resetDb(): Promise<void> {
+  if (dbPromise) {
+    try {
+      const db = await dbPromise;
+      db.close();
+    } catch {
+      /* already closed */
+    }
+    dbPromise = null;
+  }
+}
