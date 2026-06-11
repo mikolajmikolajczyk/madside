@@ -5,6 +5,7 @@ import type {
   DebugService,
   EventBus,
   Logger,
+  MachinePlugin,
   PluginRegistry,
   ProjectRepository,
   RunBackend,
@@ -24,6 +25,7 @@ import {
 } from '@services'
 import { assemble } from '@adapters/wasm-mads'
 import { runRecipes } from '@plugins/converters'
+import { atariXl } from '@plugins/machine-atari-xl'
 import { createEmu } from '@adapters/emu'
 
 // Workbench Core — the headless workbench instance the rest of the app talks
@@ -52,6 +54,9 @@ export interface Workbench {
   readonly run: RunService
   readonly debug: DebugService
   readonly assets: AssetPipelineService
+  /** Currently active MachinePlugin. v0.4.0 ships with Atari-XL hardcoded;
+   *  v1.0.0 (NES validation) drives selection from the project manifest. */
+  readonly machine: MachinePlugin
   readonly logger: Logger
 }
 
@@ -85,6 +90,14 @@ export function createWorkbench(deps: WorkbenchDeps): Workbench {
   const events = createEventBus()
   const commands = createCommandRegistry()
   const plugins = createPluginRegistry()
+
+  // Register the bundled Atari-XL MachinePlugin. v0.4.0 hardcodes it as the
+  // active machine; v0.5.0 (ToolchainPlugin) + project-manifest selection
+  // make this dynamic.
+  plugins.register({
+    plugin: { ...atariXl, kind: 'machine' },
+    source: { origin: 'builtin' },
+  })
   const build = createBuildService({
     events,
     logger: deps.logger,
@@ -133,6 +146,7 @@ export function createWorkbench(deps: WorkbenchDeps): Workbench {
     run,
     debug,
     assets,
+    machine: atariXl,
     logger: deps.logger,
   }
 }

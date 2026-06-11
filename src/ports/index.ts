@@ -46,6 +46,18 @@ export type {
   EditorModule,
   EditorMount,
 } from './plugin-editor'
+export type {
+  BootEquates,
+  CpuId,
+  DeviceDescriptor,
+  InputLayout,
+  InputLayoutKind,
+  MachineAudio,
+  MachineDisplay,
+  MachinePlugin,
+  MemoryRegion,
+  MemoryRegionKind,
+} from './plugin-machine'
 
 // Toolchain output types
 export type { SourceLoc, SourceMap } from './source-map'

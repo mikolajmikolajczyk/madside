@@ -47,6 +47,7 @@ src/
   plugins/               # built-in plugin instances + registries (M3 splits registries into services)
     converters/          # asset converters (Phase 7)
     editors/             # plugin file editors (Phase 11)
+    machine-atari-xl/    # MachinePlugin v0.4.0 first impl
 
   app/                   # workbench wiring + non-React state
     createWorkbench.ts   # headless workbench factory (DOM-free, test-friendly)
