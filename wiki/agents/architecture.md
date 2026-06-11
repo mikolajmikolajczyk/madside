@@ -30,7 +30,8 @@ src/
     plugin-registry.ts   # createPluginRegistry() — per-kind Map; project shadows builtin
     build-service.ts     # createBuildService() — recipe engine → toolchain → events; DI'd via @app
     run-service.ts       # createRunService() — emulator lifecycle + audio; backend factory DI'd
-    # Debug/AssetPipeline impls land here in v0.3.0+ / v0.6.0
+    debug-service.ts     # createDebugService() — step / BP / cpuState / readMem via RunService.backend()
+    # AssetPipeline impl lands here in v0.3.0
 
   adapters/              # port implementations
     plugin-loader.ts     # Blob URL + dynamic import + sha256 cache

@@ -8,15 +8,11 @@
 // Source file context: header "Source: source/main.xasm". When MADS includes,
 // it emits another "Source: <path>" marker. We track current file by basename.
 
-export interface SourceLoc {
-  file: string;
-  line: number; // 1-based
-}
+// Canonical shape lives in @ports/source-map. Adapter still re-exports the
+// names so call sites that go through @adapters/wasm-mads keep compiling.
+export type { SourceLoc, SourceMap } from "@ports";
 
-export interface SourceMap {
-  addrToLoc: Map<number, SourceLoc>;
-  locToAddr: Map<string, Map<number, number>>; // file → (line → first addr)
-}
+import type { SourceLoc, SourceMap } from "@ports";
 
 const SOURCE_RE = /^Source:\s*(.+?)\s*$/;
 const LINENO_RE = /^\s*(\d+)\s/;

@@ -1,6 +1,7 @@
 import type {
   BuildService,
   CommandRegistry,
+  DebugService,
   EventBus,
   Logger,
   PluginRegistry,
@@ -11,6 +12,7 @@ import type {
 import {
   createBuildService,
   createCommandRegistry,
+  createDebugService,
   createEventBus,
   createPluginRegistry,
   createRunService,
@@ -46,6 +48,7 @@ export interface Workbench {
   readonly projects: ProjectRepository
   readonly build: BuildService
   readonly run: RunService
+  readonly debug: DebugService
   readonly logger: Logger
 }
 
@@ -90,6 +93,11 @@ export function createWorkbench(deps: WorkbenchDeps): Workbench {
     logger: deps.logger,
     backendFactory: deps.emuBackendFactory ?? defaultEmuBackendFactory,
   })
+  const debug = createDebugService({
+    events,
+    logger: deps.logger,
+    run,
+  })
 
   return {
     events,
@@ -98,6 +106,7 @@ export function createWorkbench(deps: WorkbenchDeps): Workbench {
     projects: deps.projectRepo,
     build,
     run,
+    debug,
     logger: deps.logger,
   }
 }

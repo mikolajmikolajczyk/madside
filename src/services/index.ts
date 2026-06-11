@@ -15,3 +15,4 @@ export {
   type RunBackendFactory,
   type RunServiceDeps,
 } from './run-service'
+export { createDebugService, type DebugServiceDeps } from './debug-service'

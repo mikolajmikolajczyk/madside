@@ -39,6 +39,9 @@ export type {
   Recipe,
 } from './plugin-converter'
 
+// Toolchain output types
+export type { SourceLoc, SourceMap } from './source-map'
+
 // Storage port
 export type {
   Project,

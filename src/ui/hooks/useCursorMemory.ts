@@ -1,6 +1,5 @@
 import { useEffect, useMemo } from "react";
-// eslint-disable-next-line boundaries/element-types -- TODO(M3): service extraction lifts this import into a service call
-import type { SourceMap } from "@adapters/wasm-mads";
+import type { SourceMap } from "@ports";
 
 export interface CursorHighlight {
   start: number;
