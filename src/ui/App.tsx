@@ -16,8 +16,6 @@ import { TooltipProvider } from "./components/ui/Tooltip";
 import { TextPromptDialog, ConfirmDialog } from "./components/ui/Dialog";
 import { useProject } from "@app/state";
 import type { CpuRegs } from "./components/debug/Emulator";
-// eslint-disable-next-line boundaries/element-types -- TODO(M3): source-map parsing lifts behind BuildService extras
-import { parseSourceMap } from "@adapters/wasm-mads";
 import { basename, extOf } from "@core/path";
 import { useSplitterWidth } from "./hooks/useSplitterWidth";
 import { useDebuggerShortcuts } from "./hooks/useDebuggerShortcuts";
@@ -97,14 +95,11 @@ export default function App() {
 
   const bpLinesByFile = project.loaded ? project.breakpoints : new Map<string, Set<number>>();
 
-  const sourceMap = useMemo(
-    () => (result?.lst ? parseSourceMap(result.lst) : null),
-    [result?.lst],
-  );
+  const sourceMap = result?.sourceMap ?? null;
 
   const projectLabels = useProjectLabels(
     project.loaded ? project.files : null,
-    result?.lab,
+    result?.labels,
     sourceMap,
   );
 

@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import type { BuildInput, BuildResult, BuildService, Recipe } from "@ports";
+import type { BuildInput, BuildResult, BuildService, Recipe, SourceMap } from "@ports";
 
 interface ProjectFile {
   path: string;
@@ -14,14 +14,14 @@ interface Args {
   projectId: string | null;
 }
 
-/** Combined build outcome the editor surfaces — mirrors the legacy
- *  AssembleResult shape so existing source-map / breakpoint code keeps
- *  working without an additional adapter layer in the UI. */
+/** Combined build outcome the editor surfaces. Sources of truth (sourceMap,
+ *  labels) come parsed from BuildService so UI never touches toolchain-
+ *  specific `.lst` / `.lab` text. */
 export interface AutoAssembleOutcome {
   ok: boolean;
   xex?: Uint8Array;
-  lst?: string;
-  lab?: string;
+  sourceMap?: SourceMap;
+  labels?: Map<string, number>;
   stdout: string;
   stderr: string;
   exitCode: number;
@@ -40,8 +40,8 @@ interface UseAutoAssembleResult {
 const toOutcome = (r: BuildResult): AutoAssembleOutcome => ({
   ok: true,
   xex: r.binary,
-  lst: r.listing,
-  lab: (r.extras as { labels?: string } | undefined)?.labels,
+  sourceMap: r.sourceMap,
+  labels: r.labels,
   stdout: r.stdout,
   stderr: r.stderr,
   exitCode: 0,

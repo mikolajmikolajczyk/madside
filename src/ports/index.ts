@@ -47,6 +47,12 @@ export type {
   EditorMount,
 } from './plugin-editor'
 export type {
+  ToolchainBuildInput,
+  ToolchainBuildOutput,
+  ToolchainFile,
+  ToolchainPlugin,
+} from './plugin-toolchain'
+export type {
   BootEquates,
   CpuId,
   DeviceDescriptor,

@@ -1,10 +1,7 @@
 import { useMemo } from "react";
-// eslint-disable-next-line boundaries/element-types -- TODO(M3): service extraction lifts this import into a service call
-import { parseLabFile } from "@adapters/wasm-mads";
 import { scanFileLabels } from "@app/labels";
 import type { LabelInfo } from "@core";
-// eslint-disable-next-line boundaries/element-types -- TODO(M3): service extraction lifts this import into a service call
-import type { SourceMap } from "@adapters/wasm-mads";
+import type { SourceMap } from "@ports";
 import { basename } from "@core/path";
 
 interface ProjectFile {
@@ -17,15 +14,14 @@ interface ProjectFile {
  *
  *   1. Every assembly file in the project — scanned for column-0
  *      declarations + doc comments + body preview.
- *   2. The `.lab` dump from the last successful assemble — adds
- *      addresses (and contributes address-only equates from atari.a65
- *      etc.).
+ *   2. Toolchain-emitted labels Map (e.g. MADS `.lab`) — adds addresses
+ *      and contributes address-only equates from atari.a65 etc.
  *
  *  Both passes write into the same `Map<name, LabelInfo>` so a label
  *  can have both source location and address attached. */
 export function useProjectLabels(
   files: ProjectFile[] | null,
-  lab: string | undefined,
+  labels: Map<string, number> | undefined,
   sourceMap: SourceMap | null,
 ): Map<string, LabelInfo> {
   return useMemo<Map<string, LabelInfo>>(() => {
@@ -37,8 +33,8 @@ export function useProjectLabels(
         scanFileLabels(dec.decode(f.content), basename(f.path), out);
       }
     }
-    if (lab) {
-      for (const [name, addr] of parseLabFile(lab)) {
+    if (labels) {
+      for (const [name, addr] of labels) {
         const existing = out.get(name);
         if (existing) { existing.addr = addr; continue; }
         const info: LabelInfo = { addr };
@@ -48,5 +44,5 @@ export function useProjectLabels(
       }
     }
     return out;
-  }, [files, lab, sourceMap]);
+  }, [files, labels, sourceMap]);
 }

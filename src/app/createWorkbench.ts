@@ -10,6 +10,7 @@ import type {
   ProjectRepository,
   RunBackend,
   RunService,
+  ToolchainPlugin,
 } from '@ports'
 import {
   createAssetPipelineService,
@@ -23,9 +24,9 @@ import {
   type RunBackendFactory,
   type ToolchainAssembleFn,
 } from '@services'
-import { assemble } from '@adapters/wasm-mads'
 import { runRecipes } from '@plugins/converters'
 import { atariXl } from '@plugins/machine-atari-xl'
+import { madsToolchain } from '@plugins/toolchain-mads'
 import { createEmu } from '@adapters/emu'
 
 // Workbench Core — the headless workbench instance the rest of the app talks
@@ -57,21 +58,32 @@ export interface Workbench {
   /** Currently active MachinePlugin. v0.4.0 ships with Atari-XL hardcoded;
    *  v1.0.0 (NES validation) drives selection from the project manifest. */
   readonly machine: MachinePlugin
+  /** Currently active ToolchainPlugin. v0.5.0 ships with MADS hardcoded;
+   *  manifest v2 + plugin-discovery work routes selection. */
+  readonly toolchain: ToolchainPlugin
   readonly logger: Logger
 }
 
-const defaultToolchain: ToolchainAssembleFn = async (mainPath, files) => {
-  const r = await assemble(mainPath, files)
-  return {
-    ok: r.ok,
-    binary: r.xex,
-    stdout: r.stdout,
-    stderr: r.stderr,
-    listing: r.lst,
-    labels: r.lab,
-    exitCode: r.exitCode,
+/** Adapt the active ToolchainPlugin into the BuildService's narrower hook
+ *  shape. Service stays adapter-free; plugin owns the assemble call. */
+const toolchainToBuildHook = (plugin: ToolchainPlugin): ToolchainAssembleFn =>
+  async (mainPath, files) => {
+    const out = await plugin.build({
+      projectId: '__buildservice__',
+      main: mainPath,
+      files: files.map((f) => ({ path: f.path, content: f.content })),
+    })
+    return {
+      ok: out.ok,
+      binary: out.binary,
+      stdout: out.stdout,
+      stderr: out.stderr,
+      sourceMap: out.sourceMap,
+      labels: out.labels,
+      extras: out.extras,
+      exitCode: out.exitCode,
+    }
   }
-}
 
 const defaultRecipes: RecipeRunnerFn = async (projectId, recipes, files) => {
   const results = await runRecipes(projectId, recipes, files)
@@ -91,17 +103,21 @@ export function createWorkbench(deps: WorkbenchDeps): Workbench {
   const commands = createCommandRegistry()
   const plugins = createPluginRegistry()
 
-  // Register the bundled Atari-XL MachinePlugin. v0.4.0 hardcodes it as the
-  // active machine; v0.5.0 (ToolchainPlugin) + project-manifest selection
-  // make this dynamic.
+  // Register the bundled Atari-XL MachinePlugin + MADS ToolchainPlugin.
+  // v0.5.0 hardcodes both; manifest v2 + plugin-discovery drive selection
+  // dynamically.
   plugins.register({
     plugin: { ...atariXl, kind: 'machine' },
+    source: { origin: 'builtin' },
+  })
+  plugins.register({
+    plugin: { ...madsToolchain, kind: 'toolchain' },
     source: { origin: 'builtin' },
   })
   const build = createBuildService({
     events,
     logger: deps.logger,
-    toolchain: deps.toolchain ?? defaultToolchain,
+    toolchain: deps.toolchain ?? toolchainToBuildHook(madsToolchain),
     recipes: deps.recipes ?? defaultRecipes,
   })
   const run = createRunService({
@@ -149,6 +165,7 @@ export function createWorkbench(deps: WorkbenchDeps): Workbench {
     debug,
     assets,
     machine: atariXl,
+    toolchain: madsToolchain,
     logger: deps.logger,
   }
 }

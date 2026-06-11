@@ -1,9 +1,10 @@
-// BuildService — wraps the toolchain pipeline. Today: MADS via
-// @adapters/wasm-mads. M5: dispatches to whichever ToolchainPlugin the
-// project manifest selects.
+// BuildService — wraps the toolchain pipeline. v0.5.0: dispatches to the
+// active ToolchainPlugin (MADS first impl). Manifest-driven selection lands
+// with 0897b06.
 
 import type { BuildError, Result } from '../errors'
 import type { Project } from '../project-repository'
+import type { SourceMap } from '../source-map'
 
 export interface BuildOptions {
   /** Hard-cancel any in-flight build before starting this one. */
@@ -17,11 +18,11 @@ export interface BuildResult {
   stdout: string
   /** Toolchain stderr — present even on success when warnings emit. */
   stderr: string
-  /** Listing file content (used to build the source map). */
-  listing?: string
-  /** Labels dump — `name → address`. */
+  /** Parsed source map (PC ↔ source loc). Toolchain plugin owns the parse. */
+  sourceMap?: SourceMap
+  /** Parsed label dump — `name → address`. Toolchain plugin owns the parse. */
   labels?: Map<string, number>
-  /** Toolchain-specific extras the UI / source-map layer wants. */
+  /** Toolchain-specific extras (e.g. raw listing for download). */
   extras?: Record<string, unknown>
 }
 

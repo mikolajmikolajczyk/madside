@@ -8,6 +8,7 @@ import type {
   Logger,
   Recipe,
   Result,
+  SourceMap,
 } from '@ports'
 import { BuildError, err, ok } from '@ports'
 
@@ -32,8 +33,10 @@ export interface ToolchainAssembleResult {
   binary?: Uint8Array
   stdout: string
   stderr: string
-  listing?: string
-  labels?: string
+  sourceMap?: SourceMap
+  labels?: Map<string, number>
+  /** Toolchain-specific extras forwarded to BuildResult.extras unchanged. */
+  extras?: Record<string, unknown>
   exitCode: number
 }
 
@@ -134,9 +137,9 @@ export function createBuildService(deps: BuildServiceDeps): BuildService {
         binary: assembleResult.binary,
         stdout: assembleResult.stdout,
         stderr: assembleResult.stderr,
-        listing: assembleResult.listing,
-        extras:
-          assembleResult.labels !== undefined ? { labels: assembleResult.labels } : undefined,
+        sourceMap: assembleResult.sourceMap,
+        labels: assembleResult.labels,
+        extras: assembleResult.extras,
       }
 
       deps.events.emit('build:done', { projectId: input.projectId, result })
