@@ -7,7 +7,7 @@
 //   2. Merge `.lab` dump addresses into the same `LabelInfo` so the
 //      hover popup / goto-def can show both.
 
-import { MADS_DIRECTIVES, MADS_OPCODES, type LabelInfo } from "@ui/codemirror/madsLang";
+import { MADS_DIRECTIVES, MADS_OPCODES, type LabelInfo } from "@ui/codemirror";
 
 /** Pull a short body preview starting at the label's declaration line.
  *  Stops at the next top-level label or after `max` lines. */

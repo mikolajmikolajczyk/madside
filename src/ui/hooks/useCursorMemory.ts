@@ -1,5 +1,5 @@
 import { useEffect, useMemo } from "react";
-import type { SourceMap } from "@adapters/wasm-mads/sourceMap";
+import type { SourceMap } from "@adapters/wasm-mads";
 
 export interface CursorHighlight {
   start: number;

@@ -26,6 +26,8 @@
 
 - Use path aliases (`@core`, `@services`, `@ports`, `@adapters`, `@plugins`, `@ui`) once they land in Foundation. Until then, relative imports.
 - Cross-folder imports go through a folder's barrel (`index.ts`), not into its internals.
+- ESLint enforces this via `import/no-internal-modules` — depth ≥ 2 alias paths (`@adapters/storage-idb/project`) are blocked; use the barrel (`@adapters/storage-idb`) instead. Relative imports within a folder (`./sibling`) stay free.
+- Every folder that is a destination for cross-folder imports has an `index.ts`. Add one for any new folder before code in it gets imported elsewhere.
 
 ## Files in MADS virtual FS
 

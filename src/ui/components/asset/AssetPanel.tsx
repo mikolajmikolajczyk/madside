@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import type { Manifest } from "@adapters/storage-idb/types";
-import type { ConverterMeta, ConverterModule, OptionSpec, Recipe } from "@plugins/converters/types";
-import { buildRegistry, type ProjectConverterSource } from "@plugins/converters/registry";
+import type { Manifest } from "@adapters/storage-idb";
+import type { ConverterMeta, ConverterModule, OptionSpec, Recipe } from "@plugins/converters";
+import { buildRegistry, type ProjectConverterSource } from "@plugins/converters";
 import "./AssetPanel.css";
 
 interface Props {

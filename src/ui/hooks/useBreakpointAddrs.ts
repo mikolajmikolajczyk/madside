@@ -1,5 +1,5 @@
 import { useMemo } from "react";
-import type { SourceMap } from "@adapters/wasm-mads/sourceMap";
+import type { SourceMap } from "@adapters/wasm-mads";
 import { basename } from "@core/path";
 
 /** Translate a per-file map of source breakpoint lines into a flat set

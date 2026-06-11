@@ -4,6 +4,7 @@ import reactHooks from 'eslint-plugin-react-hooks'
 import reactRefresh from 'eslint-plugin-react-refresh'
 import tseslint from 'typescript-eslint'
 import boundaries from 'eslint-plugin-boundaries'
+import importPlugin from 'eslint-plugin-import'
 import { defineConfig, globalIgnores } from 'eslint/config'
 
 // Layer table from ADR-0002. Update tsconfig.app.json + vite.config.ts paths in
@@ -47,7 +48,7 @@ export default defineConfig([
     languageOptions: {
       globals: globals.browser,
     },
-    plugins: { boundaries },
+    plugins: { boundaries, import: importPlugin },
     settings: {
       'boundaries/elements': elementTypes,
       'boundaries/include': ['src/**/*'],
@@ -59,6 +60,25 @@ export default defineConfig([
       'boundaries/element-types': [
         'error',
         { default: 'disallow', rules: dependencyRules },
+      ],
+
+      // Module barrel discipline: cross-folder imports use a folder's barrel.
+      // Forbid only deep alias paths (depth >= 2); leave relative imports
+      // (`./sibling`, `./sub/file`) alone — those are intra-folder concerns.
+      // External deps (react, vitest, …) are also untouched.
+      'import/no-internal-modules': [
+        'error',
+        {
+          forbid: [
+            '@core/*/*',
+            '@ports/*/*',
+            '@adapters/*/*',
+            '@services/*/*',
+            '@plugins/*/*',
+            '@app/*/*',
+            '@ui/*/*',
+          ],
+        },
       ],
       // main.tsx + Vite entry sit at src/ root — not a layer. Exempt from
       // boundaries; they're allowed to import from @ui.

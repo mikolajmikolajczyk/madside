@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import type { EmuBackend, CpuRegs } from "@adapters/emu/facade";
+import type { EmuBackend, CpuRegs } from "@adapters/emu";
 import "./Emulator.css";
 
 interface Props {
@@ -28,7 +28,7 @@ export function Emulator({ xex, running, stepTick, frameTick, breakpoints, memBa
     let cancelled = false;
     (async () => {
       try {
-        const { createEmu } = await import("@adapters/emu/facade");
+        const { createEmu } = await import("@adapters/emu");
         const emu = await createEmu();
         if (cancelled) return;
         emuRef.current = emu;

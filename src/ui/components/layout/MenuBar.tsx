@@ -1,4 +1,4 @@
-import type { ProjectRow } from "@adapters/storage-idb/types";
+import type { ProjectRow } from "@adapters/storage-idb";
 import {
   Menu, MenuTrigger, MenuContent, MenuItem, MenuLabel, MenuSeparator,
   MenuSub, MenuSubTrigger, MenuSubContent,

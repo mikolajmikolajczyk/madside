@@ -2,7 +2,7 @@
 // converter, and write the output. Skip if the input bytes + canonical options
 // haven't changed since last run (sha-256 cache keyed by [projectId, output]).
 
-import { saveFile } from "@adapters/storage-idb/project";
+import { saveFile } from "@adapters/storage-idb";
 import { sha256Hex } from "@core/hash";
 import { buildRegistry, type ProjectConverterSource } from "./registry";
 import type { Recipe } from "./types";

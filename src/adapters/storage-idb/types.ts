@@ -7,7 +7,7 @@ export interface Manifest {
   name: string;
   main: string;                          // e.g. "src/main.asm"
   run?: { default?: { audio?: boolean } };
-  recipes?: import("@plugins/converters/types").Recipe[];
+  recipes?: import("@plugins/converters").Recipe[];
   /** Map of file extension (no dot, lowercase) → path of editor module under `editors/`. */
   editors?: Record<string, string>;
 }

@@ -4,7 +4,7 @@
 // error message so a busted plugin doesn't crash the IDE.
 
 import { useEffect, useRef, useState } from "react";
-import type { EditorHandle, EditorModule } from "@plugins/editors/types";
+import type { EditorHandle, EditorModule } from "@plugins/editors";
 import "./PluginEditor.css";
 
 interface Props {

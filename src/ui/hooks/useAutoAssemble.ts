@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { assemble, type AssembleResult, type SourceFile } from "@adapters/wasm-mads/mads";
-import { runRecipes } from "@plugins/converters/recipeEngine";
-import type { Recipe } from "@plugins/converters/types";
+import { assemble, type AssembleResult, type SourceFile } from "@adapters/wasm-mads";
+import { runRecipes } from "@plugins/converters";
+import type { Recipe } from "@plugins/converters";
 
 interface ProjectFile {
   path: string;

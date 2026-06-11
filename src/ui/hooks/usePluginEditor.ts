@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
-import { buildEditorRegistry, resolveEditorId } from "@plugins/editors/registry";
-import type { EditorModule } from "@plugins/editors/types";
+import { buildEditorRegistry, resolveEditorId } from "@plugins/editors";
+import type { EditorModule } from "@plugins/editors";
 import { extOf } from "@core/path";
 
 interface ProjectFile {

@@ -5,7 +5,7 @@ import { defaultKeymap, history, historyKeymap, indentWithTab } from "@codemirro
 import { bracketMatching, syntaxHighlighting, HighlightStyle, indentUnit } from "@codemirror/language";
 import { tags as t } from "@lezer/highlight";
 import { autocompletion, completionKeymap } from "@codemirror/autocomplete";
-import { madsLanguage, projectLabelsField, setProjectLabels, type LabelInfo } from "@ui/codemirror/madsLang";
+import { madsLanguage, projectLabelsField, setProjectLabels, type LabelInfo } from "@ui/codemirror";
 import "./Editor.css";
 
 const theme = EditorView.theme(
@@ -179,7 +179,7 @@ async function loadLanguagePack(path: string): Promise<Extension[]> {
   if (/\.(js|mjs|cjs|ts|tsx)$/.test(lower)) {
     const [{ javascript }, { jsConverterExtras }] = await Promise.all([
       import("@codemirror/lang-javascript"),
-      import("@ui/codemirror/jsConverterLang"),
+      import("@ui/codemirror"),
     ]);
     const ts = /\.(ts|tsx)$/.test(lower);
     return [javascript({ typescript: ts }), jsConverterExtras];

@@ -17,10 +17,10 @@ import {
   saveManifest,
   setActiveProjectId,
   textToBytes,
-} from "@adapters/storage-idb/project";
-import { ensureActiveProject } from "@adapters/storage-idb/seed";
-import { exportProjectToZip, importProjectFromZip } from "@adapters/storage-idb/zip";
-import { clearBreakpoints, loadBreakpoints, saveBreakpoints } from "@adapters/storage-idb/breakpoints";
+} from "@adapters/storage-idb";
+import { ensureActiveProject } from "@adapters/storage-idb";
+import { exportProjectToZip, importProjectFromZip } from "@adapters/storage-idb";
+import { clearBreakpoints, loadBreakpoints, saveBreakpoints } from "@adapters/storage-idb";
 import {
   clearSnapshotsForProject,
   createSnapshot,
@@ -28,8 +28,8 @@ import {
   listSnapshots,
   restoreSnapshot as restoreSnapshotIDB,
   type SnapshotMeta,
-} from "@adapters/storage-idb/snapshots";
-import type { FileRow, Manifest, ProjectRow } from "@adapters/storage-idb/types";
+} from "@adapters/storage-idb";
+import type { FileRow, Manifest, ProjectRow } from "@adapters/storage-idb";
 
 // Files are stored as bytes end-to-end. Text views (Editor, MADS source list,
 // label scanner, etc.) decode lazily; binary views (AssetPanel, custom Phase 11
