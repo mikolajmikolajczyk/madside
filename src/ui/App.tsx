@@ -76,18 +76,24 @@ export default function App() {
     setMemBase(addr);
   }, []);
 
-  const projectId = project.loaded ? project.projectId : null;
-  useEffect(() => {
+  // Full emulator-state wipe. Three call sites all want the same blast:
+  // project change, Stop, Reset. Don't try to be clever about a subset.
+  const resetEmuState = useCallback((opts?: { keepResult?: boolean; keepMemTouched?: boolean }) => {
     setRunning(false);
-    setResult(null);
+    if (!opts?.keepResult) setResult(null);
     setLoadedXex(null);
     setCpu(null);
     setMem(null);
-    setMemBaseTouched(false);
+    if (!opts?.keepMemTouched) setMemBaseTouched(false);
     setStepTick(0);
     setFrameTick(0);
     setBrokeOn(null);
-  }, [projectId]);
+  }, [setResult]);
+
+  const projectId = project.loaded ? project.projectId : null;
+  useEffect(() => {
+    resetEmuState();
+  }, [projectId, resetEmuState]);
 
   const bpLinesByFile = project.loaded ? project.breakpoints : new Map<string, Set<number>>();
 
@@ -206,25 +212,12 @@ export default function App() {
     // Unload the emulator: drop xex from the running side so the next Run
     // boots fresh. result + addr gutter + sourceMap stay (those reflect
     // the build, not the emu).
-    setRunning(false);
-    setLoadedXex(null);
-    setCpu(null);
-    setMem(null);
-    setBrokeOn(null);
-    setStepTick(0);
-    setFrameTick(0);
-  }, []);
+    resetEmuState({ keepResult: true, keepMemTouched: true });
+  }, [resetEmuState]);
 
   const onReset = useCallback(async () => {
     const wasRunning = running;
-    setRunning(false);
-    setLoadedXex(null);
-    setCpu(null);
-    setMem(null);
-    setMemBaseTouched(false);
-    setStepTick(0);
-    setFrameTick(0);
-    setBrokeOn(null);
+    resetEmuState();
     const r = await runAssemble();
     // If emu was active, restart from the top so Reset acts like "restart".
     if (wasRunning && r?.ok && r.xex) {
