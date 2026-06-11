@@ -9,6 +9,11 @@ interface MemoryUiData {
   highlightLen?: number
   /** Bytes to fetch on each refresh. Defaults to 128. */
   length?: number
+  /** True while the panel auto-follows the editor cursor. False after the
+   *  user typed a base addr manually. */
+  following?: boolean
+  /** Click handler the badge wires up to re-engage auto-follow. */
+  onResumeFollow?: () => void
 }
 
 /** Auto-refreshes on debug:step-done + debug:bp-hit + run:state via
@@ -47,11 +52,24 @@ export function MemoryPanel({ ctx }: { ctx: PanelContext }) {
     }
   }, [ctx.debug, ctx.events, base, length])
 
+  const following = data?.following ?? true
+  const onResumeFollow = data?.onResumeFollow
+
   return (
     <div className="debug__panel debug__panel--memory">
       <div className="debug__title label">
         <span>Memory @</span>
         <BaseInput value={base} onChange={onBaseChange} />
+        {!following && onResumeFollow && (
+          <button
+            type="button"
+            className="debug__follow-badge"
+            onClick={onResumeFollow}
+            title="Re-engage auto-follow on the editor cursor"
+          >
+            ↺ follow cursor
+          </button>
+        )}
       </div>
       <MemoryView
         base={base}

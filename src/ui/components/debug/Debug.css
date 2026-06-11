@@ -25,6 +25,21 @@
   gap: 6px;
 }
 
+.debug__follow-badge {
+  margin-left: auto;
+  background: transparent;
+  border: 1px solid var(--border-default);
+  color: var(--accent-mint);
+  font-family: var(--font-mono);
+  font-size: 10px;
+  padding: 1px 6px;
+  cursor: pointer;
+  border-radius: 2px;
+}
+.debug__follow-badge:hover {
+  background: var(--bg-tertiary);
+}
+
 .debug__base {
   background: transparent;
   border: 1px solid var(--border-default);

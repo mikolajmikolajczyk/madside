@@ -135,9 +135,17 @@ export default function App() {
   const activePath = project.loaded ? project.activePath : "";
   const activeBase = basename(activePath);
 
+  // File switch re-engages auto-follow: when the user opens a different
+  // source, they want the memory view to land on that file's emit window.
+  useEffect(() => {
+    if (activePath) setMemBaseTouched(false);
+  }, [activePath]);
+
   const cursorHighlight = useCursorMemory({
     sourceMap, activeBase, cursorLine, memBaseTouched, setMemBase,
   });
+
+  const onResumeFollow = useCallback(() => setMemBaseTouched(false), []);
 
   // PanelPlugin lookup — manifest.panels (if present) drives the Debug column
   // order; otherwise machine.defaultPanels; otherwise [registers, memory].
@@ -176,13 +184,15 @@ export default function App() {
       onBaseChange: onMemBaseChange,
       highlightStart: cursorHighlight?.start,
       highlightLen: cursorHighlight?.len,
+      following: !memBaseTouched,
+      onResumeFollow,
     },
     output: {
       stdout: result?.stdout ?? '',
       stderr: result?.stderr ?? '',
       ok: result ? result.ok : null,
     },
-  }), [memBase, onMemBaseChange, cursorHighlight, result]);
+  }), [memBase, onMemBaseChange, cursorHighlight, result, memBaseTouched, onResumeFollow]);
 
   const pcLine = useMemo(() => {
     // During run the PC moves too fast to track in the editor — hide
