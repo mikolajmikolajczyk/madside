@@ -83,6 +83,27 @@ export const atariXl: MachinePlugin = {
   compatibleToolchains: ['mads'],
   compatibleEmulators: ['altirra-wasm'],
 
+  media: {
+    formats: ['xex', 'atr', 'car', 'cas'],
+    extToFormat: {
+      xex: 'xex', exe: 'xex', com: 'xex', obx: 'xex',
+      atr: 'atr',
+      car: 'car', rom: 'car', bin: 'car',
+      cas: 'cas',
+    },
+    defaultFormat: 'xex',
+    detect(bytes) {
+      if (bytes.length >= 2 && bytes[0] === 0x96 && bytes[1] === 0x02) return 'atr'
+      if (bytes.length >= 4) {
+        const tag = String.fromCharCode(bytes[0]!, bytes[1]!, bytes[2]!, bytes[3]!)
+        if (tag === 'CART') return 'car'
+        if (tag === 'FUJI') return 'cas'
+        if (bytes[0] === 0xff && bytes[1] === 0xff) return 'xex'
+      }
+      return undefined
+    },
+  },
+
   // Numeric values track ATHardwareMode / ATMemoryMode in
   // Altirra/h/constants.h. 800XL = 1, 64K = 2. kernel left undefined so the
   // wasm boot path's hardcoded LLEXL pick stands; project manifest can

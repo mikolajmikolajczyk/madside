@@ -4,26 +4,12 @@ import type {
   EventBus,
   Logger,
   MachineHardwareConfig,
+  MachineMedia,
   RunBackend,
   RunService,
   RunStatus,
 } from '@ports'
 import { EmulatorTrapError, err, ok } from '@ports'
-
-/** Detect media format from leading magic bytes. Falls back to 'xex' which
- *  has the loosest format (any binary). */
-function detectFormat(bytes: Uint8Array): EmuMediaFormat {
-  if (bytes.length >= 2) {
-    // ATR header magic: 0x96 0x02
-    if (bytes[0] === 0x96 && bytes[1] === 0x02) return 'atr'
-  }
-  if (bytes.length >= 4) {
-    const tag = String.fromCharCode(bytes[0]!, bytes[1]!, bytes[2]!, bytes[3]!)
-    if (tag === 'CART') return 'car'
-    if (tag === 'FUJI') return 'cas'
-  }
-  return 'xex'
-}
 
 // RunService wraps an EmuBackend created on first load(). Status transitions
 // emit 'run:state' on the workbench EventBus. Backend instantiation is async
@@ -42,6 +28,9 @@ export interface RunServiceDeps {
   /** Applied to the backend on first boot. Comes from the active MachinePlugin
    *  in @app/createWorkbench. */
   hardwareConfig?: MachineHardwareConfig
+  /** Machine-driven format detection / dispatch table. RunService.load uses
+   *  it to resolve the format id; backend.loadMedia takes it from there. */
+  media?: MachineMedia
 }
 
 export function createRunService(deps: RunServiceDeps): RunService {
@@ -92,14 +81,14 @@ export function createRunService(deps: RunServiceDeps): RunService {
     async load(binary, format) {
       try {
         const b = await ensureBackend()
-        const fmt = format ?? detectFormat(binary)
-        const loader =
-          fmt === 'atr' ? b.loadATR :
-          fmt === 'car' ? b.loadCAR :
-          fmt === 'cas' ? b.loadCAS :
-          b.loadXEX
-        if (!loader) throw new Error(`backend has no loader for ${fmt}`)
-        loader.call(b, binary)
+        // Resolve format: explicit caller hint wins, then MachinePlugin
+        // magic detection, then MachinePlugin defaultFormat. Workbench has
+        // no Atari knowledge — it just dispatches the resolved string.
+        const fmt: EmuMediaFormat = format
+          ?? deps.media?.detect(binary)
+          ?? deps.media?.defaultFormat
+          ?? 'binary'
+        b.loadMedia(fmt, binary)
         setStatus('loaded')
         return ok(undefined)
       } catch (cause) {

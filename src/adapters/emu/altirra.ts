@@ -101,11 +101,13 @@ export class AltirraBackend implements EmuBackend {
   loadCAR(car: Uint8Array) { this.loadMedia('car', car); }
   loadCAS(cas: Uint8Array) { this.loadMedia('cas', cas); }
 
-  private loadMedia(format: 'xex' | 'atr' | 'car' | 'cas', bytes: Uint8Array) {
+  loadMedia(format: string, bytes: Uint8Array) {
     const fn = format === 'xex' ? this.core.loadXEX
              : format === 'atr' ? this.core.loadATR
              : format === 'car' ? this.core.loadCAR
-             : this.core.loadCAS;
+             : format === 'cas' ? this.core.loadCAS
+             : null;
+    if (!fn) throw new Error(`AltirraBackend.loadMedia: unsupported format '${format}'`);
     try {
       fn.call(this.core, bytes);
     } catch (e) {

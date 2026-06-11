@@ -8,9 +8,11 @@
 
 import type { EmulatorTrapError, Result } from '../errors'
 
-/** Concrete file format the machine's emulator can load. v0.4.0 ships with
- *  Atari-specific tags; the union widens as machine plugins add formats. */
-export type EmuMediaFormat = 'xex' | 'atr' | 'car' | 'cas'
+/** Opaque file-format id. Strings come from `MachinePlugin.media.formats` —
+ *  the workbench never enumerates them. Atari ships 'xex'/'atr'/'car'/'cas';
+ *  NES would ship 'nes'/'fds'; any future machine adds its own without a
+ *  port-level change. */
+export type EmuMediaFormat = string
 
 export type RunStatus = 'idle' | 'loaded' | 'running' | 'paused' | 'crashed'
 
@@ -21,12 +23,12 @@ export interface RunBackend {
   readonly height: number
   readonly sampleRate?: number
   readonly pixels: Uint32Array
-  /** Per-format media loaders. Backends that only support a single format
-   *  throw from the others. */
-  loadXEX?(bytes: Uint8Array): void
-  loadATR?(bytes: Uint8Array): void
-  loadCAR?(bytes: Uint8Array): void
-  loadCAS?(bytes: Uint8Array): void
+  /** Single media-load entrypoint. `format` is an opaque id sourced from
+   *  `MachinePlugin.media.formats` — the backend decides how to dispatch
+   *  internally (Atari-XL's AltirraBackend forwards to per-format
+   *  loadXEX/loadATR/loadCAR/loadCAS Embind methods). Backends throw when
+   *  asked for a format their emulator can't load. */
+  loadMedia(format: string, bytes: Uint8Array): void
   advanceFrame(trap?: () => boolean): number
   step(): number
   frameRefresh(): void

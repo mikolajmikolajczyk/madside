@@ -60,6 +60,26 @@ export interface MachineAudio {
   channels: number
 }
 
+/** Media-format identifier table for the machine. Format ids are opaque
+ *  strings — workbench dispatches by name, not by enum. detect() peeks the
+ *  leading bytes and returns the matching id or undefined. Atari uses
+ *  'xex'/'atr'/'car'/'cas'; NES would use 'nes'/'fds'; ZX would use
+ *  'tap'/'tzx'/'sna'. RunBackend exposes one loader per format via
+ *  `load${Format.toUpperCase()}(bytes)`. */
+export interface MachineMedia {
+  /** Format ids the machine's emulator knows how to load. */
+  formats: readonly string[]
+  /** Optional file-extension hint (no leading dot, lowercase). Lets the UI
+   *  pre-fill a format from a filename before reading bytes. */
+  extToFormat?: Readonly<Record<string, string>>
+  /** Magic-byte detection — returns the format id whose magic matches the
+   *  leading bytes, or undefined for "unknown — fall back to the format
+   *  hinted by file extension or the default". */
+  detect(bytes: Uint8Array): string | undefined
+  /** Format used when neither extension nor magic matched. */
+  defaultFormat: string
+}
+
 /** Per-emulator-plugin opaque hardware configuration. Atari maps to
  *  ATHardwareMode / ATMemoryMode / firmware-id numbers; NES would use its own
  *  enum. The workbench just forwards these to the matching EmulatorPlugin
@@ -105,4 +125,7 @@ export interface MachinePlugin {
    *  the EmuBackend setHardwareMode / setMemoryMode / setBasic / setKernel
    *  Embind setters. */
   readonly hardwareConfig?: MachineHardwareConfig
+  /** Media-format table — populated when the emulator can load more than
+   *  one file format. Workbench dispatches load() through these hooks. */
+  readonly media?: MachineMedia
 }

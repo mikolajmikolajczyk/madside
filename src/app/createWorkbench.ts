@@ -109,6 +109,7 @@ export function createWorkbench(deps: WorkbenchDeps): Workbench {
     logger: deps.logger,
     backendFactory: deps.emuBackendFactory ?? defaultEmuBackendFactory,
     hardwareConfig: atariXl.hardwareConfig,
+    media: atariXl.media,
   })
   const debug = createDebugService({
     events,

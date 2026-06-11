@@ -55,6 +55,7 @@ export type {
   MachineAudio,
   MachineDisplay,
   MachineHardwareConfig,
+  MachineMedia,
   MachinePlugin,
   MemoryRegion,
   MemoryRegionKind,

@@ -16,13 +16,16 @@ export interface EmuBackend {
   /** Hard-reset the machine (CPU + chips). */
   reset(): void;
 
-  /** Load a `.xex` image and reset; audio buffers are flushed. */
+  /** Generic media-load entrypoint. `format` is an opaque id matching the
+   *  active MachinePlugin.media.formats. AltirraBackend ships
+   *  'xex'/'atr'/'car'/'cas'; other backends declare their own. */
+  loadMedia(format: string, bytes: Uint8Array): void;
+
+  /** Convenience wrappers — Atari-specific shortcuts route through
+   *  loadMedia internally; M6 DebugAdapter / NES plugin won't need these. */
   loadXEX(xex: Uint8Array): void;
-  /** Load a `.atr` disk image, reset, autoboot if present. */
   loadATR(atr: Uint8Array): void;
-  /** Load a `.car` cartridge image, reset; autodetects mapper. */
   loadCAR(car: Uint8Array): void;
-  /** Load a `.cas` cassette image, reset, set up for SIO load. */
   loadCAS(cas: Uint8Array): void;
 
   /** Hardware-config setters — numeric values match Altirra's ATHardwareMode
