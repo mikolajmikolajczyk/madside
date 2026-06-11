@@ -11,11 +11,12 @@ const HistoryDialog = lazy(() => import("./components/history/HistoryDialog").th
 const PluginEditor = lazy(() => import("./components/editor/PluginEditor").then((m) => ({ default: m.PluginEditor })));
 import { Emulator } from "./components/debug/Emulator";
 import { Debug } from "./components/debug/Debug";
-import { Output } from "./components/debug/Output";
+import { PanelSlot } from "./components/PanelSlot";
 import { TooltipProvider } from "./components/ui/Tooltip";
 import { TextPromptDialog, ConfirmDialog } from "./components/ui/Dialog";
 import { useProject } from "@app/state";
 import type { CpuRegs } from "./components/debug/Emulator";
+import type { PanelPlugin } from "@ports";
 import { basename, extOf } from "@core/path";
 import { useSplitterWidth } from "./hooks/useSplitterWidth";
 import { useDebuggerShortcuts } from "./hooks/useDebuggerShortcuts";
@@ -139,6 +140,50 @@ export default function App() {
   const cursorHighlight = useCursorMemory({
     sourceMap, activeBase, cursorLine, memBaseTouched, setMemBase,
   });
+
+  // PanelPlugin lookup — manifest.panels (if present) drives the Debug column
+  // order; otherwise machine.defaultPanels; otherwise [registers, memory].
+  // Output panel is a fixed slot above the editor.
+  const allPanels = useMemo(
+    () => workbench.plugins.list('panel') as unknown as PanelPlugin[],
+    [workbench.plugins],
+  );
+  const panelById = useMemo(() => {
+    const m = new Map<string, PanelPlugin>();
+    for (const p of allPanels) m.set(p.id, p);
+    return m;
+  }, [allPanels]);
+  const debugColumnPanelIds = useMemo(() => {
+    const manifestPanels = project.loaded ? project.manifest.panels : undefined;
+    const fromManifest = manifestPanels?.filter((id) => id !== 'output');
+    if (fromManifest && fromManifest.length > 0) return fromManifest;
+    const fromMachine = workbench.machine.defaultPanels.filter(
+      (id) => id !== 'output' && panelById.has(id),
+    );
+    if (fromMachine.length > 0) return fromMachine;
+    return ['registers', 'memory'];
+  }, [project, workbench.machine, panelById]);
+  const debugColumnPanels = useMemo(
+    () => debugColumnPanelIds.map((id) => panelById.get(id)).filter((p): p is PanelPlugin => !!p),
+    [debugColumnPanelIds, panelById],
+  );
+  const outputPanel = panelById.get('output');
+
+  const panelData = useMemo(() => ({
+    cpu,
+    memory: {
+      bytes: mem ?? new Uint8Array(0),
+      base: memBase,
+      onBaseChange: onMemBaseChange,
+      highlightStart: cursorHighlight?.start,
+      highlightLen: cursorHighlight?.len,
+    },
+    output: {
+      stdout: result?.stdout ?? '',
+      stderr: result?.stderr ?? '',
+      ok: result ? result.ok : null,
+    },
+  }), [cpu, mem, memBase, onMemBaseChange, cursorHighlight, result]);
 
   const pcLine = useMemo(() => {
     // During run the PC moves too fast to track in the editor — hide
@@ -449,11 +494,14 @@ export default function App() {
               />
             </Suspense>
           )}
-          <Output
-            stdout={result?.stdout ?? ""}
-            stderr={result?.stderr ?? ""}
-            ok={result ? result.ok : null}
-          />
+          {project.loaded && outputPanel && (
+            <PanelSlot
+              panel={outputPanel}
+              projectId={project.projectId}
+              manifest={project.manifest}
+              data={panelData}
+            />
+          )}
         </main>
         <Splitter invert onResize={(dx) => setSideW((w) => clampSide(w + dx))} />
         <aside className="app__side">
@@ -468,14 +516,14 @@ export default function App() {
             onState={setCpu}
             onMem={setMem}
           />
-          <Debug
-            state={cpu ?? undefined}
-            memory={mem ?? undefined}
-            memoryBase={memBase}
-            onMemoryBaseChange={onMemBaseChange}
-            highlightStart={cursorHighlight?.start}
-            highlightLen={cursorHighlight?.len}
-          />
+          {project.loaded && (
+            <Debug
+              panels={debugColumnPanels}
+              projectId={project.projectId}
+              manifest={project.manifest}
+              panelData={panelData}
+            />
+          )}
         </aside>
       </div>
       <StatusBar

@@ -30,6 +30,9 @@ import { runRecipes } from '@plugins/converters'
 import { atariXl } from '@plugins/machine-atari-xl'
 import { madsToolchain } from '@plugins/toolchain-mads'
 import { atari6502DebugAdapter } from '@plugins/debug-atari-6502'
+import { registersPanel } from '@plugins/panel-registers'
+import { memoryPanel } from '@plugins/panel-memory'
+import { outputPanel } from '@plugins/panel-output'
 import { createEmu } from '@adapters/emu'
 
 // Workbench Core — the headless workbench instance the rest of the app talks
@@ -135,6 +138,12 @@ export function createWorkbench(deps: WorkbenchDeps): Workbench {
     plugin: { ...atari6502DebugAdapter, kind: 'debug-adapter' },
     source: { origin: 'builtin' },
   })
+  for (const panel of [registersPanel, memoryPanel, outputPanel]) {
+    plugins.register({
+      plugin: { ...panel, kind: 'panel' },
+      source: { origin: 'builtin' },
+    })
+  }
   const build = createBuildService({
     events,
     logger: deps.logger,

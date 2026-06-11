@@ -59,6 +59,12 @@ export type {
   RegisterDescriptor,
 } from './plugin-debug'
 export type {
+  PanelComponent,
+  PanelContext,
+  PanelData,
+  PanelPlugin,
+} from './plugin-panel'
+export type {
   BootEquates,
   CpuId,
   DeviceDescriptor,
