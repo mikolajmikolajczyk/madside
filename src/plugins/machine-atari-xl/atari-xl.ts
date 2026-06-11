@@ -48,8 +48,35 @@ export const atariXl: MachinePlugin = {
 
   input: {
     kind: 'keyboard',
-    // codeToKey populated by 33eb166 — KBCODE table lift moves the Atari
-    // keyboard map from Emulator.tsx into this slot.
+    // event.code → Win32-style virtual-key code that the Altirra wasm core's
+    // PushKey path expects. Until the fork exposes a direct-KBCODE entry
+    // point, the JS side becomes the canonical mapping authority and the C++
+    // table is treated as a fallback.
+    codeToKey: {
+      // Letters
+      KeyA: 0x41, KeyB: 0x42, KeyC: 0x43, KeyD: 0x44, KeyE: 0x45, KeyF: 0x46,
+      KeyG: 0x47, KeyH: 0x48, KeyI: 0x49, KeyJ: 0x4a, KeyK: 0x4b, KeyL: 0x4c,
+      KeyM: 0x4d, KeyN: 0x4e, KeyO: 0x4f, KeyP: 0x50, KeyQ: 0x51, KeyR: 0x52,
+      KeyS: 0x53, KeyT: 0x54, KeyU: 0x55, KeyV: 0x56, KeyW: 0x57, KeyX: 0x58,
+      KeyY: 0x59, KeyZ: 0x5a,
+      // Digit row
+      Digit0: 0x30, Digit1: 0x31, Digit2: 0x32, Digit3: 0x33, Digit4: 0x34,
+      Digit5: 0x35, Digit6: 0x36, Digit7: 0x37, Digit8: 0x38, Digit9: 0x39,
+      // Punctuation / symbols
+      Minus: 0xbd, Equal: 0xbb, BracketLeft: 0xdb, BracketRight: 0xdd,
+      Backslash: 0xdc, Semicolon: 0xba, Quote: 0xde, Comma: 0xbc, Period: 0xbe,
+      Slash: 0xbf, Backquote: 0xc0,
+      // Control / navigation
+      Space: 0x20, Enter: 0x0d, Backspace: 0x08, Tab: 0x09, Escape: 0x1b,
+      ArrowLeft: 0x25, ArrowUp: 0x26, ArrowRight: 0x27, ArrowDown: 0x28,
+      Home: 0x24, End: 0x23, PageUp: 0x21, PageDown: 0x22,
+      Insert: 0x2d, Delete: 0x2e,
+      // Function keys — Atari uses F1-F4 for Start / Select / Option / Reset
+      // console keys; PushKey side handles the dispatch.
+      F1: 0x70, F2: 0x71, F3: 0x72, F4: 0x73,
+      F5: 0x74, F6: 0x75, F7: 0x76, F8: 0x77,
+      F9: 0x78, F10: 0x79, F11: 0x7a, F12: 0x7b,
+    },
   },
 
   defaultPanels: ['memory', 'registers', 'output', 'asset'],

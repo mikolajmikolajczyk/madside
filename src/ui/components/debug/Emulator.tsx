@@ -173,6 +173,10 @@ export function Emulator({ xex, running, stepTick, frameTick, breakpoints, memBa
     const emu = emuRef.current;
     if (!canvas || !emu || status !== "ready") return;
 
+    // MachinePlugin.input.codeToKey is the canonical event.code → numeric
+    // keycode table. Win32-style virtual-key codes match what the Altirra
+    // wasm core's PushKey expects; the C++ table acts as a fallback.
+    const codeToKey = workbench.machine.input.codeToKey ?? {};
     const fwd = (e: KeyboardEvent, down: boolean) => {
       // Don't capture browser navigation shortcuts.
       if (e.ctrlKey || e.metaKey || e.altKey) return;
@@ -181,11 +185,11 @@ export function Emulator({ xex, running, stepTick, frameTick, breakpoints, memBa
       const charCode = e.key.length === 1 ? e.key.charCodeAt(0) : 0;
       let mods = 0;
       if (e.shiftKey) mods |= 2;   // KeyFlags.Shift
-      // event.keyCode is deprecated but the C++ sendKey expects a numeric
-      // Win32-style code. v0.4.0 MachinePlugin.input lifts this behind a
-      // proper code → KBCODE map driven by event.code.
+      // Pull mapped key from MachinePlugin first; fall back to (deprecated
+      // but still-supported) event.keyCode for any code not in the table.
       // eslint-disable-next-line @typescript-eslint/no-deprecated
-      emu.sendKey(e.keyCode, charCode, down, mods);
+      const key = codeToKey[e.code] ?? e.keyCode;
+      emu.sendKey(key, charCode, down, mods);
     };
     const onDown = (e: KeyboardEvent) => fwd(e, true);
     const onUp = (e: KeyboardEvent) => fwd(e, false);
@@ -196,7 +200,7 @@ export function Emulator({ xex, running, stepTick, frameTick, breakpoints, memBa
       canvas.removeEventListener("keydown", onDown);
       canvas.removeEventListener("keyup", onUp);
     };
-  }, [status]);
+  }, [status, workbench]);
 
   // Frame loop while running
   useEffect(() => {
