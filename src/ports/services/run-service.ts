@@ -31,7 +31,6 @@ export interface RunBackend {
   loadMedia(format: string, bytes: Uint8Array): void
   advanceFrame(trap?: () => boolean): number
   step(): number
-  frameRefresh(): void
   cpuState(): unknown
   getPC(): number
   isAtInstrBoundary(): boolean

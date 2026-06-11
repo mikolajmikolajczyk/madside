@@ -45,10 +45,6 @@ export interface EmuBackend {
   /** Advance exactly one 6502 instruction. Returns cycles consumed. */
   step(): number;
 
-  /** Render one display frame using current RAM/DLI without advancing the CPU.
-   *  Useful while paused — refreshes pixels to reflect post-step memory. */
-  frameRefresh(): void;
-
   /** Current CPU registers + flags. */
   cpuState(): CpuRegs;
 

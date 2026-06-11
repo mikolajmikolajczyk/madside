@@ -87,7 +87,7 @@ export class AltirraBackend implements EmuBackend {
     this.height = core.height;
     this.sampleRate = core.sampleRate;
     // Allocate a stable host-side buffer; per-frame copy happens in
-    // advanceFrame / frameRefresh via `this.refreshPixels()`.
+    // advanceFrame via `this.refreshPixels()`.
     this.pixels = new Uint32Array(this.width * this.height);
   }
 
@@ -133,14 +133,6 @@ export class AltirraBackend implements EmuBackend {
     const cycles = this.core.step();
     this.refreshPixels();
     return cycles;
-  }
-
-  frameRefresh(): void {
-    // C++ side does the snapshot/advance/restore trick so GTIA's
-    // frame buffer reflects current RAM without progressing sim
-    // state. After it returns, refresh the host-side pixels copy.
-    this.core.frameRefresh();
-    this.refreshPixels();
   }
 
   cpuState(): CpuRegs {

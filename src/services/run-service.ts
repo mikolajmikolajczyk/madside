@@ -112,11 +112,9 @@ export function createRunService(deps: RunServiceDeps): RunService {
 
     reset() {
       if (!backend) return
-      backend.frameRefresh()
-      backend.cpuState()
       // Soft pattern: reset is delegated to the backend's reset path on next
-      // load — for explicit reset we currently re-load the binary at the UI
-      // layer. M4 lifts this behind the MachinePlugin.
+      // load — for explicit reset the UI re-loads the binary. EmulatorPlugin
+      // (M4 follow-up) folds this into a typed lifecycle method.
       setStatus('loaded')
     },
 

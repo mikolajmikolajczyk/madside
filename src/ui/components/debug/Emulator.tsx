@@ -155,10 +155,10 @@ export function Emulator({ xex, running, stepTick, frameTick, breakpoints, memBa
     }
   }, [xex, onState, status]);
 
-  // Step on stepTick bump (only when paused). M1 caveat: display does
-  // not refresh per step (frameRefresh's snapshot/apply trick leaves
-  // sim in an inconsistent run state that breaks the next step). Real
-  // display refresh is M2 work.
+  // Step on stepTick bump (only when paused). Display does not refresh
+  // between instructions — per-step refresh research lives in backlog
+  // (c309619) and lands as a new typed method when a working mechanism
+  // surfaces.
   useEffect(() => {
     const emu = emuRef.current;
     if (!emu || running || status !== "ready" || stepTick === 0) return;
