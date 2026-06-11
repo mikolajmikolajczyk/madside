@@ -50,6 +50,9 @@
           # Workflow
           git
           radicle-node
+
+          # Dep-graph audit (madge --image needs `dot`)
+          graphviz
         ];
 
         # Heavy wasm rebuild toolchain — only needed when bumping the

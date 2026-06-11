@@ -19,6 +19,13 @@ pnpm preview         # serve dist/
 pnpm tsc --noEmit    # typecheck only
 ```
 
+## Dep graph
+
+```sh
+pnpm graph             # writes wiki/architecture/dep-graph.svg
+pnpm graph:circular    # exits non-zero if any cycle exists
+```
+
 ## Lint / static analysis
 
 ```sh

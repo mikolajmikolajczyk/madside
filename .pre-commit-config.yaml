@@ -68,7 +68,8 @@ repos:
         language: system
         entry: pnpm exec madge --circular --extensions ts,tsx src
         pass_filenames: false
-        stages: [manual]
+        # Baseline is zero cycles (bc68621). Hook now runs on every commit
+        # to keep it that way.
 
       - id: markdownlint
         name: markdownlint

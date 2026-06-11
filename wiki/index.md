@@ -9,7 +9,7 @@ In-browser Web IDE pivoting from Atari-only to a plugin-based retro-development 
 | [`agents/`](agents/) | AI coding agents (Claude, Cursor, Aider, …) | Repo shape, conventions, gotchas, on-demand fragments. The root `AGENTS.md` and `CLAUDE.md` point here. |
 | [`user/`](user/) | End users | Phase 13 manual source. Astro Starlight publishes this to `/docs/` on the site. |
 | [`adr/`](adr/) | Both | Architecture Decision Records. Append-only, numbered. |
-| [`architecture/`](architecture/) | Both | Diagrams, dependency graphs, layer overview. To land in Foundation. |
+| [`architecture/`](architecture/) | Both | Diagrams, dependency graphs, layer overview. See `architecture/README.md`. |
 | [`plugin-api/`](plugin-api/) | Both | Plugin author contracts (Machine, Toolchain, Emulator, DebugAdapter, Panel, Converter, Editor). To land in M7. |
 | [`testing/`](testing/) | Both | Testing strategy + contract-test harness usage. To land in Foundation. |
 | [`skills/`](skills/) | AI agents | Local copies of `radicle` + `radboard` skills used by this project. |
