@@ -1,7 +1,15 @@
 import { useEffect, useRef, useState } from "react";
-// eslint-disable-next-line boundaries/element-types -- TODO(M3): service extraction lifts this import into a service call
-import type { EmuBackend, CpuRegs } from "@adapters/emu";
+import type { RunBackend } from "@ports";
+import { useWorkbench } from "@app";
 import "./Emulator.css";
+
+// Local Cpu shape — mirrors the @adapters/emu.CpuRegs that the parent expects.
+// Re-defined here so @ui doesn't import @adapters; DebugService (M6) lifts this
+// into a proper port type.
+export interface CpuRegs {
+  a: number; x: number; y: number; pc: number; sp: number;
+  flags: { n: boolean; v: boolean; b: boolean; d: boolean; i: boolean; z: boolean; c: boolean };
+}
 
 interface Props {
   xex: Uint8Array | null;
@@ -17,21 +25,20 @@ interface Props {
 }
 
 export function Emulator({ xex, running, stepTick, frameTick, breakpoints, memBase = 0x2000, memLen = 128, onState, onMem, onBreak }: Props) {
+  const workbench = useWorkbench();
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
-  const emuRef = useRef<EmuBackend | null>(null);
+  const emuRef = useRef<RunBackend | null>(null);
   const imageRef = useRef<{ image: ImageData; view32: Uint32Array } | null>(null);
   const rafRef = useRef<number | null>(null);
   const [status, setStatus] = useState<"loading" | "ready" | "error">("loading");
   const [error, setError] = useState<string | null>(null);
 
-  // Boot emu once (lazy-loaded: the Atari800 chips chunk is fetched on demand).
+  // Boot emu through RunService — wasm core lazy-loaded under the hood.
   useEffect(() => {
     let cancelled = false;
     (async () => {
       try {
-// eslint-disable-next-line boundaries/element-types -- TODO(M3): service extraction lifts this import into a service call
-        const { createEmu } = await import("@adapters/emu");
-        const emu = await createEmu();
+        const emu = await workbench.run.boot();
         if (cancelled) return;
         emuRef.current = emu;
         setStatus("ready");
@@ -42,7 +49,7 @@ export function Emulator({ xex, running, stepTick, frameTick, breakpoints, memBa
       }
     })();
     return () => { cancelled = true; };
-  }, []);
+  }, [workbench]);
 
   // Set up canvas + image buffer when ready
   useEffect(() => {
@@ -58,8 +65,8 @@ export function Emulator({ xex, running, stepTick, frameTick, breakpoints, memBa
     imageRef.current = { image, view32 };
   }, [status]);
 
-  const emit = (emu: EmuBackend) => {
-    onState?.(emu.cpuState());
+  const emit = (emu: RunBackend) => {
+    onState?.(emu.cpuState() as CpuRegs);
     onMem?.(emu.readMem(memBase & 0xffff, memLen));
   };
 
@@ -94,7 +101,7 @@ export function Emulator({ xex, running, stepTick, frameTick, breakpoints, memBa
     const emu = emuRef.current;
     if (!emu || status !== "ready") return;
     if (xex) {
-      emu.loadXEX(xex);
+      void workbench.run.load(xex);
       blit();
       emit(emu);
     } else {
@@ -176,7 +183,7 @@ export function Emulator({ xex, running, stepTick, frameTick, breakpoints, memBa
     if (!emu || status !== "ready" || !running) return;
 
     // Resume/start audio on user gesture (Run). Suspend on pause to free CPU.
-    void emu.startAudio();
+    void workbench.run.startAudio();
 
     // Push the BP address set into the backend. AltirraBackend traps in
     // C++ on the instruction boundary — zero JS roundtrip cost per cycle.
@@ -208,7 +215,7 @@ export function Emulator({ xex, running, stepTick, frameTick, breakpoints, memBa
     return () => {
       if (rafRef.current != null) cancelAnimationFrame(rafRef.current);
       rafRef.current = null;
-      void emu.suspendAudio();
+      void workbench.run.suspendAudio();
       // Refresh CPU state on pause so Debug panel reflects where we stopped.
       emit(emu);
     };

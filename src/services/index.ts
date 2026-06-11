@@ -10,3 +10,8 @@ export {
   type ToolchainAssembleFn,
   type ToolchainAssembleResult,
 } from './build-service'
+export {
+  createRunService,
+  type RunBackendFactory,
+  type RunServiceDeps,
+} from './run-service'

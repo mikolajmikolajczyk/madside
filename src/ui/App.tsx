@@ -15,7 +15,8 @@ import { Output } from "./components/debug/Output";
 import { TooltipProvider } from "./components/ui/Tooltip";
 import { TextPromptDialog, ConfirmDialog } from "./components/ui/Dialog";
 import { useProject } from "@app/state";
-import type { CpuRegs } from "@adapters/emu";
+import type { CpuRegs } from "./components/debug/Emulator";
+// eslint-disable-next-line boundaries/element-types -- TODO(M3): source-map parsing lifts behind BuildService extras
 import { parseSourceMap } from "@adapters/wasm-mads";
 import { basename, extOf } from "@core/path";
 import { useSplitterWidth } from "./hooks/useSplitterWidth";

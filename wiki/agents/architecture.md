@@ -29,7 +29,8 @@ src/
     command-registry.ts  # createCommandRegistry() — id-keyed Map + when() gate
     plugin-registry.ts   # createPluginRegistry() — per-kind Map; project shadows builtin
     build-service.ts     # createBuildService() — recipe engine → toolchain → events; DI'd via @app
-    # Run/Debug/AssetPipeline impls land here in v0.3.0+
+    run-service.ts       # createRunService() — emulator lifecycle + audio; backend factory DI'd
+    # Debug/AssetPipeline impls land here in v0.3.0+ / v0.6.0
 
   adapters/              # port implementations
     plugin-loader.ts     # Blob URL + dynamic import + sha256 cache

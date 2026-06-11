@@ -60,6 +60,7 @@ export type {
   FlagState,
   RecipeRunResult,
   RegState,
+  RunBackend,
   RunService,
   RunStatus,
 } from './services'

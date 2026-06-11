@@ -5,17 +5,22 @@ import type {
   Logger,
   PluginRegistry,
   ProjectRepository,
+  RunBackend,
+  RunService,
 } from '@ports'
 import {
   createBuildService,
   createCommandRegistry,
   createEventBus,
   createPluginRegistry,
+  createRunService,
   type RecipeRunnerFn,
+  type RunBackendFactory,
   type ToolchainAssembleFn,
 } from '@services'
 import { assemble } from '@adapters/wasm-mads'
 import { runRecipes } from '@plugins/converters'
+import { createEmu } from '@adapters/emu'
 
 // Workbench Core — the headless workbench instance the rest of the app talks
 // to. UI consumes it via React context; tests instantiate it directly with
@@ -30,6 +35,8 @@ export interface WorkbenchDeps {
   toolchain?: ToolchainAssembleFn
   /** Override the recipe runner — defaults to @plugins/converters.runRecipes. */
   recipes?: RecipeRunnerFn
+  /** Override the emulator backend factory — defaults to @adapters/emu.createEmu. */
+  emuBackendFactory?: RunBackendFactory
 }
 
 export interface Workbench {
@@ -38,6 +45,7 @@ export interface Workbench {
   readonly plugins: PluginRegistry
   readonly projects: ProjectRepository
   readonly build: BuildService
+  readonly run: RunService
   readonly logger: Logger
 }
 
@@ -62,6 +70,11 @@ const defaultRecipes: RecipeRunnerFn = async (projectId, recipes, files) => {
   }))
 }
 
+const defaultEmuBackendFactory: RunBackendFactory = async () => {
+  const emu = await createEmu()
+  return emu as unknown as RunBackend
+}
+
 export function createWorkbench(deps: WorkbenchDeps): Workbench {
   const events = createEventBus()
   const commands = createCommandRegistry()
@@ -72,6 +85,11 @@ export function createWorkbench(deps: WorkbenchDeps): Workbench {
     toolchain: deps.toolchain ?? defaultToolchain,
     recipes: deps.recipes ?? defaultRecipes,
   })
+  const run = createRunService({
+    events,
+    logger: deps.logger,
+    backendFactory: deps.emuBackendFactory ?? defaultEmuBackendFactory,
+  })
 
   return {
     events,
@@ -79,6 +97,7 @@ export function createWorkbench(deps: WorkbenchDeps): Workbench {
     plugins,
     projects: deps.projectRepo,
     build,
+    run,
     logger: deps.logger,
   }
 }
