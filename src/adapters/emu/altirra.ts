@@ -178,47 +178,60 @@ export class AltirraBackend implements EmuBackend {
   }
 
   private audioCtx: AudioContext | null = null;
-  private audioQueue: Float32Array[] = [];
-  private audioQueueOffset = 0;
+  private audioWorklet: AudioWorkletNode | null = null;
+  private audioPushTimer: number | null = null;
 
   async startAudio(): Promise<void> {
     if (this.audioCtx) {
       if (this.audioCtx.state === "suspended") await this.audioCtx.resume();
+      this.startAudioPushPump();
       return;
     }
     const ctx = new AudioContext();
-    // ScriptProcessorNode is deprecated but still universally supported
-    // and avoids the AudioWorklet module-loading dance. 1024 samples ≈
-    // 23ms latency at 44.1kHz — good enough for a debugger UI.
-    const node = ctx.createScriptProcessor(1024, 0, 1);
-    node.onaudioprocess = (ev) => {
-      const out = ev.outputBuffer.getChannelData(0);
-      let written = 0;
-      while (written < out.length) {
-        if (this.audioQueue.length === 0) {
-          // Pull more from the core. Returns view aliasing wasm memory.
-          const fresh = this.core.getAudioSamples();
-          if (fresh.length > 0) this.audioQueue.push(new Float32Array(fresh));
-          else break;
-        }
-        const head = this.audioQueue[0];
-        const take = Math.min(out.length - written, head.length - this.audioQueueOffset);
-        out.set(head.subarray(this.audioQueueOffset, this.audioQueueOffset + take), written);
-        written += take;
-        this.audioQueueOffset += take;
-        if (this.audioQueueOffset >= head.length) {
-          this.audioQueue.shift();
-          this.audioQueueOffset = 0;
-        }
-      }
-      // Pad remainder with silence if the core underran.
-      if (written < out.length) out.fill(0, written);
-    };
+    // Vite hashes the worklet module URL relative to import.meta.url at
+    // build time; addModule needs a same-origin URL.
+    const workletUrl = new URL("./wasm/audio-worklet.js", import.meta.url).href;
+    await ctx.audioWorklet.addModule(workletUrl);
+    const node = new AudioWorkletNode(ctx, "altirra-audio", {
+      numberOfInputs: 0,
+      numberOfOutputs: 1,
+      outputChannelCount: [1],
+    });
     node.connect(ctx.destination);
     this.audioCtx = ctx;
+    this.audioWorklet = node;
+    this.startAudioPushPump();
+  }
+
+  /** Periodically drain the wasm core's sample buffer into the worklet via
+   *  port.postMessage. Worklet runs on the audio thread and consumes at its
+   *  own pace; a tight push interval (~5ms) keeps the queue stable while
+   *  staying below scheduler jitter from longer windows. */
+  private startAudioPushPump(): void {
+    if (this.audioPushTimer != null) return;
+    this.audioPushTimer = window.setInterval(() => {
+      if (!this.audioWorklet) return;
+      const fresh = this.core.getAudioSamples();
+      if (fresh.length > 0) {
+        // Copy out of the wasm-memory view (the next core call invalidates
+        // it) and transfer ownership of the buffer to the worklet — zero-copy
+        // boundary.
+        const chunk = new Float32Array(fresh);
+        this.audioWorklet.port.postMessage(chunk, [chunk.buffer]);
+      }
+    }, 5);
+  }
+
+  private stopAudioPushPump(): void {
+    if (this.audioPushTimer != null) {
+      window.clearInterval(this.audioPushTimer);
+      this.audioPushTimer = null;
+    }
   }
 
   async suspendAudio(): Promise<void> {
+    this.stopAudioPushPump();
+    if (this.audioWorklet) this.audioWorklet.port.postMessage("flush");
     if (this.audioCtx && this.audioCtx.state === "running") {
       await this.audioCtx.suspend();
     }
