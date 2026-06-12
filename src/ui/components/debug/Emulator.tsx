@@ -290,6 +290,9 @@ export function Emulator({ xex, running, stepTick, frameTick, breakpoints, onSta
       void workbench.run.suspendAudio();
       // Refresh CPU state on pause so Debug panel reflects where we stopped.
       emit(emu);
+      // Panels (registers / memory) self-fetch on this event — without it
+      // they'd stay frozen at the last 6-Hz frame-loop snapshot.
+      workbench.events.emit('debug:step-done', { pc: emu.getPC() });
     };
   }, [running, status, breakpoints, onState, workbench]);
 

@@ -251,9 +251,9 @@ export default function App() {
   // it on every BP trap inside the frame loop. Replaces the previous onBreak
   // prop-drilling pattern.
   useEffect(() => {
-    return workbench.events.on('debug:bp-hit', () => {
+    return workbench.events.on('debug:bp-hit', ({ pc }) => {
       setRunning(false);
-      setBrokeOn(null);
+      setBrokeOn(pc);
     });
   }, [workbench]);
 
