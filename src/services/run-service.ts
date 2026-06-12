@@ -156,10 +156,10 @@ export function createRunService(deps: RunServiceDeps): RunService {
 
     reset() {
       if (!backend) return
-      // Soft pattern: reset is delegated to the backend's reset path on next
-      // load — for explicit reset the UI re-loads the binary. EmulatorPlugin
-      // (M4 follow-up) folds this into a typed lifecycle method. Same-state
-      // 'loaded → loaded' is legal-but-quiet.
+      // No-op from idle — `unload()` deliberately drops the FSM to idle even
+      // though the backend object lingers. Reset only makes sense for an
+      // armed FSM. Same-state 'loaded → loaded' is legal-but-quiet.
+      if (status === 'idle') return
       transitionTo('loaded', 'reset')
     },
 
