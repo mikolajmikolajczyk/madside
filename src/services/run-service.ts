@@ -8,16 +8,31 @@ import type {
   RunBackend,
   RunService,
   RunStatus,
+  Unsubscribe,
 } from '@ports'
 import { EmulatorTrapError, err, ok } from '@ports'
 
-// RunService wraps an EmuBackend created on first load(). Status transitions
-// emit 'run:state' on the workbench EventBus. Backend instantiation is async
-// so we serialize creation per service instance.
+// RunService — Run lifecycle FSM (ADR-0007).
 //
-// Adapter wiring: @app injects a `backendFactory` that returns a Promise of
-// the concrete EmuBackend (today: AltirraBackend). The service stays
-// adapter-free per ADR-0002.
+// Legal transitions:
+//   idle    → loaded                      (via load)
+//   idle    → crashed                     (load threw before media stuck)
+//   loaded  → running                     (via run)
+//   loaded  → loaded                      (via reset / re-load — no-op event)
+//   loaded  → crashed                     (load on top of loaded threw)
+//   running → paused                      (via pause / bp-hit handled by caller)
+//   running → loaded                      (via load / reset — re-arm)
+//   running → crashed                     (load mid-run threw)
+//   paused  → running                     (via run)
+//   paused  → loaded                      (via load / reset)
+//   paused  → crashed                     (load while paused threw)
+//   crashed → loaded                      (via load — retry)
+//   crashed → crashed                     (load retry threw again)
+//
+// Each successful transition fires `run:state` with `{ status, prev }` and
+// notifies internal subscribers (useSyncExternalStore consumers).
+// Illegal transitions throw so the bug surfaces at the call site instead of
+// going silent.
 
 export type RunBackendFactory = () => Promise<RunBackend>
 
@@ -33,16 +48,43 @@ export interface RunServiceDeps {
   media?: MachineMedia
 }
 
+const LEGAL_NEXT: Record<RunStatus, ReadonlySet<RunStatus>> = {
+  idle:    new Set<RunStatus>(['loaded', 'crashed']),
+  loaded:  new Set<RunStatus>(['running', 'loaded', 'crashed']),
+  running: new Set<RunStatus>(['paused', 'loaded', 'crashed']),
+  paused:  new Set<RunStatus>(['running', 'loaded', 'crashed']),
+  crashed: new Set<RunStatus>(['loaded', 'crashed']),
+}
+
 export function createRunService(deps: RunServiceDeps): RunService {
   const log = deps.logger?.child('run') ?? deps.logger
   let backend: RunBackend | null = null
   let backendPromise: Promise<RunBackend> | null = null
   let status: RunStatus = 'idle'
+  const subscribers = new Set<() => void>()
 
-  const setStatus = (next: RunStatus): void => {
+  // FSM driver. Throws on illegal transition (ADR-0007 — surface the bug
+  // at the call site instead of silently no-op'ing). Same-state transitions
+  // (loaded → loaded after reset, crashed → crashed after retry-fail) are
+  // listed as legal but do not fire events; observers stay quiescent.
+  const transitionTo = (next: RunStatus, source: string): void => {
+    const allowed = LEGAL_NEXT[status]
+    if (!allowed.has(next)) {
+      throw new Error(
+        `RunService: illegal transition ${status} → ${next} (source: ${source})`,
+      )
+    }
     if (status === next) return
+    const prev = status
     status = next
-    deps.events.emit('run:state', { status })
+    deps.events.emit('run:state', { status, prev })
+    for (const fn of subscribers) {
+      try {
+        fn()
+      } catch (e) {
+        log?.warn('RunService subscriber threw', { error: String(e) })
+      }
+    }
   }
 
   const ensureBackend = async (): Promise<RunBackend> => {
@@ -89,37 +131,41 @@ export function createRunService(deps: RunServiceDeps): RunService {
           ?? deps.media?.defaultFormat
           ?? 'binary'
         b.loadMedia(fmt, binary)
-        setStatus('loaded')
+        transitionTo('loaded', 'load')
         return ok(undefined)
       } catch (cause) {
         const message = cause instanceof Error ? cause.message : 'load failed'
         log?.error('emu load threw', cause)
-        setStatus('crashed')
+        transitionTo('crashed', 'load')
         const e: EmulatorTrapErrorType = new EmulatorTrapError(message, undefined, cause)
         return err(e)
       }
     },
 
     run() {
-      if (status === 'crashed' || status === 'idle') return
-      setStatus('running')
+      transitionTo('running', 'run')
     },
 
     pause() {
-      if (status !== 'running') return
-      setStatus('paused')
+      transitionTo('paused', 'pause')
     },
 
     reset() {
       if (!backend) return
       // Soft pattern: reset is delegated to the backend's reset path on next
       // load — for explicit reset the UI re-loads the binary. EmulatorPlugin
-      // (M4 follow-up) folds this into a typed lifecycle method.
-      setStatus('loaded')
+      // (M4 follow-up) folds this into a typed lifecycle method. Same-state
+      // 'loaded → loaded' is legal-but-quiet.
+      transitionTo('loaded', 'reset')
     },
 
     get status() {
       return status
+    },
+
+    subscribe(listener: () => void): Unsubscribe {
+      subscribers.add(listener)
+      return () => { subscribers.delete(listener) }
     },
 
     async startAudio() {

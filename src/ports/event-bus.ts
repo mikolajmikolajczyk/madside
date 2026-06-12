@@ -12,7 +12,10 @@ export interface WorkbenchEvents {
   'build:done': { projectId: string; result: BuildResult }
   'build:error': { projectId: string; message: string }
 
-  'run:state': { status: 'idle' | 'loaded' | 'running' | 'paused' | 'crashed' }
+  'run:state': {
+    status: 'idle' | 'loaded' | 'running' | 'paused' | 'crashed'
+    prev: 'idle' | 'loaded' | 'running' | 'paused' | 'crashed'
+  }
 
   'debug:bp-hit': { pc: number }
   'debug:step-done': { pc: number }

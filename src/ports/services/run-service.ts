@@ -7,6 +7,7 @@
 // UI loops (Emulator.tsx requestAnimationFrame) call `advanceFrame` directly.
 
 import type { EmulatorTrapError, Result } from '../errors'
+import type { Unsubscribe } from '../event-bus'
 
 /** Opaque file-format id. Strings come from `MachinePlugin.media.formats` —
  *  the workbench never enumerates them. Atari ships 'xex'/'atr'/'car'/'cas';
@@ -53,6 +54,12 @@ export interface RunService {
   reset(): void
 
   readonly status: RunStatus
+
+  /** Subscribe to FSM transitions (ADR-0007). Fires after every legal
+   *  transition; the listener reads the fresh status via `.status` itself.
+   *  Returns the disposer. UI hooks (`useRunStatus`, M7.5 issue d369f2a)
+   *  wrap this through `useSyncExternalStore`. */
+  subscribe(listener: () => void): Unsubscribe
 
   startAudio(): Promise<void>
   suspendAudio(): Promise<void>
