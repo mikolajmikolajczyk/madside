@@ -15,6 +15,7 @@ interface ShortcutOps {
 interface ShortcutState {
   canRun: boolean;
   running: boolean;
+  hasEmu: boolean;
 }
 
 /** Window-level keyboard shortcuts. Web-IDE convention (replit / stackblitz /
@@ -42,7 +43,7 @@ export function useDebuggerShortcuts(ops: ShortcutOps, state: ShortcutState) {
       const mod = e.ctrlKey || e.metaKey;
       const shift = e.shiftKey;
       const k = e.key.toLowerCase();
-      const { canRun, running } = state;
+      const { canRun, running, hasEmu } = state;
 
       // Save + build family (preventDefault stops browser save-as).
       if (mod && !shift && k === "s") {
@@ -83,8 +84,8 @@ export function useDebuggerShortcuts(ops: ShortcutOps, state: ShortcutState) {
       // Debugger keys with no browser collision (F9) or whose default we're
       // happy to preventDefault away (F10 menu bar, F11 fullscreen).
       if (!mod && e.key === "F9")  { e.preventDefault(); ops.toggleBpAtCursor(); return; }
-      if (!mod && e.key === "F10") { e.preventDefault(); if (!running) ops.onStep(); return; }
-      if (!mod && e.key === "F11") { e.preventDefault(); if (!running) ops.onStepFrame(); return; }
+      if (!mod && e.key === "F10") { e.preventDefault(); if (!running && hasEmu) ops.onStep(); return; }
+      if (!mod && e.key === "F11") { e.preventDefault(); if (!running && hasEmu) ops.onStepFrame(); return; }
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);

@@ -32,13 +32,13 @@ export function DebugBar(p: Props) {
       <IconBtn testid="dbg.stop" label="Stop (Ctrl+Shift+.)" onClick={p.onStop} disabled={!p.hasEmu}>
         <svg viewBox="0 0 16 16" width={14} height={14}><rect x="4" y="4" width="8" height="8" fill="currentColor"/></svg>
       </IconBtn>
-      <IconBtn testid="dbg.step" label="Step (F10)" onClick={p.onStep} disabled={p.running}>
+      <IconBtn testid="dbg.step" label="Step (F10)" onClick={p.onStep} disabled={p.running || !p.hasEmu}>
         <svg viewBox="0 0 16 16" width={14} height={14}>
           <path d="M2 8 L11 8 M8 5 L11 8 L8 11" stroke="currentColor" strokeWidth="1.6" fill="none" strokeLinecap="round" strokeLinejoin="round"/>
           <circle cx="13.5" cy="8" r="1.4" fill="currentColor"/>
         </svg>
       </IconBtn>
-      <IconBtn testid="dbg.frame" label="Frame (F11)" onClick={p.onFrame} disabled={p.running}>
+      <IconBtn testid="dbg.frame" label="Frame (F11)" onClick={p.onFrame} disabled={p.running || !p.hasEmu}>
         <svg viewBox="0 0 16 16" width={14} height={14}>
           <path d="M3 3 L9 8 L3 13 Z" fill="currentColor"/>
           <rect x="11" y="3" width="2" height="10" fill="currentColor"/>

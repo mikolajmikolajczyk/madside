@@ -397,7 +397,7 @@ export default function App() {
       toggleBpAtCursor,
       onSnapshot: () => { if (project.loaded) void project.createSnapshotNow("manual"); },
     },
-    { canRun, running },
+    { canRun, running, hasEmu },
   );
 
   if (!project.loaded) {
@@ -433,6 +433,7 @@ export default function App() {
         onReset={onReset}
         canRun={canRun}
         running={running}
+        hasEmu={hasEmu}
         busy={busy}
         onUndo={onUndo}
         onRedo={onRedo}
