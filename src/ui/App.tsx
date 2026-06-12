@@ -47,8 +47,6 @@ export default function App() {
   const runStatus = useRunStatus();
   const running = runStatus === 'running';
   const hasEmu = runStatus !== 'idle' && runStatus !== 'crashed';
-  const [stepTick, setStepTick] = useState(0);
-  const [frameTick, setFrameTick] = useState(0);
   const [cpu, setCpu] = useState<CpuRegs | null>(null);
   const [memBase, setMemBase] = useState(0x2000);
   const [memBaseTouched, setMemBaseTouched] = useState(false);
@@ -87,8 +85,6 @@ export default function App() {
     if (!opts?.keepResult) setResult(null);
     setCpu(null);
     if (!opts?.keepMemTouched) setMemBaseTouched(false);
-    setStepTick(0);
-    setFrameTick(0);
     setBrokeOn(null);
   }, [setResult, workbench]);
 
@@ -262,8 +258,12 @@ export default function App() {
   const onPause = useCallback(() => {
     if (workbench.run.status === 'running') workbench.run.pause();
   }, [workbench]);
-  const onStep = useCallback(() => setStepTick((t) => t + 1), []);
-  const onStepFrame = useCallback(() => setFrameTick((t) => t + 1), []);
+  // 1e38ae3: Step + Frame go through DebugService (canonical event path).
+  // DebugService.step/stepFrame call the active DebugTarget + emit
+  // debug:step-done; Emulator listens + blits the canvas (no more
+  // stepTick/frameTick prop drilling).
+  const onStep = useCallback(() => { void workbench.debug.step(); }, [workbench]);
+  const onStepFrame = useCallback(() => { void workbench.debug.stepFrame(); }, [workbench]);
 
   // Subscribe to 'debug:bp-hit' from the workbench bus — Emulator.tsx emits
   // it on every BP trap inside the frame loop. Pause via the FSM
@@ -535,8 +535,6 @@ export default function App() {
         <Splitter invert onResize={(dx) => setSideW((w) => clampSide(w + dx))} />
         <aside className="app__side">
           <Emulator
-            stepTick={stepTick}
-            frameTick={frameTick}
             breakpoints={breakpoints}
             onState={setCpu}
           />

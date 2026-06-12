@@ -60,8 +60,19 @@ export function createDebugService(deps: DebugServiceDeps): DebugService {
 
     async stepFrame() {
       const t = requireTarget()
-      const pc = await t.stepFrame()
-      deps.events.emit('debug:step-done', { pc })
+      // Mirror the temporary-disable pattern the JS-side Frame button used
+      // (03d7cd5): when paused on a BP, the very first instruction fetch
+      // re-trips the BP and the sim halts on iter 1 without producing a
+      // frame. Clear → advance → restore so Frame always advances a real
+      // display frame regardless of where the user paused. The restored
+      // set lets the next Run trap-loop see the user's BPs.
+      t.setBreakpoints([])
+      try {
+        const pc = await t.stepFrame()
+        deps.events.emit('debug:step-done', { pc })
+      } finally {
+        t.setBreakpoints(breakpoints)
+      }
     },
 
     setBreakpoint(addr) {

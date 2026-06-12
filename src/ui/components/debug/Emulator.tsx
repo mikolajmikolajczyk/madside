@@ -13,18 +13,19 @@ export interface CpuRegs {
 }
 
 interface Props {
-  stepTick: number;          // bump to advance one CPU instruction
-  frameTick: number;         // bump to advance one full frame (display updates)
   breakpoints?: Set<number>; // PC addresses to break on
   onState?: (s: CpuRegs) => void;
-  // BP hits emit 'debug:bp-hit' on the workbench EventBus — consumers
-  // subscribe via useWorkbench().events.on('debug:bp-hit', ...) instead of
-  // prop drilling onBreak. Memory snapshots flow through MemoryPanel's
-  // own ctx.debug.readMemory polling, not through here. The frame loop is
-  // driven by RunService's FSM (ADR-0007) read through useRunStatus().
+  // Step + Frame go through DebugService.step / stepFrame (1e38ae3 — the
+  // canonical event path). DebugService emits debug:step-done; Emulator
+  // listens + blits the canvas. The frame loop is driven by RunService's
+  // FSM (ADR-0007) read through useRunStatus(). BP hits emit
+  // 'debug:bp-hit' on the workbench EventBus — consumers subscribe via
+  // useWorkbench().events.on('debug:bp-hit', ...) instead of prop
+  // drilling onBreak. Memory snapshots flow through MemoryPanel's own
+  // ctx.debug.readMemory polling, not through here.
 }
 
-export function Emulator({ stepTick, frameTick, breakpoints, onState }: Props) {
+export function Emulator({ breakpoints, onState }: Props) {
   const workbench = useWorkbench();
   const runStatus = useRunStatus();
   const running = runStatus === 'running';
@@ -153,44 +154,22 @@ export function Emulator({ stepTick, frameTick, breakpoints, onState }: Props) {
     }
   }, [runStatus, onState, status]);
 
-  // Step on stepTick bump (only when paused). Display does not refresh
-  // between instructions — per-step refresh research lives in backlog
-  // (c309619) and lands as a new typed method when a working mechanism
-  // surfaces.
+  // 1e38ae3: DebugService.step / stepFrame is the canonical step path.
+  // DebugService drives the underlying DebugTarget + emits debug:step-done;
+  // Emulator subscribes here to keep the canvas + App-side CPU snapshot in
+  // sync. Per-instruction display refresh stays in backlog (c309619) —
+  // step() doesn't repaint between instructions; stepFrame() always advances
+  // a real ANTIC frame because DebugService internally bypasses BPs while
+  // advanceFrame runs (mirrors the 03d7cd5 fix that used to live here).
   useEffect(() => {
-    const emu = emuRef.current;
-    if (!emu || running || status !== "ready" || stepTick === 0) return;
-    emu.step();
-    blit();
-    emit(emu);
-    // Panels (registers / memory) self-fetch via DebugService on this event.
-    workbench.events.emit('debug:step-done', { pc: emu.getPC() });
-  }, [stepTick, running, status, onState, workbench]);
-
-  // Advance one frame on frameTick bump (only when paused). Differs from
-  // step: lets CPU run through the whole frame so display + RAM both
-  // update.
-  //
-  // After a BP hit + Pause the PC sits on a BP — calling advanceFrame
-  // resumes the sim and Altirra fires the BP immediately at the first
-  // instruction fetch (Stopped on iter 1, no frame produced). Clear BPs
-  // for the duration of the advance and restore them after, so Frame
-  // always advances a real display frame regardless of where the user
-  // paused. Mirrors the temporary-disable pattern most C-side debuggers
-  // use for 'run to cursor' / 'step out' from a BP.
-  useEffect(() => {
-    const emu = emuRef.current;
-    if (!emu || running || status !== "ready" || frameTick === 0) return;
-    emu.setBreakpoints([]);
-    try {
-      emu.advanceFrame();
-    } finally {
-      emu.setBreakpoints(breakpoints ?? []);
-    }
-    blit();
-    emit(emu);
-    workbench.events.emit('debug:step-done', { pc: emu.getPC() });
-  }, [frameTick, running, status, onState, workbench, breakpoints]);
+    return workbench.events.on('debug:step-done', () => {
+      const emu = emuRef.current;
+      if (!emu || status !== "ready") return;
+      blit();
+      emit(emu);
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [workbench, status, onState]);
 
   // Keyboard → emu. Listen only while the canvas has focus so the editor
   // remains usable when not interacting with the emu.
@@ -301,11 +280,11 @@ export function Emulator({ stepTick, frameTick, breakpoints, onState }: Props) {
       if (rafRef.current != null) cancelAnimationFrame(rafRef.current);
       rafRef.current = null;
       void workbench.run.suspendAudio();
-      // Refresh CPU state on pause so Debug panel reflects where we stopped.
+      // One final CPU snapshot so App-side pcLine + status bar reflect
+      // where the sim stopped. Panel refresh on pause is handled by
+      // run:state{paused} — RunService emits it the moment pause() is
+      // called (panels subscribe via ADR-0007 wire).
       emit(emu);
-      // Panels (registers / memory) self-fetch on this event — without it
-      // they'd stay frozen at the last 6-Hz frame-loop snapshot.
-      workbench.events.emit('debug:step-done', { pc: emu.getPC() });
     };
   }, [running, status, breakpoints, onState, workbench]);
 
