@@ -26,6 +26,7 @@ See [`adr/README.md`](adr/README.md) for the bar. ADRs are for decisions that co
 - [ADR-0004 — Error boundary + degradation strategy](adr/0004-error-boundaries.md)
 - [ADR-0005 — Testing strategy: contract + headless integration hybrid](adr/0005-testing-strategy.md)
 - [ADR-0006 — License: AGPL-3.0-or-later](adr/0006-license-agpl.md)
+- [ADR-0007 — Service ↔ UI sync via state machines + events](adr/0007-service-ui-sync.md)
 
 ## Conventions
 
