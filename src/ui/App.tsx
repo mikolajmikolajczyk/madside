@@ -79,13 +79,11 @@ export default function App() {
 
   // Full emulator-state wipe. Three call sites all want the same blast:
   // project change, Stop, Reset. Don't try to be clever about a subset.
-  // FSM-side: workbench.run.reset() flips the service back to 'loaded' so
-  // the next load() / run() finds a clean state. Skipped from 'idle'
-  // (illegal transition per ADR-0007 FSM contract).
+  // FSM-side: workbench.run.unload() drops media + transitions to 'idle'
+  // so the next Run boots from scratch (matches the pre-FSM Stop UX —
+  // blank canvas, no last-frame residue).
   const resetEmuState = useCallback((opts?: { keepResult?: boolean; keepMemTouched?: boolean }) => {
-    if (workbench.run.status !== 'idle' && workbench.run.status !== 'crashed') {
-      workbench.run.reset();
-    }
+    if (workbench.run.status !== 'idle') workbench.run.unload();
     if (!opts?.keepResult) setResult(null);
     setCpu(null);
     if (!opts?.keepMemTouched) setMemBaseTouched(false);
@@ -243,6 +241,15 @@ export default function App() {
 
 
   const onRun = useCallback(async () => {
+    // Smart Play. After a BP hit / Pause the emu is at 'paused' with the
+    // binary still resident — Play resumes from the same PC. Only Stop
+    // (which unload()s to 'idle') or a fresh boot forces a re-load.
+    const status = workbench.run.status;
+    if (status === 'paused' || status === 'loaded') {
+      setBrokeOn(null);
+      workbench.run.run();
+      return;
+    }
     let r = result;
     if (!r) r = await runAssemble();
     if (!r?.ok || !r.xex) return;

@@ -98,6 +98,30 @@ describe('RunService — FSM transitions', () => {
       expect(recorded.at(-1)).toEqual({ status: 'loaded', prev: 'paused' })
     })
 
+    it('loaded → idle via unload() (Stop button)', async () => {
+      const { svc, recorded } = setup()
+      await svc.load(binary)
+      svc.unload()
+      expect(svc.status).toBe('idle')
+      expect(recorded.at(-1)).toEqual({ status: 'idle', prev: 'loaded' })
+    })
+
+    it('running → idle via unload()', async () => {
+      const { svc, recorded } = setup()
+      await svc.load(binary)
+      svc.run()
+      svc.unload()
+      expect(svc.status).toBe('idle')
+      expect(recorded.at(-1)).toEqual({ status: 'idle', prev: 'running' })
+    })
+
+    it('unload() from idle is quiet', () => {
+      const { svc, recorded } = setup()
+      svc.unload()
+      expect(svc.status).toBe('idle')
+      expect(recorded).toEqual([])
+    })
+
     it('crashed → loaded via load() (retry)', async () => {
       let fail = true
       const backend = fakeBackend(() => { if (fail) throw new Error('boom') })

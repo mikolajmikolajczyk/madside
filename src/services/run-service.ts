@@ -20,14 +20,18 @@ import { EmulatorTrapError, err, ok } from '@ports'
 //   loaded  → running                     (via run)
 //   loaded  → loaded                      (via reset / re-load — no-op event)
 //   loaded  → crashed                     (load on top of loaded threw)
+//   loaded  → idle                        (via unload — Stop button)
 //   running → paused                      (via pause / bp-hit handled by caller)
 //   running → loaded                      (via load / reset — re-arm)
 //   running → crashed                     (load mid-run threw)
+//   running → idle                        (via unload)
 //   paused  → running                     (via run)
 //   paused  → loaded                      (via load / reset)
 //   paused  → crashed                     (load while paused threw)
+//   paused  → idle                        (via unload)
 //   crashed → loaded                      (via load — retry)
 //   crashed → crashed                     (load retry threw again)
+//   crashed → idle                        (via unload — give up on retry)
 //
 // Each successful transition fires `run:state` with `{ status, prev }` and
 // notifies internal subscribers (useSyncExternalStore consumers).
@@ -50,10 +54,10 @@ export interface RunServiceDeps {
 
 const LEGAL_NEXT: Record<RunStatus, ReadonlySet<RunStatus>> = {
   idle:    new Set<RunStatus>(['loaded', 'crashed']),
-  loaded:  new Set<RunStatus>(['running', 'loaded', 'crashed']),
-  running: new Set<RunStatus>(['paused', 'loaded', 'crashed']),
-  paused:  new Set<RunStatus>(['running', 'loaded', 'crashed']),
-  crashed: new Set<RunStatus>(['loaded', 'crashed']),
+  loaded:  new Set<RunStatus>(['running', 'loaded', 'crashed', 'idle']),
+  running: new Set<RunStatus>(['paused', 'loaded', 'crashed', 'idle']),
+  paused:  new Set<RunStatus>(['running', 'loaded', 'crashed', 'idle']),
+  crashed: new Set<RunStatus>(['loaded', 'crashed', 'idle']),
 }
 
 export function createRunService(deps: RunServiceDeps): RunService {
@@ -157,6 +161,13 @@ export function createRunService(deps: RunServiceDeps): RunService {
       // (M4 follow-up) folds this into a typed lifecycle method. Same-state
       // 'loaded → loaded' is legal-but-quiet.
       transitionTo('loaded', 'reset')
+    },
+
+    unload() {
+      // Stop button: drop the media + transition back to 'idle'. Next Run
+      // re-loads the binary from scratch.
+      if (status === 'idle') return
+      transitionTo('idle', 'unload')
     },
 
     get status() {

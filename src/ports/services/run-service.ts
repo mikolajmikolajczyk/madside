@@ -52,6 +52,9 @@ export interface RunService {
   run(): void
   pause(): void
   reset(): void
+  /** Stop button — drop media + transition to 'idle'. Next load() boots
+   *  the binary from scratch. */
+  unload(): void
 
   readonly status: RunStatus
 
