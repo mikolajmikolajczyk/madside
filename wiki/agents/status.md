@@ -91,10 +91,10 @@
 
 `rad issue list`. Current milestones use `milestone:v<X.Y.Z>` labels:
 
-- `milestone:v0.8.0` — M9 NES validation (epic 8cf0a3b): pick emulator (b41098c), ca65 wasm + ToolchainPlugin (6bed971), NES sample (50e22d1), PPU panel (93c218b)
+- `milestone:v0.8.0` — M9 NES validation (epic 8cf0a3b): jsnes emulator pick + backend skeleton (b41098c ✅), machine-nes plugin (481d76b), NES sample in MADS (50e22d1), PPU panel (93c218b). NES validated via **MADS** (assembles NROM iNES directly — proven b41098c); ca65 (6bed971) deferred to backlog as a future second toolchain for the C/neslib ecosystem.
 - `milestone:v0.9.0` — Astro Starlight docs site (1116ee3) — sequenced after two working platforms (Atari + NES) exist to document
 - `milestone:v1.0.0` — first post-docs major release; TBD
-- `milestone:backlog` — BP Map/Record drift (609be37), IDB schema migration framework (18ac6a7), Altirra bindings.cpp split (cd90f9d), per-step display refresh research (c309619)
+- `milestone:backlog` — BP Map/Record drift (609be37), IDB schema migration framework (18ac6a7), Altirra bindings.cpp split (cd90f9d), per-step display refresh research (c309619), ca65/ld65 wasm toolchain for C/neslib ecosystem (6bed971)
 - **Infra epic 70269cc** (no milestone, separate clock) — GitHub mirror (edbc165), VPS hosting (efc75d1)
 
 Cancelled: M8 monorepo split (c2f4590) — see [`../decisions/2026-06-12-monorepo-split-cancelled.md`](../decisions/2026-06-12-monorepo-split-cancelled.md).
