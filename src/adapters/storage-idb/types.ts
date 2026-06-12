@@ -1,7 +1,5 @@
 import type { ProjectManifestV2 } from "@ports";
-// Persisted shapes. Schema version bumps require a migration in db.ts.
-
-export const SCHEMA_VERSION = 2;
+// Persisted shapes. Schema version bumps go through ./migrations.ts.
 
 /** Manifest type alias — IDB persists the v2 shape verbatim. Validation +
  *  v1 rejection happens at read time via parseProjectManifest. */
