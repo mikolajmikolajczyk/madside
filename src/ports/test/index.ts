@@ -2,3 +2,8 @@
 // ships an `assert<Kind>Plugin(impl, fixture)` Vitest helper that built-in
 // plugins use and external authors reuse.
 export { assertToolchainPlugin, type ToolchainHarnessFixture } from './toolchain'
+export {
+  assertExactlyOneEvent,
+  assertNoEvent,
+  captureEvents,
+} from './state-machine'
