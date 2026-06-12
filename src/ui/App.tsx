@@ -25,6 +25,7 @@ import { useCursorMemory } from "./hooks/useCursorMemory";
 import { usePluginEditor } from "./hooks/usePluginEditor";
 import { useProjectLabels } from "./hooks/useProjectLabels";
 import { useAutoAssemble } from "./hooks/useAutoAssemble";
+import { useRunStatus } from "./hooks/useRunStatus";
 import { useWorkbench } from "@app";
 import "./App.css";
 
@@ -41,8 +42,11 @@ export default function App() {
   const workbench = useWorkbench();
   const project = useProject();
 
-  const [loadedXex, setLoadedXex] = useState<Uint8Array | null>(null);
-  const [running, setRunning] = useState(false);
+  // Run lifecycle is owned by RunService (ADR-0007). UI reads via the hook;
+  // no parallel React state. `running` + `hasEmu` are derived primitives.
+  const runStatus = useRunStatus();
+  const running = runStatus === 'running';
+  const hasEmu = runStatus !== 'idle' && runStatus !== 'crashed';
   const [stepTick, setStepTick] = useState(0);
   const [frameTick, setFrameTick] = useState(0);
   const [cpu, setCpu] = useState<CpuRegs | null>(null);
@@ -75,16 +79,20 @@ export default function App() {
 
   // Full emulator-state wipe. Three call sites all want the same blast:
   // project change, Stop, Reset. Don't try to be clever about a subset.
+  // FSM-side: workbench.run.reset() flips the service back to 'loaded' so
+  // the next load() / run() finds a clean state. Skipped from 'idle'
+  // (illegal transition per ADR-0007 FSM contract).
   const resetEmuState = useCallback((opts?: { keepResult?: boolean; keepMemTouched?: boolean }) => {
-    setRunning(false);
+    if (workbench.run.status !== 'idle' && workbench.run.status !== 'crashed') {
+      workbench.run.reset();
+    }
     if (!opts?.keepResult) setResult(null);
-    setLoadedXex(null);
     setCpu(null);
     if (!opts?.keepMemTouched) setMemBaseTouched(false);
     setStepTick(0);
     setFrameTick(0);
     setBrokeOn(null);
-  }, [setResult]);
+  }, [setResult, workbench]);
 
   const projectId = project.loaded ? project.projectId : null;
   useEffect(() => {
@@ -238,21 +246,24 @@ export default function App() {
     let r = result;
     if (!r) r = await runAssemble();
     if (!r?.ok || !r.xex) return;
-    setLoadedXex(r.xex);
+    const loadResult = await workbench.run.load(r.xex);
+    if (!loadResult.ok) return;
     setBrokeOn(null);
-    setRunning(true);
-  }, [result, runAssemble]);
+    workbench.run.run();
+  }, [result, runAssemble, workbench]);
 
-  const onPause = useCallback(() => setRunning(false), []);
+  const onPause = useCallback(() => {
+    if (workbench.run.status === 'running') workbench.run.pause();
+  }, [workbench]);
   const onStep = useCallback(() => setStepTick((t) => t + 1), []);
   const onStepFrame = useCallback(() => setFrameTick((t) => t + 1), []);
 
   // Subscribe to 'debug:bp-hit' from the workbench bus — Emulator.tsx emits
-  // it on every BP trap inside the frame loop. Replaces the previous onBreak
-  // prop-drilling pattern.
+  // it on every BP trap inside the frame loop. Pause via the FSM
+  // (ADR-0007); brokeOn is set from the event payload.
   useEffect(() => {
     return workbench.events.on('debug:bp-hit', ({ pc }) => {
-      setRunning(false);
+      if (workbench.run.status === 'running') workbench.run.pause();
       setBrokeOn(pc);
     });
   }, [workbench]);
@@ -265,15 +276,15 @@ export default function App() {
   }, [resetEmuState]);
 
   const onReset = useCallback(async () => {
-    const wasRunning = running;
+    const wasRunning = workbench.run.status === 'running';
     resetEmuState();
     const r = await runAssemble();
     // If emu was active, restart from the top so Reset acts like "restart".
     if (wasRunning && r?.ok && r.xex) {
-      setLoadedXex(r.xex);
-      setRunning(true);
+      const loadResult = await workbench.run.load(r.xex);
+      if (loadResult.ok) workbench.run.run();
     }
-  }, [running, runAssemble, resetEmuState]);
+  }, [runAssemble, resetEmuState, workbench]);
 
   // Register the user-action surface on the workbench CommandRegistry.
   // Toolbar / menu / shortcut dispatch keeps its existing callbacks for now;
@@ -364,7 +375,7 @@ export default function App() {
     v.focus(); redo(v);
   }, []);
 
-  const canRun = !!result?.ok || !!loadedXex;
+  const canRun = !!result?.ok || hasEmu;
 
   const toggleBpAtCursor = useCallback(() => {
     const v = editorViewRef.current;
@@ -434,7 +445,7 @@ export default function App() {
         canRun={canRun}
         running={running}
         busy={busy}
-        hasEmu={!!loadedXex}
+        hasEmu={hasEmu}
         onAssemble={runAssemble}
         onRun={onRun}
         onPause={onPause}
@@ -516,8 +527,6 @@ export default function App() {
         <Splitter invert onResize={(dx) => setSideW((w) => clampSide(w + dx))} />
         <aside className="app__side">
           <Emulator
-            xex={loadedXex}
-            running={running}
             stepTick={stepTick}
             frameTick={frameTick}
             breakpoints={breakpoints}

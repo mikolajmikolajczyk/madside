@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import type { RunBackend } from "@ports";
 import { useWorkbench } from "@app";
+import { useRunStatus } from "../../hooks/useRunStatus";
 import "./Emulator.css";
 
 // Generic CPU snapshot — register / flag ids come from the active
@@ -12,8 +13,6 @@ export interface CpuRegs {
 }
 
 interface Props {
-  xex: Uint8Array | null;
-  running: boolean;
   stepTick: number;          // bump to advance one CPU instruction
   frameTick: number;         // bump to advance one full frame (display updates)
   breakpoints?: Set<number>; // PC addresses to break on
@@ -21,11 +20,14 @@ interface Props {
   // BP hits emit 'debug:bp-hit' on the workbench EventBus — consumers
   // subscribe via useWorkbench().events.on('debug:bp-hit', ...) instead of
   // prop drilling onBreak. Memory snapshots flow through MemoryPanel's
-  // own ctx.debug.readMemory polling, not through here.
+  // own ctx.debug.readMemory polling, not through here. The frame loop is
+  // driven by RunService's FSM (ADR-0007) read through useRunStatus().
 }
 
-export function Emulator({ xex, running, stepTick, frameTick, breakpoints, onState }: Props) {
+export function Emulator({ stepTick, frameTick, breakpoints, onState }: Props) {
   const workbench = useWorkbench();
+  const runStatus = useRunStatus();
+  const running = runStatus === 'running';
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const emuRef = useRef<RunBackend | null>(null);
   const imageRef = useRef<{ image: ImageData; view32: Uint32Array } | null>(null);
@@ -127,20 +129,19 @@ export function Emulator({ xex, running, stepTick, frameTick, breakpoints, onSta
     ctx.putImageData(buf.image, 0, 0);
   };
 
-  // Load xex when it changes, or blank the screen when it goes null (Stop).
-  // `status` is in the deps so the effect re-runs once the (async) emu boot
-  // completes — otherwise an early Run click that fires before status="ready"
-  // would leave loadXEX uncalled forever.
+  // ADR-0007 / 625ed88: media load lives in App.onRun (workbench.run.load) —
+  // the Emulator no longer owns it. On RunService 'loaded' transition we
+  // blit the first frame + emit the post-load CPU state; on 'idle' (Stop
+  // before a load) we blank the canvas.
   useEffect(() => {
     const emu = emuRef.current;
     if (!emu || status !== "ready") return;
-    if (xex) {
-      void workbench.run.load(xex);
+    if (runStatus === 'loaded' || runStatus === 'paused' || runStatus === 'running') {
       blit();
       emit(emu);
-    } else {
-      // No xex = emulator stopped; black out the canvas so the last frame
-      // doesn't linger.
+      return;
+    }
+    if (runStatus === 'idle' || runStatus === 'crashed') {
       const canvas = canvasRef.current;
       if (canvas) {
         const ctx = canvas.getContext("2d");
@@ -150,7 +151,7 @@ export function Emulator({ xex, running, stepTick, frameTick, breakpoints, onSta
         }
       }
     }
-  }, [xex, onState, status]);
+  }, [runStatus, onState, status]);
 
   // Step on stepTick bump (only when paused). Display does not refresh
   // between instructions — per-step refresh research lives in backlog
