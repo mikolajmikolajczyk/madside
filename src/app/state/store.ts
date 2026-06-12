@@ -30,7 +30,7 @@ import {
   type SnapshotMeta,
 } from "@adapters/storage-idb";
 import type { FileRow, Manifest, ProjectRow } from "@adapters/storage-idb";
-import { MANIFEST_VERSION } from "@ports";
+import { MANIFEST_VERSION, type EventBus } from "@ports";
 
 // Files are stored as bytes end-to-end. Text views (Editor, MADS source list,
 // label scanner, etc.) decode lazily; binary views (AssetPanel, custom Phase 11
@@ -65,12 +65,15 @@ function bytesEqual(a: Uint8Array, b: Uint8Array): boolean {
   return true;
 }
 
-export function useProject() {
+export function useProject(events?: EventBus) {
   const [state, setState] = useState<ProjectState | null>(null);
   const [projects, setProjects] = useState<ProjectRow[]>([]);
   const [snapshots, setSnapshots] = useState<SnapshotMeta[]>([]);
   const [reloadKey, setReloadKey] = useState(0);
   const [error, setError] = useState<string | null>(null);
+  // Track previously-emitted projectId so reload() (file CRUD, rename, etc.)
+  // does NOT re-emit `project:switched`. Only true switches do.
+  const lastEmittedProjectIdRef = useRef<string | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -100,6 +103,10 @@ export function useProject() {
         });
         setProjects(list);
         setSnapshots(snaps);
+        if (events && lastEmittedProjectIdRef.current !== loaded.project.id) {
+          lastEmittedProjectIdRef.current = loaded.project.id;
+          events.emit('project:switched', { projectId: loaded.project.id });
+        }
       } catch (e) {
         if (!cancelled) setError(String(e));
       }
@@ -128,6 +135,7 @@ export function useProject() {
         if (!current) return;
         void saveFile(pid, f.path, current.content).then(() => {
           lastSavedRef.current.set(key, current.content);
+          events?.emit('file:changed', { path: f.path });
         });
         timersRef.current.delete(key);
       }, SAVE_DEBOUNCE_MS);

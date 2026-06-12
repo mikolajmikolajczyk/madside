@@ -40,7 +40,7 @@ function isAssetPath(path: string): boolean {
 
 export default function App() {
   const workbench = useWorkbench();
-  const project = useProject();
+  const project = useProject(workbench.events);
 
   // Run lifecycle is owned by RunService (ADR-0007). UI reads via the hook;
   // no parallel React state. `running` + `hasEmu` are derived primitives.
@@ -352,8 +352,9 @@ export default function App() {
   const handleSwitchProject = useCallback(async (id: string) => {
     if (!project.loaded) return;
     await project.switchProject(id);
-    workbench.events.emit('project:switched', { projectId: id });
-  }, [project, workbench]);
+    // project:switched is emitted by useProject's mount effect after the
+    // reload settles (ADR-0007 — the store owns its emits).
+  }, [project]);
 
   const [historyOpen, setHistoryOpen] = useState(false);
 

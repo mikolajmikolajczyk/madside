@@ -16,6 +16,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 // eslint-disable-next-line boundaries/element-types -- TODO(M3): service extraction lifts this import into a service call
 import type { EditorHandle, EditorModule } from "@plugins/editors";
 import { PluginEditorErrorBoundary } from "./PluginEditorErrorBoundary";
+import { useWorkbench } from "@app";
 import "./PluginEditor.css";
 
 interface Props {
@@ -27,6 +28,7 @@ interface Props {
 }
 
 export function PluginEditor({ module, path, value, onChange, assets }: Props) {
+  const workbench = useWorkbench();
   const containerRef = useRef<HTMLDivElement | null>(null);
   const handleRef = useRef<EditorHandle | null>(null);
   const onChangeRef = useRef(onChange);
@@ -36,6 +38,15 @@ export function PluginEditor({ module, path, value, onChange, assets }: Props) {
   const [reloadKey, setReloadKey] = useState(0);
 
   const pluginId = module.meta.id;
+
+  const reportCrash = useCallback((cause: unknown) => {
+    workbench.events.emit('plugin:crashed', { pluginId, kind: 'editor', cause });
+  }, [workbench, pluginId]);
+
+  const failWith = useCallback((msg: string, cause: unknown) => {
+    setError(msg);
+    reportCrash(cause);
+  }, [reportCrash]);
 
   const onReload = useCallback(() => {
     setError(null);
@@ -54,13 +65,13 @@ export function PluginEditor({ module, path, value, onChange, assets }: Props) {
         path,
         onChange: (bytes) => {
           try { onChangeRef.current(bytes); }
-          catch (e) { setError(`onChange threw: ${String(e)}`); }
+          catch (e) { failWith(`onChange threw: ${String(e)}`, e); }
         },
         assets,
       });
       handleRef.current = handle;
     } catch (e) {
-      setError(`mount threw: ${String(e)}`);
+      failWith(`mount threw: ${String(e)}`, e);
       handleRef.current = null;
     }
     return () => {
@@ -76,7 +87,7 @@ export function PluginEditor({ module, path, value, onChange, assets }: Props) {
     const handle = handleRef.current;
     if (!handle?.onValueChange) return;
     try { handle.onValueChange(value); }
-    catch (e) { setError(`onValueChange threw: ${String(e)}`); }
+    catch (e) { failWith(`onValueChange threw: ${String(e)}`, e); }
   }, [value]);
 
   // Catch async errors from plugin event handlers + promises. Scoped to the
@@ -87,15 +98,15 @@ export function PluginEditor({ module, path, value, onChange, assets }: Props) {
       const container = containerRef.current;
       // Only surface errors originating from within the plugin's container.
       if (container && event.error?.target instanceof Node && container.contains(event.error.target)) {
-        setError(`async: ${event.error.message ?? String(event.error)}`);
+        failWith(`async: ${event.error.message ?? String(event.error)}`, event.error);
       } else if (event.message?.includes(pluginId)) {
-        setError(`async: ${event.message}`);
+        failWith(`async: ${event.message}`, event.error ?? event.message);
       }
     };
     const onRejection = (event: PromiseRejectionEvent) => {
       const reason = event.reason;
       const msg = reason instanceof Error ? reason.message : String(reason);
-      setError(`unhandled promise: ${msg}`);
+      failWith(`unhandled promise: ${msg}`, reason);
     };
     window.addEventListener("error", onWinError);
     window.addEventListener("unhandledrejection", onRejection);
@@ -103,7 +114,7 @@ export function PluginEditor({ module, path, value, onChange, assets }: Props) {
       window.removeEventListener("error", onWinError);
       window.removeEventListener("unhandledrejection", onRejection);
     };
-  }, [pluginId, reloadKey]);
+  }, [pluginId, reloadKey, failWith]);
 
   if (error) {
     return (
@@ -127,7 +138,7 @@ export function PluginEditor({ module, path, value, onChange, assets }: Props) {
       <div className="plugin-editor__header label">
         {module.meta.label} · {path}
       </div>
-      <PluginEditorErrorBoundary pluginId={pluginId} onReload={onReload}>
+      <PluginEditorErrorBoundary pluginId={pluginId} onReload={onReload} onCrash={reportCrash}>
         <div ref={containerRef} className="plugin-editor__host" key={reloadKey} />
       </PluginEditorErrorBoundary>
     </div>

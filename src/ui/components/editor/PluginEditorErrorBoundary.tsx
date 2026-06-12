@@ -3,6 +3,7 @@ import React from "react";
 interface Props {
   pluginId: string;
   onReload?: () => void;
+  onCrash?: (cause: unknown) => void;
   children: React.ReactNode;
 }
 
@@ -26,6 +27,7 @@ export class PluginEditorErrorBoundary extends React.Component<Props, State> {
   componentDidCatch(error: Error, info: React.ErrorInfo): void {
     this.setState({ componentStack: info.componentStack ?? null });
     console.error(`PluginEditor[${this.props.pluginId}] crashed`, error, info);
+    this.props.onCrash?.(error);
   }
 
   reset = (): void => {
