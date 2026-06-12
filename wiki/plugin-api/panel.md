@@ -77,6 +77,24 @@ export const heartbeat: PanelPlugin = {
 
 This is the path used by Phase 11 file editors (`editors/*.js`) after the cae0633 generalisation. Project-side plugins shadow built-ins by id.
 
+## How panels stay in sync
+
+Panels are **views**, never owners. Each domain (run, debug, build, project, file) has a service-owned FSM that emits exactly one typed event per transition (ADR-0007). Panel subscribes to the event + reads from the service. Never mirror service state in `useState`.
+
+```tsx
+// good — subscription + service read
+Component: ({ ctx }) => {
+  const [pc, setPc] = useState<number | null>(null);
+  useEffect(() => ctx.events.on('debug:step-done', (p) => setPc(p.pc)), [ctx.events]);
+  return <code>PC = {pc?.toString(16) ?? '—'}</code>;
+}
+
+// bad — parallel React state for a service-owned concept
+const [running, setRunning] = useState(false); // RunService.status is the truth
+```
+
+For run lifecycle specifically, host hook is `useRunStatus()` (from `@ui/hooks`) — panels can read it directly via `ctx` injection or subscribe to `run:state` themselves. See `src/plugins/panel-registers/` and `src/plugins/panel-memory/` for canonical implementations.
+
 ## Event-driven data flow
 
 Built-in panels subscribe to workbench events instead of receiving props:

@@ -32,6 +32,11 @@ If the user hasn't explicitly asked, leave these alone. Many were considered and
 
 - **`project.json` v1 → v2 backwards-compat shim** — hard cut. No external users.
 
+## Anti-patterns (never re-introduce)
+
+- **React state mirroring service state.** Any `useState` that parallel-tracks a service's `status` / `running` / `loaded` flag. **Why:** `ce0dc6f` (stale registers after Step) and `da6299d` (pause + brokeOn payload) both came from a missed manual emit while the UI kept its own shadow copy. Read service state via the `useSync*` hook from [ADR-0007](../adr/0007-service-ui-sync.md). The contract test (`tests/contract/run-service-events.test.ts`) is the catcher.
+- **UI components emitting `<domain>:*` events for transitions the service owns.** `Emulator.tsx` emitting `debug:step-done` was a regression patch; the canonical step path lives in `DebugService.step()` (1e38ae3).
+
 ## Conventions
 
 When you encounter something on this list mid-task, mention it to the user and ask. Don't quietly add it.

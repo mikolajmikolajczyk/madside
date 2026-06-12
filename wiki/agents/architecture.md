@@ -146,6 +146,10 @@ The browser-reload family (F5 / Ctrl+R / Shift+F5 / Ctrl+Shift+F5 / Ctrl+Shift+R
 - **`workbench.toolchain`** — active ToolchainPlugin (UI introspection; BuildService dispatches manifest-driven independently).
 - **`workbench.debug.target()`** — live `DebugTarget` once `RunService.boot()` completes; panels read register/flag descriptors from here.
 
+### Service ↔ UI sync (ADR-0007)
+
+Every domain (run, debug, build, project, file) has one FSM owned by its service; every transition emits exactly one typed `EventBus` event; UI reads via `useSync*` hooks. Run lifecycle is the reference (`useRunStatus()` in `src/ui/hooks/`); never mirror service state in `useState`. See [ADR-0007](../adr/0007-service-ui-sync.md) + `wiki/plugin-api/panel.md`.
+
 ## Why these stacks
 
 - **CodeMirror 6** (not Monaco) — 200 KB vs 2 MB+; custom languages via `StreamLanguage`; themes via CSS variables.

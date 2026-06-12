@@ -5,6 +5,41 @@
 - Strict mode. No `any` unless absolutely needed — cast through `unknown`.
 - React 19 hooks. No Redux/Zustand. `useState` + custom hooks until a real coordination problem appears.
 
+## Service ↔ UI sync
+
+ADR-0007. Three sentences:
+
+> Every domain (run, debug, build, project, file) has exactly one finite state machine, owned by its service. Every transition emits exactly one typed event on `EventBus` before returning. UI components read state through `useSync*` hooks that subscribe to `EventBus`; they never hold parallel React state for the same domain concept.
+
+### Canonical recipe
+
+Service exposes `readonly status`, `subscribe(listener)`, and `transition*` methods that drive a reducer + emit on `EventBus`. UI consumes via a custom hook wrapping `useSyncExternalStore`:
+
+```ts
+export function useRunStatus(): RunStatus {
+  const wb = useWorkbench();
+  return useSyncExternalStore(
+    (cb) => wb.run.subscribe(cb),
+    () => wb.run.status,
+    () => 'idle',
+  );
+}
+```
+
+Reference impl: `src/services/run-service.ts` + `src/ui/hooks/useRunStatus.ts`.
+
+### Do / Don't
+
+| Do | Don't |
+|----|-------|
+| Service owns `status` + emits `'<domain>:state'` | UI holds `useState` mirroring service status |
+| UI subscribes via `useSyncExternalStore` | UI polls `workbench.run.status` in effects |
+| One transition method per change | Caller calls two setters and emits manually |
+| Reads via service surface that emits | Reads via `workbench.run.backend()?.cpuState()` direct |
+| Contract test asserts exactly-one emit per transition | UI components emit `<domain>:*` events themselves |
+
+Root cause of `ce0dc6f` / `da6299d` / `d64d0a4`: parallel React state + manual emits drift silently. See [ADR-0007](../adr/0007-service-ui-sync.md) + `wiki/plugin-api/panel.md` for panel-side details.
+
 ## CSS
 
 - CSS modules-by-convention: each component owns its `.css` file imported by it.
