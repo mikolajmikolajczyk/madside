@@ -1,7 +1,7 @@
 // First-run bootstrap: if no project exists, create "sandbox" with seed files.
 
 import { MANIFEST_VERSION } from "@ports";
-import { createProject, getActiveProjectId, listProjects, loadProject, MANIFEST_PATH, textToBytes, type LoadedProject } from "./project";
+import { createProject, getActiveProjectId, getMeta, listProjects, loadProject, MANIFEST_PATH, setMeta, textToBytes, type LoadedProject } from "./project";
 import type { Manifest } from "./types";
 
 const SEED_HELLO = `; minimalny przykład — pisze HELLO ATARI na ekran
@@ -57,7 +57,131 @@ const SEED_MANIFEST: Manifest = {
   run: { default: { audio: true } },
 };
 
+// === NES sample (machine:'nes', toolchain:'mads') ===
+// MADS assembles a valid NROM iNES directly — `opt h-` for raw output, a
+// hand-rolled 16-byte iNES header contiguous before PRG, the PRG padded to
+// 16 KB, then 8 KB of blank CHR. The program does the canonical NES warmup
+// (two VBlank waits), writes the universal background colour, and enables
+// rendering, so the canvas shows a solid colour — proof the machine + jsnes
+// backend + MADS path work end-to-end. Verified before seeding.
+const SEED_NES_HELLO = `; minimalny przykład NES — wypełnia ekran kolorem tła przez PPU
+        icl 'nes.a65'           ; PPU/APU equates
+        opt h-                  ; headerless raw output (iNES, nie XEX)
+
+; --- iNES header (16B), contiguous przed PRG ---
+        org $bff0
+        dta c"NES",$1a
+        dta $01                 ; PRG 16KB
+        dta $01                 ; CHR 8KB
+        dta $00,$00             ; mapper 0 NROM
+        dta $00,$00,$00,$00,$00,$00,$00,$00
+
+; --- PRG-ROM 16KB ---
+        org $c000
+reset
+        sei
+        cld
+        ldx #$40
+        stx $4017               ; wyłącz APU frame IRQ
+        ldx #$ff
+        txs
+        inx                     ; x=0
+        stx PPUCTRL             ; NMI off
+        stx PPUMASK             ; rendering off
+        stx $4010               ; DMC IRQ off
+
+vwait1  bit PPUSTATUS           ; czekaj 1. vblank (PPU warmup)
+        bpl vwait1
+vwait2  bit PPUSTATUS           ; czekaj 2. vblank
+        bpl vwait2
+
+        lda #$3f                ; palette addr $3F00 (universal bg)
+        sta PPUADDR
+        lda #$00
+        sta PPUADDR
+        lda #$21                ; jasnoniebieski
+        sta PPUDATA
+
+        lda #$00                ; reset scroll + addr latch
+        sta PPUSCROLL
+        sta PPUSCROLL
+        sta PPUADDR
+        sta PPUADDR
+
+        lda #%00011110          ; PPUMASK: pokaż bg + sprite
+        sta PPUMASK
+
+forever jmp forever
+
+nmi     rti
+irq     rti
+        :$fffa-* dta $ff        ; pad PRG do wektorów ($fffa)
+        dta a(nmi)
+        dta a(reset)
+        dta a(irq)
+
+; --- CHR-ROM 8KB blank ---
+        org $0000
+        :8192 dta $00
+`;
+
+// Parallel copy of @plugins/machine-nes/machine-nes.ts::machineNes.bootEquates
+// (ADR-0002 — the adapter cannot import @plugins). Drift guarded by the
+// machine-nes-boot-equates contract test.
+const SEED_NES_EQUATES = `; common NES register equates
+PPUCTRL   = $2000
+PPUMASK   = $2001
+PPUSTATUS = $2002
+OAMADDR   = $2003
+OAMDATA   = $2004
+PPUSCROLL = $2005
+PPUADDR   = $2006
+PPUDATA   = $2007
+OAMDMA    = $4014
+APUSTATUS = $4015
+JOY1      = $4016
+JOY2      = $4017
+`;
+/** Exposed only for the contract test that catches drift vs
+ *  machineNes.bootEquates. Do not consume from app code. */
+export const SEED_NES_EQUATES_FOR_TESTS = SEED_NES_EQUATES;
+
+const SEED_NES_MANIFEST: Manifest = {
+  version: MANIFEST_VERSION,
+  name: "nes-sample",
+  main: "src/nes-hello.a65",
+  machine: "nes",
+  toolchain: "mads",
+  run: { default: { audio: true } },
+};
+
+const META_SEEDED_NES = "seeded:nes-sample";
+
+// Create the NES sample once, tracked by a meta flag so it appears alongside
+// the sandbox on existing installs too — and a later deletion sticks (the flag
+// stays set, no resurrection on next load).
+async function ensureNesSample(): Promise<void> {
+  if (await getMeta(META_SEEDED_NES)) return;
+  await createProject(
+    SEED_NES_MANIFEST.name,
+    [
+      { path: "src/nes-hello.a65", content: textToBytes(SEED_NES_HELLO) },
+      { path: "src/nes.a65", content: textToBytes(SEED_NES_EQUATES) },
+      { path: MANIFEST_PATH, content: textToBytes(JSON.stringify(SEED_NES_MANIFEST, null, 2) + "\n") },
+    ],
+    SEED_NES_MANIFEST,
+  );
+  await setMeta(META_SEEDED_NES, true);
+}
+
 export async function ensureActiveProject(preferredId?: string): Promise<LoadedProject> {
+  const active = await resolveActiveProject(preferredId);
+  // Seed the NES sample alongside whatever's active (idempotent, deletion-safe).
+  await ensureNesSample();
+  return active;
+}
+
+async function resolveActiveProject(preferredId?: string): Promise<LoadedProject> {
   // E2E + deep-link entry point: URL-supplied id wins if it resolves to a real
   // project. Otherwise fall back to the persisted active id.
   if (preferredId) {
@@ -69,7 +193,7 @@ export async function ensureActiveProject(preferredId?: string): Promise<LoadedP
     const p = await loadProject(activeId);
     if (p) return p;
   }
-  // Fall back to any existing project, or seed one.
+  // Fall back to any existing project, or seed the Atari sandbox.
   const all = await listProjects();
   if (all.length > 0) {
     const p = await loadProject(all[0].id);

@@ -35,6 +35,17 @@ export async function setActiveProjectId(id: string): Promise<void> {
   await db.put("meta", { key: META_ACTIVE_PROJECT, value: id });
 }
 
+/** Generic meta kv read. Used for one-time seed flags (e.g. sample projects). */
+export async function getMeta(key: string): Promise<unknown> {
+  const db = await getDB();
+  return (await db.get("meta", key))?.value;
+}
+
+export async function setMeta(key: string, value: unknown): Promise<void> {
+  const db = await getDB();
+  await db.put("meta", { key, value });
+}
+
 export async function loadProject(id: string): Promise<LoadedProject | null> {
   const db = await getDB();
   const project = await db.get("projects", id);
