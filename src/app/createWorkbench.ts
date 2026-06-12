@@ -29,6 +29,7 @@ import {
 } from '@services'
 import { runRecipes } from '@plugins/converters'
 import { atariXl } from '@plugins/machine-atari-xl'
+import { machineNes } from '@plugins/machine-nes'
 import { madsToolchain } from '@plugins/toolchain-mads'
 import { atari6502DebugAdapter } from '@plugins/debug-atari-6502'
 import { registersPanel } from '@plugins/panel-registers'
@@ -139,6 +140,14 @@ export function createWorkbench(deps: WorkbenchDeps): Workbench {
   // so adding a second toolchain (M9: ca65) is a register() call away.
   plugins.register({
     plugin: { ...atariXl, kind: 'machine' },
+    source: { origin: 'builtin' },
+  })
+  // machine-nes resolves via the registry (plugins.get('machine','nes')); the
+  // active `machine` field below stays atari-xl until manifest-driven machine
+  // selection lands (the end-to-end NES path — separate from this plugin's
+  // data + registration).
+  plugins.register({
+    plugin: { ...machineNes, kind: 'machine' },
     source: { origin: 'builtin' },
   })
   plugins.register({
