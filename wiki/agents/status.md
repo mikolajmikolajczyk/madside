@@ -30,6 +30,7 @@
 | FileEditor (Phase 11) folded into PanelPlugin via editorToPanel | ✅ (v0.7.0 6f2dc20) |
 | Plugin contract test harnesses under `@ports/test/` | partial — Toolchain ✅ (51e047c); Machine drift test ✅; Debug/Panel pending |
 | Plugin author docs under `wiki/plugin-api/` | ✅ (v0.7.0 a7b79c0) |
+| Service ↔ UI sync FSM + EventBus + useSyncExternalStore (ADR-0007) | ✅ (v0.7.5 M7.5 epic 152abfd — Run lifecycle reference impl, contract test, dev event logger, property fuzz) |
 | EmulatorPlugin contract | ⏳ M4 follow-up |
 
 ## Emulator (Altirra wasm)
@@ -54,7 +55,7 @@
 | Pixel format from MachinePlugin.display + RGBA fast path | ✅ (v0.4.0 4bd1338) |
 | Dynamic canvas dims + sample rate | ✅ (v0.4.0 7353947, c2dc46b) |
 | Per-step display refresh | ⏳ Frame button workaround — backlog c309619 |
-| Hosting | ⏳ v0.8.0 efc75d1 |
+| Hosting | ⏳ Infra epic 70269cc — efc75d1 |
 
 ## Editor UX
 
@@ -83,14 +84,17 @@
 - TypeScript project references (9ccb4fa) — incremental layer builds
 - Pre-commit: eslint, madge --circular, typecheck, GPG UID guard (fa6ff3a)
 - Nix flake devShell — pinned toolchain (d8935a9)
-- Vitest + fake-indexeddb; headless workbench tests cover services end-to-end (ADR-0005). 36 tests passing across `src/**/*.test.ts` + `tests/{integration,contract,plugins}/*.test.ts`.
+- Vitest + fake-indexeddb; headless workbench tests cover services end-to-end (ADR-0005). 85 tests passing across `src/**/*.test.ts` + `tests/{integration,contract,plugins}/*.test.ts` — RunService wire contract + fast-check property fuzz over the FSM landed in v0.7.5.
 - E2E-ready guardrails: stable testids, URL-loadable project state (7659319)
 
 ## Active work
 
 `rad issue list`. Current milestones use `milestone:v<X.Y.Z>` labels:
 
-- `milestone:v0.8.0` — M8 Monorepo split (epic c2f4590): GitHub mirror (edbc165), hosting (efc75d1)
-- `milestone:v0.9.0` — Phase 13 docs (Astro Starlight boilerplate, 1116ee3)
-- `milestone:v1.0.0` — M9 NES validation (epic 8cf0a3b): pick emulator (b41098c), ca65 wasm + ToolchainPlugin (6bed971), NES sample (50e22d1), PPU panel (93c218b)
+- `milestone:v0.8.0` — Astro Starlight docs site (1116ee3)
+- `milestone:v0.9.0` — M9 NES validation (epic 8cf0a3b): pick emulator (b41098c), ca65 wasm + ToolchainPlugin (6bed971), NES sample (50e22d1), PPU panel (93c218b)
+- `milestone:v1.0.0` — first post-NES major release; TBD
 - `milestone:backlog` — BP Map/Record drift (609be37), IDB schema migration framework (18ac6a7), Altirra bindings.cpp split (cd90f9d), per-step display refresh research (c309619)
+- **Infra epic 70269cc** (no milestone, separate clock) — GitHub mirror (edbc165), VPS hosting (efc75d1)
+
+Cancelled: M8 monorepo split (c2f4590) — see [`../decisions/2026-06-12-monorepo-split-cancelled.md`](../decisions/2026-06-12-monorepo-split-cancelled.md).

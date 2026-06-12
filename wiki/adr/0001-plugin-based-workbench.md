@@ -84,9 +84,9 @@ Atari-specific code lives only in `plugins/machine-atari-xl/`, `plugins/toolchai
 
 ### Repository layout
 
-Single Vite app stays the canonical layout **through M7**. Monorepo split (`packages/core`, `packages/plugin-api`, `packages/workbench`, `packages/plugins/*`) deferred to M8 — last step, once interfaces stabilize.
+Single Vite app stays the canonical layout. The M8 monorepo split (`packages/core`, `packages/plugin-api`, `packages/workbench`, `packages/plugins/*`) was **cancelled 2026-06-12** — see [`wiki/decisions/2026-06-12-monorepo-split-cancelled.md`](../decisions/2026-06-12-monorepo-split-cancelled.md). Built-ins stay under `src/plugins/`; third-party plugins ship from their own repos and load via the PluginRegistry Blob URL loader (the same path used today for project-local converters and editors).
 
-Rationale: solo project, multirepo overhead is not justified until plugin authors actually exist. Folder structure inside `src/` already separates concerns; promoting folders to workspaces is a mechanical move once boundaries are real.
+Rationale: solo project, no external plugin authors queued. ADR-0002 + `eslint-plugin-boundaries` already enforce the layering property the split was meant to deliver, at zero infrastructure cost. Revisit only when a concrete external author exists.
 
 ### Validation milestone
 
@@ -109,7 +109,7 @@ NES chosen over C64 because: simpler memory map, PPU is a clean foil to ANTIC/GT
 
 ## Negative consequences
 
-- Refactor cost across M3–M8 before any user-visible new feature.
+- Refactor cost across M3–M7 before any user-visible new feature (M8 was cancelled; see decision log).
 - Plugin contracts ossify once published; first design needs care.
 - Single-process Vite app limits isolation — a misbehaving plugin can crash the workbench. Acceptable for solo / trusted-plugin era.
 

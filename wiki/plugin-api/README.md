@@ -21,9 +21,9 @@ Contracts every madside plugin kind implements. Source of truth for the type def
 - **Errors**: plugins throw on failure; the host's error boundary contains the blast radius (ADR-0004 + commit `a6152af` for the PluginEditor case).
 - **Testing**: each kind ships an `assert<Kind>Plugin(impl, fixture)` Vitest harness under `@ports/test/` (so far: ToolchainPlugin, commit `51e047c`). External authors drop a one-liner test against their plugin.
 
-## Type-package split (anticipated)
+## Type-package split (not planned)
 
-When M8 monorepo split lands the plugin contracts move into `packages/plugin-api/` for third-party authors to depend on without pulling the whole workbench. The shape stays identical — current `@ports/plugin-*.ts` files become the package entry points.
+Earlier roadmap had plugin contracts move into a `packages/plugin-api/` workspace as part of the M8 monorepo split. **That split was cancelled 2026-06-12** — see [decisions](../decisions/2026-06-12-monorepo-split-cancelled.md). Plugin contracts stay in `@ports/plugin-*.ts`. Third-party authors load via the PluginRegistry Blob URL path (same as project-local converters / editors today); a published types package becomes a follow-up only if real external demand appears.
 
 ## User docs
 

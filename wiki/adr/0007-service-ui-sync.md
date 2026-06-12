@@ -16,7 +16,7 @@ The pattern: **UI keeps React state that parallel-tracks service state, and the 
 
 `useState` + manual setter calls became the de-facto API for sync between services and panels. There is no contract that says "every state-changing service operation fires exactly one event"; there is no code path that says "this is the only way the UI learns about a transition". A new contributor (or AI agent) reading the code can plausibly introduce a third `running` flag for some local concern, and it will work until the day it doesn't.
 
-M8 monorepo split will ship `packages/plugin-api`. If the smell isn't fixed before then, every third-party plugin author downloads it baked in.
+A third-party plugin ecosystem will eventually consume these contracts (via Blob URL loader from external repos — the M8 workspace split was cancelled 2026-06-12, see [decisions](../decisions/2026-06-12-monorepo-split-cancelled.md)). If the smell isn't fixed before external authors arrive, every plugin author downloads it baked in.
 
 ## Decision drivers
 
@@ -105,7 +105,7 @@ Failure mode caught: silent missed emit (the exact bug class behind `ce0dc6f` + 
 - Adding a new panel in M9 NES requires zero new event wiring — every state transition is already declared at the service layer.
 - The "panel stale because Emulator forgot to emit" class of bug becomes impossible: the service owns the emit, UI hooks subscribe by construction, contract tests fail on missed transitions.
 - ADR-0002 layering stays clean — services keep their state, UI keeps its view.
-- `packages/plugin-api` ships in M8 with the canonical sync pattern baked in instead of carrying the smell.
+- Third-party plugin contracts (`@ports/plugin-*.ts`) carry the canonical sync pattern by construction, regardless of how plugins are distributed (in-tree, Blob URL, future published types package).
 - React 18's `useSyncExternalStore` is the right native primitive — no dep churn, no library lock-in.
 
 ## Negative consequences

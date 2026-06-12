@@ -17,7 +17,7 @@ Without a layering contract, the M3 services / M4 machine plugin refactor would 
 - **Enforceable, not aspirational.** A layer rule that exists only in prose gets violated within a sprint. ESLint `boundaries` plugin must reject violations.
 - **Plugin authors come last.** They depend on the smallest, most stable surface (`ports/` + `core/`). They never depend on a service, an adapter, or a UI component.
 - **Reversibility.** Layer names sit on every import path; renaming them later is a global churn. Pick names that survive the M3–M9 evolution.
-- **Solo-friendly.** No layer should require a separate package, separate tsconfig, or separate CI step to exist. M8 monorepo split happens later; layer boundaries land now.
+- **Solo-friendly.** No layer should require a separate package, separate tsconfig, or separate CI step to exist. The earlier-planned M8 monorepo split was cancelled 2026-06-12 (see [decisions](../decisions/2026-06-12-monorepo-split-cancelled.md)); layer boundaries are the lasting enforcement, not workspace boundaries.
 
 ## Considered options
 
@@ -93,7 +93,7 @@ There is no `lib/` or `utils/` folder. Pure helpers go in `@core`; anything stat
 - M3 services extracted into `@services`, importing only from `@ports` (commits `5889cce` Build / `ee46270` Run / `eac58f1` Debug / `a4a4865` AssetPipeline).
 - M4 MachinePlugin landed in `@plugins/machine-atari-xl` (`a6c310d`), depending only on `@ports` + `@core`. M5 ToolchainPlugin landed in `@plugins/toolchain-mads` (`ea35144`) with its private wasm-mads adapter co-located inside the plugin folder. Plugin authors get the same surface.
 - Testing strategy (ADR-0005) gets a clear target: `@ports` defines the contracts, `@core` is pure (easy to unit-test), `app`-level wiring is the integration boundary.
-- TypeScript project references mirror the layer graph — incremental builds, faster type-checks, monorepo (M8) becomes a mechanical move.
+- TypeScript project references mirror the layer graph — incremental builds, faster type-checks. (The M8 monorepo split was cancelled — see decision log; layer boundaries plus `eslint-plugin-boundaries` deliver the architectural property without a workspace split.)
 
 ## Negative consequences
 

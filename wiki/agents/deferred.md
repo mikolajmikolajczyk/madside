@@ -6,7 +6,7 @@ If the user hasn't explicitly asked, leave these alone. Many were considered and
 
 - **Lezer grammar for MADS** — `StreamLanguage` is enough; revisit if rich semantic features need it.
 - **Redux / Zustand / state library** — `useState` + custom hooks until coordination genuinely fails. ADR-0001 confirms.
-- **Monorepo split** — explicitly M8 (v0.8.0). M3–M7 now shipped, so M8 prerequisites are met — but the split itself stays deferred until external plugin authors actually exist.
+- **Monorepo split** — **cancelled 2026-06-12** (was M8/v0.8.0). PluginRegistry's Blob URL loader already covers the external-plugin case without a workspace split; see [`wiki/decisions/2026-06-12-monorepo-split-cancelled.md`](../decisions/2026-06-12-monorepo-split-cancelled.md). Do NOT re-propose without a concrete external author already queued.
 - **TypeScript Language Service in browser** (full IntelliSense for converter authors) — Phase 6D, still deferred.
 
 ## Plugin / converter ecosystem

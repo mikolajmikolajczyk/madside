@@ -47,3 +47,4 @@ What would make us re-open this decision.
 ## Index
 
 - [2026-06-12 — Debugger shortcuts moved off browser-reload bindings](2026-06-12-debugger-shortcuts-off-browser-reload.md)
+- [2026-06-12 — M8 monorepo split cancelled](2026-06-12-monorepo-split-cancelled.md)

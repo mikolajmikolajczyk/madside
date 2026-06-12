@@ -102,7 +102,7 @@ test('atari-xl satisfies MachinePlugin', () => {
 });
 ```
 
-External plugin authors ship the same one-line test in their plugin repo. The harness ships as part of `@ports` (and, post-M8, as the `@madside/plugin-api` package).
+External plugin authors ship the same one-line test in their plugin repo. The harness ships as part of `@ports`. (The earlier-planned `@madside/plugin-api` package was tied to the M8 monorepo split, which was cancelled 2026-06-12 — see [decisions](../decisions/2026-06-12-monorepo-split-cancelled.md).)
 
 ### Layer 4 — Playwright golden path (deferred)
 

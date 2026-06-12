@@ -128,4 +128,4 @@ Not used at v1. If a future EmulatorPlugin wants zero-copy frame buffers or atom
 - ADR-0002 — Layering rules + dependency direction (defines `@ports/PluginTransport.ts` location)
 - ADR-0004 — Error boundary strategy (defines crash-handling UX)
 - Issue `27fa821` — migrate audio output from ScriptProcessorNode to AudioWorklet (precondition for emulator-in-worker)
-- Issue `c2f4590` — M8 monorepo split (when comlink + per-host code becomes its own package)
+- Decision `2026-06-12-monorepo-split-cancelled.md` — M8 split cancelled; comlink + per-host code stays in-tree under `@adapters/`.

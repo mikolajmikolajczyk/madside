@@ -82,10 +82,12 @@ Keep ADRs short. The point is a durable trace, not a research paper. If it grows
 
 ## Append-only discipline
 
-Once Accepted, do **not** edit substance. To change direction:
+**Triggered by first public release.** Until v1.0.0 ships and the app has external users, the project is in R&D — ADR substance can be edited in place when the underlying decision changes. We capture the move in a decision-log entry under [`../decisions/`](../decisions/) and update affected ADRs to match reality, so a reader of the wiki never sees a stale plan.
 
-1. Write a new ADR that supersedes the old one.
+After the first release:
+
+1. Do **not** edit substance. Write a new ADR that supersedes the old one.
 2. Update the old ADR's Status line to `Superseded by ADR-NNNN`.
 3. Add a back-link to the new ADR.
 
-Editing typos and formatting is fine. Editing decisions is not.
+Editing typos and formatting is always fine.
