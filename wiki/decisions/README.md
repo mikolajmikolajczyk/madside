@@ -46,4 +46,4 @@ What would make us re-open this decision.
 
 ## Index
 
-(none yet — first entry lands when we make a non-ADR decision after Foundation begins)
+- [2026-06-12 — Debugger shortcuts moved off browser-reload bindings](2026-06-12-debugger-shortcuts-off-browser-reload.md)

@@ -36,10 +36,10 @@
 
 ## Converters and editors are project data
 
-- Built-in converters in `src/lib/converters/builtins/` are a starter pack.
+- Built-in converters in `src/plugins/converters/builtins/` are a starter pack.
 - The canonical library lives in a separate repo + blog.
 - Project-local converters in `converters/*.js` shadow built-ins by `meta.id`.
-- Editors follow the same Phase 11 contract (`editors/*.js`).
+- Editors follow the Phase 11 `EditorModule` contract (`editors/*.js`). v0.7.0 folds them into `PanelPlugin` via the `editorToPanel` bridge (`6f2dc20`); Phase 11 modules keep working with zero source change.
 - Both registered through the unified `PluginRegistry` (`@services/plugin-registry`, M3 shipped).
 
 ## Plugins (Phase 7 / Phase 11 → unified PluginRegistry)

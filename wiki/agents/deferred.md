@@ -6,8 +6,8 @@ If the user hasn't explicitly asked, leave these alone. Many were considered and
 
 - **Lezer grammar for MADS** — `StreamLanguage` is enough; revisit if rich semantic features need it.
 - **Redux / Zustand / state library** — `useState` + custom hooks until coordination genuinely fails. ADR-0001 confirms.
-- **Monorepo split** — explicitly M8, after M3–M7 stabilize.
-- **TypeScript Language Service in browser** (full IntelliSense for converter authors) — Phase 6D, deferred past M3.
+- **Monorepo split** — explicitly M8 (v0.8.0). M3–M7 now shipped, so M8 prerequisites are met — but the split itself stays deferred until external plugin authors actually exist.
+- **TypeScript Language Service in browser** (full IntelliSense for converter authors) — Phase 6D, still deferred.
 
 ## Plugin / converter ecosystem
 
