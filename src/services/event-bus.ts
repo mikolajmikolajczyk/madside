@@ -11,7 +11,13 @@ import type {
 
 type Handler<K extends EventName> = (payload: EventPayload<K>) => void
 
-export function createEventBus(): EventBus {
+export interface DebuggableEventBus extends EventBus {
+  /** Subscriber count for `event`. Exposed for the dev-mode logger (71ddbc8);
+   *  production wrapper just delegates. */
+  __handlersFor(event: EventName): number
+}
+
+export function createEventBus(): DebuggableEventBus {
   const handlers = new Map<EventName, Set<Handler<EventName>>>()
 
   const set = <K extends EventName>(event: K): Set<Handler<K>> => {
@@ -50,6 +56,10 @@ export function createEventBus(): EventBus {
       }
       set(event).add(wrap)
       return (() => off(event, wrap)) as Unsubscribe
+    },
+
+    __handlersFor(event) {
+      return handlers.get(event)?.size ?? 0
     },
   }
 }

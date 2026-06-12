@@ -21,6 +21,7 @@ import {
   createEventBus,
   createPluginRegistry,
   createRunService,
+  wrapEventBusWithLogger,
   type RecipeRunnerFn,
   type RunBackendFactory,
   type ToolchainAssembleFn,
@@ -120,7 +121,16 @@ const defaultEmuBackendFactory: RunBackendFactory = async () => {
 }
 
 export function createWorkbench(deps: WorkbenchDeps): Workbench {
-  const events = createEventBus()
+  // Vite injects import.meta.env.VITE_* at build time. When the dev-mode
+  // event logger is on, every emit goes through console.group with a
+  // monotonic counter + delta + subscriber count. Off by default (zero
+  // runtime cost when undefined or '0').
+  const eventLogEnv =
+    typeof import.meta !== 'undefined' && import.meta.env
+      ? (import.meta.env.VITE_MADSIDE_EVENT_LOG as string | undefined)
+      : undefined
+  const baseEvents = createEventBus()
+  const events = eventLogEnv === '1' ? wrapEventBusWithLogger(baseEvents) : baseEvents
   const commands = createCommandRegistry()
   const plugins = createPluginRegistry()
 

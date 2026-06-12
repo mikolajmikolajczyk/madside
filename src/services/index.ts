@@ -1,4 +1,5 @@
-export { createEventBus } from './event-bus'
+export { createEventBus, type DebuggableEventBus } from './event-bus'
+export { wrapEventBusWithLogger } from './event-bus-logger'
 export { createCommandRegistry } from './command-registry'
 export { createPluginRegistry } from './plugin-registry'
 export {
