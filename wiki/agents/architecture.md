@@ -1,6 +1,6 @@
 # Architecture (current state)
 
-> Layered layout from [ADR-0002](../adr/0002-layering.md). Through v0.7.5 the workbench has every plugin contract the Atari path needs — MachinePlugin (v0.4.0), ToolchainPlugin (v0.5.0), DebugAdapter (v0.6.0), PanelPlugin (v0.7.0), Service↔UI sync FSM (v0.7.5, ADR-0007). Manifest-driven dispatch, contract test harnesses, full path-aware source map. Next: M9 NES validation (v0.9.0). M8 monorepo split was cancelled 2026-06-12 — see [decisions](../decisions/2026-06-12-monorepo-split-cancelled.md). Active issues in Radicle (`rad issue list`).
+> Layered layout from [ADR-0002](../adr/0002-layering.md). Through v0.7.5 the workbench has every plugin contract the Atari path needs — MachinePlugin (v0.4.0), ToolchainPlugin (v0.5.0), DebugAdapter (v0.6.0), PanelPlugin (v0.7.0), Service↔UI sync FSM (v0.7.5, ADR-0007). Manifest-driven dispatch, contract test harnesses, full path-aware source map. Next: M9 NES validation (v0.8.0). M8 monorepo split was cancelled 2026-06-12 — see [decisions](../decisions/2026-06-12-monorepo-split-cancelled.md). Active issues in Radicle (`rad issue list`).
 
 ## Repo shape (ADR-0002 layout)
 

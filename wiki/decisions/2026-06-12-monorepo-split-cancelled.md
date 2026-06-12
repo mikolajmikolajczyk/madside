@@ -44,11 +44,13 @@ Cancel M8 entirely. Built-in plugins stay under `src/plugins/` in the main repo.
 
 ## Renumbering
 
-With v0.8.0 freed:
+With v0.8.0 freed (and a later swap so two working platforms land before user/dev docs):
 
 | Was | Is | Scope |
 |-----|----|-------|
 | v0.8.0 (M8 split) | — | cancelled |
-| v0.9.0 (Astro Starlight, `1116ee3`) | v0.8.0 | docs site |
-| v1.0.0 (M9 NES — `8cf0a3b` epic + 4 children) | v0.9.0 | second machine validation |
-| (open) | v1.0.0 | first post-NES major release target — TBD |
+| v1.0.0 (M9 NES — `8cf0a3b` epic + 4 children) | v0.8.0 | second machine validation |
+| v0.9.0 (Astro Starlight, `1116ee3`) | v0.9.0 | docs site — sequenced after Atari + NES both work |
+| (open) | v1.0.0 | first post-docs major release target — TBD |
+
+Why NES before docs: documenting the workbench for users and future platform authors only makes sense once the multi-platform abstraction is proven by a second working machine. NES validation (M9) surfaces any leaked Atari assumptions; writing docs against a one-platform codebase would bake in Atari-isms.
