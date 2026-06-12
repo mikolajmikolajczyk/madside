@@ -162,7 +162,9 @@ export function Emulator({ xex, running, stepTick, frameTick, breakpoints, onSta
     emu.step();
     blit();
     emit(emu);
-  }, [stepTick, running, status, onState]);
+    // Panels (registers / memory) self-fetch via DebugService on this event.
+    workbench.events.emit('debug:step-done', { pc: emu.getPC() });
+  }, [stepTick, running, status, onState, workbench]);
 
   // Advance one frame on frameTick bump (only when paused). Differs
   // from step: lets CPU run through the whole frame so display + RAM
@@ -174,7 +176,8 @@ export function Emulator({ xex, running, stepTick, frameTick, breakpoints, onSta
     emu.advanceFrame();
     blit();
     emit(emu);
-  }, [frameTick, running, status, onState]);
+    workbench.events.emit('debug:step-done', { pc: emu.getPC() });
+  }, [frameTick, running, status, onState, workbench]);
 
   // Keyboard → emu. Listen only while the canvas has focus so the editor
   // remains usable when not interacting with the emu.
