@@ -1,6 +1,7 @@
 import { useEffect, useRef } from 'react'
 import type { PanelContext, PanelFile, PanelPlugin, ProjectManifestV2 } from '@ports'
 import { useWorkbench } from '@app'
+import { useActiveMachine } from '../hooks/useActiveMachine'
 
 interface Props {
   panel: PanelPlugin
@@ -19,6 +20,7 @@ interface Props {
  *    a destroy callback that fires on unmount. */
 export function PanelSlot({ panel, projectId, manifest, data, file }: Props) {
   const workbench = useWorkbench()
+  const machine = useActiveMachine()
   const containerRef = useRef<HTMLDivElement | null>(null)
 
   const ctx: PanelContext = {
@@ -26,7 +28,7 @@ export function PanelSlot({ panel, projectId, manifest, data, file }: Props) {
     commands: workbench.commands,
     debug: workbench.debug,
     project: { id: projectId, manifest },
-    machine: workbench.machine,
+    machine,
     data,
     file,
   }
@@ -42,7 +44,7 @@ export function PanelSlot({ panel, projectId, manifest, data, file }: Props) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [panel, projectId, file?.path])
 
-  if (panel.supports && !panel.supports(workbench.machine)) return null
+  if (panel.supports && !panel.supports(machine)) return null
 
   if (panel.mount) {
     return <div ref={containerRef} className="panel-slot panel-slot--mount" />

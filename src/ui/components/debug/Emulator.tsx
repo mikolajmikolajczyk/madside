@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import type { RunBackend } from "@ports";
 import { useWorkbench } from "@app";
 import { useRunStatus } from "../../hooks/useRunStatus";
+import { useActiveMachine } from "../../hooks/useActiveMachine";
 import "./Emulator.css";
 
 // Generic CPU snapshot — register / flag ids come from the active
@@ -27,6 +28,7 @@ interface Props {
 
 export function Emulator({ breakpoints, onState }: Props) {
   const workbench = useWorkbench();
+  const machine = useActiveMachine();
   const runStatus = useRunStatus();
   const running = runStatus === 'running';
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
@@ -47,9 +49,9 @@ export function Emulator({ breakpoints, onState }: Props) {
         // truth; the emulator backend must agree. Drift means the wasm
         // core's hardcoded kSampleRate and the MachinePlugin.audio.sampleRate
         // diverged — fork rebuild needed (tracked in 40e0373).
-        if (emu.sampleRate !== undefined && emu.sampleRate !== workbench.machine.audio.sampleRate) {
+        if (emu.sampleRate !== undefined && emu.sampleRate !== machine.audio.sampleRate) {
           workbench.logger.warn(
-            `sample rate drift: emu=${emu.sampleRate} machine=${workbench.machine.audio.sampleRate}`,
+            `sample rate drift: emu=${emu.sampleRate} machine=${machine.audio.sampleRate}`,
           );
         }
         emuRef.current = emu;
@@ -61,13 +63,15 @@ export function Emulator({ breakpoints, onState }: Props) {
       }
     })();
     return () => { cancelled = true; };
-  }, [workbench]);
+    // Re-boot when the active machine changes — run.reconfigure() dropped the
+    // old backend, so this re-runs to boot the new core (Altirra ↔ jsnes).
+  }, [workbench, machine]);
 
-  // Canvas dims sourced from workbench.machine (v0.4.0 MachinePlugin) instead
-  // of the emu's own width/height — same values for Atari today, but every
-  // machine the workbench gains in v1.0.0 NES validation drives its own.
-  const machineWidth = workbench.machine.display.width;
-  const machineHeight = workbench.machine.display.height;
+  // Canvas dims sourced from the active MachinePlugin (v0.4.0) instead of the
+  // emu's own width/height — Atari 336×224, NES 256×240, each machine drives
+  // its own.
+  const machineWidth = machine.display.width;
+  const machineHeight = machine.display.height;
 
   // Set up canvas + image buffer when ready
   useEffect(() => {
@@ -98,7 +102,7 @@ export function Emulator({ breakpoints, onState }: Props) {
     });
   };
 
-  const pixelFormat = workbench.machine.display.pixelFormat;
+  const pixelFormat = machine.display.pixelFormat;
 
   const blit = () => {
     const emu = emuRef.current;
@@ -181,7 +185,7 @@ export function Emulator({ breakpoints, onState }: Props) {
     // MachinePlugin.input.codeToKey is the canonical event.code → numeric
     // keycode table. Win32-style virtual-key codes match what the Altirra
     // wasm core's PushKey expects; the C++ table acts as a fallback.
-    const codeToKey = workbench.machine.input.codeToKey ?? {};
+    const codeToKey = machine.input.codeToKey ?? {};
 
     // Track held keys → modifier state so we can force-release on focus
     // loss / blur (stuck Shift bug after Cmd-Tab) and report the correct
@@ -239,7 +243,7 @@ export function Emulator({ breakpoints, onState }: Props) {
       canvas.removeEventListener("keyup", onUp);
       canvas.removeEventListener("blur", onBlur);
     };
-  }, [status, workbench]);
+  }, [status, workbench, machine]);
 
   // Frame loop while running
   useEffect(() => {

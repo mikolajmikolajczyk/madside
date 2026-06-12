@@ -1,3 +1,4 @@
+export * from './useActiveMachine'
 export * from './useAutoAssemble'
 export * from './useBreakpointAddrs'
 export * from './useCursorMemory'

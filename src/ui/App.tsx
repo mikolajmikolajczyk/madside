@@ -26,6 +26,7 @@ import { usePluginEditor } from "./hooks/usePluginEditor";
 import { useProjectLabels } from "./hooks/useProjectLabels";
 import { useAutoAssemble } from "./hooks/useAutoAssemble";
 import { useRunStatus } from "./hooks/useRunStatus";
+import { useActiveMachine } from "./hooks/useActiveMachine";
 import { useWorkbench } from "@app";
 import "./App.css";
 
@@ -45,8 +46,18 @@ export default function App() {
   // Run lifecycle is owned by RunService (ADR-0007). UI reads via the hook;
   // no parallel React state. `running` + `hasEmu` are derived primitives.
   const runStatus = useRunStatus();
+  const machine = useActiveMachine();
   const running = runStatus === 'running';
   const hasEmu = runStatus !== 'idle' && runStatus !== 'crashed';
+
+  // Manifest-driven machine selection (1972a36). When the active project's
+  // declared machine changes (load / switch), swap the workbench's active
+  // machine — reconfigures the RunService backend + DebugService adapter and
+  // re-renders every useActiveMachine() consumer. No-op when unchanged.
+  const manifestMachine = project.loaded ? project.manifest.machine : null;
+  useEffect(() => {
+    if (manifestMachine) workbench.setActiveMachine(manifestMachine);
+  }, [manifestMachine, workbench]);
   const [cpu, setCpu] = useState<CpuRegs | null>(null);
   const [memBase, setMemBase] = useState(0x2000);
   const [memBaseTouched, setMemBaseTouched] = useState(false);
@@ -164,12 +175,12 @@ export default function App() {
     const manifestPanels = project.loaded ? project.manifest.panels : undefined;
     const fromManifest = manifestPanels?.filter((id) => id !== 'output');
     if (fromManifest && fromManifest.length > 0) return fromManifest;
-    const fromMachine = workbench.machine.defaultPanels.filter(
+    const fromMachine = machine.defaultPanels.filter(
       (id) => id !== 'output' && panelById.has(id),
     );
     if (fromMachine.length > 0) return fromMachine;
     return ['registers', 'memory'];
-  }, [project, workbench.machine, panelById]);
+  }, [project, machine, panelById]);
   const debugColumnPanels = useMemo(
     () => debugColumnPanelIds.map((id) => panelById.get(id)).filter((p): p is PanelPlugin => !!p),
     [debugColumnPanelIds, panelById],

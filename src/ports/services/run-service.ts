@@ -8,6 +8,7 @@
 
 import type { EmulatorTrapError, Result } from '../errors'
 import type { Unsubscribe } from '../event-bus'
+import type { MachineHardwareConfig, MachineMedia } from '../plugin-machine'
 
 /** Opaque file-format id. Strings come from `MachinePlugin.media.formats` —
  *  the workbench never enumerates them. Atari ships 'xex'/'atr'/'car'/'cas';
@@ -42,11 +43,26 @@ export interface RunBackend {
   loadState(snapshot: unknown): void
 }
 
+/** Inputs for swapping the active emulator backend when the project's machine
+ *  changes (manifest-driven machine selection). Supplied by createWorkbench
+ *  from the resolved MachinePlugin + its paired EmulatorPlugin factory. */
+export interface RunReconfigure {
+  backendFactory: () => Promise<RunBackend>
+  media?: MachineMedia
+  hardwareConfig?: MachineHardwareConfig
+}
+
 export interface RunService {
   /** Instantiate the underlying backend without loading a binary. Returns it
    *  ready for frame-loop / video-buffer wiring. Idempotent — repeated calls
    *  return the same backend instance. */
   boot(): Promise<RunBackend>
+
+  /** Swap the backend factory + media + hardware config for a new machine.
+   *  Unloads any booted backend (FSM → idle) and drops the cached instance so
+   *  the next boot() builds the new core. No-op-safe to call repeatedly with
+   *  the same factory. */
+  reconfigure(opts: RunReconfigure): void
 
   load(binary: Uint8Array, format?: EmuMediaFormat): Promise<Result<void, EmulatorTrapError>>
   run(): void

@@ -3,7 +3,7 @@
 // breakpoint / memory primitives come from the adapter, not from a hardcoded
 // 6502 shape.
 
-import type { DebugTarget } from '../plugin-debug'
+import type { DebugAdapterPlugin, DebugTarget } from '../plugin-debug'
 
 /** Generic register snapshot. Keys come from `target()?.registers` ids. */
 export type RegState = Record<string, number>
@@ -22,6 +22,11 @@ export interface DebugService {
   flags(): Promise<FlagState>
   readMemory(addr: number, len: number): Promise<Uint8Array>
   writeMemory(addr: number, bytes: Uint8Array): Promise<void>
+
+  /** Swap the active DebugAdapterPlugin when the project's machine changes.
+   *  Drops the cached DebugTarget so the next target() re-attaches against the
+   *  new backend with the new adapter. Breakpoints carry over. */
+  setAdapter(adapter: DebugAdapterPlugin): void
 
   /** Live handle to the attached DebugTarget. Null until RunService.boot()
    *  completes. UI consumers read `target()?.registers` / `target()?.flags`

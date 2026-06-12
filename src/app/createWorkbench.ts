@@ -12,6 +12,7 @@ import type {
   RunBackend,
   RunService,
   ToolchainPlugin,
+  Unsubscribe,
 } from '@ports'
 import {
   createAssetPipelineService,
@@ -68,9 +69,17 @@ export interface Workbench {
   readonly debug: DebugService
   readonly assets: AssetPipelineService
   /** Currently active MachinePlugin. UI panels (Emulator, Debug) read display /
-   *  audio / input / memoryMap from here. Atari-XL hardcoded today; v1.0.0
-   *  (NES validation) drives selection from the active project manifest. */
+   *  audio / input / memoryMap from here. Reactive: read via `useActiveMachine`
+   *  (ADR-0007), which subscribes through `subscribeMachine`. */
   readonly machine: MachinePlugin
+  /** Switch the active machine by id (from `project.manifest.machine`). Swaps
+   *  the MachinePlugin + RunService backend + DebugService adapter, then
+   *  notifies `subscribeMachine` listeners. No-op when the id is already active
+   *  or unknown. */
+  setActiveMachine(machineId: string): void
+  /** Subscribe to active-machine changes. Fires after `setActiveMachine`
+   *  swaps. `useActiveMachine` wraps this through `useSyncExternalStore`. */
+  subscribeMachine(listener: () => void): Unsubscribe
   /** Currently active ToolchainPlugin. BuildService dispatches by
    *  `manifest.toolchain` id via the PluginRegistry resolver; this field is
    *  retained for UI introspection only. */
@@ -174,6 +183,37 @@ export function createWorkbench(deps: WorkbenchDeps): Workbench {
       source: { origin: 'builtin' },
     })
   }
+  // Machine selection table (1972a36). Each machine pairs a MachinePlugin with
+  // its emulator backend factory + debug adapter. setActiveMachine swaps the
+  // active entry when the project manifest's `machine` changes. The atari-xl
+  // entry honours the test overrides (emuBackendFactory / debugAdapter); NES
+  // uses the jsnes backend. The atari6502 adapter is CPU-shape-generic
+  // (reads backend.cpuState() in the 6502 struct JsnesBackend also returns),
+  // so it serves NES verbatim until a labelled debug-nes adapter lands.
+  interface MachineSetup {
+    machine: MachinePlugin
+    backendFactory: RunBackendFactory
+    debugAdapter: DebugAdapterPlugin
+  }
+  const machineSetups: Record<string, MachineSetup> = {
+    'atari-xl': {
+      machine: atariXl,
+      backendFactory: deps.emuBackendFactory ?? defaultEmuBackendFactory,
+      debugAdapter: deps.debugAdapter ?? atari6502DebugAdapter,
+    },
+    nes: {
+      machine: machineNes,
+      // Lazy import so jsnes (~31 KB) is code-split out of the main bundle —
+      // only fetched when a project actually selects the NES machine. Same
+      // shape as Altirra (whose heavy wasm core is fetched on boot).
+      backendFactory: async () =>
+        (await import('@plugins/emulator-nes-jsnes')).createJsnesBackend(),
+      debugAdapter: deps.debugAdapter ?? atari6502DebugAdapter,
+    },
+  }
+  let activeMachine: MachinePlugin = atariXl
+  const machineSubs = new Set<() => void>()
+
   const build = createBuildService({
     events,
     logger: deps.logger,
@@ -183,7 +223,7 @@ export function createWorkbench(deps: WorkbenchDeps): Workbench {
   const run = createRunService({
     events,
     logger: deps.logger,
-    backendFactory: deps.emuBackendFactory ?? defaultEmuBackendFactory,
+    backendFactory: machineSetups['atari-xl']!.backendFactory,
     hardwareConfig: atariXl.hardwareConfig,
     media: atariXl.media,
   })
@@ -191,8 +231,25 @@ export function createWorkbench(deps: WorkbenchDeps): Workbench {
     events,
     logger: deps.logger,
     run,
-    adapter: deps.debugAdapter ?? atari6502DebugAdapter,
+    adapter: machineSetups['atari-xl']!.debugAdapter,
   })
+
+  const setActiveMachine = (machineId: string): void => {
+    const setup = machineSetups[machineId]
+    if (!setup) {
+      deps.logger.warn?.(`setActiveMachine: unknown machine '${machineId}' — keeping ${activeMachine.id}`)
+      return
+    }
+    if (setup.machine === activeMachine) return
+    activeMachine = setup.machine
+    run.reconfigure({
+      backendFactory: setup.backendFactory,
+      media: setup.machine.media,
+      hardwareConfig: setup.machine.hardwareConfig,
+    })
+    debug.setAdapter(setup.debugAdapter)
+    for (const cb of machineSubs) cb()
+  }
   const assets = createAssetPipelineService({
     events,
     logger: deps.logger,
@@ -225,7 +282,14 @@ export function createWorkbench(deps: WorkbenchDeps): Workbench {
     run,
     debug,
     assets,
-    machine: atariXl,
+    get machine() {
+      return activeMachine
+    },
+    setActiveMachine,
+    subscribeMachine(listener: () => void): Unsubscribe {
+      machineSubs.add(listener)
+      return () => machineSubs.delete(listener)
+    },
     toolchain: madsToolchain,
     logger: deps.logger,
   }

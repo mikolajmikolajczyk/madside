@@ -67,6 +67,12 @@ export function createRunService(deps: RunServiceDeps): RunService {
   let status: RunStatus = 'idle'
   const subscribers = new Set<() => void>()
 
+  // Mutable so manifest-driven machine selection can swap the backend without
+  // recreating the service (keeps the FSM + subscriber list intact).
+  let backendFactory = deps.backendFactory
+  let media = deps.media
+  let hardwareConfig = deps.hardwareConfig
+
   // FSM driver. Throws on illegal transition (ADR-0007 — surface the bug
   // at the call site instead of silently no-op'ing). Same-state transitions
   // (loaded → loaded after reset, crashed → crashed after retry-fail) are
@@ -95,11 +101,11 @@ export function createRunService(deps: RunServiceDeps): RunService {
     if (backend) return backend
     if (!backendPromise) {
       backendPromise = (async () => {
-        const b = await deps.backendFactory()
+        const b = await backendFactory()
         // Apply MachinePlugin hardware config before any load — Altirra's
         // setters take effect on the next ColdReset (which loadXEX et al.
         // trigger).
-        const hw = deps.hardwareConfig
+        const hw = hardwareConfig
         if (hw) {
           const wb = b as RunBackend & {
             setHardwareMode?(n: number): void
@@ -124,6 +130,18 @@ export function createRunService(deps: RunServiceDeps): RunService {
       return ensureBackend()
     },
 
+    reconfigure(opts) {
+      // Drop the running machine before swapping cores. unload() transitions
+      // the FSM to idle (from any non-idle state) so the stale backend's last
+      // frame doesn't linger and the next Run boots the new core clean.
+      if (status !== 'idle') transitionTo('idle', 'reconfigure')
+      backend = null
+      backendPromise = null
+      backendFactory = opts.backendFactory
+      media = opts.media
+      hardwareConfig = opts.hardwareConfig
+    },
+
     async load(binary, format) {
       try {
         const b = await ensureBackend()
@@ -131,8 +149,8 @@ export function createRunService(deps: RunServiceDeps): RunService {
         // magic detection, then MachinePlugin defaultFormat. Workbench has
         // no Atari knowledge — it just dispatches the resolved string.
         const fmt: EmuMediaFormat = format
-          ?? deps.media?.detect(binary)
-          ?? deps.media?.defaultFormat
+          ?? media?.detect(binary)
+          ?? media?.defaultFormat
           ?? 'binary'
         b.loadMedia(fmt, binary)
         transitionTo('loaded', 'load')

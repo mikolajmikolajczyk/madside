@@ -26,6 +26,9 @@ export function createDebugService(deps: DebugServiceDeps): DebugService {
   const breakpoints = new Set<number>()
   let cachedTarget: DebugTarget | null = null
   let cachedBackendId: object | null = null
+  // Mutable so machine selection can swap the adapter without recreating the
+  // service (keeps the breakpoint set intact).
+  let adapter = deps.adapter
 
   const target = (): DebugTarget | null => {
     const backend = deps.run.backend()
@@ -35,7 +38,7 @@ export function createDebugService(deps: DebugServiceDeps): DebugService {
       return null
     }
     if (backend !== cachedBackendId) {
-      cachedTarget = deps.adapter.attach(backend)
+      cachedTarget = adapter.attach(backend)
       cachedBackendId = backend
     }
     return cachedTarget
@@ -108,6 +111,14 @@ export function createDebugService(deps: DebugServiceDeps): DebugService {
         log?.warn('writeMemory rejected by adapter', { addr, len: bytes.length, error: String(e) })
         throw e
       }
+    },
+
+    setAdapter(next) {
+      adapter = next
+      // Force re-attach on next target() — the cached one is bound to the old
+      // adapter (and likely a now-unloaded backend).
+      cachedTarget = null
+      cachedBackendId = null
     },
 
     target,
