@@ -167,18 +167,30 @@ export function Emulator({ stepTick, frameTick, breakpoints, onState }: Props) {
     workbench.events.emit('debug:step-done', { pc: emu.getPC() });
   }, [stepTick, running, status, onState, workbench]);
 
-  // Advance one frame on frameTick bump (only when paused). Differs
-  // from step: lets CPU run through the whole frame so display + RAM
-  // both update. Step granularity is per-instruction with no display
-  // refresh; Frame is per-frame with both.
+  // Advance one frame on frameTick bump (only when paused). Differs from
+  // step: lets CPU run through the whole frame so display + RAM both
+  // update.
+  //
+  // After a BP hit + Pause the PC sits on a BP — calling advanceFrame
+  // resumes the sim and Altirra fires the BP immediately at the first
+  // instruction fetch (Stopped on iter 1, no frame produced). Clear BPs
+  // for the duration of the advance and restore them after, so Frame
+  // always advances a real display frame regardless of where the user
+  // paused. Mirrors the temporary-disable pattern most C-side debuggers
+  // use for 'run to cursor' / 'step out' from a BP.
   useEffect(() => {
     const emu = emuRef.current;
     if (!emu || running || status !== "ready" || frameTick === 0) return;
-    emu.advanceFrame();
+    emu.setBreakpoints([]);
+    try {
+      emu.advanceFrame();
+    } finally {
+      emu.setBreakpoints(breakpoints ?? []);
+    }
     blit();
     emit(emu);
     workbench.events.emit('debug:step-done', { pc: emu.getPC() });
-  }, [frameTick, running, status, onState, workbench]);
+  }, [frameTick, running, status, onState, workbench, breakpoints]);
 
   // Keyboard → emu. Listen only while the canvas has focus so the editor
   // remains usable when not interacting with the emu.
