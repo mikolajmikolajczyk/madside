@@ -1,0 +1,6 @@
+; common Atari OS equates
+SAVMSC = $58
+COLOR0 = $2C4
+COLOR1 = $2C5
+COLOR2 = $2C6
+EOL    = $9B

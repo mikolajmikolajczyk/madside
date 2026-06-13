@@ -1,0 +1,48 @@
+import { beforeEach, describe, expect, it } from 'vitest'
+import 'fake-indexeddb/auto'
+import { instantiateTemplate, listTemplates } from '@app/templates'
+import { __resetDb, loadProject } from '@adapters/storage-idb'
+
+// Bundled-template foundation (71acac1). Verifies the Vite glob loader picks up
+// templates/<id>/ and the service instantiates them into storage.
+
+describe('project templates', () => {
+  beforeEach(async () => {
+    await __resetDb()
+  })
+
+  it('lists the bundled templates with display metadata, ordered', () => {
+    const list = listTemplates()
+    expect(list.map((t) => t.id)).toEqual(['atari-hello', 'nes-hello'])
+    expect(list[0]).toMatchObject({ machine: 'atari-xl', name: expect.stringContaining('Atari') })
+    expect(list[1]).toMatchObject({ machine: 'nes' })
+    expect(list[0]!.description.length).toBeGreaterThan(0)
+  })
+
+  it('instantiates a template into storage as a loadable project', async () => {
+    const row = await instantiateTemplate('atari-hello')
+    const loaded = await loadProject(row.id)
+    expect(loaded).not.toBeNull()
+    expect(loaded!.manifest.machine).toBe('atari-xl')
+    expect(loaded!.manifest.main).toBe('src/hello.a65')
+    const paths = loaded!.files.map((f) => f.path).sort()
+    expect(paths).toContain('src/hello.a65')
+    expect(paths).toContain('src/atari.a65')
+    expect(paths).toContain('project.json')
+  })
+
+  it('instantiates the NES template with iNES-producing source', async () => {
+    const row = await instantiateTemplate('nes-hello')
+    const loaded = await loadProject(row.id)
+    expect(loaded!.manifest.machine).toBe('nes')
+    const main = loaded!.files.find((f) => f.path === 'src/nes-hello.a65')
+    expect(main).toBeTruthy()
+    expect(new TextDecoder().decode(main!.content)).toMatch(/opt h-/)
+  })
+
+  it('honours a name override and rejects unknown ids', async () => {
+    const row = await instantiateTemplate('atari-hello', 'My Project')
+    expect(row.name).toBe('My Project')
+    await expect(instantiateTemplate('nope')).rejects.toThrow(/unknown template/)
+  })
+})

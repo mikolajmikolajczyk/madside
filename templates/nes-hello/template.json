@@ -1,0 +1,6 @@
+{
+  "name": "NES — Hello (background colour)",
+  "description": "Canonical NES warmup (two VBlank waits), writes the universal background colour + enables rendering. MADS assembles NROM iNES directly; runs on the jsnes core.",
+  "machine": "nes",
+  "order": 2
+}

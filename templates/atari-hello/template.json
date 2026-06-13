@@ -1,0 +1,6 @@
+{
+  "name": "Atari — Hello World",
+  "description": "Writes HELLO ATARI to the screen via SAVMSC. Minimal MADS source running on the Altirra core.",
+  "machine": "atari-xl",
+  "order": 1
+}

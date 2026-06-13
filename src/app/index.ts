@@ -1,5 +1,6 @@
 export * from './createWorkbench'
 export * from './fileTemplates'
+export * from './templates'
 export * from './labels'
 export * from './workbench-context'
 export * from './plugin-registry-glue'

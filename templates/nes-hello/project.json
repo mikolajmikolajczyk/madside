@@ -1,0 +1,8 @@
+{
+  "version": 2,
+  "name": "nes-hello",
+  "main": "src/nes-hello.a65",
+  "machine": "nes",
+  "toolchain": "mads",
+  "run": { "default": { "audio": true } }
+}

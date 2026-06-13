@@ -1,0 +1,8 @@
+{
+  "version": 2,
+  "name": "atari-hello",
+  "main": "src/hello.a65",
+  "machine": "atari-xl",
+  "toolchain": "mads",
+  "run": { "default": { "audio": true } }
+}

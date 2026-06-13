@@ -1,0 +1,27 @@
+; minimalny przykład — pisze HELLO ATARI na ekran
+        icl 'atari.a65'
+        org $2000
+
+screen = $80
+
+start
+        lda SAVMSC
+        sta screen
+        lda SAVMSC+1
+        sta screen+1
+
+        ldy #0
+print
+        lda hello_world,y
+        cmp #$ff
+        beq loop
+        sta (screen),y
+        iny
+        jmp print
+loop
+        jmp loop
+
+        run start
+
+hello_world
+        dta d'HELLO ATARI!', $ff
