@@ -36,7 +36,11 @@ export interface RunBackend {
   cpuState(): unknown
   getPC(): number
   isAtInstrBoundary(): boolean
-  readMem(addr: number, len: number): Uint8Array
+  /** Read `len` bytes at `addr` from a named memory space. `space` defaults to
+   *  the CPU bus when omitted; machines with extra address spaces (NES
+   *  'ppu'/'oam', C64 'vic', …) declare them in `MachinePlugin.memorySpaces`
+   *  and serve them here. Backends throw on an unknown space. */
+  readMem(addr: number, len: number, space?: string): Uint8Array
   setBreakpoints(addrs: Iterable<number>): void
   sendKey(keyCode: number, charCode: number, isDown: boolean, modifiers?: number): void
   saveState(): unknown

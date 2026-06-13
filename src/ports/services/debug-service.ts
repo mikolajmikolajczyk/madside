@@ -20,7 +20,9 @@ export interface DebugService {
 
   registers(): Promise<RegState>
   flags(): Promise<FlagState>
-  readMemory(addr: number, len: number): Promise<Uint8Array>
+  /** Read from a named memory space (default: CPU bus). Pass a space id from
+   *  `MachinePlugin.memorySpaces` (e.g. 'ppu', 'oam') for a device viewer. */
+  readMemory(addr: number, len: number, space?: string): Promise<Uint8Array>
   writeMemory(addr: number, bytes: Uint8Array): Promise<void>
 
   /** Swap the active DebugAdapterPlugin when the project's machine changes.

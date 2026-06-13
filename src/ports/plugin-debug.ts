@@ -43,7 +43,10 @@ export interface DebugTarget {
    *  advanceFrame() / step() calls. */
   setBreakpoints(addrs: Iterable<number>): void
 
-  readMemory(addr: number, len: number): Promise<Uint8Array>
+  /** Read from a named memory space (default: CPU bus). Machines with extra
+   *  address spaces declare them in `MachinePlugin.memorySpaces`; a viewer
+   *  panel passes the space id (e.g. 'ppu', 'oam') to read it. */
+  readMemory(addr: number, len: number, space?: string): Promise<Uint8Array>
   writeMemory(addr: number, bytes: Uint8Array): Promise<void>
 
   /** Current PC without snapshotting the whole register file. */

@@ -60,10 +60,11 @@ const SEED_MANIFEST: Manifest = {
 // === NES sample (machine:'nes', toolchain:'mads') ===
 // MADS assembles a valid NROM iNES directly — `opt h-` for raw output, a
 // hand-rolled 16-byte iNES header contiguous before PRG, the PRG padded to
-// 16 KB, then 8 KB of blank CHR. The program does the canonical NES warmup
-// (two VBlank waits), writes the universal background colour, and enables
-// rendering, so the canvas shows a solid colour — proof the machine + jsnes
-// backend + MADS path work end-to-end. Verified before seeding.
+// 16 KB. CHR-ROM banks = 0 → the cart uses CHR-RAM, so the file carries no CHR
+// (drops an 8 KB MADS fill that the wasm build assembles slowly). The program
+// does the canonical NES warmup (two VBlank waits), writes the universal
+// background colour, and enables rendering, so the canvas shows a solid colour
+// — proof the machine + jsnes backend + MADS path work end-to-end. Verified.
 const SEED_NES_HELLO = `; minimalny przykład NES — wypełnia ekran kolorem tła przez PPU
         icl 'nes.a65'           ; PPU/APU equates
         opt h-                  ; headerless raw output (iNES, nie XEX)
@@ -72,7 +73,7 @@ const SEED_NES_HELLO = `; minimalny przykład NES — wypełnia ekran kolorem t�
         org $bff0
         dta c"NES",$1a
         dta $01                 ; PRG 16KB
-        dta $01                 ; CHR 8KB
+        dta $00                 ; CHR 0 → CHR-RAM (brak CHR-ROM w pliku)
         dta $00,$00             ; mapper 0 NROM
         dta $00,$00,$00,$00,$00,$00,$00,$00
 
@@ -119,10 +120,7 @@ irq     rti
         dta a(nmi)
         dta a(reset)
         dta a(irq)
-
-; --- CHR-ROM 8KB blank ---
-        org $0000
-        :8192 dta $00
+; CHR-RAM (CHR banks=0) — brak CHR-ROM w pliku, PPU pattern w RAM
 `;
 
 // Parallel copy of @plugins/machine-nes/machine-nes.ts::machineNes.bootEquates

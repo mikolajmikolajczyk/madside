@@ -42,6 +42,9 @@ export class JsnesBackend implements RunBackend {
 
   private readonly nes: NESWithInternals
   private readonly bp = new Set<number>()
+  // PC the last advanceFrame paused on — stepped over once on resume so Run
+  // doesn't re-trap in place at the same breakpoint.
+  private trappedAt: number | null = null
 
   constructor() {
     this.nes = new NES({
@@ -68,6 +71,19 @@ export class JsnesBackend implements RunBackend {
       throw new Error(`JsnesBackend.loadMedia: unsupported format '${format}'`)
     }
     this.nes.loadROM(bytes)
+    // jsnes loads PC from the reset vector lazily — during the first emulate's
+    // reset sequence — leaving getPC() at the power-on default until then. Seed
+    // it now from $FFFC/$FFFD so the reset-entry instruction is observable to
+    // the debugger; otherwise a BP on the program's very first instruction is
+    // skipped (PC is never seen sitting on it). REG_PC is "one less than PC".
+    const mmap = this.nes.mmap
+    if (mmap) {
+      const resetVec = mmap.load(0xfffc) | (mmap.load(0xfffd) << 8)
+      this.nes.cpu.REG_PC = (resetVec - 1) & 0xffff
+    }
+    // Fresh program — clear any step-over carried from a previous run so a BP
+    // on the entry still fires.
+    this.trappedAt = null
   }
 
   /** Run one CPU instruction. PPU advances inline inside the bus operations;
@@ -101,14 +117,28 @@ export class JsnesBackend implements RunBackend {
     this.nes.controllers[2].clock()
     ppu.startFrame()
     let total = 0
+    // Check the breakpoint set BEFORE executing each instruction, so a BP on
+    // the instruction PC is about to run fires before it runs — including the
+    // reset-entry instruction (PC sits on it after load, never "reached" via a
+    // step). The exception is the instruction we paused ON last time: stepping
+    // over it once lets Run resume past a BP instead of re-trapping in place.
+    let pc = this.getPC()
+    if (this.trappedAt !== pc && (this.bp.has(pc) || trap?.())) {
+      this.trappedAt = pc
+      return 0
+    }
+    this.trappedAt = null
     for (;;) {
       total += this.stepInstruction()
       if (ppu.frameEnded) {
         ppu.frameEnded = false
         break
       }
-      if (trap?.()) break
-      if (this.bp.has(this.getPC())) break
+      pc = this.getPC()
+      if (this.bp.has(pc) || trap?.()) {
+        this.trappedAt = pc
+        break
+      }
     }
     return total
   }
@@ -148,7 +178,23 @@ export class JsnesBackend implements RunBackend {
     return true
   }
 
-  readMem(addr: number, len: number): Uint8Array {
+  readMem(addr: number, len: number, space = 'cpu'): Uint8Array {
+    // Extra spaces declared in machine-nes.memorySpaces. 'ppu' is the PPU's
+    // own 16 KB address space (pattern tables / nametables / palette);
+    // 'oam' is the 256-byte sprite attribute memory.
+    if (space === 'ppu') {
+      const vram = this.nes.ppu.vramMem
+      const out = new Uint8Array(len)
+      for (let i = 0; i < len; i++) out[i] = vram[(addr + i) & 0x3fff] ?? 0
+      return out
+    }
+    if (space === 'oam') {
+      const oam = this.nes.ppu.spriteMem
+      const out = new Uint8Array(len)
+      for (let i = 0; i < len; i++) out[i] = oam[(addr + i) & 0xff] ?? 0
+      return out
+    }
+    if (space !== 'cpu') throw new Error(`JsnesBackend.readMem: unknown space '${space}'`)
     const out = new Uint8Array(len)
     const { mmap, cpu } = this.nes
     for (let i = 0; i < len; i++) {
@@ -163,6 +209,14 @@ export class JsnesBackend implements RunBackend {
     // nes.buttonDown/buttonUp. Input mapping is a MachinePlugin.input concern
     // (machine-nes plugin), not part of the emulator-core pick.
   }
+
+  // RunService.startAudio/suspendAudio reach for these via a cast. jsnes emits
+  // samples through onAudioSample; the AudioWorklet sink isn't wired yet
+  // (TODO(skeleton)), so these are no-ops — but they must EXIST, otherwise the
+  // frame loop's `void run.startAudio()` calls undefined and rejects on every
+  // Run.
+  async startAudio(): Promise<void> {}
+  async suspendAudio(): Promise<void> {}
 
   saveState(): unknown {
     return this.nes.toJSON()

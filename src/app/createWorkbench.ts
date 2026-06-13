@@ -36,6 +36,7 @@ import { atari6502DebugAdapter } from '@plugins/debug-atari-6502'
 import { registersPanel } from '@plugins/panel-registers'
 import { memoryPanel } from '@plugins/panel-memory'
 import { outputPanel } from '@plugins/panel-output'
+import { ppuPanel } from '@plugins/panel-ppu'
 import { editorToPanel, listBuiltinEditors } from '@plugins/editors'
 import { createEmu } from '@adapters/emu'
 
@@ -167,7 +168,7 @@ export function createWorkbench(deps: WorkbenchDeps): Workbench {
     plugin: { ...atari6502DebugAdapter, kind: 'debug-adapter' },
     source: { origin: 'builtin' },
   })
-  for (const panel of [registersPanel, memoryPanel, outputPanel]) {
+  for (const panel of [registersPanel, memoryPanel, outputPanel, ppuPanel]) {
     plugins.register({
       plugin: { ...panel, kind: 'panel' },
       source: { origin: 'builtin' },

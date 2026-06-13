@@ -46,6 +46,21 @@ export interface DeviceDescriptor {
   ioRange?: { start: number; end: number }
 }
 
+/** A named address space beyond the CPU bus. The CPU space ('cpu') is implicit
+ *  and always present — this declares the *extra* spaces a machine exposes for
+ *  inspection (NES PPU VRAM + OAM, C64 VIC, …). A backend's `readMem(addr,
+ *  len, space)` serves them; viewer panels (PPU/sprite/tile) read them by id.
+ *  Keeps the workbench core free of any per-device contract: a machine adds a
+ *  weird space by declaring it here + honouring it in its backend. */
+export interface MemorySpace {
+  /** Stable id passed to `readMem` / `readMemory` (e.g. 'ppu', 'oam'). */
+  id: string
+  /** Human label for a space switcher in a generic memory viewer. */
+  label: string
+  /** Size in bytes — the address range is [0, size). */
+  size: number
+}
+
 export interface MachineDisplay {
   width: number
   height: number
@@ -108,6 +123,10 @@ export interface MachinePlugin {
   readonly name: string
   readonly cpu: CpuId
   readonly memoryMap: MemoryRegion[]
+  /** Extra address spaces beyond the CPU bus (NES 'ppu'/'oam', …). Optional —
+   *  most machines only have the implicit 'cpu' space. Viewer panels read
+   *  these via `DebugTarget.readMemory(addr, len, space)`. */
+  readonly memorySpaces?: MemorySpace[]
   readonly devices: DeviceDescriptor[]
   readonly display: MachineDisplay
   readonly audio: MachineAudio

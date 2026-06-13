@@ -43,8 +43,11 @@ const attach = (backend: RunBackend): DebugTarget => ({
     backend.setBreakpoints(addrs)
   },
 
-  async readMemory(addr, len) {
-    return backend.readMem(addr & 0xffff, len)
+  async readMemory(addr, len, space) {
+    // Forward the space id to the backend. 'cpu' (default) masks to the 16-bit
+    // bus; other spaces (NES 'ppu'/'oam') are clamped by the backend to their
+    // own range. The generic 6502 adapter stays machine-neutral — it relays.
+    return backend.readMem(space && space !== 'cpu' ? addr : addr & 0xffff, len, space)
   },
 
   async writeMemory() {

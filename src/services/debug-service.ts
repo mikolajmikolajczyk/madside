@@ -100,8 +100,8 @@ export function createDebugService(deps: DebugServiceDeps): DebugService {
       return requireTarget().readFlags()
     },
 
-    async readMemory(addr, len) {
-      return requireTarget().readMemory(addr & 0xffff, len)
+    async readMemory(addr, len, space) {
+      return requireTarget().readMemory(addr & 0xffff, len, space)
     },
 
     async writeMemory(addr, bytes) {

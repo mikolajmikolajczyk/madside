@@ -43,6 +43,14 @@ export const machineNes: MachinePlugin = {
     { start: 0x8000, end: 0xffff, name: 'PRG-ROM', kind: 'rom', writable: false },
   ],
 
+  // Extra address spaces beyond the CPU bus, read via readMemory(.., space).
+  // The PPU has its own 16 KB space (pattern tables / nametables / palette);
+  // OAM is the 256-byte sprite table. The PPU viewer panel reads these.
+  memorySpaces: [
+    { id: 'ppu', label: 'PPU VRAM', size: 0x4000 },
+    { id: 'oam', label: 'OAM', size: 0x100 },
+  ],
+
   devices: [
     { id: 'ppu', name: 'PPU (2C02)', ioRange: { start: 0x2000, end: 0x2007 } },
     { id: 'apu', name: 'APU (2A03)', ioRange: { start: 0x4000, end: 0x4017 } },
@@ -65,7 +73,7 @@ export const machineNes: MachinePlugin = {
     },
   },
 
-  defaultPanels: ['memory', 'registers', 'output'],
+  defaultPanels: ['memory', 'registers', 'ppu', 'output'],
   compatibleToolchains: ['mads'],
   compatibleEmulators: ['jsnes'],
 
