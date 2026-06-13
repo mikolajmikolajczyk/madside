@@ -50,7 +50,9 @@ export type {
   ToolchainBuildInput,
   ToolchainBuildOutput,
   ToolchainFile,
+  ToolchainLanguage,
   ToolchainPlugin,
+  ToolchainSnippet,
 } from './plugin-toolchain'
 export type {
   DebugAdapterPlugin,

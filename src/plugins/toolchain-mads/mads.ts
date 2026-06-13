@@ -1,4 +1,5 @@
 import type { ToolchainBuildOutput, ToolchainPlugin } from '@ports'
+import { MADS_DIRECTIVES } from '@core'
 import { assemble, parseLabFile, parseSourceMap, type SourceFile } from './wasm-mads'
 
 // MADS toolchain — Tomasz Biela's 6502 assembler shipped as @adapters/wasm-mads
@@ -11,6 +12,14 @@ export const madsToolchain: ToolchainPlugin = {
   name: 'Mad-Assembler (MADS)',
   inputExt: ['a65', 'asm', 'inc'],
   outputExt: 'xex',
+
+  // Editor language (epic 78b12bf). 6502 opcodes come from the machine CPU;
+  // these are the MADS-specific directives + comment markers. Snippets land
+  // with the assembly-language-builder child.
+  language: {
+    directives: [...MADS_DIRECTIVES],
+    lineComment: [';', '//'],
+  },
 
   async build(input): Promise<ToolchainBuildOutput> {
     const sources: SourceFile[] = input.files.map((f) => ({

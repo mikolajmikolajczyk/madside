@@ -44,11 +44,38 @@ export interface ToolchainBuildOutput {
   exitCode: number
 }
 
+/** An editor snippet the toolchain offers in autocomplete. Template uses
+ *  CodeMirror's `${n:placeholder}` syntax. */
+export interface ToolchainSnippet {
+  label: string
+  detail: string
+  template: string
+}
+
+/** Editor-language metadata for a toolchain (epic 78b12bf). Declarative + lib-
+ *  agnostic so toolchain plugins don't depend on CodeMirror. The 6502 opcodes
+ *  come from the machine's CPU (@core/cpu); this carries the assembler-specific
+ *  vocabulary. The editor builds highlight/hover/autocomplete from the CPU
+ *  opcodes + this. Optional — a toolchain without it falls back to plain text. */
+export interface ToolchainLanguage {
+  /** Assembler directives (uppercase, no leading prefix) — highlighted as
+   *  directives + skipped by the label scanner. */
+  readonly directives: readonly string[]
+  /** Line-comment marker(s), e.g. ';' or [';', '//']. */
+  readonly lineComment: string | readonly string[]
+  /** Editor snippets offered in autocomplete. */
+  readonly snippets?: readonly ToolchainSnippet[]
+}
+
 export interface ToolchainPlugin {
   readonly id: string
   readonly name: string
   /** Extensions (no dot, lowercase) the toolchain considers source files. */
   readonly inputExt: readonly string[]
+  /** Optional editor-language metadata (directives, comments, snippets). The
+   *  editor pairs this with the machine CPU's opcode set to drive highlight /
+   *  hover / autocomplete. */
+  readonly language?: ToolchainLanguage
   /** Output file extension the toolchain emits (no dot). Used by the asset
    *  pipeline + UI when guessing where the binary lands. */
   readonly outputExt: string
