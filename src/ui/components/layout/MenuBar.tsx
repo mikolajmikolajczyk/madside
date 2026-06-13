@@ -6,6 +6,14 @@ import {
 } from "../ui/Menu";
 import "./MenuBar.css";
 
+// In production the docs site is served at /docs/ on the same origin. In dev
+// that path hits the app's SPA fallback (the docs are a separate Astro dev
+// server), so point at it directly — run `just docs-dev` to have it up.
+// Overridable via VITE_DOCS_URL.
+const DOCS_URL =
+  (import.meta.env.VITE_DOCS_URL as string | undefined) ??
+  (import.meta.env.DEV ? "http://localhost:4321/docs/" : "/docs/");
+
 export interface MenuBarProps {
   projects: ProjectRow[];
   activeProjectId: string;
@@ -144,7 +152,7 @@ export function MenuBar(p: MenuBarProps) {
         <MenuContent>
           <MenuItem
             data-testid="menu.help.docs"
-            onSelect={() => window.open('/docs/', '_blank', 'noopener,noreferrer')}
+            onSelect={() => window.open(DOCS_URL, '_blank', 'noopener,noreferrer')}
           >
             Documentation
           </MenuItem>
