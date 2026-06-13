@@ -7,6 +7,14 @@ const r = (p: string) => fileURLToPath(new URL(p, import.meta.url))
 // https://vite.dev/config/
 export default defineConfig({
   plugins: [react()],
+  // Pre-bundle the lazily-imported emulator dep up front. jsnes is reached only
+  // through dynamic import() (createWorkbench's NES backend factory), so Vite's
+  // scanner can miss it — the first NES boot would then trigger an on-the-fly
+  // re-optimize + full page reload (a multi-second stall). Listing it keeps the
+  // dep optimize one-shot.
+  optimizeDeps: {
+    include: ['jsnes'],
+  },
   resolve: {
     alias: [
       { find: /^@core$/,       replacement: r('./src/core') },

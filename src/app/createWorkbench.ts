@@ -38,7 +38,6 @@ import { memoryPanel } from '@plugins/panel-memory'
 import { outputPanel } from '@plugins/panel-output'
 import { ppuPanel } from '@plugins/panel-ppu'
 import { editorToPanel, listBuiltinEditors } from '@plugins/editors'
-import { createEmu } from '@adapters/emu'
 
 // Workbench Core — the headless workbench instance the rest of the app talks
 // to. UI consumes it via React context; tests instantiate it directly with
@@ -127,6 +126,10 @@ const defaultRecipes: RecipeRunnerFn = async (projectId, recipes, files) => {
 }
 
 const defaultEmuBackendFactory: RunBackendFactory = async () => {
+  // Lazy import so the Altirra emscripten glue (~133 KB) + its wasm stay out of
+  // the eager module graph — only loaded when an Atari project actually boots.
+  // Matches the jsnes backend's lazy import; both keep page-load fast.
+  const { createEmu } = await import('@adapters/emu')
   const emu = await createEmu()
   return emu as unknown as RunBackend
 }
