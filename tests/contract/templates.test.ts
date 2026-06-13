@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it } from 'vitest'
 import 'fake-indexeddb/auto'
-import { instantiateTemplate, listTemplates } from '@app/templates'
+import { createBlankProject, getTemplateManifestText, instantiateTemplate, listTemplates } from '@app/templates'
 import { __resetDb, loadProject } from '@adapters/storage-idb'
 
 // Bundled-template foundation (71acac1). Verifies the Vite glob loader picks up
@@ -25,6 +25,25 @@ describe('project templates', () => {
     expect(row.name).toBe('my-proj')
     const loaded = await loadProject(row.id)
     expect(loaded!.manifest.machine).toBe('atari-xl')
+    expect(loaded!.files.some((f) => f.path === 'src/main.a65')).toBe(true)
+  })
+
+  it('getTemplateManifestText seeds the blank-project form', () => {
+    const text = getTemplateManifestText('empty')
+    expect(text).toBeDefined()
+    expect(JSON.parse(text!)).toMatchObject({ machine: 'atari-xl', toolchain: 'mads' })
+  })
+
+  it('createBlankProject creates the empty files with a caller manifest', async () => {
+    const manifest = JSON.stringify(
+      { version: 2, name: 'blank-nes', main: 'src/main.a65', machine: 'nes', toolchain: 'mads' },
+      null,
+      2,
+    )
+    const row = await createBlankProject(manifest)
+    expect(row.name).toBe('blank-nes')
+    const loaded = await loadProject(row.id)
+    expect(loaded!.manifest.machine).toBe('nes') // caller manifest wins
     expect(loaded!.files.some((f) => f.path === 'src/main.a65')).toBe(true)
   })
 

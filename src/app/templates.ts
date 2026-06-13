@@ -98,3 +98,24 @@ export async function instantiateTemplate(id: string, name?: string): Promise<Pr
   ]
   return createProject(manifest.name, files, manifest)
 }
+
+/** The template's default project.json text — seeds the blank-project form in
+ *  the welcome picker. */
+export function getTemplateManifestText(id: string): string | undefined {
+  const b = BUNDLES.get(id)
+  return b ? JSON.stringify(b.manifest, null, 2) + '\n' : undefined
+}
+
+/** Create a blank project: the 'empty' template's source files + a
+ *  caller-supplied project.json (edited in the welcome picker's manifest form).
+ *  The manifest text is assumed already validated by the form. */
+export async function createBlankProject(manifestText: string): Promise<ProjectRow> {
+  const b = BUNDLES.get('empty')
+  if (!b) throw new Error('createBlankProject: empty template missing')
+  const manifest = JSON.parse(manifestText) as Manifest
+  const files = [
+    ...b.files.map((f) => ({ path: f.path, content: textToBytes(f.content) })),
+    { path: MANIFEST_PATH, content: textToBytes(manifestText) },
+  ]
+  return createProject(manifest.name, files, manifest)
+}

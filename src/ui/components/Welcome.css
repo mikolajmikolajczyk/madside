@@ -112,3 +112,44 @@
   color: var(--accent-coral);
   font-size: 12px;
 }
+
+/* === sections (empty project + templates) === */
+.welcome__blank,
+.welcome__templates {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  width: 100%;
+  max-width: 760px;
+}
+
+.welcome__section-title {
+  color: var(--text-secondary);
+  font-size: 12px;
+}
+
+.welcome__manifest {
+  height: 340px;
+  border: 1px solid var(--border-default);
+  border-radius: 8px;
+  overflow: hidden;
+  background: var(--bg-secondary);
+}
+
+.welcome__create {
+  align-self: flex-start;
+  padding: 8px 18px;
+  background: var(--accent-mint);
+  border: none;
+  border-radius: 6px;
+  color: var(--bg-primary);
+  font: inherit;
+  font-weight: 600;
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.welcome__create:disabled {
+  opacity: 0.55;
+  cursor: default;
+}

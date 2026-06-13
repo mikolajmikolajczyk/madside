@@ -13,7 +13,7 @@ const ManifestEditor = lazy(() => import("./components/manifest/ManifestEditor")
 import { Emulator } from "./components/debug/Emulator";
 import { Debug } from "./components/debug/Debug";
 import { PanelSlot } from "./components/PanelSlot";
-import { Welcome } from "./components/Welcome";
+const Welcome = lazy(() => import("./components/Welcome").then((m) => ({ default: m.Welcome })));
 import { TooltipProvider } from "./components/ui/Tooltip";
 import { TextPromptDialog, ConfirmDialog } from "./components/ui/Dialog";
 import { useProject } from "@app/state";
@@ -457,7 +457,11 @@ export default function App() {
       );
     }
     // Resolved with no project (first run / last project deleted) → picker.
-    return <Welcome onOpen={(id) => void project.switchProject(id)} />;
+    return (
+      <Suspense fallback={<div className="app app--loading"><div className="app__loading">loading…</div></div>}>
+        <Welcome onOpen={(id) => void project.switchProject(id)} />
+      </Suspense>
+    );
   }
 
   return (
