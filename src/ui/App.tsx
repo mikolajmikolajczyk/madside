@@ -623,14 +623,16 @@ export default function App() {
       <TextPromptDialog
         open={dialog === "newProject"}
         title="New project"
-        description="Pick a name. A blank src/main.asm gets seeded."
+        description="Pick a name. A blank project is created — configure it in project.json."
         initial="untitled"
         placeholder="my-project"
         confirmLabel="Create"
         onCancel={closeDialog}
         onConfirm={async (name) => {
           closeDialog();
-          if (name.trim()) await project.newProject(name);
+          if (!name.trim() || !project.loaded) return;
+          const row = await instantiateTemplate("empty", name.trim());
+          await project.switchProject(row.id);
         }}
       />
       <TextPromptDialog

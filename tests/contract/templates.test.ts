@@ -13,10 +13,19 @@ describe('project templates', () => {
 
   it('lists the bundled templates with display metadata, ordered', () => {
     const list = listTemplates()
-    expect(list.map((t) => t.id)).toEqual(['atari-hello', 'nes-hello'])
+    expect(list.map((t) => t.id)).toEqual(['atari-hello', 'nes-hello', 'empty'])
     expect(list[0]).toMatchObject({ machine: 'atari-xl', name: expect.stringContaining('Atari') })
     expect(list[1]).toMatchObject({ machine: 'nes' })
+    expect(list[2]).toMatchObject({ id: 'empty', machine: 'atari-xl' })
     expect(list[0]!.description.length).toBeGreaterThan(0)
+  })
+
+  it('instantiates the empty template (used by File → New project)', async () => {
+    const row = await instantiateTemplate('empty', 'my-proj')
+    expect(row.name).toBe('my-proj')
+    const loaded = await loadProject(row.id)
+    expect(loaded!.manifest.machine).toBe('atari-xl')
+    expect(loaded!.files.some((f) => f.path === 'src/main.a65')).toBe(true)
   })
 
   it('instantiates a template into storage as a loadable project', async () => {

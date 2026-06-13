@@ -3,7 +3,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
   createFile as createFileIDB,
-  createProject,
   deleteFile as deleteFileIDB,
   deleteFolder as deleteFolderIDB,
   deleteProject,
@@ -16,7 +15,6 @@ import {
   saveFile,
   saveManifest,
   setActiveProjectId,
-  textToBytes,
 } from "@adapters/storage-idb";
 import { ensureActiveProject } from "@adapters/storage-idb";
 import { exportProjectToZip, importProjectFromZip } from "@adapters/storage-idb";
@@ -30,7 +28,7 @@ import {
   type SnapshotMeta,
 } from "@adapters/storage-idb";
 import type { FileRow, Manifest, ProjectRow } from "@adapters/storage-idb";
-import { MANIFEST_VERSION, type EventBus } from "@ports";
+import type { EventBus } from "@ports";
 
 // Files are stored as bytes end-to-end. Text views (Editor, MADS source list,
 // label scanner, etc.) decode lazily; binary views (AssetPanel, custom Phase 11
@@ -49,13 +47,6 @@ export interface ProjectState {
 }
 
 const SAVE_DEBOUNCE_MS = 500;
-const SEED_NEW_MAIN_PATH = "src/main.asm";
-const SEED_NEW_MAIN_CONTENT = `; new project
-        org $2000
-start
-        rts
-        run start
-`;
 
 const dec = new TextDecoder();
 const enc = new TextEncoder();
@@ -192,25 +183,9 @@ export function useProject(events?: EventBus) {
     reload();
   }, [reload]);
 
-  const newProject = useCallback(async (name: string): Promise<ProjectRow> => {
-    const trimmed = name.trim() || "project";
-    const manifest: Manifest = {
-      version: MANIFEST_VERSION,
-      name: trimmed,
-      main: SEED_NEW_MAIN_PATH,
-      machine: "atari-xl",
-      toolchain: "mads",
-      run: { default: { audio: true } },
-    };
-    const project = await createProject(
-      trimmed,
-      [{ path: SEED_NEW_MAIN_PATH, content: textToBytes(SEED_NEW_MAIN_CONTENT) }],
-      manifest,
-    );
-    await setActiveProjectId(project.id);
-    reload();
-    return project;
-  }, [reload]);
+  // New-project creation moved to the bundled 'empty' template
+  // (instantiateTemplate in @app/templates) — one source of truth for a blank
+  // project. App's File → New project routes through it.
 
   const renameProjectAction = useCallback(async (newName: string): Promise<string | null> => {
     if (!state) return null;
@@ -433,7 +408,6 @@ export function useProject(events?: EventBus) {
     updateActive,
     projects,
     switchProject,
-    newProject,
     renameProject: renameProjectAction,
     duplicateProject: duplicateProjectAction,
     deleteProject: deleteProjectAction,

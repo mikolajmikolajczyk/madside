@@ -1,0 +1,7 @@
+; empty project — start here
+        org $2000
+
+start
+        rts
+
+        run start

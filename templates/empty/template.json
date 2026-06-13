@@ -1,0 +1,6 @@
+{
+  "name": "Empty project",
+  "description": "A blank project. Set the machine, toolchain, and files in project.json (use the Form view).",
+  "machine": "atari-xl",
+  "order": 9
+}
