@@ -14,6 +14,7 @@ import { Emulator } from "./components/debug/Emulator";
 import { Debug } from "./components/debug/Debug";
 import { PanelSlot } from "./components/PanelSlot";
 const Welcome = lazy(() => import("./components/Welcome").then((m) => ({ default: m.Welcome })));
+const CoursePanel = lazy(() => import("./components/course/CoursePanel").then((m) => ({ default: m.CoursePanel })));
 import { TooltipProvider } from "./components/ui/Tooltip";
 import { TextPromptDialog, ConfirmDialog } from "./components/ui/Dialog";
 import { useProject } from "@app/state";
@@ -31,7 +32,7 @@ import { useAutoAssemble } from "./hooks/useAutoAssemble";
 import { useRunStatus } from "./hooks/useRunStatus";
 import { useActiveMachine } from "./hooks/useActiveMachine";
 import { useWorkbench } from "@app";
-import { instantiateTemplate, listTemplates } from "@app";
+import { instantiateTemplate, listTemplates, openLesson } from "@app";
 import "./App.css";
 
 const ASSET_EXTENSIONS = new Set([
@@ -389,6 +390,12 @@ export default function App() {
     // reload settles (ADR-0007 — the store owns its emits).
   }, [project]);
 
+  const handleOpenLesson = useCallback(async (courseId: string, lessonId: string) => {
+    if (!project.loaded) return;
+    const id = await openLesson(courseId, lessonId);
+    await project.switchProject(id);
+  }, [project]);
+
   const templateList = useMemo(() => listTemplates().map((t) => ({ id: t.id, name: t.name })), []);
   const handleSelectTemplate = useCallback(async (id: string) => {
     if (!project.loaded) return;
@@ -523,20 +530,39 @@ export default function App() {
         className="app__body"
         style={{ "--explorer-w": explorerW + "px", "--side-w": sideW + "px" } as React.CSSProperties}
       >
-        <Explorer
-          files={project.files}
-          active={project.activePath}
-          mainPath={project.manifest.main}
-          onSelect={project.setActivePath}
-          onCreateFile={project.createFile}
-          onCreateFolder={project.createFolder}
-          onRenameFile={project.renameFile}
-          onRenameFolder={project.renameFolder}
-          onDeleteFile={project.deleteFile}
-          onDeleteFolder={project.deleteFolder}
-          onDuplicateFile={project.duplicateFile}
-          onSetMain={project.setMainFile}
-        />
+        {(() => {
+          const explorerEl = (
+            <Explorer
+              files={project.files}
+              active={project.activePath}
+              mainPath={project.manifest.main}
+              onSelect={project.setActivePath}
+              onCreateFile={project.createFile}
+              onCreateFolder={project.createFolder}
+              onRenameFile={project.renameFile}
+              onRenameFolder={project.renameFolder}
+              onDeleteFile={project.deleteFile}
+              onDeleteFolder={project.deleteFolder}
+              onDuplicateFile={project.duplicateFile}
+              onSetMain={project.setMainFile}
+            />
+          );
+          const course = project.manifest.course;
+          if (!course) return explorerEl;
+          // Course mode: vertical split — compact Files on top, lesson panel below.
+          return (
+            <div className="app__explorer-col">
+              {explorerEl}
+              <Suspense fallback={<div className="app__loading">loading lesson…</div>}>
+                <CoursePanel
+                  courseId={course.id}
+                  lessonId={course.lesson}
+                  onOpenLesson={(c, l) => { void handleOpenLesson(c, l); }}
+                />
+              </Suspense>
+            </div>
+          );
+        })()}
         <Splitter onResize={(dx) => setExplorerW((w) => clampExplorer(w + dx))} />
         <main className="app__main">
           {activeEditorModule ? (

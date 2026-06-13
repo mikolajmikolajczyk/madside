@@ -38,6 +38,9 @@ export interface ProjectManifestV2 {
    *  toolchain-specific assembler flags (e.g. MADS `-d:SYM=1`, extra `-i:`
    *  include paths); the toolchain appends them to its own invocation. */
   build?: { args?: string[] }
+  /** Set when the project was instantiated from a course lesson — drives
+   *  course mode (the lesson panel). Carries which lesson the project is. */
+  course?: { id: string; lesson: string }
 }
 
 const isObject = (v: unknown): v is Record<string, unknown> =>
@@ -98,6 +101,13 @@ export function parseProjectManifest(raw: unknown): Result<ProjectManifestV2, Ma
   const editors = raw['editors']
   if (isObject(editors) && Object.values(editors).every((v) => typeof v === 'string')) {
     out.editors = editors as Record<string, string>
+  }
+
+  const course = raw['course']
+  if (isObject(course)) {
+    const id = requireString(course, 'id')
+    const lesson = requireString(course, 'lesson')
+    if (id && lesson) out.course = { id, lesson }
   }
 
   const build = raw['build']

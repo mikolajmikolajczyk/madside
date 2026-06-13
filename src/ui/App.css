@@ -27,6 +27,21 @@
   border-left: 1px solid var(--border-default);
 }
 
+/* Left column in course mode: compact Files on top, lesson panel below. */
+.app__explorer-col {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  min-width: 0;
+}
+.app__explorer-col > .explorer {
+  flex: 0 1 40%;
+  min-height: 88px;
+}
+.app__explorer-col > .course {
+  flex: 1 1 60%;
+}
+
 .app--loading { justify-content: center; align-items: center; }
 .app__loading {
   color: var(--text-tertiary);
