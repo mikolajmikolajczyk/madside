@@ -1,0 +1,25 @@
+; Lesson 2 — Registers and Loops
+; Draw a 16-wide bar of inverse spaces ($80). Fill in the loop (TODO).
+
+SAVMSC = $58
+screen = $80
+BAR    = $80               ; inverse-space character
+
+        org $2000
+
+start
+        lda SAVMSC
+        sta screen
+        lda SAVMSC+1
+        sta screen+1
+
+        ldy #0
+        ldx #16             ; how many cells to fill
+fill
+        ; TODO: store BAR through (screen),y, bump y, decrement x,
+        ;       and branch back to fill while x != 0.
+
+done
+        jmp done
+
+        run start

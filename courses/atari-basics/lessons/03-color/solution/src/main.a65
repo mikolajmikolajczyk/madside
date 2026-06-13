@@ -1,0 +1,14 @@
+; Lesson 3 — Changing the Background Colour (reference solution)
+
+COLOR2 = $02C6
+
+        org $2000
+
+start
+        lda #$94
+        sta COLOR2
+
+done
+        jmp done
+
+        run start

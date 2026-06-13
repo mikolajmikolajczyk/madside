@@ -1,0 +1,26 @@
+; Lesson 1 — Hello, Atari
+; Finish the print loop below (look for TODO).
+
+SAVMSC = $58
+screen = $80
+
+        org $2000
+
+start
+        lda SAVMSC          ; copy OS screen pointer into our zero-page pointer
+        sta screen
+        lda SAVMSC+1
+        sta screen+1
+
+        ldy #0
+print
+        ; TODO: load msg,y — if it's $ff, jump to done; otherwise store it
+        ;       through (screen),y, bump y, and loop back to print.
+
+done
+        jmp done            ; spin forever so the screen stays up
+
+        run start
+
+msg
+        dta d'HELLO ATARI!', $ff

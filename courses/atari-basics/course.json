@@ -1,0 +1,6 @@
+{
+  "title": "Atari Assembly Basics",
+  "description": "Write your first 6502 programs for the Atari 8-bit: screen memory, loops, and colour. Three short lessons, each with a task you assemble and run.",
+  "machine": "atari-xl",
+  "order": 1
+}

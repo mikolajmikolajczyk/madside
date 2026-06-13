@@ -1,0 +1,8 @@
+{
+  "version": 2,
+  "name": "atari-basics-03",
+  "main": "src/main.a65",
+  "machine": "atari-xl",
+  "toolchain": "mads",
+  "run": { "default": { "audio": false } }
+}

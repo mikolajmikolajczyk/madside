@@ -1,0 +1,27 @@
+; Lesson 2 — Registers and Loops (reference solution)
+
+SAVMSC = $58
+screen = $80
+BAR    = $80
+
+        org $2000
+
+start
+        lda SAVMSC
+        sta screen
+        lda SAVMSC+1
+        sta screen+1
+
+        ldy #0
+        ldx #16
+fill
+        lda #BAR
+        sta (screen),y
+        iny
+        dex
+        bne fill
+
+done
+        jmp done
+
+        run start

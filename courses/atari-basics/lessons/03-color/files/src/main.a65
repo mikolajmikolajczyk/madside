@@ -1,0 +1,14 @@
+; Lesson 3 — Changing the Background Colour
+; Set COLOR2 to $94 (TODO).
+
+COLOR2 = $02C6
+
+        org $2000
+
+start
+        ; TODO: load #$94 into A and store it into COLOR2.
+
+done
+        jmp done
+
+        run start
