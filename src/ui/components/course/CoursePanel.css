@@ -131,6 +131,45 @@
   background: none;
 }
 
+/* check report */
+.course__report {
+  margin-top: 12px;
+  padding: 8px 10px;
+  border: 1px solid var(--border-default);
+  border-radius: 6px;
+  background: var(--bg-tertiary);
+}
+
+.course__report--pass { border-color: var(--accent-mint); }
+.course__report--fail { border-color: var(--accent-coral); }
+
+.course__report-head {
+  font-size: 12px;
+  font-weight: 600;
+  margin-bottom: 6px;
+}
+.course__report--pass .course__report-head { color: var(--accent-mint); }
+.course__report--fail .course__report-head { color: var(--accent-coral); }
+
+.course__report-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  font-size: 11.5px;
+}
+
+.course__report-list li {
+  display: flex;
+  gap: 6px;
+  padding: 1px 0;
+}
+
+.course__report-mark { flex: 0 0 auto; }
+.course__report-list .is-pass .course__report-mark { color: var(--accent-mint); }
+.course__report-list .is-fail .course__report-mark { color: var(--accent-coral); }
+.course__report-list .is-fail .course__report-text { color: var(--text-primary); }
+.course__report-list .is-pass .course__report-text { color: var(--text-secondary); }
+
 /* nav footer */
 .course__nav {
   display: flex;

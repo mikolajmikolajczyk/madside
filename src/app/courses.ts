@@ -25,7 +25,7 @@
  *  are used for addresses/values so assembly authors read them naturally. */
 export type CourseCheck =
   | { kind: 'build' }
-  | { kind: 'label'; name: string }
+  | { kind: 'label'; name: string; addr?: string }
   | { kind: 'memory'; addr: string; equals: string; space?: string; afterFrames?: number }
   | { kind: 'register'; reg: 'a' | 'x' | 'y' | 'sp' | 'pc'; equals: string; afterFrames?: number }
 
