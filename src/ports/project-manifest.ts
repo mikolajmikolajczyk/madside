@@ -34,6 +34,10 @@ export interface ProjectManifestV2 {
   recipes?: Recipe[]
   /** Map of file-extension (no dot, lowercase) → editor module path. */
   editors?: Record<string, string>
+  /** Build configuration forwarded to the toolchain. `args` are raw,
+   *  toolchain-specific assembler flags (e.g. MADS `-d:SYM=1`, extra `-i:`
+   *  include paths); the toolchain appends them to its own invocation. */
+  build?: { args?: string[] }
 }
 
 const isObject = (v: unknown): v is Record<string, unknown> =>
@@ -94,6 +98,19 @@ export function parseProjectManifest(raw: unknown): Result<ProjectManifestV2, Ma
   const editors = raw['editors']
   if (isObject(editors) && Object.values(editors).every((v) => typeof v === 'string')) {
     out.editors = editors as Record<string, string>
+  }
+
+  const build = raw['build']
+  if (isObject(build)) {
+    const args = build['args']
+    if (args !== undefined) {
+      if (!Array.isArray(args) || !args.every((a) => typeof a === 'string')) {
+        return err(new ManifestError('project.json: build.args must be an array of strings'))
+      }
+      out.build = { args: args as string[] }
+    } else {
+      out.build = {}
+    }
   }
 
   return ok(out)

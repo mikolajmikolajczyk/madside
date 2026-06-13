@@ -58,8 +58,11 @@ export const madsToolchain: ToolchainPlugin = {
       content: f.content,
     }))
     // MADS resolves icl directives relative to the project root. Pass -i:. so
-    // the assembler treats the virtual FS root as the include base.
-    const r = await assemble(input.main, sources, ['-i:.'])
+    // the assembler treats the virtual FS root as the include base, then any
+    // raw args from manifest.build.args (e.g. extra -i: paths, -d:SYM=val).
+    const rawArgs = (input.options as { args?: unknown } | undefined)?.args
+    const userArgs = Array.isArray(rawArgs) ? rawArgs.filter((a): a is string => typeof a === 'string') : []
+    const r = await assemble(input.main, sources, ['-i:.', ...userArgs])
     // Build the text-decoded file map once for the source-map reconstructor —
     // it scans icl directives in parent files to disambiguate same-basename
     // includes (e.g. src/main.a65 + lib/main.a65).

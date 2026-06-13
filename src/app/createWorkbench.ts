@@ -90,11 +90,12 @@ export interface Workbench {
 /** Adapt a ToolchainPlugin into the BuildService's narrower hook shape.
  *  Service stays adapter-free; plugin owns the assemble call. */
 const toolchainToBuildHook = (plugin: ToolchainPlugin): ToolchainAssembleFn =>
-  async (mainPath, files) => {
+  async (mainPath, files, options) => {
     const out = await plugin.build({
       projectId: '__buildservice__',
       main: mainPath,
       files: files.map((f) => ({ path: f.path, content: f.content })),
+      options,
     })
     return {
       ok: out.ok,

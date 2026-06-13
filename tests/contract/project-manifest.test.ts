@@ -69,4 +69,22 @@ describe('parseProjectManifest — v2 schema validator', () => {
     expect(r.ok).toBe(true)
     if (r.ok) expect(r.value.panels).toBeUndefined()
   })
+
+  it('accepts build.args as an array of strings', () => {
+    const r = parseProjectManifest({ ...minimal, build: { args: ['-d:DEBUG=1', '-i:lib'] } })
+    expect(r.ok).toBe(true)
+    if (r.ok) expect(r.value.build).toEqual({ args: ['-d:DEBUG=1', '-i:lib'] })
+  })
+
+  it('accepts an empty build object', () => {
+    const r = parseProjectManifest({ ...minimal, build: {} })
+    expect(r.ok).toBe(true)
+    if (r.ok) expect(r.value.build).toEqual({})
+  })
+
+  it('rejects build.args that are not all strings', () => {
+    const r = parseProjectManifest({ ...minimal, build: { args: ['-d:X', 42] } })
+    expect(r.ok).toBe(false)
+    if (!r.ok) expect(r.error.message).toMatch(/build\.args/)
+  })
 })

@@ -43,6 +43,8 @@ export interface ToolchainAssembleResult {
 export type ToolchainAssembleFn = (
   mainPath: string,
   files: BuildFileLike[],
+  /** Free-form build options from `manifest.build` (e.g. raw toolchain args). */
+  options?: Record<string, unknown>,
 ) => Promise<ToolchainAssembleResult>
 
 /** Resolve the assemble function for a given toolchain id (from manifest.toolchain).
@@ -122,7 +124,7 @@ export function createBuildService(deps: BuildServiceDeps): BuildService {
         content,
       }))
 
-      const assembleResult = await assemble(main, assembleInput)
+      const assembleResult = await assemble(main, assembleInput, manifest.build)
 
       if (mySeq !== seq) {
         return err(new BuildError(`build superseded (seq ${mySeq} → ${seq})`))
