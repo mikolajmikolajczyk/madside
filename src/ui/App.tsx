@@ -9,6 +9,7 @@ const Editor = lazy(() => import("./components/editor/Editor").then((m) => ({ de
 const AssetPanel = lazy(() => import("./components/asset/AssetPanel").then((m) => ({ default: m.AssetPanel })));
 const HistoryDialog = lazy(() => import("./components/history/HistoryDialog").then((m) => ({ default: m.HistoryDialog })));
 const PluginEditor = lazy(() => import("./components/editor/PluginEditor").then((m) => ({ default: m.PluginEditor })));
+const ManifestEditor = lazy(() => import("./components/manifest/ManifestEditor").then((m) => ({ default: m.ManifestEditor })));
 import { Emulator } from "./components/debug/Emulator";
 import { Debug } from "./components/debug/Debug";
 import { PanelSlot } from "./components/PanelSlot";
@@ -18,7 +19,7 @@ import { TextPromptDialog, ConfirmDialog } from "./components/ui/Dialog";
 import { useProject } from "@app/state";
 import type { CpuRegs } from "./components/debug/Emulator";
 import type { PanelPlugin, ToolchainPlugin } from "@ports";
-import { extOf } from "@core/path";
+import { basename, extOf } from "@core/path";
 import { getCpuLanguage } from "@core";
 import { useSplitterWidth } from "./hooks/useSplitterWidth";
 import { useDebuggerShortcuts } from "./hooks/useDebuggerShortcuts";
@@ -40,6 +41,12 @@ const ASSET_EXTENSIONS = new Set([
 
 function isAssetPath(path: string): boolean {
   return ASSET_EXTENSIONS.has(extOf(path));
+}
+
+// The manifest gets the visual editor, not the plain text editor. Match by
+// filename (project.json), not extension — other .json files stay plain.
+function isManifestPath(path: string): boolean {
+  return basename(path) === "project.json";
 }
 
 export default function App() {
@@ -536,6 +543,14 @@ export default function App() {
                 value={project.active.content}
                 onChange={project.updateActive}
                 assets={pluginAssets}
+              />
+            </Suspense>
+          ) : isManifestPath(project.active.path) ? (
+            <Suspense fallback={<div className="app__loading">loading editor…</div>}>
+              <ManifestEditor
+                value={project.active.content}
+                onChange={project.updateActive}
+                files={project.files}
               />
             </Suspense>
           ) : isAssetPath(project.active.path) ? (
