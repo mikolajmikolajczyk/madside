@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { createBlankProject, getTemplateManifestText, instantiateTemplate, listTemplates } from "@app";
+import { createBlankProject, getCourse, getTemplateManifestText, instantiateTemplate, listCourses, listTemplates, openLesson } from "@app";
 import { ManifestEditor } from "./manifest/ManifestEditor";
 import "./Welcome.css";
 
@@ -17,6 +17,7 @@ const dec = new TextDecoder();
 export function Welcome({ onOpen }: Props) {
   // Templates minus 'empty' (the empty flow is the top section).
   const templates = useMemo(() => listTemplates().filter((t) => t.id !== "empty"), []);
+  const courses = useMemo(() => listCourses(), []);
   const emptyFiles = useMemo(
     () => (listTemplates().find((t) => t.id === "empty")?.files ?? []).map((path) => ({ path })),
     [],
@@ -43,6 +44,21 @@ export function Welcome({ onOpen }: Props) {
     try {
       const row = await instantiateTemplate(id);
       onOpen(row.id);
+    } catch (e) {
+      setError(String(e));
+      setBusy(null);
+    }
+  };
+
+  // Selecting a course opens its first lesson in course mode.
+  const pickCourse = async (id: string) => {
+    setBusy(`course:${id}`);
+    setError(null);
+    try {
+      const first = getCourse(id)?.lessons[0];
+      if (!first) throw new Error(`course '${id}' has no lessons`);
+      const projectId = await openLesson(id, first);
+      onOpen(projectId);
     } catch (e) {
       setError(String(e));
       setBusy(null);
@@ -99,6 +115,32 @@ export function Welcome({ onOpen }: Props) {
           ))}
         </div>
       </section>
+
+      {courses.length > 0 && (
+        <section className="welcome__templates">
+          <div className="welcome__section-title label">Or follow a course</div>
+          <div className="welcome__grid">
+            {courses.map((c) => (
+              <button
+                key={c.id}
+                type="button"
+                className="welcome__card"
+                disabled={busy != null}
+                onClick={() => void pickCourse(c.id)}
+                data-testid={`welcome.course.${c.id}`}
+              >
+                <span className="welcome__card-head">
+                  <span className="welcome__card-name">{c.title}</span>
+                  <span className="welcome__card-machine label">{c.machine}</span>
+                </span>
+                <span className="welcome__card-desc">{c.description}</span>
+                <span className="welcome__card-files">{c.lessons.length} lessons</span>
+                {busy === `course:${c.id}` && <span className="welcome__card-busy">opening…</span>}
+              </button>
+            ))}
+          </div>
+        </section>
+      )}
 
       {error && <div className="welcome__error">{error}</div>}
     </div>

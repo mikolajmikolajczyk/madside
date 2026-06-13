@@ -32,7 +32,9 @@ import { useAutoAssemble } from "./hooks/useAutoAssemble";
 import { useRunStatus } from "./hooks/useRunStatus";
 import { useActiveMachine } from "./hooks/useActiveMachine";
 import { useWorkbench } from "@app";
-import { instantiateTemplate, listTemplates, openLesson } from "@app";
+import { getCourse, instantiateTemplate, listCourses, listTemplates, openLesson, runChecks } from "@app";
+import type { CheckReport, CheckRunDeps } from "@app";
+import type { CourseCheck } from "@app";
 import "./App.css";
 
 const ASSET_EXTENSIONS = new Set([
@@ -396,7 +398,43 @@ export default function App() {
     await project.switchProject(id);
   }, [project]);
 
+  // Selecting a course opens its first lesson in course mode. (Resume-to-next-
+  // incomplete-lesson lands with the check runner — child 29540fd.)
+  const handleSelectCourse = useCallback(async (courseId: string) => {
+    if (!project.loaded) return;
+    const first = getCourse(courseId)?.lessons[0];
+    if (!first) return;
+    const id = await openLesson(courseId, first);
+    await project.switchProject(id);
+  }, [project]);
+
+  // Run a lesson's declarative checks: assemble (reusing the auto-assemble
+  // pipeline for the binary + label table), then — only if a register/memory
+  // check needs it — load + advance frames and snapshot CPU/memory. Disturbs
+  // the live emulator (loads the freshly-built binary); the learner re-runs.
+  const handleCheck = useCallback(async (checks: CourseCheck[]): Promise<CheckReport> => {
+    const deps: CheckRunDeps = {
+      assemble: async () => {
+        const r = await runAssemble();
+        if (!r || !r.ok || !r.xex) {
+          return { ok: false, error: (r?.stderr || "assembly failed").split("\n")[0], labels: r?.labels ?? new Map() };
+        }
+        return { ok: true, labels: r.labels ?? new Map(), binary: r.xex };
+      },
+      run: async (binary, frames) => {
+        if (workbench.run.status !== "idle") workbench.run.unload();
+        const loaded = await workbench.run.load(binary);
+        if (!loaded.ok) throw new Error(loaded.error.message);
+        for (let i = 0; i < frames; i++) await workbench.debug.stepFrame();
+        const regs = await workbench.debug.registers();
+        return { regs, readMem: (a, l, s) => workbench.debug.readMemory(a, l, s) };
+      },
+    };
+    return runChecks(checks, deps);
+  }, [runAssemble, workbench]);
+
   const templateList = useMemo(() => listTemplates().map((t) => ({ id: t.id, name: t.name })), []);
+  const courseList = useMemo(() => listCourses().map((c) => ({ id: c.id, name: c.title })), []);
   const handleSelectTemplate = useCallback(async (id: string) => {
     if (!project.loaded) return;
     const row = await instantiateTemplate(id);
@@ -480,6 +518,8 @@ export default function App() {
         activeProjectName={project.manifest.name}
         templates={templateList}
         onSelectTemplate={handleSelectTemplate}
+        courses={courseList}
+        onSelectCourse={(id) => { void handleSelectCourse(id); }}
         onNewProject={handleNewProject}
         onSwitchProject={handleSwitchProject}
         onRenameProject={handleRenameProject}
@@ -558,6 +598,7 @@ export default function App() {
                   courseId={course.id}
                   lessonId={course.lesson}
                   onOpenLesson={(c, l) => { void handleOpenLesson(c, l); }}
+                  onCheck={handleCheck}
                 />
               </Suspense>
             </div>

@@ -21,6 +21,9 @@ export interface MenuBarProps {
   /** Bundled templates (id + display name) for the File → Templates submenu. */
   templates: { id: string; name: string }[];
   onSelectTemplate: (id: string) => void;
+  /** Bundled courses (id + display title) for the File → Courses submenu. */
+  courses: { id: string; name: string }[];
+  onSelectCourse: (id: string) => void;
   onNewProject: () => void;
   onSwitchProject: (id: string) => void;
   onRenameProject: () => void;
@@ -67,6 +70,24 @@ export function MenuBar(p: MenuBarProps) {
                     onSelect={() => p.onSelectTemplate(t.id)}
                   >
                     {t.name}
+                  </MenuItem>
+                ))
+              )}
+            </MenuSubContent>
+          </MenuSub>
+          <MenuSub>
+            <MenuSubTrigger data-testid="menu.file.courses">Courses</MenuSubTrigger>
+            <MenuSubContent>
+              {p.courses.length === 0 ? (
+                <MenuLabel>(none)</MenuLabel>
+              ) : (
+                p.courses.map((c) => (
+                  <MenuItem
+                    key={c.id}
+                    data-testid={`menu.file.courses.${c.id}`}
+                    onSelect={() => p.onSelectCourse(c.id)}
+                  >
+                    {c.name}
                   </MenuItem>
                 ))
               )}
