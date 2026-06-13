@@ -6,69 +6,13 @@ import {
 import { StateEffect, StateField } from "@codemirror/state";
 import { hoverTooltip } from "@codemirror/view";
 import { snippet, type CompletionContext, type CompletionResult } from "@codemirror/autocomplete";
-import { MADS_OPCODES as OPCODES, MADS_DIRECTIVES as DIRECTIVES, type LabelInfo } from "@core";
+import { MOS6502, MADS_DIRECTIVES as DIRECTIVES, type LabelInfo } from "@core";
 
-
-
-// Short docs for hover tooltips. [description, affected flags].
-const OPCODE_INFO: Record<string, [string, string]> = {
-  ADC: ["Add memory to A with carry", "N V Z C"],
-  AND: ["Bitwise AND with A", "N Z"],
-  ASL: ["Arithmetic shift left", "N Z C"],
-  BCC: ["Branch if carry clear", ""],
-  BCS: ["Branch if carry set", ""],
-  BEQ: ["Branch if equal (Z set)", ""],
-  BIT: ["Test bits in A vs memory", "N V Z"],
-  BMI: ["Branch if minus (N set)", ""],
-  BNE: ["Branch if not equal (Z clear)", ""],
-  BPL: ["Branch if plus (N clear)", ""],
-  BRK: ["Force interrupt", "B I"],
-  BVC: ["Branch if overflow clear", ""],
-  BVS: ["Branch if overflow set", ""],
-  CLC: ["Clear carry flag", "C"],
-  CLD: ["Clear decimal mode", "D"],
-  CLI: ["Clear interrupt disable", "I"],
-  CLV: ["Clear overflow flag", "V"],
-  CMP: ["Compare A with memory", "N Z C"],
-  CPX: ["Compare X with memory", "N Z C"],
-  CPY: ["Compare Y with memory", "N Z C"],
-  DEC: ["Decrement memory", "N Z"],
-  DEX: ["Decrement X", "N Z"],
-  DEY: ["Decrement Y", "N Z"],
-  EOR: ["Bitwise XOR with A", "N Z"],
-  INC: ["Increment memory", "N Z"],
-  INX: ["Increment X", "N Z"],
-  INY: ["Increment Y", "N Z"],
-  JMP: ["Unconditional jump", ""],
-  JSR: ["Jump to subroutine (push PC)", ""],
-  LDA: ["Load A from memory", "N Z"],
-  LDX: ["Load X from memory", "N Z"],
-  LDY: ["Load Y from memory", "N Z"],
-  LSR: ["Logical shift right", "N Z C"],
-  NOP: ["No operation", ""],
-  ORA: ["Bitwise OR with A", "N Z"],
-  PHA: ["Push A onto stack", ""],
-  PHP: ["Push processor status", ""],
-  PLA: ["Pull A from stack", "N Z"],
-  PLP: ["Pull processor status", "all"],
-  ROL: ["Rotate left through carry", "N Z C"],
-  ROR: ["Rotate right through carry", "N Z C"],
-  RTI: ["Return from interrupt", "all"],
-  RTS: ["Return from subroutine", ""],
-  SBC: ["Subtract memory from A with borrow", "N V Z C"],
-  SEC: ["Set carry flag", "C"],
-  SED: ["Set decimal mode", "D"],
-  SEI: ["Set interrupt disable", "I"],
-  STA: ["Store A to memory", ""],
-  STX: ["Store X to memory", ""],
-  STY: ["Store Y to memory", ""],
-  TAX: ["Transfer A to X", "N Z"],
-  TAY: ["Transfer A to Y", "N Z"],
-  TSX: ["Transfer stack pointer to X", "N Z"],
-  TXA: ["Transfer X to A", "N Z"],
-  TXS: ["Transfer X to stack pointer", ""],
-  TYA: ["Transfer Y to A", "N Z"],
-};
+// CPU vocabulary comes from @core/cpu (epic 78b12bf): opcodes + hover docs are
+// 6502-level, shared across assemblers. The toolchain-driven CPU selection
+// lands in a later child; MADS edits 6502, so MOS6502 is used directly here.
+const OPCODES = MOS6502.opcodes;
+const OPCODE_DOCS = MOS6502.opcodeDocs;
 
 const madsStream = StreamLanguage.define({
   name: "mads",
@@ -159,8 +103,8 @@ function madsCompletions(ctx: CompletionContext): CompletionResult | null {
   }[] = [];
 
   for (const op of OPCODES) {
-    const info = OPCODE_INFO[op];
-    options.push({ label: op.toLowerCase(), type: "keyword", detail: info?.[0] });
+    const doc = OPCODE_DOCS[op];
+    options.push({ label: op.toLowerCase(), type: "keyword", detail: doc?.desc });
   }
   for (const d of DIRECTIVES) options.push({ label: d.toLowerCase(), type: "keyword", detail: "directive" });
 
@@ -330,8 +274,8 @@ const madsHover = hoverTooltip((view, pos) => {
   if (!word) return null;
   const text = view.state.doc.sliceString(word.from, word.to);
   const upper = text.toUpperCase();
-  const opInfo = OPCODE_INFO[upper];
-  if (opInfo) {
+  const opDoc = OPCODE_DOCS[upper];
+  if (opDoc) {
     return {
       pos: word.from,
       end: word.to,
@@ -342,7 +286,7 @@ const madsHover = hoverTooltip((view, pos) => {
         const head = document.createElement("strong");
         head.textContent = upper;
         const body = document.createElement("span");
-        body.textContent = "  " + opInfo[0] + (opInfo[1] ? "   flags: " + opInfo[1] : "");
+        body.textContent = "  " + opDoc.desc + (opDoc.flags ? "   flags: " + opDoc.flags : "");
         dom.appendChild(head);
         dom.appendChild(body);
         return { dom };

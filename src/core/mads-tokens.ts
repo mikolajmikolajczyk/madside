@@ -1,14 +1,10 @@
-// MADS lexical vocabulary + label metadata shape. Lives in @core because both
-// @ui (CodeMirror language definition) and @app (label scanner) need it, and
-// per ADR-0002 those layers may not import each other.
-
-export const MADS_OPCODES = new Set<string>([
-  'ADC', 'AND', 'ASL', 'BCC', 'BCS', 'BEQ', 'BIT', 'BMI', 'BNE', 'BPL', 'BRK', 'BVC', 'BVS',
-  'CLC', 'CLD', 'CLI', 'CLV', 'CMP', 'CPX', 'CPY', 'DEC', 'DEX', 'DEY', 'EOR', 'INC', 'INX',
-  'INY', 'JMP', 'JSR', 'LDA', 'LDX', 'LDY', 'LSR', 'NOP', 'ORA', 'PHA', 'PHP', 'PLA', 'PLP',
-  'ROL', 'ROR', 'RTI', 'RTS', 'SBC', 'SEC', 'SED', 'SEI', 'STA', 'STX', 'STY', 'TAX', 'TAY',
-  'TSX', 'TXA', 'TXS', 'TYA',
-])
+// MADS directive vocabulary + label metadata shape. Lives in @core because
+// both @ui (CodeMirror language definition) and @app (label scanner) need it,
+// and per ADR-0002 those layers may not import each other.
+//
+// The 6502 opcode set + docs moved to @core/cpu/mos6502 (epic 78b12bf) — those
+// are CPU-level, shared across assemblers; what's left here is MADS-specific
+// (directives) until the toolchain-language work folds it into the MADS plugin.
 
 export const MADS_DIRECTIVES = new Set<string>([
   'ORG', 'EQU', 'DTA', 'ICL', 'INS', 'RUN', 'END', 'OPT', 'RMB', 'SET', 'BLK', 'RPT', 'ERT',

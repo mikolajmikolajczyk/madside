@@ -7,7 +7,7 @@
 //   2. Merge `.lab` dump addresses into the same `LabelInfo` so the
 //      hover popup / goto-def can show both.
 
-import { MADS_DIRECTIVES, MADS_OPCODES, type LabelInfo } from "@core";
+import { MADS_DIRECTIVES, MOS6502, type LabelInfo } from "@core";
 
 /** Pull a short body preview starting at the label's declaration line.
  *  Stops at the next top-level label or after `max` lines. */
@@ -49,7 +49,7 @@ export function scanFileLabels(content: string, base: string, out: Map<string, L
     if (!m) continue;
     const name = m[1];
     const upper = name.toUpperCase();
-    if (MADS_OPCODES.has(upper) || MADS_DIRECTIVES.has(upper)) continue;
+    if (MOS6502.opcodes.has(upper) || MADS_DIRECTIVES.has(upper)) continue;
     if (out.has(name)) continue;
     const lineNo = i + 1;
     const info: LabelInfo = {
