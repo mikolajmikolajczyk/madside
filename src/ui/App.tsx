@@ -12,6 +12,7 @@ const PluginEditor = lazy(() => import("./components/editor/PluginEditor").then(
 import { Emulator } from "./components/debug/Emulator";
 import { Debug } from "./components/debug/Debug";
 import { PanelSlot } from "./components/PanelSlot";
+import { Welcome } from "./components/Welcome";
 import { TooltipProvider } from "./components/ui/Tooltip";
 import { TextPromptDialog, ConfirmDialog } from "./components/ui/Dialog";
 import { useProject } from "@app/state";
@@ -28,6 +29,7 @@ import { useAutoAssemble } from "./hooks/useAutoAssemble";
 import { useRunStatus } from "./hooks/useRunStatus";
 import { useActiveMachine } from "./hooks/useActiveMachine";
 import { useWorkbench } from "@app";
+import { instantiateTemplate, listTemplates } from "@app";
 import "./App.css";
 
 const ASSET_EXTENSIONS = new Set([
@@ -367,6 +369,13 @@ export default function App() {
     // reload settles (ADR-0007 — the store owns its emits).
   }, [project]);
 
+  const templateList = useMemo(() => listTemplates().map((t) => ({ id: t.id, name: t.name })), []);
+  const handleSelectTemplate = useCallback(async (id: string) => {
+    if (!project.loaded) return;
+    const row = await instantiateTemplate(id);
+    await project.switchProject(row.id);
+  }, [project]);
+
   const [historyOpen, setHistoryOpen] = useState(false);
 
   const [explorerW, setExplorerW] = useSplitterWidth("splitter.explorer", 220);
@@ -413,13 +422,22 @@ export default function App() {
   );
 
   if (!project.loaded) {
-    return (
-      <div className="app app--loading">
-        <div className="app__loading">
-          {project.error ? `storage error: ${project.error}` : "loading project…"}
+    if (project.error) {
+      return (
+        <div className="app app--loading">
+          <div className="app__loading">storage error: {project.error}</div>
         </div>
-      </div>
-    );
+      );
+    }
+    if (!project.booted) {
+      return (
+        <div className="app app--loading">
+          <div className="app__loading">loading project…</div>
+        </div>
+      );
+    }
+    // Resolved with no project (first run / last project deleted) → picker.
+    return <Welcome onOpen={(id) => void project.switchProject(id)} />;
   }
 
   return (
@@ -429,6 +447,8 @@ export default function App() {
         projects={project.projects}
         activeProjectId={project.projectId}
         activeProjectName={project.manifest.name}
+        templates={templateList}
+        onSelectTemplate={handleSelectTemplate}
         onNewProject={handleNewProject}
         onSwitchProject={handleSwitchProject}
         onRenameProject={handleRenameProject}

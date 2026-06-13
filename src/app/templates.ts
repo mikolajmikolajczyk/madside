@@ -21,6 +21,9 @@ export interface TemplateMeta {
 
 export interface TemplateInfo extends TemplateMeta {
   id: string
+  /** Project-relative file paths the template ships (for an architecture
+   *  preview in the picker), sorted, including the project.json manifest. */
+  files: string[]
 }
 
 interface TemplateBundle {
@@ -74,7 +77,11 @@ const BUNDLES = loadBundles()
 /** Templates available out of the box, sorted by `order` then name. */
 export function listTemplates(): TemplateInfo[] {
   return [...BUNDLES.values()]
-    .map((b) => ({ id: b.id, ...b.meta }))
+    .map((b) => ({
+      id: b.id,
+      ...b.meta,
+      files: [...b.files.map((f) => f.path), MANIFEST_PATH].sort(),
+    }))
     .sort((a, b) => (a.order ?? 99) - (b.order ?? 99) || a.name.localeCompare(b.name))
 }
 

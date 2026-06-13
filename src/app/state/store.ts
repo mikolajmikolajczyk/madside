@@ -71,6 +71,9 @@ export function useProject(events?: EventBus) {
   const [snapshots, setSnapshots] = useState<SnapshotMeta[]>([]);
   const [reloadKey, setReloadKey] = useState(0);
   const [error, setError] = useState<string | null>(null);
+  // False until the first resolution finishes — lets the UI tell "still
+  // loading" apart from "resolved, but no project" (→ template picker).
+  const [booted, setBooted] = useState(false);
   // Track previously-emitted projectId so reload() (file CRUD, rename, etc.)
   // does NOT re-emit `project:switched`. Only true switches do.
   const lastEmittedProjectIdRef = useRef<string | null>(null);
@@ -85,6 +88,15 @@ export function useProject(events?: EventBus) {
             : undefined;
         const loaded = await ensureActiveProject(urlProjectId);
         const list = await listProjects();
+        if (cancelled) return;
+        if (!loaded) {
+          // Empty store — no active project. App renders the template picker.
+          setState(null);
+          setProjects(list);
+          setSnapshots([]);
+          setBooted(true);
+          return;
+        }
         const bps = await loadBreakpoints(loaded.project.id);
         const snaps = await listSnapshots(loaded.project.id);
         if (cancelled) return;
@@ -103,12 +115,13 @@ export function useProject(events?: EventBus) {
         });
         setProjects(list);
         setSnapshots(snaps);
+        setBooted(true);
         if (events && lastEmittedProjectIdRef.current !== loaded.project.id) {
           lastEmittedProjectIdRef.current = loaded.project.id;
           events.emit('project:switched', { projectId: loaded.project.id });
         }
       } catch (e) {
-        if (!cancelled) setError(String(e));
+        if (!cancelled) { setError(String(e)); setBooted(true); }
       }
     })();
     return () => { cancelled = true; };
@@ -401,7 +414,10 @@ export function useProject(events?: EventBus) {
   }, [state?.projectId]);
 
   if (!state) {
-    return { loaded: false as const, error };
+    // No active project. The picker uses `projects` (empty on first run) +
+    // `switchProject` to open a freshly instantiated template. `booted`
+    // distinguishes "still loading" from "resolved, nothing to open".
+    return { loaded: false as const, error, booted, projects, switchProject };
   }
 
   const active = state.files.find((f) => f.path === state.activePath) ?? state.files[0];

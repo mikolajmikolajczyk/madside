@@ -1,13 +1,12 @@
+import { readFileSync } from 'node:fs'
 import { describe, expect, it } from 'vitest'
 import { atariXl } from '@plugins/machine-atari-xl'
 import { machineNes } from '@plugins/machine-nes'
-// Adapter side keeps a parallel copy of the same string — see seed.ts for the
-// ADR-0002 rationale. This test catches drift between the two until v0.5.0
-// ToolchainPlugin work collapses the duplicate.
-import {
-  SEED_ATARI_FOR_TESTS as adapterSeedAtari,
-  SEED_NES_EQUATES_FOR_TESTS as adapterSeedNes,
-} from '@adapters/storage-idb'
+
+// The bootEquates string lives canonically on the MachinePlugin. The bundled
+// templates ship a parallel copy as the equates file each template `icl`s.
+// This catches drift between the two (read the template file straight off disk
+// — the test runs from the repo root).
 
 describe('Atari-XL boot equates', () => {
   it('canonical source is wired on the MachinePlugin', () => {
@@ -15,8 +14,9 @@ describe('Atari-XL boot equates', () => {
     expect(atariXl.bootEquates?.content).toMatch(/SAVMSC\s*=\s*\$58/)
   })
 
-  it('seed.ts parallel copy matches the MachinePlugin source', () => {
-    expect(adapterSeedAtari).toBe(atariXl.bootEquates?.content)
+  it('atari-hello template copy matches the MachinePlugin source', () => {
+    const fromTemplate = readFileSync('templates/atari-hello/src/atari.a65', 'utf8')
+    expect(fromTemplate).toBe(atariXl.bootEquates?.content)
   })
 })
 
@@ -26,7 +26,8 @@ describe('NES boot equates', () => {
     expect(machineNes.bootEquates?.content).toMatch(/PPUCTRL\s*=\s*\$2000/)
   })
 
-  it('seed.ts parallel copy matches the MachinePlugin source', () => {
-    expect(adapterSeedNes).toBe(machineNes.bootEquates?.content)
+  it('nes-hello template copy matches the MachinePlugin source', () => {
+    const fromTemplate = readFileSync('templates/nes-hello/src/nes.a65', 'utf8')
+    expect(fromTemplate).toBe(machineNes.bootEquates?.content)
   })
 })

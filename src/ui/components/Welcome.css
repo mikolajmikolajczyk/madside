@@ -1,0 +1,114 @@
+.welcome {
+  height: 100%;
+  width: 100%;
+  overflow: auto;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 24px;
+  padding: 48px 24px;
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  font-family: var(--font-mono);
+}
+
+.welcome__head {
+  text-align: center;
+}
+
+.welcome__title {
+  margin: 0;
+  font-size: 28px;
+  font-weight: 600;
+  color: var(--text-heading, var(--text-primary));
+}
+
+.welcome__sub {
+  margin: 6px 0 0;
+  color: var(--text-secondary);
+  font-size: 13px;
+}
+
+.welcome__grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  gap: 16px;
+  width: 100%;
+  max-width: 760px;
+}
+
+.welcome__card {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 16px;
+  text-align: left;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-default);
+  border-radius: 8px;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+  transition: border-color 120ms, background 120ms;
+}
+
+.welcome__card:hover:not(:disabled) {
+  border-color: var(--accent-mint);
+  background: var(--bg-tertiary);
+}
+
+.welcome__card:disabled {
+  opacity: 0.55;
+  cursor: default;
+}
+
+.welcome__card-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.welcome__card-name {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.welcome__card-machine {
+  padding: 1px 6px;
+  border: 1px solid var(--border-default);
+  border-radius: 4px;
+  font-size: 10px;
+  color: var(--text-tertiary);
+  white-space: nowrap;
+}
+
+.welcome__card-desc {
+  font-size: 12px;
+  line-height: 1.45;
+  color: var(--text-secondary);
+}
+
+.welcome__card-files {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  font-size: 11px;
+  color: var(--text-quaternary);
+}
+
+.welcome__card-files li::before {
+  content: "› ";
+  color: var(--text-tertiary);
+}
+
+.welcome__card-busy {
+  font-size: 11px;
+  color: var(--accent-mint);
+}
+
+.welcome__error {
+  color: var(--accent-coral);
+  font-size: 12px;
+}

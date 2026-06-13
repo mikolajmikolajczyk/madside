@@ -10,6 +10,9 @@ export interface MenuBarProps {
   projects: ProjectRow[];
   activeProjectId: string;
   activeProjectName: string;
+  /** Bundled templates (id + display name) for the File → Templates submenu. */
+  templates: { id: string; name: string }[];
+  onSelectTemplate: (id: string) => void;
   onNewProject: () => void;
   onSwitchProject: (id: string) => void;
   onRenameProject: () => void;
@@ -43,6 +46,24 @@ export function MenuBar(p: MenuBarProps) {
         <MenuTrigger data-testid="menu.file">File</MenuTrigger>
         <MenuContent>
           <MenuItem data-testid="menu.file.new" onSelect={p.onNewProject}>New project…</MenuItem>
+          <MenuSub>
+            <MenuSubTrigger data-testid="menu.file.templates">Templates</MenuSubTrigger>
+            <MenuSubContent>
+              {p.templates.length === 0 ? (
+                <MenuLabel>(none)</MenuLabel>
+              ) : (
+                p.templates.map((t) => (
+                  <MenuItem
+                    key={t.id}
+                    data-testid={`menu.file.templates.${t.id}`}
+                    onSelect={() => p.onSelectTemplate(t.id)}
+                  >
+                    {t.name}
+                  </MenuItem>
+                ))
+              )}
+            </MenuSubContent>
+          </MenuSub>
           <MenuItem data-testid="menu.file.save" onSelect={p.onAssemble} shortcut="Ctrl+S">Save</MenuItem>
           <MenuSeparator />
           <MenuItem data-testid="menu.file.rename" onSelect={p.onRenameProject}>Rename…</MenuItem>
