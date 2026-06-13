@@ -17,8 +17,9 @@ import { TooltipProvider } from "./components/ui/Tooltip";
 import { TextPromptDialog, ConfirmDialog } from "./components/ui/Dialog";
 import { useProject } from "@app/state";
 import type { CpuRegs } from "./components/debug/Emulator";
-import type { PanelPlugin } from "@ports";
+import type { PanelPlugin, ToolchainPlugin } from "@ports";
 import { extOf } from "@core/path";
+import { getCpuLanguage } from "@core";
 import { useSplitterWidth } from "./hooks/useSplitterWidth";
 import { useDebuggerShortcuts } from "./hooks/useDebuggerShortcuts";
 import { useBreakpointAddrs } from "./hooks/useBreakpointAddrs";
@@ -110,10 +111,22 @@ export default function App() {
 
   const sourceMap = result?.sourceMap ?? null;
 
+  // Editor language is driven by the machine CPU + the project's toolchain
+  // (epic 78b12bf) — not hardcoded MADS. Resolve both for the editor +
+  // label scanner.
+  const cpuLanguage = useMemo(() => getCpuLanguage(machine.cpu), [machine]);
+  const toolchainLanguage = useMemo(() => {
+    if (!project.loaded) return undefined;
+    const tp = workbench.plugins.get('toolchain', project.manifest.toolchain) as ToolchainPlugin | undefined;
+    return tp?.language;
+  }, [project, workbench]);
+
   const projectLabels = useProjectLabels(
     project.loaded ? project.files : null,
     result?.labels,
     sourceMap,
+    cpuLanguage,
+    toolchainLanguage,
   );
 
   const { activeModule: activeEditorModule, assets: pluginAssets } = usePluginEditor({
@@ -546,6 +559,8 @@ export default function App() {
                 breakpointLines={breakpointLines}
                 lineAddrs={lineAddrs}
                 projectLabels={projectLabels}
+                cpuLanguage={cpuLanguage}
+                toolchainLanguage={toolchainLanguage}
                 gotoTarget={gotoTarget}
                 onToggleBreakpoint={onToggleBreakpoint}
                 onSave={runAssemble}

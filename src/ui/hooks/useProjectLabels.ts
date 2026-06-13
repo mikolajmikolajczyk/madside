@@ -1,7 +1,7 @@
 import { useMemo } from "react";
-import { scanFileLabels } from "@app/labels";
-import type { LabelInfo } from "@core";
-import type { SourceMap } from "@ports";
+import { reservedWords, scanFileLabels } from "@app/labels";
+import type { CpuLanguage, LabelInfo } from "@core";
+import type { SourceMap, ToolchainLanguage } from "@ports";
 import { basename } from "@core/path";
 
 interface ProjectFile {
@@ -23,14 +23,17 @@ export function useProjectLabels(
   files: ProjectFile[] | null,
   labels: Map<string, number> | undefined,
   sourceMap: SourceMap | null,
+  cpu: CpuLanguage | undefined,
+  toolchain: ToolchainLanguage | undefined,
 ): Map<string, LabelInfo> {
   return useMemo<Map<string, LabelInfo>>(() => {
     const out = new Map<string, LabelInfo>();
+    const reserved = cpu && toolchain ? reservedWords(cpu, toolchain) : new Set<string>();
     if (files) {
       const dec = new TextDecoder();
       for (const f of files) {
         if (!/\.(a65|asm|inc|s|mac)$/i.test(f.path)) continue;
-        scanFileLabels(dec.decode(f.content), basename(f.path), out);
+        scanFileLabels(dec.decode(f.content), basename(f.path), out, reserved);
       }
     }
     if (labels) {
@@ -44,5 +47,5 @@ export function useProjectLabels(
       }
     }
     return out;
-  }, [files, labels, sourceMap]);
+  }, [files, labels, sourceMap, cpu, toolchain]);
 }

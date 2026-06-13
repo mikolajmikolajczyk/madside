@@ -7,7 +7,17 @@
 //   2. Merge `.lab` dump addresses into the same `LabelInfo` so the
 //      hover popup / goto-def can show both.
 
-import { MADS_DIRECTIVES, MOS6502, type LabelInfo } from "@core";
+import type { CpuLanguage, LabelInfo } from "@core";
+import type { ToolchainLanguage } from "@ports";
+
+/** Reserved words (CPU opcodes + toolchain directives, uppercase) the label
+ *  scanner skips so they aren't mistaken for user labels. CodeMirror-free so
+ *  @ui can build it without pulling the editor lib into the eager bundle. */
+export function reservedWords(cpu: CpuLanguage, lang: ToolchainLanguage): ReadonlySet<string> {
+  const out = new Set<string>(cpu.opcodes);
+  for (const d of lang.directives) out.add(d.toUpperCase());
+  return out;
+}
 
 /** Pull a short body preview starting at the label's declaration line.
  *  Stops at the next top-level label or after `max` lines. */
@@ -42,14 +52,19 @@ export function extractDoc(content: string, startLine: number): string {
 
 /** Scan a single source buffer for label declarations and merge them
  *  into `out`. First definition wins on collisions. */
-export function scanFileLabels(content: string, base: string, out: Map<string, LabelInfo>) {
+export function scanFileLabels(
+  content: string,
+  base: string,
+  out: Map<string, LabelInfo>,
+  reserved: ReadonlySet<string>,
+) {
   const lines = content.split(/\r?\n/);
   for (let i = 0; i < lines.length; i++) {
     const m = /^([A-Za-z_][A-Za-z0-9_]*)\b/.exec(lines[i]);
     if (!m) continue;
     const name = m[1];
     const upper = name.toUpperCase();
-    if (MOS6502.opcodes.has(upper) || MADS_DIRECTIVES.has(upper)) continue;
+    if (reserved.has(upper)) continue;
     if (out.has(name)) continue;
     const lineNo = i + 1;
     const info: LabelInfo = {

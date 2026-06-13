@@ -5,8 +5,9 @@ import { defaultKeymap, history, historyKeymap, indentWithTab } from "@codemirro
 import { bracketMatching, syntaxHighlighting, HighlightStyle, indentUnit } from "@codemirror/language";
 import { tags as t } from "@lezer/highlight";
 import { autocompletion, completionKeymap } from "@codemirror/autocomplete";
-import { madsLanguage, projectLabelsField, setProjectLabels } from "@ui/codemirror";
-import type { LabelInfo } from "@core";
+import { buildAssemblyLanguage, projectLabelsField, setProjectLabels } from "@ui/codemirror";
+import type { CpuLanguage, LabelInfo } from "@core";
+import type { ToolchainLanguage } from "@ports";
 import "./Editor.css";
 
 const theme = EditorView.theme(
@@ -175,7 +176,11 @@ const addrSpacer = new AddrMarker("FFFF");
 // Language packs are loaded on demand. MADS (small + always needed) is the
 // synchronous default; JS / JSON modules are dynamically imported when the
 // user opens a matching file, keeping the initial bundle leaner.
-async function loadLanguagePack(path: string): Promise<Extension[]> {
+async function loadLanguagePack(
+  path: string,
+  cpu: CpuLanguage | undefined,
+  toolchain: ToolchainLanguage | undefined,
+): Promise<Extension[]> {
   const lower = path.toLowerCase();
   if (/\.(js|mjs|cjs|ts|tsx)$/.test(lower)) {
     const [{ javascript }, { jsConverterExtras }] = await Promise.all([
@@ -189,7 +194,8 @@ async function loadLanguagePack(path: string): Promise<Extension[]> {
     const { json } = await import("@codemirror/lang-json");
     return [json()];
   }
-  return [madsLanguage()];
+  // Assembly: built from the active machine CPU + project toolchain language.
+  return cpu && toolchain ? [buildAssemblyLanguage(cpu, toolchain)] : [];
 }
 const languageCompartment = new Compartment();
 
@@ -240,6 +246,10 @@ interface Props {
   breakpointLines?: Set<number>;
   lineAddrs?: Map<number, number>;
   projectLabels?: Map<string, LabelInfo>;
+  /** Active machine CPU vocabulary + project toolchain language — drive the
+   *  assembly highlight / hover / autocomplete. */
+  cpuLanguage?: CpuLanguage;
+  toolchainLanguage?: ToolchainLanguage;
   // Bundle line + tick so jumping to the same line twice still retriggers the effect.
   gotoTarget?: { line: number; tick: number } | null;
   onToggleBreakpoint?: (line: number) => void;
@@ -249,7 +259,7 @@ interface Props {
   onCursorLine?: (line: number) => void;
 }
 
-export function Editor({ value, onChange, filename, pcLine, breakpointLines, lineAddrs, projectLabels, gotoTarget, onToggleBreakpoint, onSave, onViewReady, onJumpToLabel, onCursorLine }: Props) {
+export function Editor({ value, onChange, filename, pcLine, breakpointLines, lineAddrs, projectLabels, cpuLanguage, toolchainLanguage, gotoTarget, onToggleBreakpoint, onSave, onViewReady, onJumpToLabel, onCursorLine }: Props) {
   const hostRef = useRef<HTMLDivElement>(null);
   const viewRef = useRef<EditorView | null>(null);
   const onChangeRef = useRef(onChange);
@@ -312,7 +322,13 @@ export function Editor({ value, onChange, filename, pcLine, breakpointLines, lin
         history(),
         bracketMatching(),
         highlightActiveLine(),
-        languageCompartment.of(madsLanguage()),
+        // Initial language from the mount-time props; the reconfigure effect
+        // below swaps it on file / machine / toolchain change.
+        languageCompartment.of(
+          cpuLanguage && toolchainLanguage
+            ? buildAssemblyLanguage(cpuLanguage, toolchainLanguage)
+            : [],
+        ),
         indentUnit.of("        "),
         EditorState.tabSize.of(8),
         syntaxHighlighting(highlight),
@@ -377,15 +393,16 @@ export function Editor({ value, onChange, filename, pcLine, breakpointLines, lin
         setPcLine.of(null),
       ],
     });
-    // Load and swap the language pack asynchronously (lazy chunk).
+    // Load and swap the language pack asynchronously (lazy chunk). Re-runs when
+    // the file OR the active CPU / toolchain language changes (machine switch).
     let cancelled = false;
-    void loadLanguagePack(filename).then((exts) => {
+    void loadLanguagePack(filename, cpuLanguage, toolchainLanguage).then((exts) => {
       if (cancelled || viewRef.current !== view) return;
       view.dispatch({ effects: languageCompartment.reconfigure(exts) });
     });
     return () => { cancelled = true; };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [filename]);
+  }, [filename, cpuLanguage, toolchainLanguage]);
 
   useEffect(() => {
     const view = viewRef.current;

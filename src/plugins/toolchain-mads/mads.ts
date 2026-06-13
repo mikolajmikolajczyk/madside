@@ -14,11 +14,42 @@ export const madsToolchain: ToolchainPlugin = {
   outputExt: 'xex',
 
   // Editor language (epic 78b12bf). 6502 opcodes come from the machine CPU;
-  // these are the MADS-specific directives + comment markers. Snippets land
-  // with the assembly-language-builder child.
+  // these are the MADS-specific directives, comment markers, and snippets.
   language: {
     directives: [...MADS_DIRECTIVES],
     lineComment: [';', '//'],
+    snippets: [
+      {
+        label: 'loop-y',
+        detail: 'ldy loop body',
+        template: '        ldy #0\n${1:loop}\n        ${2:; body}\n        iny\n        cpy #${3:length}\n        bne ${1:loop}\n',
+      },
+      {
+        label: 'loop-x',
+        detail: 'ldx loop body',
+        template: '        ldx #0\n${1:loop}\n        ${2:; body}\n        inx\n        cpx #${3:length}\n        bne ${1:loop}\n',
+      },
+      {
+        label: 'wait-vbl',
+        detail: 'wait for vertical blank',
+        template: '${1:wait}\n        lda RTCLOK+2\n        cmp RTCLOK+2\n        beq ${1:wait}\n',
+      },
+      {
+        label: 'ptr-set',
+        detail: 'load 16-bit pointer to zero page',
+        template: '        lda #<${1:label}\n        sta ${2:ptr}\n        lda #>${1:label}\n        sta ${2:ptr}+1\n',
+      },
+      {
+        label: 'sub-template',
+        detail: 'subroutine skeleton',
+        template: '${1:name}\n        ${2:; body}\n        rts\n',
+      },
+      {
+        label: 'program',
+        detail: 'minimal program skeleton',
+        template: "        icl 'atari.a65'\n        org $${1:2000}\n\nstart\n        ${2:; main}\n        jmp *\n\n        run start\n",
+      },
+    ],
   },
 
   async build(input): Promise<ToolchainBuildOutput> {
