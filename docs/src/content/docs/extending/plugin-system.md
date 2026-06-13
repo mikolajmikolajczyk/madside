@@ -24,9 +24,17 @@ A project's `project.json` selects which `machine` and `toolchain` it uses; the 
 ## Built-in vs project-local
 
 - **Built-in** plugins ship with madside and register at startup.
-- **Project-local** plugins live in the project under `converters/` or `editors/` as plain ES modules and are loaded at runtime via a Blob URL + dynamic `import()`. A project-local plugin **shadows** a built-in with the same id, so a project can override behaviour without forking madside.
+- **Project-local** plugins live in the project itself, as plain ES modules loaded at runtime via a Blob URL + dynamic `import()`. A project-local plugin **shadows** a built-in with the same id, so a project can override behaviour without forking madside — no build step, just drop a file in.
 
-This is also how third-party plugins are intended to ship — a self-contained module, dropped in, no build step.
+Project-local loading is currently limited to **two kinds**:
+
+| Kind | Project-local? | Where |
+|------|----------------|-------|
+| `converter` | ✅ yes | `converters/*.js` |
+| `editor` | ✅ yes | `editors/*.js` |
+| `machine`, `toolchain`, `emulator`, `debug-adapter`, `panel` | ❌ built-in only | — |
+
+Machines, toolchains, emulators, debug adapters, and panels are **built-in only** today — they're registered at startup and can't yet be supplied per-project. Opening those up to project-local (and third-party) loading is planned but not available; for now, adding one of those means contributing a built-in plugin to madside itself.
 
 ## What's shared vs plugin-specific
 
