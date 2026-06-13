@@ -122,7 +122,7 @@ NES chosen over C64 because: simpler memory map, PPU is a clean foil to ANTIC/GT
 
 ## Documentation convention
 
-All project documentation lives under [`wiki/`](../index.md). ADRs sit at `wiki/adr/`, append-only and numbered. There is no `docs/` folder — Phase 13 user manual (Astro Starlight) reads from `wiki/user/` and publishes to `/docs/` on the hosted site.
+Internal/agent-facing project notes live under [`wiki/`](../index.md) — ADRs (`wiki/adr/`, append-only + numbered), conventions, plugin-api contracts, skills. The **public** documentation is a separate Astro Starlight site under `docs/` (its own workspace), authored in `docs/src/content/docs/` and published to `/docs/` on the hosted site (epic `de964f7`). The old `wiki/user/` placeholder is retired.
 
 ## Links
 

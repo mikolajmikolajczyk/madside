@@ -142,6 +142,12 @@ export function MenuBar(p: MenuBarProps) {
       <Menu>
         <MenuTrigger data-testid="menu.help">Help</MenuTrigger>
         <MenuContent>
+          <MenuItem
+            data-testid="menu.help.docs"
+            onSelect={() => window.open('/docs/', '_blank', 'noopener,noreferrer')}
+          >
+            Documentation
+          </MenuItem>
           <MenuItem disabled>About</MenuItem>
           <MenuItem disabled>Shortcuts…</MenuItem>
         </MenuContent>

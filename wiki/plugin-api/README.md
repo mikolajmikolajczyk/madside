@@ -27,4 +27,4 @@ Earlier roadmap had plugin contracts move into a `packages/plugin-api/` workspac
 
 ## User docs
 
-End-user-facing plugin documentation lives in Phase 13 Starlight docs sourced from `wiki/user/` (issue `1116ee3`). This folder targets plugin *authors*; that one targets workbench *users*.
+These files are the internal **contract** source of truth (agent-facing). The public, tutorial-style plugin-author docs live in the Astro Starlight site under `docs/` (the "Extending madside" section, epic `de964f7`) and curate from these contracts.

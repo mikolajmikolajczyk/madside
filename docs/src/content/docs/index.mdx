@@ -1,0 +1,34 @@
+---
+title: madside
+description: In-browser IDE for retro hardware — write, assemble, run, and debug Atari 8-bit and NES programs, entirely in the browser.
+---
+
+**madside** is an in-browser IDE for retro hardware. Write 6502 assembly, assemble it, run it on a cycle-accurate emulator, and debug it with breakpoints, a register view, and a memory inspector — all in the browser, with nothing to install.
+
+It currently targets two machines:
+
+- **Atari 8-bit** (800XL / 130XE) — the MADS assembler running on the Altirra core.
+- **NES** — MADS again (it assembles NROM iNES directly), running on the jsnes core.
+
+Everything beyond the editor is a **plugin**: machines, toolchains, emulators, debug adapters, panels, file converters, and editors. Adding a new retro platform doesn't touch the workbench — it ships as a set of plugins.
+
+## What you can do
+
+- Start from a **template** or pick a guided **course**, then edit, assemble, and run.
+- Set source-level **breakpoints**, step by instruction or by frame, and watch registers, flags, and memory update.
+- Inspect machine-specific state — the NES build ships a **PPU viewer** (pattern tables + palette).
+- Convert assets (images, CSV, binaries) into assembler data with the **asset pipeline**.
+- Keep your work in the browser (IndexedDB), snapshot it automatically, and export/import projects as ZIP.
+
+## Who these docs are for
+
+- **Users** — people writing retro assembly in madside. Start with [Getting Started](/docs/getting-started/open/).
+- **Plugin authors** — people adding machines, toolchains, panels, converters, or editors. See [Extending madside](/docs/extending/).
+
+:::note
+Learning to *program* a specific machine (Atari display lists, NES PPU, …) is the job of the interactive **courses**, not this reference. These docs cover the tool and its extension points.
+:::
+
+## Where the project lives
+
+madside is developed on [Radicle](https://radicle.xyz) (the canonical forge); GitHub is a CI-only mirror. Licensed under AGPL-3.0.

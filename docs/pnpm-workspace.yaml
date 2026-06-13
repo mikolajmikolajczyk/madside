@@ -1,0 +1,5 @@
+# Makes docs/ a self-contained pnpm root so it doesn't fold into the app's
+# workspace. esbuild + sharp need their install scripts (native binaries).
+allowBuilds:
+  esbuild: true
+  sharp: true

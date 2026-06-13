@@ -130,3 +130,15 @@ install-altirra-wasm:
 # Wipe altirra build dir (forces full reconfigure).
 clean-altirra-build:
     rm -rf "{{altirra_build_dir}}"
+
+# === docs site (Astro Starlight) ===
+
+docs_dir := justfile_directory() / "docs"
+
+# Serve the docs locally at http://localhost:4321/docs/.
+docs-dev:
+    cd "{{docs_dir}}" && pnpm install && pnpm dev
+
+# Build the static docs site into docs/dist/.
+docs-build:
+    cd "{{docs_dir}}" && pnpm install && pnpm build
