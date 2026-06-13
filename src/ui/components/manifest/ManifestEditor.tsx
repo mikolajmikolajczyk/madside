@@ -55,6 +55,24 @@ export function ManifestEditor({ value, onChange, files }: Props) {
   const str = (k: string) => (typeof raw?.[k] === "string" ? (raw[k] as string) : "");
   const machine = machines.find((m) => m.id === str("machine"));
 
+  // Toolchains are filtered to the selected machine's compatibleToolchains
+  // (a machine declares which assemblers target it). A machine with none
+  // declared falls back to the full list.
+  const compatToolchains = machine?.compatibleToolchains ?? [];
+  const toolchainOptions = compatToolchains.length
+    ? toolchains.filter((t) => compatToolchains.includes(t.id))
+    : toolchains;
+
+  // Switch machine — also repair the toolchain if it's no longer compatible.
+  const setMachine = (id: string) => patch((o) => {
+    o.machine = id;
+    const m = machines.find((x) => x.id === id);
+    const compat = m?.compatibleToolchains ?? [];
+    if (compat.length && typeof o.toolchain === "string" && !compat.includes(o.toolchain)) {
+      o.toolchain = compat[0];
+    }
+  });
+
   const renderForm = () => {
     if (!raw) {
       return <div className="manifest__error">project.json is not valid JSON — fix it in the JSON view.</div>;
@@ -83,7 +101,7 @@ export function ManifestEditor({ value, onChange, files }: Props) {
           <select
             className="manifest__input"
             value={str("machine")}
-            onChange={(e) => patch((o) => { o.machine = e.target.value; })}
+            onChange={(e) => setMachine(e.target.value)}
           >
             {machines.map((m) => <option key={m.id} value={m.id}>{m.name} ({m.id})</option>)}
           </select>
@@ -96,7 +114,10 @@ export function ManifestEditor({ value, onChange, files }: Props) {
             value={str("toolchain")}
             onChange={(e) => patch((o) => { o.toolchain = e.target.value; })}
           >
-            {toolchains.map((t) => <option key={t.id} value={t.id}>{t.name} ({t.id})</option>)}
+            {str("toolchain") && !toolchainOptions.some((t) => t.id === str("toolchain")) && (
+              <option value={str("toolchain")}>{str("toolchain")} (incompatible)</option>
+            )}
+            {toolchainOptions.map((t) => <option key={t.id} value={t.id}>{t.name} ({t.id})</option>)}
           </select>
         </label>
 

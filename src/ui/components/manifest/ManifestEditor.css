@@ -43,7 +43,9 @@
   flex-direction: column;
   gap: 12px;
   padding: 20px;
+  width: 100%;
   max-width: 560px;
+  align-self: center;
   overflow: auto;
 }
 
