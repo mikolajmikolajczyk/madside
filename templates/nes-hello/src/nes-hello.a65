@@ -1,12 +1,12 @@
-; minimalny przykład NES — wypełnia ekran kolorem tła przez PPU
+; minimal NES example — fills the screen with the background colour via PPU
         icl 'nes.a65'           ; PPU/APU equates
-        opt h-                  ; headerless raw output (iNES, nie XEX)
+        opt h-                  ; headerless raw output (iNES, not XEX)
 
-; --- iNES header (16B), contiguous przed PRG ---
+; --- iNES header (16B), contiguous before PRG ---
         org $bff0
         dta c"NES",$1a
         dta $01                 ; PRG 16KB
-        dta $00                 ; CHR 0 → CHR-RAM (brak CHR-ROM w pliku)
+        dta $00                 ; CHR 0 -> CHR-RAM (no CHR-ROM in the file)
         dta $00,$00             ; mapper 0 NROM
         dta $00,$00,$00,$00,$00,$00,$00,$00
 
@@ -16,7 +16,7 @@ reset
         sei
         cld
         ldx #$40
-        stx $4017               ; wyłącz APU frame IRQ
+        stx $4017               ; disable APU frame IRQ
         ldx #$ff
         txs
         inx                     ; x=0
@@ -24,16 +24,16 @@ reset
         stx PPUMASK             ; rendering off
         stx $4010               ; DMC IRQ off
 
-vwait1  bit PPUSTATUS           ; czekaj 1. vblank (PPU warmup)
+vwait1  bit PPUSTATUS           ; wait for 1st vblank (PPU warmup)
         bpl vwait1
-vwait2  bit PPUSTATUS           ; czekaj 2. vblank
+vwait2  bit PPUSTATUS           ; wait for 2nd vblank
         bpl vwait2
 
         lda #$3f                ; palette addr $3F00 (universal bg)
         sta PPUADDR
         lda #$00
         sta PPUADDR
-        lda #$21                ; jasnoniebieski
+        lda #$21                ; light blue
         sta PPUDATA
 
         lda #$00                ; reset scroll + addr latch
@@ -42,15 +42,15 @@ vwait2  bit PPUSTATUS           ; czekaj 2. vblank
         sta PPUADDR
         sta PPUADDR
 
-        lda #%00011110          ; PPUMASK: pokaż bg + sprite
+        lda #%00011110          ; PPUMASK: show bg + sprites
         sta PPUMASK
 
 forever jmp forever
 
 nmi     rti
 irq     rti
-        :$fffa-* dta $ff        ; pad PRG do wektorów ($fffa)
+        :$fffa-* dta $ff        ; pad PRG up to the vectors ($fffa)
         dta a(nmi)
         dta a(reset)
         dta a(irq)
-; CHR-RAM (CHR banks=0) — brak CHR-ROM w pliku, PPU pattern w RAM
+; CHR-RAM (CHR banks=0) — no CHR-ROM in the file, PPU patterns live in RAM

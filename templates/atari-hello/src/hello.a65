@@ -1,4 +1,4 @@
-; minimalny przykład — pisze HELLO ATARI na ekran
+; minimal example — writes HELLO ATARI to the screen
         icl 'atari.a65'
         org $2000
 
