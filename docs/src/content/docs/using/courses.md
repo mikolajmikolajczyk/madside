@@ -20,6 +20,14 @@ Pick a course the same way you pick a template:
 
 Selecting a course opens its first lesson as a project in *course mode*.
 
+## Following a community course
+
+Courses don't have to ship with the app — you can load one from any **public GitHub repo**. In the welcome picker's **Courses** section, paste a repo URL (`github.com/owner/repo`, or `owner/repo@branch` to pin a version) and press **Add**. The course installs into your browser, appears as a card, and opens its first lesson.
+
+While you're in a community course, the lesson panel shows the source repo and a **↻ Refresh** button that re-pulls the latest content. Refreshing keeps your edits — use **Reset lesson to starter** if you want a clean slate for the current lesson. Remove an installed course from its card (the **×**) in the welcome picker.
+
+Anyone can publish one — see [Authoring a course](/docs/extending/courses/).
+
 ## Course mode
 
 In course mode the left column splits: the **Files** panel stays on top and a **lesson panel** appears below it. The lesson panel has:

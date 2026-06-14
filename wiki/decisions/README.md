@@ -50,3 +50,4 @@ What would make us re-open this decision.
 - [2026-06-12 — M8 monorepo split cancelled](2026-06-12-monorepo-split-cancelled.md)
 - [2026-06-13 — NES uses MADS (not ca65); machines declare named memory spaces](2026-06-13-nes-uses-mads-and-named-memory-spaces.md)
 - [2026-06-14 — Interactive courses: bundled content, persistent lesson projects, declarative checks](2026-06-14-courses-architecture.md)
+- [2026-06-14 — Remote courses are data, not code — trust model](2026-06-14-remote-courses-trust-model.md)

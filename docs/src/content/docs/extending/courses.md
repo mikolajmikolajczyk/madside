@@ -8,7 +8,7 @@ sidebar:
 A **course** is interactive, in-app learning: a course holds ordered **lessons**, each combining theory (markdown), a starter project, and an automated **check** that verifies the learner's work. Courses are *content*, not plugins — no code to register, no build step. Drop a directory in and it shows up in the picker.
 
 :::note
-This page covers writing a course that ships **with the app** (in the repo's `courses/` directory). Publishing a course from your **own GitHub repo** (so learners load it by pasting a URL) is a separate, upcoming feature — the on-disk format described here is identical, so anything you author now will work either way.
+The format below is the same whether a course ships **with the app** (in the repo's `courses/` directory) or lives in your **own public GitHub repo** that learners load by pasting a URL. Write it once; see [Publish on GitHub](#publish-on-github) at the end for sharing.
 :::
 
 ## Directory layout
@@ -148,3 +148,28 @@ A pure-theory lesson simply omits `check.json` (the Check button is disabled).
 3. Work a lesson, press **Check**, and confirm each assertion reports what you expect. Keep `solution/` assembling cleanly as a regression guard.
 
 Keep checks **lenient enough to not frustrate, strict enough to confirm the concept** — e.g. lesson 1 might only assert `build` + the entry label, not the exact bytes, so a learner who solves it a different way still passes.
+
+## Publish on GitHub
+
+Anyone can publish a course from a **public GitHub repo** — no app code changes, no account, no submission. The repo *is* the course.
+
+1. **Lay the course at the repo root** — `course.json` + `lessons/` exactly as above. (The whole repo is the course; there's no `courses/<id>/` wrapper here.)
+2. **Push it to a public GitHub repo.**
+3. **Share the URL.** A learner opens the welcome screen's **Courses** section, pastes `github.com/<owner>/<repo>` (or the shorthand `<owner>/<repo>`), and the course installs + opens. They can **Refresh from repo** later to pull your updates, and remove it anytime.
+
+```
+github.com/you/my-atari-course
+  course.json
+  lessons/01-hello/lesson.md, files/…, check.json
+  lessons/02-…/
+```
+
+**Pin a ref for reproducibility.** By default the course tracks your default branch (`main`/`master`), so edits reach learners on Refresh. To freeze a known-good version, learners can target a tag or commit: `github.com/you/my-atari-course/tree/v1` or `you/my-atari-course@v1`. Tagging releases is recommended.
+
+**What's fetched, and the limits.** Courses load over the jsDelivr CDN (CORS-enabled, cached) — only `course.json` and `lessons/**` are read; everything else in the repo is ignored. Constraints today:
+
+- **GitHub public repos only.** Other hosts (GitLab, Codeberg, self-hosted) need a proxy and aren't supported yet.
+- **Data only.** Courses are markdown + assembly + declarative `check.json` — they cannot ship plugins or run JavaScript. Lesson markdown is sanitized (no raw HTML).
+- **Size caps:** ≤ 1000 files, ≤ 100 lessons, ≤ 8 MB total; a malformed `course.json`/`check.json` is rejected with an error.
+
+That's the whole contract — push a repo, share the link.
