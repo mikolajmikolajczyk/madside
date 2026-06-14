@@ -23,6 +23,7 @@ Today most kinds ship **built-in** (registered at workbench startup), and only *
 - [Emulator plugins](/docs/extending/emulator/) — the run backend (framebuffer, audio, step, breakpoints, save state).
 - [Debug adapters](/docs/extending/debug-adapter/) — register/flag descriptors and the debug surface.
 - [Adding a template](/docs/extending/templates/) — bundle a starter project.
+- [Authoring a course](/docs/extending/courses/) — interactive lessons with declarative checks.
 - [Validating your plugin](/docs/extending/validating/) — the contract test harnesses.
 
 For the full `project.json` schema, the memory-space table, and the supported machine/toolchain/emulator matrix, see the [Reference](/docs/reference/) section.
