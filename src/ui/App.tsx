@@ -16,7 +16,7 @@ import { PanelSlot } from "./components/PanelSlot";
 const Welcome = lazy(() => import("./components/Welcome").then((m) => ({ default: m.Welcome })));
 const CoursePanel = lazy(() => import("./components/course/CoursePanel").then((m) => ({ default: m.CoursePanel })));
 import { TooltipProvider } from "./components/ui/Tooltip";
-import { TextPromptDialog, ConfirmDialog } from "./components/ui/Dialog";
+import { TextPromptDialog, ConfirmDialog, Dialog, DialogContent } from "./components/ui/Dialog";
 import { useProject } from "@app/state";
 import type { CpuRegs } from "./components/debug/Emulator";
 import type { PanelPlugin, ToolchainPlugin } from "@ports";
@@ -52,6 +52,11 @@ function isAssetPath(path: string): boolean {
 function isManifestPath(path: string): boolean {
   return basename(path) === "project.json";
 }
+
+// Docs link (mirrors MenuBar). Overridable via VITE_DOCS_URL.
+const DOCS_URL =
+  (import.meta.env.VITE_DOCS_URL as string | undefined) ??
+  (import.meta.env.DEV ? "http://localhost:4321/docs/" : "/docs/");
 
 export default function App() {
   const workbench = useWorkbench();
@@ -460,6 +465,7 @@ export default function App() {
   }, [project]);
 
   const [historyOpen, setHistoryOpen] = useState(false);
+  const [aboutOpen, setAboutOpen] = useState(false);
 
   const [explorerW, setExplorerW] = useSplitterWidth("splitter.explorer", 220);
   const [sideW, setSideW] = useSplitterWidth("splitter.side", 480);
@@ -562,6 +568,7 @@ export default function App() {
         onClearBp={project.clearAllBreakpoints}
         onSnapshotNow={handleSnapshotNow}
         onOpenHistory={() => setHistoryOpen(true)}
+        onAbout={() => setAboutOpen(true)}
       />
       <input
         ref={importFileInputRef}
@@ -771,6 +778,25 @@ export default function App() {
           await project.deleteProject();
         }}
       />
+
+      <Dialog open={aboutOpen} onOpenChange={setAboutOpen}>
+        <DialogContent title={`madside v${__APP_VERSION__}`}>
+          <div className="about">
+            <p className="about__alpha">
+              <strong>Alpha</strong> — under active, extensive testing. Expect rough
+              edges; your projects live in this browser (export anything you want to keep).
+            </p>
+            <p className="about__desc">
+              An in-browser IDE for retro hardware — Atari 8-bit and NES, plugin-based.
+            </p>
+            <p className="about__links">
+              <a href={DOCS_URL} target="_blank" rel="noopener noreferrer">Documentation</a>
+              {" · "}
+              <span className="about__muted">AGPL-3.0</span>
+            </p>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
     </TooltipProvider>
   );

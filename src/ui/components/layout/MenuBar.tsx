@@ -48,6 +48,7 @@ export interface MenuBarProps {
   onClearBp?: () => void;
   onOpenHistory?: () => void;
   onSnapshotNow?: () => void;
+  onAbout?: () => void;
 }
 
 export function MenuBar(p: MenuBarProps) {
@@ -177,7 +178,7 @@ export function MenuBar(p: MenuBarProps) {
           >
             Documentation
           </MenuItem>
-          <MenuItem disabled>About</MenuItem>
+          <MenuItem data-testid="menu.help.about" onSelect={p.onAbout}>About</MenuItem>
           <MenuItem disabled>Shortcuts…</MenuItem>
         </MenuContent>
       </Menu>

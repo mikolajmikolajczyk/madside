@@ -103,6 +103,7 @@ export function Welcome({ onOpen }: Props) {
       <div className="welcome__head">
         <h1 className="welcome__title">madside</h1>
         <p className="welcome__sub">Start a new project.</p>
+        <p className="welcome__version">v{__APP_VERSION__} · alpha</p>
       </div>
 
       <section className="welcome__blank">

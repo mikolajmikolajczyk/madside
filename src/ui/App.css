@@ -48,3 +48,20 @@
   font-family: var(--font-mono);
   font-size: 13px;
 }
+
+/* Help → About dialog */
+.about { display: flex; flex-direction: column; gap: 10px; max-width: 420px; }
+.about__alpha {
+  margin: 0;
+  padding: 8px 10px;
+  border: 1px solid var(--accent-amber);
+  border-radius: 6px;
+  color: var(--text-primary);
+  font-size: 12px;
+  line-height: 1.5;
+}
+.about__alpha strong { color: var(--accent-amber); }
+.about__desc { margin: 0; color: var(--text-secondary); font-size: 12px; line-height: 1.5; }
+.about__links { margin: 0; font-size: 12px; }
+.about__links a { color: var(--accent-mint); }
+.about__muted { color: var(--text-tertiary); }
