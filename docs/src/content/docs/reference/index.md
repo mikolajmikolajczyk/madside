@@ -5,13 +5,14 @@ sidebar:
   order: 0
 ---
 
-Quick-lookup reference. Filling in incrementally:
+Terse, source-accurate lookup tables. Each page mirrors a single authoritative
+source in the codebase so the docs don't drift.
 
-- **Keyboard shortcuts** — the full table.
-- **File extensions** — what `.a65` / `.nes` / `.js` etc. mean to madside.
-- **`project.json` fields** — the complete manifest schema.
-- **Memory spaces** — `cpu`, and machine extras like NES `ppu` / `oam`.
-- **Machines / toolchains / emulators** — the supported matrix.
-- **Glossary** — Atari, NES, and plugin terminology.
-- **IndexedDB schema** — how projects are stored.
-- **Event bus events** — the typed workbench event map.
+- [`project.json` manifest](/docs/reference/manifest/) — complete field reference.
+- [Keyboard shortcuts](/docs/reference/keyboard-shortcuts/) — the full table.
+- [File extensions](/docs/reference/file-extensions/) — source, output, and asset extensions.
+- [Memory spaces](/docs/reference/memory-spaces/) — `cpu`, and machine extras like NES `ppu` / `oam`.
+- [Machines](/docs/reference/machines/) — machine × toolchain × emulator × debug-adapter matrix.
+- [Storage](/docs/reference/storage/) — the IndexedDB schema.
+- [Events](/docs/reference/events/) — the typed workbench event map.
+- [Glossary](/docs/reference/glossary/) — Atari, NES, and plugin terminology.
