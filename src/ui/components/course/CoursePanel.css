@@ -34,6 +34,58 @@
   white-space: nowrap;
 }
 
+/* remote source row (GitHub courses) */
+.course__source {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 4px 10px;
+  border-bottom: 1px solid var(--border-default);
+  font-size: 11px;
+  color: var(--text-tertiary);
+}
+
+.course__source-repo {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.course__refresh {
+  flex: 0 0 auto;
+  padding: 2px 8px;
+  background: var(--bg-tertiary);
+  border: 1px solid var(--border-default);
+  border-radius: 4px;
+  color: var(--text-secondary);
+  font: inherit;
+  font-size: 11px;
+  cursor: pointer;
+}
+
+.course__refresh:hover:not(:disabled) { border-color: var(--accent-mint); color: var(--text-primary); }
+.course__refresh:disabled { opacity: 0.5; cursor: default; }
+
+/* reset-to-starter */
+.course__reset {
+  padding: 6px 10px;
+  border-top: 1px solid var(--border-default);
+}
+
+.course__reset-btn {
+  background: none;
+  border: none;
+  padding: 0;
+  color: var(--text-tertiary);
+  font: inherit;
+  font-size: 11px;
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+.course__reset-btn:hover { color: var(--accent-coral); }
+
 /* lesson list / progress */
 .course__lessons {
   margin: 0;

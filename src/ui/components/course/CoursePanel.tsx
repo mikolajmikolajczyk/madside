@@ -2,6 +2,7 @@ import { useMemo, useState } from "react";
 import Markdown from "react-markdown";
 import { getCourse, getLesson, lessonNav } from "@app";
 import type { CheckReport, CourseCheck } from "@app";
+import { useCourses } from "../../hooks/useCourses";
 import "./CoursePanel.css";
 
 interface Props {
@@ -14,6 +15,10 @@ interface Props {
   /** Run the lesson's declarative checks (assemble + headless run + evaluate).
    *  Optional — wired by App; absent until the check handler is connected. */
   onCheck?: (checks: CourseCheck[]) => Promise<CheckReport>;
+  /** Re-fetch a remote course from its repo (preserves learner edits). */
+  onRefresh?: (courseId: string) => Promise<void>;
+  /** Discard this lesson's edits, restoring the (refreshed) starter files. */
+  onReset?: (courseId: string, lessonId: string) => Promise<void>;
 }
 
 /** Course-mode lesson panel: rendered markdown theory + instructions, a lesson
@@ -21,13 +26,24 @@ interface Props {
  *  column below the file explorer. Lazy-loaded (pulls in react-markdown) so the
  *  course chunk stays out of the main bundle. The Check button is a placeholder
  *  until the declarative check runner lands (child 29540fd). */
-export function CoursePanel({ courseId, lessonId, onOpenLesson, onCheck }: Props) {
+export function CoursePanel({ courseId, lessonId, onOpenLesson, onCheck, onRefresh, onReset }: Props) {
+  useCourses(); // subscribe: re-render after remote hydration / refresh, and hydrate on mount
   const course = getCourse(courseId);
   const lesson = getLesson(courseId, lessonId);
   const nav = useMemo(() => lessonNav(courseId, lessonId), [courseId, lessonId]);
 
   const [checking, setChecking] = useState(false);
   const [report, setReport] = useState<CheckReport | null>(null);
+  const [refreshing, setRefreshing] = useState(false);
+
+  const doRefresh = async () => {
+    if (!onRefresh) return;
+    setRefreshing(true);
+    try { await onRefresh(courseId); } finally { setRefreshing(false); }
+  };
+  const doReset = async () => {
+    if (onReset) await onReset(courseId, lessonId);
+  };
 
   // Reset the previous lesson's report when navigating.
   const navKey = `${courseId}/${lessonId}`;
@@ -62,6 +78,23 @@ export function CoursePanel({ courseId, lessonId, onOpenLesson, onCheck }: Props
           Lesson {nav.index + 1} / {nav.total}
         </div>
       </header>
+
+      {course.source.kind === "github" && (
+        <div className="course__source">
+          <span className="course__source-repo" title={`installed ${new Date(course.source.fetchedAt).toLocaleString()}`}>
+            {course.source.owner}/{course.source.repo}{course.source.ref ? `@${course.source.ref}` : ""}
+          </span>
+          {onRefresh && (
+            <button
+              type="button"
+              className="course__refresh"
+              disabled={refreshing}
+              onClick={() => void doRefresh()}
+              data-testid="course.refresh"
+            >{refreshing ? "refreshing…" : "↻ Refresh"}</button>
+          )}
+        </div>
+      )}
 
       <ol className="course__lessons">
         {course.lessons.map((id, i) => {
@@ -104,6 +137,17 @@ export function CoursePanel({ courseId, lessonId, onOpenLesson, onCheck }: Props
           </div>
         )}
       </div>
+
+      {onReset && (
+        <div className="course__reset">
+          <button
+            type="button"
+            className="course__reset-btn"
+            onClick={() => void doReset()}
+            data-testid="course.reset"
+          >Reset lesson to starter</button>
+        </div>
+      )}
 
       <footer className="course__nav">
         <button

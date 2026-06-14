@@ -12,6 +12,7 @@ import {
   createProject,
   listProjects,
   loadProject,
+  saveFile,
   MANIFEST_PATH,
   textToBytes,
   type Manifest,
@@ -56,6 +57,30 @@ export async function openLesson(courseId: string, lessonId: string): Promise<st
   ]
   const row = await createProject(name, files, manifest)
   return row.id
+}
+
+/** Overwrite a lesson project's files with the lesson's (possibly refreshed)
+ *  starter files — the explicit "reset to starter" escape hatch that discards
+ *  the learner's edits for this lesson. The course-stamped manifest is
+ *  preserved. Returns the project id, or undefined if the lesson hasn't been
+ *  opened yet. */
+export async function resetLessonToStarter(courseId: string, lessonId: string): Promise<string | undefined> {
+  const projectId = await findLessonProject(courseId, lessonId)
+  if (!projectId) return undefined
+  const lesson = getLesson(courseId, lessonId)
+  if (!lesson) throw new Error(`resetLessonToStarter: unknown lesson '${courseId}/${lessonId}'`)
+
+  const loaded = await loadProject(projectId)
+  const manifest = loaded?.manifest // keep the existing course-stamped manifest
+
+  for (const f of lesson.files) {
+    if (f.path === MANIFEST_PATH) continue // never let the starter clobber the stamped manifest
+    await saveFile(projectId, f.path, textToBytes(f.content))
+  }
+  if (manifest) {
+    await saveFile(projectId, MANIFEST_PATH, textToBytes(JSON.stringify(manifest, null, 2) + '\n'))
+  }
+  return projectId
 }
 
 export interface LessonNav {

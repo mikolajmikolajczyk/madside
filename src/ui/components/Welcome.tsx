@@ -1,5 +1,6 @@
 import { useMemo, useState } from "react";
-import { createBlankProject, getCourse, getTemplateManifestText, instantiateTemplate, listCourses, listTemplates, openLesson } from "@app";
+import { createBlankProject, getCourse, getTemplateManifestText, installCourseFromGitHub, instantiateTemplate, listTemplates, openLesson, removeRemoteCourse } from "@app";
+import { useCourses } from "../hooks/useCourses";
 import { ManifestEditor } from "./manifest/ManifestEditor";
 import "./Welcome.css";
 
@@ -17,7 +18,8 @@ const dec = new TextDecoder();
 export function Welcome({ onOpen }: Props) {
   // Templates minus 'empty' (the empty flow is the top section).
   const templates = useMemo(() => listTemplates().filter((t) => t.id !== "empty"), []);
-  const courses = useMemo(() => listCourses(), []);
+  const courses = useCourses();
+  const [repoInput, setRepoInput] = useState("");
   const emptyFiles = useMemo(
     () => (listTemplates().find((t) => t.id === "empty")?.files ?? []).map((path) => ({ path })),
     [],
@@ -61,6 +63,37 @@ export function Welcome({ onOpen }: Props) {
       onOpen(projectId);
     } catch (e) {
       setError(String(e));
+      setBusy(null);
+    }
+  };
+
+  // Install a course from a public GitHub repo, then open its first lesson.
+  const addCourse = async () => {
+    const input = repoInput.trim();
+    if (!input) return;
+    setBusy("add-course");
+    setError(null);
+    try {
+      const info = await installCourseFromGitHub(input);
+      setRepoInput("");
+      const first = info.lessons[0];
+      if (!first) throw new Error("course has no lessons");
+      const projectId = await openLesson(info.id, first);
+      onOpen(projectId);
+    } catch (e) {
+      setError(`could not add course: ${String(e instanceof Error ? e.message : e)}`);
+      setBusy(null);
+    }
+  };
+
+  const removeCourse = async (id: string) => {
+    setBusy(`remove:${id}`);
+    setError(null);
+    try {
+      await removeRemoteCourse(id);
+    } catch (e) {
+      setError(String(e));
+    } finally {
       setBusy(null);
     }
   };
@@ -116,31 +149,68 @@ export function Welcome({ onOpen }: Props) {
         </div>
       </section>
 
-      {courses.length > 0 && (
-        <section className="welcome__templates">
-          <div className="welcome__section-title label">Or follow a course</div>
+      <section className="welcome__templates">
+        <div className="welcome__section-title label">Or follow a course</div>
+        <div className="welcome__add-course">
+          <input
+            className="welcome__add-input"
+            placeholder="Add a course from GitHub — github.com/owner/repo (or owner/repo@branch)"
+            value={repoInput}
+            disabled={busy != null}
+            onChange={(e) => setRepoInput(e.target.value)}
+            onKeyDown={(e) => { if (e.key === "Enter") void addCourse(); }}
+            data-testid="welcome.course-repo"
+          />
+          <button
+            type="button"
+            className="welcome__add-btn"
+            disabled={busy != null || !repoInput.trim()}
+            onClick={() => void addCourse()}
+            data-testid="welcome.course-add"
+          >
+            {busy === "add-course" ? "adding…" : "Add"}
+          </button>
+        </div>
+        {courses.length > 0 && (
           <div className="welcome__grid">
-            {courses.map((c) => (
-              <button
-                key={c.id}
-                type="button"
-                className="welcome__card"
-                disabled={busy != null}
-                onClick={() => void pickCourse(c.id)}
-                data-testid={`welcome.course.${c.id}`}
-              >
-                <span className="welcome__card-head">
-                  <span className="welcome__card-name">{c.title}</span>
-                  <span className="welcome__card-machine label">{c.machine}</span>
-                </span>
-                <span className="welcome__card-desc">{c.description}</span>
-                <span className="welcome__card-files">{c.lessons.length} lessons</span>
-                {busy === `course:${c.id}` && <span className="welcome__card-busy">opening…</span>}
-              </button>
-            ))}
+            {courses.map((c) => {
+              const remote = c.source.kind === "github";
+              return (
+                <div key={c.id} className="welcome__card-wrap">
+                  <button
+                    type="button"
+                    className="welcome__card"
+                    disabled={busy != null}
+                    onClick={() => void pickCourse(c.id)}
+                    data-testid={`welcome.course.${c.id}`}
+                  >
+                    <span className="welcome__card-head">
+                      <span className="welcome__card-name">{c.title}</span>
+                      <span className="welcome__card-machine label">{c.machine}</span>
+                    </span>
+                    <span className="welcome__card-desc">{c.description}</span>
+                    <span className="welcome__card-files">
+                      {c.lessons.length} lessons
+                      {c.source.kind === "github" && ` · ${c.source.owner}/${c.source.repo}`}
+                    </span>
+                    {busy === `course:${c.id}` && <span className="welcome__card-busy">opening…</span>}
+                  </button>
+                  {remote && (
+                    <button
+                      type="button"
+                      className="welcome__card-remove"
+                      title="Remove this course"
+                      disabled={busy != null}
+                      onClick={() => void removeCourse(c.id)}
+                      data-testid={`welcome.course-remove.${c.id}`}
+                    >×</button>
+                  )}
+                </div>
+              );
+            })}
           </div>
-        </section>
-      )}
+        )}
+      </section>
 
       {error && <div className="welcome__error">{error}</div>}
     </div>

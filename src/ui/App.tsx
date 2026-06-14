@@ -32,7 +32,8 @@ import { useAutoAssemble } from "./hooks/useAutoAssemble";
 import { useRunStatus } from "./hooks/useRunStatus";
 import { useActiveMachine } from "./hooks/useActiveMachine";
 import { useWorkbench } from "@app";
-import { getCourse, instantiateTemplate, listCourses, listTemplates, openLesson, runChecks } from "@app";
+import { getCourse, instantiateTemplate, listTemplates, openLesson, refreshCourseFromGitHub, resetLessonToStarter, runChecks } from "@app";
+import { useCourses } from "./hooks/useCourses";
 import type { CheckReport, CheckRunDeps } from "@app";
 import type { CourseCheck } from "@app";
 import "./App.css";
@@ -433,8 +434,25 @@ export default function App() {
     return runChecks(checks, deps);
   }, [runAssemble, workbench]);
 
+  // Re-fetch a remote course from its repo (preserves learner edits — only the
+  // course definition updates; the active lesson project is left as-is).
+  const handleRefreshCourse = useCallback(async (courseId: string) => {
+    const c = getCourse(courseId);
+    if (c?.source.kind !== "github") return;
+    await refreshCourseFromGitHub({ owner: c.source.owner, repo: c.source.repo, ref: c.source.ref });
+  }, []);
+
+  // Discard a lesson's edits, restoring the (refreshed) starter files, then
+  // reload the project so the editor shows them.
+  const handleResetLesson = useCallback(async (courseId: string, lessonId: string) => {
+    if (!project.loaded) return;
+    const id = await resetLessonToStarter(courseId, lessonId);
+    if (id) await project.switchProject(id);
+  }, [project]);
+
   const templateList = useMemo(() => listTemplates().map((t) => ({ id: t.id, name: t.name })), []);
-  const courseList = useMemo(() => listCourses().map((c) => ({ id: c.id, name: c.title })), []);
+  const courses = useCourses();
+  const courseList = useMemo(() => courses.map((c) => ({ id: c.id, name: c.title })), [courses]);
   const handleSelectTemplate = useCallback(async (id: string) => {
     if (!project.loaded) return;
     const row = await instantiateTemplate(id);
@@ -599,6 +617,8 @@ export default function App() {
                   lessonId={course.lesson}
                   onOpenLesson={(c, l) => { void handleOpenLesson(c, l); }}
                   onCheck={handleCheck}
+                  onRefresh={handleRefreshCourse}
+                  onReset={handleResetLesson}
                 />
               </Suspense>
             </div>
