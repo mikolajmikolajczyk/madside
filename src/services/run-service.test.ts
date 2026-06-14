@@ -209,4 +209,38 @@ describe('RunService — FSM transitions', () => {
       expect(cb).toHaveBeenCalledTimes(1)
     })
   })
+
+  // Regression: a slow backend boot in flight when the project switches machine
+  // (reconfigure) must not clobber the freshly-selected core. Previously the
+  // resolved old boot re-assigned `backend`, so the next load() ran on the
+  // wrong emulator (Atari core fed an iNES → "unsupported format 'nes'").
+  describe('reconfigure during an in-flight boot', () => {
+    it('discards the stale boot and loads on the reconfigured backend', async () => {
+      const events = createEventBus()
+      // Old (Atari-like) backend: its boot is gated so we can interleave a
+      // reconfigure before it resolves; rejects the new format if ever used.
+      let releaseOld!: () => void
+      const oldGate = new Promise<void>((res) => { releaseOld = res })
+      const oldBackend = fakeBackend(() => { throw new Error("unsupported format 'nes'") })
+      const newBackend = fakeBackend() // accepts the load
+
+      const svc = createRunService({
+        events,
+        backendFactory: async () => { await oldGate; return oldBackend },
+      })
+
+      const booting = svc.boot() // starts the slow old boot, suspends on the gate
+      svc.reconfigure({
+        backendFactory: async () => newBackend,
+        media: { detect: () => 'nes' } as never,
+        hardwareConfig: undefined,
+      })
+      releaseOld() // stale old boot now resolves — must NOT become the backend
+      await booting.catch(() => undefined)
+
+      const r = await svc.load(binary)
+      expect(r.ok).toBe(true)
+      expect(svc.status).toBe('loaded')
+    })
+  })
 })

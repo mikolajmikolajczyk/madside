@@ -64,6 +64,11 @@ export function createRunService(deps: RunServiceDeps): RunService {
   const log = deps.logger?.child('run') ?? deps.logger
   let backend: RunBackend | null = null
   let backendPromise: Promise<RunBackend> | null = null
+  // Bumped on every reconfigure(); ensureBackend() captures it before booting
+  // and discards a backend whose boot finished after a machine swap (else a
+  // slow Altirra boot in flight when the project switches to NES would clobber
+  // the nulled `backend` and the next load() would run on the wrong core).
+  let bootEpoch = 0
   let status: RunStatus = 'idle'
   const subscribers = new Set<() => void>()
 
@@ -99,13 +104,17 @@ export function createRunService(deps: RunServiceDeps): RunService {
 
   const ensureBackend = async (): Promise<RunBackend> => {
     if (backend) return backend
+    const epoch = bootEpoch
     if (!backendPromise) {
+      // Capture factory + hw so a reconfigure mid-boot can't mutate them under
+      // this in-flight boot.
+      const factory = backendFactory
+      const hw = hardwareConfig
       backendPromise = (async () => {
-        const b = await backendFactory()
+        const b = await factory()
         // Apply MachinePlugin hardware config before any load — Altirra's
         // setters take effect on the next ColdReset (which loadXEX et al.
         // trigger).
-        const hw = hardwareConfig
         if (hw) {
           const wb = b as RunBackend & {
             setHardwareMode?(n: number): void
@@ -121,7 +130,11 @@ export function createRunService(deps: RunServiceDeps): RunService {
         return b
       })()
     }
-    backend = await backendPromise
+    const b = await backendPromise
+    // A reconfigure() happened while this backend was booting — it's for the
+    // old machine. Discard it and boot the freshly-configured core instead.
+    if (epoch !== bootEpoch) return ensureBackend()
+    backend = b
     return backend
   }
 
@@ -137,6 +150,7 @@ export function createRunService(deps: RunServiceDeps): RunService {
       if (status !== 'idle') transitionTo('idle', 'reconfigure')
       backend = null
       backendPromise = null
+      bootEpoch++ // invalidate any in-flight boot of the previous core
       backendFactory = opts.backendFactory
       media = opts.media
       hardwareConfig = opts.hardwareConfig
