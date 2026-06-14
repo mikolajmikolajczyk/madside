@@ -1,0 +1,10 @@
+.git
+node_modules
+docs/node_modules
+dist
+docs/dist
+docs/.astro
+.direnv
+.rtk
+result
+**/*.log

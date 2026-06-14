@@ -1,2 +1,6 @@
+# pnpm 11 build-script approval (pnpm's own key; not read from package.json).
+# unrs-resolver (transitive, via eslint-import-resolver-typescript) ships a
+# native binding with a build script — allow it so fresh installs (Docker / CI)
+# don't fail with ERR_PNPM_IGNORED_BUILDS.
 allowBuilds:
   unrs-resolver: true
