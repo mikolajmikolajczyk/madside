@@ -50,12 +50,13 @@ export function applyBaseline(db: IDBPDatabase<MadsideDB>): void {
  *  the runner picks the highest `v` and runs every entry whose `v` exceeds
  *  the user's stored version. */
 export const migrations: Migration[] = [
-  // Example shape for future bumps:
-  // {
-  //   v: 3,
-  //   description: 'rename meta.activeProjectId to meta.activeProject',
-  //   run(db) { /* … */ },
-  // },
+  {
+    v: 3,
+    description: "add courses store (installed remote courses, epic ecd5258)",
+    run(db) {
+      db.createObjectStore("courses", { keyPath: "sourceId" });
+    },
+  },
 ];
 
 /** Highest schema version the workbench supports. Derived so adding a

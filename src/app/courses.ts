@@ -1,11 +1,9 @@
-// Bundled interactive courses (epic 2e9c7cc, child 3ed11be). Courses live in
-// the repo-root `courses/<id>/` directory and are bundled at build time via
-// Vite's glob import — the same mechanism as `templates/` (no separate repo,
-// offline, always available). A course is an ordered set of lessons; each
-// lesson carries theory + instructions (markdown), starter project files, an
-// optional declarative check, and an optional reference solution.
+// Interactive courses (epic 2e9c7cc) + remote course repositories (epic
+// ecd5258). A course is an ordered set of lessons; each lesson carries theory
+// (markdown), starter project files, an optional declarative check, and an
+// optional reference solution.
 //
-//   courses/<id>/
+//   <course-root>/
 //     course.json                 # { title, description, machine, order? }
 //     lessons/<nn>-<slug>/
 //       lesson.md                 # theory + instructions (first H1 = title)
@@ -13,14 +11,19 @@
 //       check.json                # { checks: CourseCheck[] }  (optional)
 //       solution/<path>           # reference solution (optional)
 //
-// Lesson order is the sorted lesson-directory name (the `<nn>-` numeric prefix),
-// so there is no second list to keep in sync with the directories on disk.
+// Lesson order is the sorted lesson-directory name (the `<nn>-` numeric prefix).
 //
-// This module is the loader + read API only. Lesson → project instantiation
-// (child 500f11c), the lesson panel (30ba629) and the check runner (29540fd)
-// build on top of it.
+// Courses come from two sources, merged into one read API:
+//   - `bundled`  — ship with the app under repo-root `courses/`, Vite-globbed.
+//   - `github`   — installed from a public GitHub repo (fetched via jsDelivr),
+//                  persisted in IDB, hydrated into memory at startup.
+// `listCourses`/`getCourse`/`getLesson` span both. A small subscribe/snapshot
+// store lets React re-render when remote courses are hydrated/installed/removed
+// (consumed via `useCourses`, ADR-0007 useSyncExternalStore style).
 
-/** A declarative lesson check. The runner (child 29540fd) consumes these;
+import { installRemoteCourse, listInstalledCourses, removeInstalledCourse, type InstalledCourseRow } from '@adapters/storage-idb'
+
+/** A declarative lesson check. The runner (`@app/check-runner`) consumes these;
  *  authored as JSON in each lesson's check.json. Hex strings (e.g. "$0080")
  *  are used for addresses/values so assembly authors read them naturally. */
 export type CourseCheck =
@@ -31,9 +34,7 @@ export type CourseCheck =
 
 /** course.json — the picker-facing course descriptor. */
 export interface CourseMeta {
-  /** Display title shown in the course picker. */
   title: string
-  /** One-line summary of what the course teaches. */
   description: string
   /** Machine id the course targets (badge in the picker). */
   machine: string
@@ -41,13 +42,24 @@ export interface CourseMeta {
   order?: number
 }
 
+/** Where a course came from. */
+export type CourseSource =
+  | { kind: 'bundled' }
+  | {
+      kind: 'github'
+      sourceId: string
+      owner: string
+      repo: string
+      ref: string
+      resolvedRef?: string
+      fetchedAt: number
+    }
+
 /** A lesson's content, fully loaded. */
 export interface Lesson {
-  /** Lesson directory name, e.g. `01-hello`. Stable id within the course. */
   id: string
   /** Display title — the first `# ` heading in lesson.md, else the slug. */
   title: string
-  /** Rendered-as-markdown theory + instructions. */
   body: string
   /** Starter project files (project.json + sources), project-root relative. */
   files: { path: string; content: string }[]
@@ -57,26 +69,23 @@ export interface Lesson {
   solution: { path: string; content: string }[]
 }
 
-/** Course listing entry (metadata + lesson count, no lesson bodies). */
+/** Course listing entry (metadata + lesson ids + source, no lesson bodies). */
 export interface CourseInfo extends CourseMeta {
   id: string
-  /** Ordered lesson ids (directory names). */
   lessons: string[]
+  source: CourseSource
 }
 
 interface CourseBundle {
   id: string
   meta: CourseMeta
   lessons: Map<string, Lesson>
+  source: CourseSource
 }
 
-// Eager raw glob — keys are absolute repo-root paths, values the file text.
-// Vite inlines these at build; vitest resolves them against the filesystem.
-const RAW = import.meta.glob('/courses/**/*', {
-  query: '?raw',
-  eager: true,
-  import: 'default',
-}) as Record<string, string>
+// ---------------------------------------------------------------------------
+// Bundle assembly (shared by the glob loader and the remote fetcher)
+// ---------------------------------------------------------------------------
 
 /** First `# Heading` line of a markdown body, else undefined. */
 function firstHeading(md: string): string | undefined {
@@ -91,44 +100,39 @@ interface LessonAcc {
   checks?: CourseCheck[]
 }
 
-function loadBundles(): Map<string, CourseBundle> {
-  // courseId -> { meta?, lessons: lessonId -> accumulator }
-  const acc = new Map<string, { meta?: CourseMeta; lessons: Map<string, LessonAcc> }>()
-  const lessonAcc = (c: { lessons: Map<string, LessonAcc> }, id: string): LessonAcc => {
-    let l = c.lessons.get(id)
+/** Assemble a course from its course-root-relative files (`course.json`,
+ *  `lessons/<id>/...`). Returns null if it has no descriptor or no usable
+ *  lesson. Lenient — malformed parts are skipped (use `validateCourseFiles`
+ *  for an error-reporting pass before installing untrusted content). */
+function assembleCourse(files: { path: string; content: string }[]): { meta: CourseMeta; lessons: Map<string, Lesson> } | null {
+  let meta: CourseMeta | undefined
+  const lessonAccs = new Map<string, LessonAcc>()
+  const accFor = (id: string): LessonAcc => {
+    let l = lessonAccs.get(id)
     if (!l) {
       l = { files: [], solution: [] }
-      c.lessons.set(id, l)
+      lessonAccs.set(id, l)
     }
     return l
   }
 
-  for (const [key, content] of Object.entries(RAW)) {
-    const rel = key.replace(/^\/courses\//, '')
-    const parts = rel.split('/')
-    const courseId = parts[0]
-    if (!courseId || parts.length < 2) continue // stray file directly under courses/
-    let c = acc.get(courseId)
-    if (!c) {
-      c = { lessons: new Map() }
-      acc.set(courseId, c)
-    }
-
-    // /courses/<id>/course.json
-    if (parts.length === 2 && parts[1] === 'course.json') {
-      c.meta = JSON.parse(content) as CourseMeta
+  for (const { path, content } of files) {
+    const parts = path.split('/')
+    if (parts.length === 1 && parts[0] === 'course.json') {
+      try { meta = JSON.parse(content) as CourseMeta } catch { /* skip malformed */ }
       continue
     }
-    // /courses/<id>/lessons/<lessonId>/...
-    if (parts[1] !== 'lessons' || parts.length < 4) continue
-    const lessonId = parts[2]!
-    const tail = parts.slice(3)
-    const l = lessonAcc(c, lessonId)
+    if (parts[0] !== 'lessons' || parts.length < 3) continue
+    const lessonId = parts[1]!
+    const tail = parts.slice(2)
+    const l = accFor(lessonId)
     if (tail.length === 1 && tail[0] === 'lesson.md') {
       l.body = content
     } else if (tail.length === 1 && tail[0] === 'check.json') {
-      const parsed = JSON.parse(content) as { checks?: CourseCheck[] }
-      l.checks = parsed.checks ?? []
+      try {
+        const parsed = JSON.parse(content) as { checks?: CourseCheck[] }
+        l.checks = parsed.checks ?? []
+      } catch { /* skip malformed checks */ }
     } else if (tail[0] === 'files') {
       l.files.push({ path: tail.slice(1).join('/'), content })
     } else if (tail[0] === 'solution') {
@@ -136,44 +140,234 @@ function loadBundles(): Map<string, CourseBundle> {
     }
   }
 
+  if (!meta) return null
+  const lessons = new Map<string, Lesson>()
+  for (const [lessonId, l] of [...lessonAccs].sort(([a], [b]) => a.localeCompare(b))) {
+    if (l.body == null) continue
+    lessons.set(lessonId, {
+      id: lessonId,
+      title: firstHeading(l.body) ?? lessonId,
+      body: l.body,
+      files: [...l.files].sort((a, b) => a.path.localeCompare(b.path)),
+      checks: l.checks ?? [],
+      solution: [...l.solution].sort((a, b) => a.path.localeCompare(b.path)),
+    })
+  }
+  if (lessons.size === 0) return null
+  return { meta, lessons }
+}
+
+// ---------------------------------------------------------------------------
+// Bundled courses (Vite glob)
+// ---------------------------------------------------------------------------
+
+const RAW = import.meta.glob('/courses/**/*', {
+  query: '?raw',
+  eager: true,
+  import: 'default',
+}) as Record<string, string>
+
+function loadGlobBundles(): Map<string, CourseBundle> {
+  // Group glob entries by course id, course-root-relative.
+  const byCourse = new Map<string, { path: string; content: string }[]>()
+  for (const [key, content] of Object.entries(RAW)) {
+    const rel = key.replace(/^\/courses\//, '')
+    const slash = rel.indexOf('/')
+    if (slash < 0) continue
+    const courseId = rel.slice(0, slash)
+    const path = rel.slice(slash + 1)
+    const arr = byCourse.get(courseId) ?? []
+    arr.push({ path, content })
+    byCourse.set(courseId, arr)
+  }
   const out = new Map<string, CourseBundle>()
-  for (const [courseId, c] of acc) {
-    if (!c.meta) continue // a course missing its descriptor is a packaging error — skip
-    const lessons = new Map<string, Lesson>()
-    for (const [lessonId, l] of [...c.lessons].sort(([a], [b]) => a.localeCompare(b))) {
-      if (l.body == null) continue // a lesson with no lesson.md is incomplete — skip
-      lessons.set(lessonId, {
-        id: lessonId,
-        title: firstHeading(l.body) ?? lessonId,
-        body: l.body,
-        files: [...l.files].sort((a, b) => a.path.localeCompare(b.path)),
-        checks: l.checks ?? [],
-        solution: [...l.solution].sort((a, b) => a.path.localeCompare(b.path)),
-      })
-    }
-    if (lessons.size === 0) continue // no usable lessons — skip
-    out.set(courseId, { id: courseId, meta: c.meta, lessons })
+  for (const [courseId, files] of byCourse) {
+    const built = assembleCourse(files)
+    if (built) out.set(courseId, { id: courseId, ...built, source: { kind: 'bundled' } })
   }
   return out
 }
 
-const BUNDLES = loadBundles()
+const BUNDLED = loadGlobBundles()
 
-/** Courses available out of the box, sorted by `order` then title. */
-export function listCourses(): CourseInfo[] {
-  return [...BUNDLES.values()]
-    .map((b) => ({ id: b.id, ...b.meta, lessons: [...b.lessons.keys()] }))
+// ---------------------------------------------------------------------------
+// Remote courses (installed from GitHub) + reactive store
+// ---------------------------------------------------------------------------
+
+const remote = new Map<string, CourseBundle>()
+
+let snapshot: CourseInfo[] = computeSnapshot()
+const listeners = new Set<() => void>()
+
+function toInfo(b: CourseBundle): CourseInfo {
+  return { id: b.id, ...b.meta, lessons: [...b.lessons.keys()], source: b.source }
+}
+
+function computeSnapshot(): CourseInfo[] {
+  return [...BUNDLED.values(), ...remote.values()]
+    .map(toInfo)
     .sort((a, b) => (a.order ?? 99) - (b.order ?? 99) || a.title.localeCompare(b.title))
 }
 
-/** A single course's metadata + ordered lesson ids, or undefined if unknown. */
-export function getCourse(id: string): CourseInfo | undefined {
-  const b = BUNDLES.get(id)
-  return b ? { id: b.id, ...b.meta, lessons: [...b.lessons.keys()] } : undefined
+function bump(): void {
+  snapshot = computeSnapshot()
+  for (const l of listeners) l()
 }
 
-/** A fully-loaded lesson (body + starter files + checks + solution), or
- *  undefined if the course or lesson id is unknown. */
+/** Subscribe to course-registry changes (install / remove / hydrate). */
+export function subscribeCourses(cb: () => void): () => void {
+  listeners.add(cb)
+  return () => listeners.delete(cb)
+}
+
+/** Stable snapshot for useSyncExternalStore — same reference until a change. */
+export function coursesSnapshot(): CourseInfo[] {
+  return snapshot
+}
+
+/** Turn a persisted InstalledCourseRow into an in-memory bundle. */
+function bundleFromRow(row: InstalledCourseRow): CourseBundle | null {
+  const built = assembleCourse(row.files)
+  if (!built) return null
+  return {
+    id: row.sourceId,
+    ...built,
+    source: {
+      kind: 'github',
+      sourceId: row.sourceId,
+      owner: row.owner,
+      repo: row.repo,
+      ref: row.ref,
+      resolvedRef: row.resolvedRef,
+      fetchedAt: row.fetchedAt,
+    },
+  }
+}
+
+let hydration: Promise<void> | null = null
+
+/** Load installed remote courses from IDB into memory (once). Idempotent. */
+export function hydrateRemoteCourses(): Promise<void> {
+  if (!hydration) {
+    hydration = (async () => {
+      const rows = await listInstalledCourses()
+      let changed = false
+      for (const row of rows) {
+        const b = bundleFromRow(row)
+        if (b) { remote.set(b.id, b); changed = true }
+      }
+      if (changed) bump()
+    })()
+  }
+  return hydration
+}
+
+/** Persist + register a freshly-fetched remote course (install or refresh). */
+export async function addRemoteCourse(row: InstalledCourseRow): Promise<CourseInfo | null> {
+  await installRemoteCourse(row)
+  const b = bundleFromRow(row)
+  if (!b) return null
+  remote.set(b.id, b)
+  bump()
+  return toInfo(b)
+}
+
+/** Remove an installed remote course (storage + registry). */
+export async function removeRemoteCourse(sourceId: string): Promise<void> {
+  await removeInstalledCourse(sourceId)
+  if (remote.delete(sourceId)) bump()
+}
+
+// ---------------------------------------------------------------------------
+// Merged read API (bundled + remote)
+// ---------------------------------------------------------------------------
+
+function getBundle(id: string): CourseBundle | undefined {
+  return remote.get(id) ?? BUNDLED.get(id)
+}
+
+/** All courses (bundled + installed-remote), sorted by `order` then title. */
+export function listCourses(): CourseInfo[] {
+  return snapshot
+}
+
+/** A single course's metadata + ordered lesson ids + source, or undefined. */
+export function getCourse(id: string): CourseInfo | undefined {
+  const b = getBundle(id)
+  return b ? toInfo(b) : undefined
+}
+
+/** A fully-loaded lesson, or undefined if the course/lesson id is unknown. */
 export function getLesson(courseId: string, lessonId: string): Lesson | undefined {
-  return BUNDLES.get(courseId)?.lessons.get(lessonId)
+  return getBundle(courseId)?.lessons.get(lessonId)
+}
+
+// ---------------------------------------------------------------------------
+// Validation (before installing untrusted remote content)
+// ---------------------------------------------------------------------------
+
+/** Caps guard against a hostile/oversized repo (also basic abuse limits). */
+const MAX_FILES = 1000
+const MAX_LESSONS = 100
+const MAX_TOTAL_BYTES = 8 * 1024 * 1024
+
+const REGS = new Set(['a', 'x', 'y', 'sp', 'pc'])
+
+function validCheck(c: unknown): boolean {
+  if (!c || typeof c !== 'object') return false
+  const k = (c as { kind?: unknown }).kind
+  const o = c as Record<string, unknown>
+  switch (k) {
+    case 'build': return true
+    case 'label': return typeof o.name === 'string'
+    case 'memory': return typeof o.addr === 'string' && typeof o.equals === 'string'
+    case 'register': return typeof o.reg === 'string' && REGS.has(o.reg) && typeof o.equals === 'string'
+    default: return false
+  }
+}
+
+export interface CourseValidation {
+  ok: boolean
+  error?: string
+}
+
+/** Structural validation of fetched course files before install. Rejects (with
+ *  a message) rather than silently skipping, so the user learns why a repo
+ *  didn't load. Courses are data, not code — this guards shape + size only. */
+export function validateCourseFiles(files: { path: string; content: string }[]): CourseValidation {
+  if (files.length > MAX_FILES) return { ok: false, error: `too many files (${files.length} > ${MAX_FILES})` }
+  const total = files.reduce((n, f) => n + f.content.length, 0)
+  if (total > MAX_TOTAL_BYTES) return { ok: false, error: `course too large (${Math.round(total / 1024)} KB)` }
+
+  const courseJson = files.find((f) => f.path === 'course.json')
+  if (!courseJson) return { ok: false, error: 'no course.json at the repo root' }
+  let meta: CourseMeta
+  try { meta = JSON.parse(courseJson.content) as CourseMeta } catch { return { ok: false, error: 'course.json is not valid JSON' } }
+  if (typeof meta.title !== 'string' || !meta.title) return { ok: false, error: 'course.json: missing "title"' }
+  if (typeof meta.machine !== 'string' || !meta.machine) return { ok: false, error: 'course.json: missing "machine"' }
+
+  const lessonIds = new Set<string>()
+  for (const f of files) {
+    const m = f.path.match(/^lessons\/([^/]+)\//)
+    if (m) lessonIds.add(m[1]!)
+  }
+  if (lessonIds.size === 0) return { ok: false, error: 'no lessons/ directory found' }
+  if (lessonIds.size > MAX_LESSONS) return { ok: false, error: `too many lessons (${lessonIds.size} > ${MAX_LESSONS})` }
+
+  let withBody = 0
+  for (const id of lessonIds) {
+    if (files.some((f) => f.path === `lessons/${id}/lesson.md`)) withBody++
+    const check = files.find((f) => f.path === `lessons/${id}/check.json`)
+    if (check) {
+      let parsed: { checks?: unknown }
+      try { parsed = JSON.parse(check.content) as { checks?: unknown } } catch { return { ok: false, error: `lessons/${id}/check.json is not valid JSON` } }
+      if (parsed.checks !== undefined) {
+        if (!Array.isArray(parsed.checks) || !parsed.checks.every(validCheck)) {
+          return { ok: false, error: `lessons/${id}/check.json has an invalid check` }
+        }
+      }
+    }
+  }
+  if (withBody === 0) return { ok: false, error: 'no lesson has a lesson.md' }
+  return { ok: true }
 }

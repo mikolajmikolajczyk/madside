@@ -27,6 +27,8 @@ class FakeDb {
 }
 
 const v2Stores = ['projects', 'files', 'meta', 'snapshots', 'blobs', 'breakpoints']
+// After applyBaseline + every migration runs (v3 adds the courses store).
+const latestStores = [...v2Stores, 'courses']
 
 describe('IDB migration runner', () => {
   it('applyBaseline creates every v2 store with the expected indexes', () => {
@@ -38,19 +40,19 @@ describe('IDB migration runner', () => {
     expect(db.stores.get('snapshots')!.indexes.has('byProject')).toBe(true)
   })
 
-  it('runUpgrade from oldVersion=0 lands on the v2 baseline', () => {
+  it('runUpgrade from oldVersion=0 applies the baseline then all migrations', () => {
     const db = new FakeDb()
     runUpgrade(db as never, 0, undefined as never)
-    expect([...db.stores.keys()].sort()).toEqual([...v2Stores].sort())
+    expect([...db.stores.keys()].sort()).toEqual([...latestStores].sort())
   })
 
-  it('runUpgrade from oldVersion=1 tears down legacy stores then applies baseline', () => {
+  it('runUpgrade from oldVersion=1 tears down legacy stores then applies baseline + migrations', () => {
     const db = new FakeDb()
     // Simulate a pre-v2 install with one stale store.
     db.stores.set('legacy', { keyPath: 'id', indexes: new Set() })
     runUpgrade(db as never, 1, undefined as never)
     expect(db.stores.has('legacy')).toBe(false)
-    expect([...db.stores.keys()].sort()).toEqual([...v2Stores].sort())
+    expect([...db.stores.keys()].sort()).toEqual([...latestStores].sort())
   })
 
   it('runUpgrade from v2 only runs migrations whose v > oldVersion', () => {
