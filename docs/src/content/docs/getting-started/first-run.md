@@ -7,7 +7,7 @@ This walks through the **Atari — Hello World** template: assemble it, run it, 
 
 ## 1. Create the project
 
-Open **File → Templates → Atari — Hello World** (or pick it from the welcome picker on first run). madside creates a project with two source files and opens `src/hello.a65`.
+On first run madside shows the **welcome screen**. Pick **Atari — Hello World** from its templates (you can reopen this screen anytime with **File → New project**). madside creates a project with two source files and opens `src/hello.a65`.
 
 The program writes `HELLO ATARI!` to screen memory:
 

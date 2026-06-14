@@ -5,8 +5,10 @@ import { ManifestEditor } from "./manifest/ManifestEditor";
 import "./Welcome.css";
 
 interface Props {
-  /** Called with the new project's id after a project is created. */
+  /** Called with a project id to open (a freshly created one, or an existing). */
   onOpen: (projectId: string) => void;
+  /** Existing projects in storage — listed so the learner can reopen one. */
+  projects?: { id: string; name: string }[];
 }
 
 const enc = new TextEncoder();
@@ -15,7 +17,7 @@ const dec = new TextDecoder();
 /** First-run / no-project view. Top: an empty project with the project.json
  *  properties editor + Create. Below: bundled-template cards. Picking either
  *  creates a project into storage and opens it. */
-export function Welcome({ onOpen }: Props) {
+export function Welcome({ onOpen, projects = [] }: Props) {
   // Templates minus 'empty' (the empty flow is the top section).
   const templates = useMemo(() => listTemplates().filter((t) => t.id !== "empty"), []);
   const courses = useCourses();
@@ -105,6 +107,29 @@ export function Welcome({ onOpen }: Props) {
         <p className="welcome__sub">Start a new project.</p>
         <p className="welcome__version">v{__APP_VERSION__} · alpha</p>
       </div>
+
+      {projects.length > 0 && (
+        <section className="welcome__templates">
+          <div className="welcome__section-title label">Your projects</div>
+          <div className="welcome__grid">
+            {projects.map((p) => (
+              <button
+                key={p.id}
+                type="button"
+                className="welcome__card"
+                disabled={busy != null}
+                onClick={() => { setBusy(`open:${p.id}`); onOpen(p.id); }}
+                data-testid={`welcome.project.${p.id}`}
+              >
+                <span className="welcome__card-head">
+                  <span className="welcome__card-name">{p.name}</span>
+                </span>
+                {busy === `open:${p.id}` && <span className="welcome__card-busy">opening…</span>}
+              </button>
+            ))}
+          </div>
+        </section>
+      )}
 
       <section className="welcome__blank">
         <div className="welcome__section-title label">Empty project</div>

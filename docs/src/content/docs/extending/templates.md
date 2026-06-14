@@ -1,11 +1,11 @@
 ---
 title: Adding a template
-description: Bundle a starter project that appears in the File → Templates menu.
+description: Bundle a starter project that appears on the welcome screen.
 sidebar:
   order: 10
 ---
 
-A **template** is a starter project — a `project.json`, some source files, and a one-line descriptor. Templates appear in the File → Templates menu and the first-run welcome picker; choosing one instantiates a fresh project into storage.
+A **template** is a starter project — a `project.json`, some source files, and a one-line descriptor. Templates appear on the welcome screen (shown on first run, or anytime via **File → New project**); choosing one instantiates a fresh project into storage.
 
 Templates are bundled at build time from the repo-root `templates/` directory (via Vite's glob import) — no separate repo, no hosting, always available offline. See `src/app/templates.ts`.
 
@@ -57,7 +57,7 @@ A normal v2 project manifest — the same schema described in the [Reference](/d
 }
 ```
 
-On instantiation the manifest's `name` is overridden by the name the user gives the new project; everything else is copied verbatim.
+On instantiation the manifest is copied verbatim (the `name` becomes the new project's name). Rename it later with **File → Rename…**.
 
 ## Source files
 

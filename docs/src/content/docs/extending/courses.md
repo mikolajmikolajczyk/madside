@@ -144,7 +144,7 @@ A pure-theory lesson simply omits `check.json` (the Check button is disabled).
 ## Testing a course locally
 
 1. Add your course under `courses/<id>/` and start the dev server.
-2. Open it from the welcome screen's **Courses** section, or **File → Courses**.
+2. Open it from the welcome screen's **Courses** section (**File → New project** reopens that screen).
 3. Work a lesson, press **Check**, and confirm each assertion reports what you expect. Keep `solution/` assembling cleanly as a regression guard.
 
 Keep checks **lenient enough to not frustrate, strict enough to confirm the concept** — e.g. lesson 1 might only assert `build` + the entry label, not the exact bytes, so a learner who solves it a different way still passes.

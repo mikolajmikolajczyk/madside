@@ -18,12 +18,7 @@ export interface MenuBarProps {
   projects: ProjectRow[];
   activeProjectId: string;
   activeProjectName: string;
-  /** Bundled templates (id + display name) for the File → Templates submenu. */
-  templates: { id: string; name: string }[];
-  onSelectTemplate: (id: string) => void;
-  /** Bundled courses (id + display title) for the File → Courses submenu. */
-  courses: { id: string; name: string }[];
-  onSelectCourse: (id: string) => void;
+  /** Return to the welcome screen (existing projects + new / templates / courses). */
   onNewProject: () => void;
   onSwitchProject: (id: string) => void;
   onRenameProject: () => void;
@@ -57,43 +52,7 @@ export function MenuBar(p: MenuBarProps) {
       <Menu>
         <MenuTrigger data-testid="menu.file">File</MenuTrigger>
         <MenuContent>
-          <MenuItem data-testid="menu.file.new" onSelect={p.onNewProject}>New project…</MenuItem>
-          <MenuSub>
-            <MenuSubTrigger data-testid="menu.file.templates">Templates</MenuSubTrigger>
-            <MenuSubContent>
-              {p.templates.length === 0 ? (
-                <MenuLabel>(none)</MenuLabel>
-              ) : (
-                p.templates.map((t) => (
-                  <MenuItem
-                    key={t.id}
-                    data-testid={`menu.file.templates.${t.id}`}
-                    onSelect={() => p.onSelectTemplate(t.id)}
-                  >
-                    {t.name}
-                  </MenuItem>
-                ))
-              )}
-            </MenuSubContent>
-          </MenuSub>
-          <MenuSub>
-            <MenuSubTrigger data-testid="menu.file.courses">Courses</MenuSubTrigger>
-            <MenuSubContent>
-              {p.courses.length === 0 ? (
-                <MenuLabel>(none)</MenuLabel>
-              ) : (
-                p.courses.map((c) => (
-                  <MenuItem
-                    key={c.id}
-                    data-testid={`menu.file.courses.${c.id}`}
-                    onSelect={() => p.onSelectCourse(c.id)}
-                  >
-                    {c.name}
-                  </MenuItem>
-                ))
-              )}
-            </MenuSubContent>
-          </MenuSub>
+          <MenuItem data-testid="menu.file.new" onSelect={p.onNewProject}>New project</MenuItem>
           <MenuItem data-testid="menu.file.save" onSelect={p.onAssemble} shortcut="Ctrl+S">Save</MenuItem>
           <MenuSeparator />
           <MenuItem data-testid="menu.file.rename" onSelect={p.onRenameProject}>Rename…</MenuItem>

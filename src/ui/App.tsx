@@ -32,8 +32,7 @@ import { useAutoAssemble } from "./hooks/useAutoAssemble";
 import { useRunStatus } from "./hooks/useRunStatus";
 import { useActiveMachine } from "./hooks/useActiveMachine";
 import { useWorkbench } from "@app";
-import { getCourse, instantiateTemplate, listTemplates, openLesson, refreshCourseFromGitHub, resetLessonToStarter, runChecks } from "@app";
-import { useCourses } from "./hooks/useCourses";
+import { getCourse, openLesson, refreshCourseFromGitHub, resetLessonToStarter, runChecks } from "@app";
 import type { CheckReport, CheckRunDeps } from "@app";
 import type { CourseCheck } from "@app";
 import "./App.css";
@@ -352,11 +351,14 @@ export default function App() {
   }, [workbench, runAssemble, onRun, onPause, onStop, onStep, onStepFrame, onReset]);
 
   // Modal-based dialogs (Radix Dialog) replace native prompt/confirm.
-  type DialogKind = "none" | "newProject" | "renameProject" | "duplicateProject" | "deleteProject";
+  type DialogKind = "none" | "renameProject" | "duplicateProject" | "deleteProject";
   const [dialog, setDialog] = useState<DialogKind>("none");
   const closeDialog = useCallback(() => setDialog("none"), []);
 
-  const handleNewProject = useCallback(() => setDialog("newProject"), []);
+  // "New project" returns to the welcome screen (existing projects + empty /
+  // templates / courses) instead of a bare name prompt.
+  const [showWelcome, setShowWelcome] = useState(false);
+  const handleNewProject = useCallback(() => setShowWelcome(true), []);
   const handleRenameProject = useCallback(() => setDialog("renameProject"), []);
   const handleDuplicateProject = useCallback(() => setDialog("duplicateProject"), []);
   const handleDeleteProject = useCallback(() => setDialog("deleteProject"), []);
@@ -404,16 +406,6 @@ export default function App() {
     await project.switchProject(id);
   }, [project]);
 
-  // Selecting a course opens its first lesson in course mode. (Resume-to-next-
-  // incomplete-lesson lands with the check runner — child 29540fd.)
-  const handleSelectCourse = useCallback(async (courseId: string) => {
-    if (!project.loaded) return;
-    const first = getCourse(courseId)?.lessons[0];
-    if (!first) return;
-    const id = await openLesson(courseId, first);
-    await project.switchProject(id);
-  }, [project]);
-
   // Run a lesson's declarative checks: assemble (reusing the auto-assemble
   // pipeline for the binary + label table), then — only if a register/memory
   // check needs it — load + advance frames and snapshot CPU/memory. Disturbs
@@ -453,15 +445,6 @@ export default function App() {
     if (!project.loaded) return;
     const id = await resetLessonToStarter(courseId, lessonId);
     if (id) await project.switchProject(id);
-  }, [project]);
-
-  const templateList = useMemo(() => listTemplates().map((t) => ({ id: t.id, name: t.name })), []);
-  const courses = useCourses();
-  const courseList = useMemo(() => courses.map((c) => ({ id: c.id, name: c.title })), [courses]);
-  const handleSelectTemplate = useCallback(async (id: string) => {
-    if (!project.loaded) return;
-    const row = await instantiateTemplate(id);
-    await project.switchProject(row.id);
   }, [project]);
 
   const [historyOpen, setHistoryOpen] = useState(false);
@@ -510,25 +493,29 @@ export default function App() {
     { canRun, running, hasEmu },
   );
 
-  if (!project.loaded) {
-    if (project.error) {
+  if (showWelcome || !project.loaded) {
+    if (!project.loaded && project.error) {
       return (
         <div className="app app--loading">
           <div className="app__loading">storage error: {project.error}</div>
         </div>
       );
     }
-    if (!project.booted) {
+    if (!project.loaded && !project.booted) {
       return (
         <div className="app app--loading">
           <div className="app__loading">loading project…</div>
         </div>
       );
     }
-    // Resolved with no project (first run / last project deleted) → picker.
+    // First run / last project deleted, or "New project" from the menu → the
+    // welcome hub: existing projects + empty / templates / courses.
     return (
       <Suspense fallback={<div className="app app--loading"><div className="app__loading">loading…</div></div>}>
-        <Welcome onOpen={(id) => void project.switchProject(id)} />
+        <Welcome
+          projects={project.projects.map((p) => ({ id: p.id, name: p.name }))}
+          onOpen={(id) => { void project.switchProject(id); setShowWelcome(false); }}
+        />
       </Suspense>
     );
   }
@@ -540,10 +527,6 @@ export default function App() {
         projects={project.projects}
         activeProjectId={project.projectId}
         activeProjectName={project.manifest.name}
-        templates={templateList}
-        onSelectTemplate={handleSelectTemplate}
-        courses={courseList}
-        onSelectCourse={(id) => { void handleSelectCourse(id); }}
         onNewProject={handleNewProject}
         onSwitchProject={handleSwitchProject}
         onRenameProject={handleRenameProject}
@@ -718,21 +701,6 @@ export default function App() {
         brokeOn={brokeOn}
       />
 
-      <TextPromptDialog
-        open={dialog === "newProject"}
-        title="New project"
-        description="Pick a name. A blank project is created — configure it in project.json."
-        initial="untitled"
-        placeholder="my-project"
-        confirmLabel="Create"
-        onCancel={closeDialog}
-        onConfirm={async (name) => {
-          closeDialog();
-          if (!name.trim() || !project.loaded) return;
-          const row = await instantiateTemplate("empty", name.trim());
-          await project.switchProject(row.id);
-        }}
-      />
       <TextPromptDialog
         open={dialog === "renameProject"}
         title="Rename project"

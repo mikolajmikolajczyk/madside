@@ -9,11 +9,16 @@ A **project** is a tree of files plus a manifest. madside keeps your projects in
 
 ## Creating projects
 
-- **File → Templates → …** instantiates a bundled template (the quickest start).
-- **File → New project…** creates an empty project.
-- **File → Import ZIP…** loads a project you previously exported.
+**File → New project** opens the **welcome screen** — the hub for starting work. From there you can:
 
-Switch between projects with **File → Switch project**. Deleting your last project returns you to the template picker.
+- reopen one of **your existing projects**;
+- create an **empty project** (edit its `project.json` before creating);
+- start from a **template** (the quickest start); or
+- **follow a course** (bundled, or added from a GitHub repo).
+
+You can also **File → Import ZIP…** to load a project you previously exported.
+
+Switch between open projects with **File → Switch project**. Deleting your last project returns you to the welcome screen.
 
 ## The manifest — `project.json`
 

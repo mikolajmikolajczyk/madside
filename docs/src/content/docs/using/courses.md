@@ -13,12 +13,7 @@ Where the rest of this section documents *the IDE*, **courses** teach *the machi
 
 ## Starting a course
 
-Pick a course the same way you pick a template:
-
-- **File → Courses → …**, or
-- the **welcome picker**, which shows a card per course with its target machine and lesson count.
-
-Selecting a course opens its first lesson as a project in *course mode*.
+Courses live on the **welcome screen** (shown on first run, or anytime via **File → New project**) — the **Or follow a course** section shows a card per course with its target machine and lesson count. Selecting one opens its first lesson as a project in *course mode*.
 
 ## Following a community course
 
