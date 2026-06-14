@@ -40,6 +40,8 @@ This ADR decides the *default host per plugin kind* and the *transport contract*
 
 Adopt **per-kind host policy** with a typed RPC transport. Plugin authors write against the policy for their kind; the workbench handles the wiring.
 
+> **Implementation status (as of v0.9.x):** this remains a *forward-looking contract decision*, not shipped infrastructure. Everything still runs on the **main thread**: MADS assemble, both emulator backends (Altirra, jsnes), and asset converters. **Comlink is not installed** and `@ports/PluginTransport.ts` does not exist — cross-plugin calls are direct in-process method calls today. The worker hosting, the converter worker pool, and the `PluginEndpoint` RPC layer are all deferred until profiling demands them. The "Accepted" status means the *policy* is agreed, so contracts can be designed not to preclude it — it does **not** mean workers/Comlink are wired up. Treat the host-matrix and transport sections below as the intended target, not current behaviour.
+
 ### Host matrix
 
 | Plugin kind | Host | Why |
@@ -56,7 +58,7 @@ Default for any future plugin kind: **main thread unless heavy compute or untrus
 
 ### Transport contract
 
-All cross-host plugin calls use a typed RPC over `postMessage`. We adopt **Comlink** (≈ 5 KB) for the proxy machinery — it gives `await proxy.build(project)` ergonomics on top of `postMessage` without us writing serialisation glue. Comlink is a hard dep of the workbench, not a per-plugin import.
+All cross-host plugin calls will use a typed RPC over `postMessage`. The plan is to adopt **Comlink** (≈ 5 KB) for the proxy machinery — it gives `await proxy.build(project)` ergonomics on top of `postMessage` without us writing serialisation glue. Comlink would be a hard dep of the workbench, not a per-plugin import. *(Not yet installed — see the implementation-status note above; current calls are direct main-thread method calls.)*
 
 ```ts
 // In @ports/PluginTransport.ts (planned — not yet installed; main-thread direct calls used today)

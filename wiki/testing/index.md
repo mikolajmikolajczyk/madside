@@ -4,7 +4,7 @@ Strategy, harnesses, and conventions for testing madside.
 
 | File | What |
 |------|------|
-| [e2e-guardrails.md](e2e-guardrails.md) | Selectors, determinism, URL state — apply continuously so Playwright lands cleanly when scheduled (7659319) |
+| [e2e-guardrails.md](e2e-guardrails.md) | Selectors, determinism, URL state — apply continuously so Playwright lands cleanly when scheduled |
 
 Full strategy: [ADR-0005](../adr/0005-testing-strategy.md). This folder is for ongoing operational rules.
 
@@ -30,7 +30,7 @@ ADR-0005 mandates `assert<Kind>Plugin(impl)` Vitest fixture suites under `@ports
 
 Built-in plugins import the harness; external plugin authors get it free.
 
-Current run: 36 tests, 0 failures (`src/**/*.test.ts` + `tests/{integration,contract,plugins}/*.test.ts`).
+Current run: 151 tests, 0 failures (`src/**/*.test.ts` + `tests/{integration,contract,plugins}/*.test.ts`).
 
 ## Playwright
 

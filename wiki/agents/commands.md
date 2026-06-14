@@ -3,27 +3,29 @@
 ## Shell
 
 ```sh
-nix develop          # default dev shell — node, npm, just, lint stack, security scanners
+nix develop          # default dev shell — node, pnpm, just, security scanners
 nix develop .#wasm   # heavy: adds cmake, emscripten, fpc for wasm rebuilds
 # direnv users: just `cd` into the repo — .envrc activates the default shell automatically
 ```
 
-Fallback path (no Nix): use any Node ≥ 22 + npm ≥ 10 on your PATH and skip `nix develop`.
+The devShell provides `nodejs_22` + `pnpm` (not npm). JS-only tools (eslint, prettier, tsc, knip, madge, markdownlint) come from `node_modules/.bin` after `pnpm install`.
+
+Fallback path (no Nix): Node ≥ 22 plus **pnpm** on your PATH, then `pnpm install`. pnpm is required, not optional — the pre-commit hooks invoke `pnpm exec`, so plain `npm` breaks them.
 
 ## App
 
 ```sh
-npm run dev             # vite dev server
-npm run build           # tsc -b && vite build → dist/
-npm run preview         # serve dist/
-npm run typecheck       # tsc -b — incremental project references
+pnpm dev                # vite dev server
+pnpm build              # tsc -b && vite build → dist/
+pnpm preview            # serve dist/
+pnpm typecheck          # tsc -b — incremental project references
 ```
 
 ## Dep graph
 
 ```sh
-npm run graph             # writes wiki/architecture/dep-graph.svg
-npm run graph:circular    # exits non-zero if any cycle exists
+pnpm graph             # writes wiki/architecture/dep-graph.svg
+pnpm graph:circular    # exits non-zero if any cycle exists
 ```
 
 ## Lint / static analysis
@@ -43,6 +45,8 @@ Most hooks are still `stages: [manual]` during the Foundation cleanup pass. They
 just build-mads-wasm        # rebuild public/wasm/mads.wasm
 just build-altirra-wasm     # rebuild src/adapters/emu/wasm/altirra-core.{wasm,js}
 ```
+
+The `just` recipes also wrap the app commands above (`just dev`, `just build`, `just preview`, `just typecheck`, `just install`) and the docs site (`just docs-dev`, `just docs-build` — Astro Starlight under `docs/`).
 
 Details: [`mads-wasm-build.md`](mads-wasm-build.md), [`altirra-wasm-build.md`](altirra-wasm-build.md). **Do not rebuild casually.** Bump pinned commits in `justfile` deliberately, rerun, smoke-test, commit the new artifact.
 
@@ -65,8 +69,8 @@ Standard. Conventional Commits. GPG-signed. **Never commit without explicit user
 ## Tests
 
 ```sh
-npx vitest run       # one-shot
-npx vitest           # watch mode
+pnpm exec vitest run   # one-shot
+pnpm test              # watch mode (package.json "test" → vitest)
 ```
 
 Test layout (ADR-0005):

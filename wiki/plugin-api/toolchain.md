@@ -11,6 +11,7 @@ interface ToolchainPlugin {
   id: string                  // 'mads', 'ca65', 'kickass'
   name: string
   inputExt: readonly string[] // ['a65', 'asm', 'inc']
+  language?: ToolchainLanguage // optional editor-language metadata (see below)
   outputExt: string           // 'xex', 'nes', 'prg'
   build(input: ToolchainBuildInput): Promise<ToolchainBuildOutput>
 }
@@ -19,7 +20,7 @@ interface ToolchainBuildInput {
   projectId: string
   main: string                // entry-point file
   files: { path: string; content: Uint8Array }[]
-  options?: Record<string, unknown>
+  options?: Record<string, unknown> // manifest build.args forwarded here
 }
 
 interface ToolchainBuildOutput {
@@ -35,6 +36,26 @@ interface ToolchainBuildOutput {
 ```
 
 The plugin owns parsing — the workbench never reads raw `.lst` / `.lab` text. UI consumes `sourceMap` + `labels` directly.
+
+Manifest `build.args` are forwarded to the build via `ToolchainBuildInput.options` — the plugin reads its own option schema out of that free-form bag.
+
+## Editor language (optional)
+
+A toolchain may declare `language?: ToolchainLanguage` (epic `78b12bf`). It is declarative and library-agnostic (no CodeMirror dependency): the editor pairs it with the machine CPU's opcode set (`@core/cpu`) to drive syntax highlighting, directive recognition, and autocomplete. It carries the *assembler-specific* vocabulary — opcodes come from the CPU, not here. Omit it and the toolchain falls back to plain text.
+
+```ts
+interface ToolchainLanguage {
+  directives: readonly string[]                  // uppercase, no prefix — highlighted as directives + skipped by the label scanner
+  lineComment: string | readonly string[]        // e.g. ';' or [';', '//']
+  snippets?: readonly ToolchainSnippet[]          // autocomplete snippets (optional)
+}
+
+interface ToolchainSnippet {
+  label: string
+  detail: string
+  template: string                                // CodeMirror ${n:placeholder} syntax
+}
+```
 
 ## Hello-world
 

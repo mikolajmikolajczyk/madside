@@ -7,7 +7,7 @@ In-browser Web IDE pivoting from Atari-only to a plugin-based retro-development 
 | Tree | Audience | What |
 |------|----------|------|
 | [`agents/`](agents/) | AI coding agents (Claude, Cursor, Aider, …) | Repo shape, conventions, gotchas, on-demand fragments. The root `AGENTS.md` and `CLAUDE.md` point here. |
-| [`user/`](user/) | End users | Phase 13 manual source. Astro Starlight publishes this to `/docs/` on the site. |
+| [`docs/`](../docs/) (repo root) | End users | Public user docs moved here — Astro Starlight workspace (`docs/src/content/docs/`), published to `/docs/` on the site. There is no `wiki/user/`. |
 | [`adr/`](adr/) | Both | Architecture Decision Records. Append-only, numbered. |
 | [`architecture/`](architecture/) | Both | Diagrams, dependency graphs, layer overview. See `architecture/README.md`. |
 | [`plugin-api/`](plugin-api/) | Both | Plugin author contracts (Machine, Toolchain, DebugAdapter, Panel, Converter, Editor). One md per kind + hello-world. EmulatorPlugin lands with M4 follow-up. |
@@ -30,7 +30,7 @@ See [`adr/README.md`](adr/README.md) for the bar. ADRs are for decisions that co
 
 ## Conventions
 
-- **All project documentation lives under `wiki/`.** There is no `docs/` folder.
+- **Agent + architecture docs live under `wiki/`.** Public end-user docs live in the repo-root `docs/` Astro Starlight workspace, published to `/docs/`.
 - **`AGENTS.md` and `CLAUDE.md` at repo root are thin pointers** — body lives in `wiki/agents/`.
 - **ADRs are append-only.** Once Accepted, write a new ADR to supersede; don't edit substance.
 - **Internal links use repo-relative paths** (`adr/0002-layering.md`), not absolute URLs.

@@ -90,9 +90,14 @@ Rationale: solo project, no external plugin authors queued. ADR-0002 + `eslint-p
 
 ### Validation milestone
 
-M9 ships a second machine (NES + ca65 + JS NES emulator) end-to-end with **zero workbench changes**. If the M3–M8 work is right, that's a packaging exercise. If it isn't, M9 surfaces every leaked Atari assumption.
+M9 ships a second machine (NES end-to-end) with **zero workbench changes** beyond an additive contract evolution. If the M3–M8 work is right, that's a packaging exercise. If it isn't, M9 surfaces every leaked Atari assumption.
 
-NES chosen over C64 because: simpler memory map, PPU is a clean foil to ANTIC/GTIA (forces the panel-plugin abstraction), ca65 is a widely-used target and good test of `ToolchainPlugin`.
+NES chosen over C64 because: simpler memory map, PPU is a clean foil to ANTIC/GTIA (forces the panel-plugin abstraction).
+
+> **Outcome (v0.8.0, 2026-06-13):** shipped as predicted, with two course-corrections recorded in [`../decisions/2026-06-13-nes-uses-mads-and-named-memory-spaces.md`](../decisions/2026-06-13-nes-uses-mads-and-named-memory-spaces.md):
+> - **Toolchain: MADS, not ca65.** The NES CPU is a 6502 and MADS already assembles raw NROM iNES images directly, so no second toolchain was needed to validate the abstraction. ca65/ld65 stays in the backlog as a future C/neslib target.
+> - **Emulator: jsnes** (the JS NES emu, as sketched), via the `RunBackend` de-facto contract (`EmulatorPlugin` port still pending).
+> - **One additive contract change**, not zero: `MachinePlugin.memorySpaces` + a `space?` param on memory reads, so the PPU/OAM address spaces are debuggable. This is the universal mechanism for any machine with off-CPU-bus state.
 
 ## Considered options
 

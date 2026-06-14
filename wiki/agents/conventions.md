@@ -2,7 +2,7 @@
 
 ## TypeScript
 
-- Strict mode. No `any` unless absolutely needed — cast through `unknown`.
+- `tsconfig.base.json` does **not** set `"strict": true`. It enables a targeted set of checks: `noUnusedLocals`, `noUnusedParameters`, `noFallthroughCasesInSwitch`, `erasableSyntaxOnly` (plus `skipLibCheck`, bundler `moduleResolution`, `verbatimModuleSyntax: false`). No `any` unless absolutely needed — cast through `unknown`.
 - React 19 hooks. No Redux/Zustand. `useState` + custom hooks until a real coordination problem appears.
 
 ## Service ↔ UI sync

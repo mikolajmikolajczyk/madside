@@ -25,12 +25,19 @@
 | MachinePlugin port + Atari-XL first impl | ✅ (v0.4.0 a6c310d) |
 | ToolchainPlugin port + MADS first impl + manifest-driven dispatch | ✅ (v0.5.0 87f03ad + 443eaed) |
 | DebugAdapterPlugin port + atari-6502 first impl | ✅ (v0.6.0 2810a62) |
-| PanelPlugin port + 3 built-in panels (registers/memory/output) | ✅ (v0.7.0 5ddf99e) |
+| PanelPlugin port + 4 built-in panels (registers/memory/output + ppu) | ✅ (v0.7.0 5ddf99e; ppu v0.8.0 93c218b) |
 | Event-driven panel refresh via ctx.events / ctx.debug | ✅ (v0.7.0 ba1a27b) |
 | FileEditor (Phase 11) folded into PanelPlugin via editorToPanel | ✅ (v0.7.0 6f2dc20) |
 | Plugin contract test harnesses under `@ports/test/` | partial — Toolchain ✅ (51e047c); Machine drift test ✅; Debug/Panel pending |
 | Plugin author docs under `wiki/plugin-api/` | ✅ (v0.7.0 a7b79c0) |
 | Service ↔ UI sync FSM + EventBus + useSyncExternalStore (ADR-0007) | ✅ (v0.7.5 M7.5 epic 152abfd — Run lifecycle reference impl, contract test, dev event logger, property fuzz) |
+| Second MachinePlugin — NES (`src/plugins/machine-nes`) | ✅ (v0.8.0 481d76b) — manifest-driven machine selection (1972a36) |
+| Second emulator backend — jsnes (`src/plugins/emulator-nes-jsnes`) | ✅ (v0.8.0 b41098c) |
+| Named memory-space mechanism (`MachinePlugin.memorySpaces`, `readMemory(addr,len,space)` — cpu/ppu/oam) | ✅ (v0.8.0 93c218b) |
+| Editor language generalization — toolchain+CPU-driven (`@core/cpu/mos6502`, `ToolchainPlugin.language`) | ✅ (v0.8.7 1f08b2c, 6ba97ca, 5ee1a42) |
+| Bundled templates — `templates/<id>/` via Vite glob, `src/app/templates.ts`, Welcome picker | ✅ (v0.8.5 71acac1, 505492d) |
+| Visual `project.json` manifest editor (`src/ui/components/manifest/ManifestEditor.tsx`, form + raw dual-mode) | ✅ (v0.9.0 f6c22ae) — `build.args` → toolchain options wiring (04bdb5a) |
+| Courses — format + glob loader + CourseService (`src/app/courses.ts`), lesson→project instantiation (`src/app/course-project.ts`), CoursePanel, declarative check runner (`src/app/check-runner.ts`) | ✅ (v0.9.5 epic 2e9c7cc — 3ed11be, 500f11c, 29540fd, 2921c6c) |
 | EmulatorPlugin contract | ⏳ M4 follow-up |
 
 ## Emulator (Altirra wasm)
@@ -84,15 +91,18 @@
 - TypeScript project references (9ccb4fa) — incremental layer builds
 - Pre-commit: eslint, madge --circular, typecheck, GPG UID guard (fa6ff3a)
 - Nix flake devShell — pinned toolchain (d8935a9)
-- Vitest + fake-indexeddb; headless workbench tests cover services end-to-end (ADR-0005). 85 tests passing across `src/**/*.test.ts` + `tests/{integration,contract,plugins}/*.test.ts` — RunService wire contract + fast-check property fuzz over the FSM landed in v0.7.5.
-- E2E-ready guardrails: stable testids, URL-loadable project state (7659319)
+- Vitest + fake-indexeddb; headless workbench tests cover services end-to-end (ADR-0005). 151 tests passing across `src/**/*.test.ts` + `tests/{integration,contract,plugins}/*.test.ts` — RunService wire contract + fast-check property fuzz over the FSM landed in v0.7.5.
+- E2E-ready guardrails: stable testids, URL-loadable project state
 
 ## Active work
 
 `rad issue list`. Current milestones use `milestone:v<X.Y.Z>` labels:
 
-- `milestone:v0.8.0` — M9 NES validation (epic 8cf0a3b): jsnes emulator pick + backend skeleton (b41098c ✅), machine-nes plugin (481d76b), NES sample in MADS (50e22d1), PPU panel (93c218b). NES validated via **MADS** (assembles NROM iNES directly — proven b41098c); ca65 (6bed971) deferred to backlog as a future second toolchain for the C/neslib ecosystem.
-- `milestone:v0.9.0` — Astro Starlight docs site (1116ee3) — sequenced after two working platforms (Atari + NES) exist to document
+- `milestone:v0.8.0` — ✅ **done.** M9 NES validation (epic 8cf0a3b): jsnes emulator backend (b41098c), machine-nes plugin (481d76b), manifest-driven machine selection (1972a36), NES sample in MADS (50e22d1), PPU panel + named memory spaces (93c218b). NES validated via **MADS** (assembles NROM iNES directly); ca65 (6bed971) deferred to backlog as a future second toolchain for the C/neslib ecosystem.
+- `milestone:v0.8.5` — ✅ **done.** Bundled templates (`templates/<id>/` via Vite glob, `src/app/templates.ts`) + welcome picker / File→Templates (71acac1, 505492d).
+- `milestone:v0.8.7` — ✅ **done.** Editor language generalization — toolchain+CPU-driven (`@core/cpu/mos6502`, `ToolchainPlugin.language`; 1f08b2c, 6ba97ca, 5ee1a42).
+- `milestone:v0.9.0` — ✅ **done.** Visual `project.json` manifest editor (form + raw, f6c22ae) + `build.args`→toolchain wiring (04bdb5a); Astro Starlight docs site under `docs/` (1116ee3) — content for using/extending/reference/meta now written.
+- `milestone:v0.9.5` — Courses (epic 2e9c7cc) — **essentially complete**: course format + glob loader + CourseService (3ed11be), lesson→project instantiation (500f11c, 30ba629), declarative check runner (29540fd), entry points + Check wiring (2921c6c) all shipped. Only the course-authoring **docs** child (17bd00e) remains open.
 - `milestone:v1.0.0` — first post-docs major release; TBD
 - `milestone:backlog` — BP Map/Record drift (609be37), IDB schema migration framework (18ac6a7), Altirra bindings.cpp split (cd90f9d), per-step display refresh research (c309619), ca65/ld65 wasm toolchain for C/neslib ecosystem (6bed971)
 - **Infra epic 70269cc** (no milestone, separate clock) — GitHub mirror (edbc165), VPS hosting (efc75d1)

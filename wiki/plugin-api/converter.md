@@ -15,40 +15,41 @@ interface ConverterModule {
 interface ConverterMeta {
   id: string                      // 'png-to-1bpp', 'json-to-dlist', ...
   label: string
-  inputExts: readonly string[]    // ['png', 'gif']
-  outputExt: string               // '1bpp'
-  options: readonly OptionSpec[]  // declarative form: AssetPanel renders it
+  inputExt: string[]              // ['png', 'gif']
+  optionsSchema: OptionSpec[]     // declarative form: AssetPanel renders it
 }
 
 type ConvertFn = (input: Uint8Array, opts: Record<string, unknown>) => Promise<ConvertOutput>
 
 interface ConvertOutput {
   bytes: Uint8Array
+  mimeHint?: string               // optional content-type hint
+  summary?: string                // optional human-readable conversion summary
 }
 ```
+
+There is **no `outputExt` field on the converter** — the output extension is set by the recipe's `output` path in `project.json`, not declared on the converter itself.
 
 ## Hello-world
 
 ```ts
-import type { ConverterModule } from '@ports'
+import type { ConverterMeta, ConvertFn } from '@ports'
 
-const passthrough: ConverterModule = {
-  meta: {
-    id: 'passthrough',
-    label: 'Passthrough',
-    inputExts: ['bin'],
-    outputExt: 'bin',
-    options: [],
-  },
-  async convert(input) {
-    return { bytes: input }
-  },
+export const meta: ConverterMeta = {
+  id: 'passthrough',
+  label: 'Passthrough',
+  inputExt: ['bin'],
+  optionsSchema: [],
 }
 
-export default passthrough
+const convert: ConvertFn = async (input) => {
+  return { bytes: input }
+}
+
+export default convert
 ```
 
-Drop as `converters/passthrough.js` in a project; AssetPanel picks it up. Or register as a built-in in `@plugins/converters/builtins/`.
+Drop as `converters/passthrough.js` in a project; AssetPanel picks it up. Project-local converters are loaded by Blob URL expecting a named `meta` export plus a default-exported `convert` (shape above). Built-in converters instead export the whole `ConverterModule` (`{ meta, convert }`) and register in `@plugins/converters/builtins/`.
 
 ## Recipe entry
 

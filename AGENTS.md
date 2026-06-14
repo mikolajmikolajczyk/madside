@@ -24,9 +24,10 @@ In-browser Web IDE for retro hardware. Currently Atari 8-bit (MADS + Altirra was
 | How `mads.wasm` was built / how to rebuild | [`wiki/agents/mads-wasm-build.md`](wiki/agents/mads-wasm-build.md) |
 | How `altirra-core.wasm` was built / how to rebuild | [`wiki/agents/altirra-wasm-build.md`](wiki/agents/altirra-wasm-build.md) |
 | Things deliberately deferred — do NOT implement unprompted | [`wiki/agents/deferred.md`](wiki/agents/deferred.md) |
-| Plugin contracts (Machine/Toolchain/Emulator/Debug/Panel/Converter/Editor) | [`wiki/plugin-api/`](wiki/plugin-api/) *(lands M7)* |
+| Plugin contracts (Machine/Toolchain/Emulator/Debug/Panel/Converter/Editor) | [`wiki/plugin-api/`](wiki/plugin-api/) |
 | Architecture Decision Records | [`wiki/adr/`](wiki/adr/) |
-| Testing strategy | [`wiki/testing/`](wiki/testing/) *(lands Foundation)* |
+| Testing strategy | [`wiki/testing/`](wiki/testing/) |
+| **Public** docs site (user + plugin-author, published to `/docs/`) | [`docs/src/content/docs/`](docs/src/content/docs/) (Astro Starlight) |
 | Radicle skill (issue/patch CLI) | [`wiki/skills/radicle.md`](wiki/skills/radicle.md) |
 | Radboard skill (label conventions for kanban) | [`wiki/skills/radboard.md`](wiki/skills/radboard.md) |
 
@@ -67,7 +68,7 @@ Full command list: [`wiki/agents/commands.md`](wiki/agents/commands.md).
 - **Never commit without explicit user request.** Even mid-task, after accepting a plan, stop and ask. Acceptance of plan ≠ acceptance of commit.
 - **Don't add features, refactor, or introduce abstractions beyond what the task requires.** Bug fix = bug fix, not surrounding cleanup.
 - **Don't pre-empt later milestones.** If something is tagged `milestone:m5`, don't half-implement it during M2 work.
-- **All project docs live under `wiki/`.** If you find a `docs/` folder, move its contents to `wiki/` and delete the old folder.
+- **Two doc trees, don't mix them.** `wiki/` = internal, agent-/maintainer-facing notes (architecture, ADRs, conventions, status). `docs/` = the **public** Astro Starlight site (user + plugin-author docs) published to `/docs/`. Both are intentional — do NOT move `docs/` into `wiki/` or delete it. Internal note → `wiki/`; public-facing page → `docs/src/content/docs/`.
 
 ## Code ownership
 

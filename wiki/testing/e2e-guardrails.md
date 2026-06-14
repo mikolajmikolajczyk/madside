@@ -25,7 +25,7 @@ Rules:
 
 ## Determinism
 
-- **No `Math.random` in render code paths.** Use stable hashes or props. Audited: zero hits in `src/ui` as of `7659319`.
+- **No `Math.random` in render code paths.** Use stable hashes or props. Audited: zero hits in `src/ui` (historical).
 - **`Date.now` in render is OK only for display** ("X seconds ago", relative timestamps). Test fixtures can mock `Date.now` once the timer-injection seam lands.
 - **Debounces + timers are injectable** (planned with M3-services). Default to real wall-clock; tests pass a fake.
 

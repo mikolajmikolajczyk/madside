@@ -21,7 +21,7 @@ interface DebugTarget {
   step(): Promise<number>             // returns new PC
   stepFrame(): Promise<number>
   setBreakpoints(addrs: Iterable<number>): void
-  readMemory(addr: number, len: number): Promise<Uint8Array>
+  readMemory(addr: number, len: number, space?: string): Promise<Uint8Array>
   writeMemory(addr: number, bytes: Uint8Array): Promise<void>
   getPC(): number
   isAtInstrBoundary(): boolean
@@ -53,7 +53,7 @@ export const nes6502DebugAdapter: DebugAdapterPlugin = {
     async step()      { backend.step();         return backend.getPC() },
     async stepFrame() { backend.advanceFrame(); return backend.getPC() },
     setBreakpoints(a) { backend.setBreakpoints(a) },
-    async readMemory(addr, len) { return backend.readMem(addr & 0xffff, len) },
+    async readMemory(addr, len, space) { return backend.readMem(addr & 0xffff, len, space) },
     async writeMemory()         { throw new Error('writeMemory not supported') },
     getPC()             { return backend.getPC() },
     isAtInstrBoundary() { return backend.isAtInstrBoundary() },
@@ -78,5 +78,6 @@ plugins.register({
 
 - `attach()` must be cheap — the host calls it on every RunBackend boot. Adapters typically close over `backend` and forward 1:1.
 - Register descriptor `width` drives hex formatting (1 byte → `XX`, 2 bytes → `$XXXX`).
+- `readMemory`'s optional `space` selects a named memory space declared by the `MachinePlugin`'s `memorySpaces` (e.g. NES `'ppu'` / `'oam'`); omit it (default) to read the CPU bus. A memory-viewer panel passes the space id through to the adapter.
 - New machines with non-6502 register sets ship their own descriptor table; UI panel code stays unchanged.
 - Manifest-driven runtime swap (multiple adapters in one workbench session) lands together with EmulatorPlugin (M4 follow-up) because both need the same project ↔ backend coupling.
