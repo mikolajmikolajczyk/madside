@@ -40,3 +40,7 @@ A successful build produces two things the rest of the IDE consumes:
 The source map is path-aware: two files with the same basename (for example `src/main.a65` and `lib/main.a65`) resolve independently.
 
 Includes are resolved by the assembler relative to the project root; add source and `.inc` files from the **Files** panel as needed.
+
+## Exporting the binary
+
+**File → Export binary** downloads the assembled binary to your machine, named after the project with the machine's output extension — `.xex` for Atari, `.nes` (iNES) for NES. It's enabled once a build has succeeded; run the result on a hardware emulator, flash it to a cart, or share it. (To export the whole *project* — sources + manifest — use **File → Export ZIP** instead.)

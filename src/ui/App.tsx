@@ -376,6 +376,20 @@ export default function App() {
     URL.revokeObjectURL(url);
   }, [project]);
 
+  // Download the freshly assembled binary (xex / nes / …), named after the
+  // project + the active machine's output format.
+  const handleExportBinary = useCallback(() => {
+    if (!project.loaded || !result?.ok || !result.xex) return;
+    const ext = machine.media?.defaultFormat ?? "bin";
+    const blob = new Blob([result.xex as BlobPart], { type: "application/octet-stream" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url; a.download = `${project.manifest.name}.${ext}`;
+    document.body.appendChild(a); a.click(); a.remove();
+    URL.revokeObjectURL(url);
+  }, [project, result, machine]);
+  const canExportBinary = result?.ok === true && !!result.xex;
+
   const handleImportZip = useCallback(() => {
     importFileInputRef.current?.click();
   }, []);
@@ -533,6 +547,8 @@ export default function App() {
         onDuplicateProject={handleDuplicateProject}
         onDeleteProject={handleDeleteProject}
         onExportZip={handleExportZip}
+        onExportBinary={handleExportBinary}
+        canExportBinary={canExportBinary}
         onImportZip={handleImportZip}
         onAssemble={runAssemble}
         onRun={onRun}

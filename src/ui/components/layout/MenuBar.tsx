@@ -25,6 +25,9 @@ export interface MenuBarProps {
   onDuplicateProject: () => void;
   onDeleteProject: () => void;
   onExportZip: () => void;
+  /** Download the assembled binary; disabled until a successful build exists. */
+  onExportBinary: () => void;
+  canExportBinary: boolean;
   onImportZip: () => void;
   onAssemble: () => void;
   onRun: () => void;
@@ -59,6 +62,11 @@ export function MenuBar(p: MenuBarProps) {
           <MenuItem data-testid="menu.file.duplicate" onSelect={p.onDuplicateProject}>Duplicate…</MenuItem>
           <MenuItem data-testid="menu.file.delete" onSelect={p.onDeleteProject} danger>Delete</MenuItem>
           <MenuSeparator />
+          <MenuItem
+            data-testid="menu.file.export-binary"
+            onSelect={p.onExportBinary}
+            disabled={!p.canExportBinary}
+          >Export binary</MenuItem>
           <MenuItem data-testid="menu.file.export-zip" onSelect={p.onExportZip}>Export ZIP</MenuItem>
           <MenuItem data-testid="menu.file.import-zip" onSelect={p.onImportZip}>Import ZIP…</MenuItem>
           <MenuSeparator />
