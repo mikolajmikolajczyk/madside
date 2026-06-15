@@ -102,6 +102,17 @@ describe('validateCourseFiles', () => {
     expect(r.ok).toBe(false)
     expect(r.error).toMatch(/invalid check/)
   })
+  it('rejects a course shipping plugin code (editors/converters are not course content)', () => {
+    for (const p of ['lessons/01-first/files/editors/evil.js', 'lessons/01-first/files/converters/evil.js']) {
+      const r = validateCourseFiles([...good, { path: p, content: 'globalThis.__pwned = 1' }])
+      expect(r.ok, p).toBe(false)
+      expect(r.error).toMatch(/plugin code|editors|converters/)
+    }
+  })
+  it('still accepts ordinary starter files under files/', () => {
+    const r = validateCourseFiles([...good, { path: 'lessons/01-first/files/src/main.a65', content: '; ok\n' }])
+    expect(r.ok).toBe(true)
+  })
 })
 
 describe('fetchGitHubCourse', () => {

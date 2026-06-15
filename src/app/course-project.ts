@@ -11,7 +11,7 @@
 import { storage } from './storage'
 import { MANIFEST_PATH, textToBytes } from '@adapters/storage-idb'
 import type { ProjectManifestV2 as Manifest } from '@ports'
-import { getCourse, getLesson } from './courses'
+import { getCourse, getLesson, isProjectPluginPath } from './courses'
 
 /** Project id of an existing project instantiated from this lesson, or
  *  undefined if the learner has not opened it yet. */
@@ -45,7 +45,10 @@ export async function openLesson(courseId: string, lessonId: string): Promise<st
 
   const files = [
     ...lesson.files
-      .filter((f) => f.path !== MANIFEST_PATH)
+      // Never instantiate course content into a project plugin dir — it would
+      // execute on load. validateCourseFiles rejects this at install, but a
+      // bundled or pre-existing course bypasses that, so strip here too.
+      .filter((f) => f.path !== MANIFEST_PATH && !isProjectPluginPath(f.path))
       .map((f) => ({ path: f.path, content: textToBytes(f.content) })),
     { path: MANIFEST_PATH, content: textToBytes(JSON.stringify(manifest, null, 2) + '\n') },
   ]
@@ -69,6 +72,7 @@ export async function resetLessonToStarter(courseId: string, lessonId: string): 
 
   for (const f of lesson.files) {
     if (f.path === MANIFEST_PATH) continue // never let the starter clobber the stamped manifest
+    if (isProjectPluginPath(f.path)) continue // courses are data, not code (see openLesson)
     await storage.projects.writeFile(projectId, f.path, textToBytes(f.content))
   }
   if (manifest) {

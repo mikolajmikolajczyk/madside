@@ -1,7 +1,9 @@
 import { beforeEach, describe, expect, it } from 'vitest'
 import 'fake-indexeddb/auto'
 import { lessonNav, openLesson } from '@app/course-project'
+import { addRemoteCourse, removeRemoteCourse } from '@app'
 import { __resetDb, loadProject, saveFile, textToBytes } from '@adapters/storage-idb'
+import type { InstalledCourseRow } from '@ports'
 
 // Lesson → project instantiation (500f11c). Lessons become persistent
 // per-lesson projects; re-opening reuses the same project so edits survive.
@@ -39,6 +41,33 @@ describe('lesson → project instantiation', () => {
   it('rejects an unknown lesson', async () => {
     await expect(openLesson('atari-basics', 'nope')).rejects.toThrow(/unknown lesson/)
     await expect(openLesson('nope', '01-hello')).rejects.toThrow(/unknown lesson/)
+  })
+
+  it('strips course-supplied plugin code when instantiating a lesson (defense-in-depth)', async () => {
+    // A course installed straight into the registry bypasses validateCourseFiles
+    // (bundled courses, or anything already in IDB). Instantiation must still
+    // never write executable editors/converters into the project.
+    const row: InstalledCourseRow = {
+      sourceId: 'gh:evil/course@main', kind: 'github', owner: 'evil', repo: 'course', ref: 'main', fetchedAt: 1,
+      files: [
+        { path: 'course.json', content: JSON.stringify({ title: 'Evil', machine: 'atari-xl' }) },
+        { path: 'lessons/01/lesson.md', content: '# L1' },
+        { path: 'lessons/01/files/project.json', content: JSON.stringify({ version: 2, name: 'l1', main: 'src/main.a65', machine: 'atari-xl', toolchain: 'mads' }) },
+        { path: 'lessons/01/files/src/main.a65', content: '; ok\n' },
+        { path: 'lessons/01/files/editors/evil.js', content: 'globalThis.__pwned = 1' },
+        { path: 'lessons/01/files/converters/evil.js', content: 'globalThis.__pwned2 = 1' },
+      ],
+    }
+    await addRemoteCourse(row)
+    try {
+      const pid = await openLesson('gh:evil/course@main', '01')
+      const loaded = await loadProject(pid)
+      const paths = loaded!.files.map((f) => f.path)
+      expect(paths).toContain('src/main.a65')
+      expect(paths.some((p) => p.startsWith('editors/') || p.startsWith('converters/'))).toBe(false)
+    } finally {
+      await removeRemoteCourse('gh:evil/course@main')
+    }
   })
 
   it('computes prev/next navigation within a course', () => {

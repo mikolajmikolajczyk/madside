@@ -332,6 +332,20 @@ export interface CourseValidation {
   error?: string
 }
 
+/** Project-relative directories reserved for project-local *plugins*. Files
+ *  here are loaded as code — `editors/*.js` via the editor registry, and
+ *  `converters/*.js` via the recipe engine — both Blob-URL + dynamic-import
+ *  EXECUTED on project load/build. Courses are data, not code (see
+ *  wiki/decisions/2026-06-14-remote-courses-trust-model.md), so a course
+ *  starter file must never land here, or merely opening the lesson would run
+ *  the repo's arbitrary JS on our origin. */
+const PLUGIN_DIRS = ['editors', 'converters']
+
+/** True if a *project-relative* path falls inside a reserved plugin directory. */
+export function isProjectPluginPath(projectPath: string): boolean {
+  return PLUGIN_DIRS.includes(projectPath.split('/')[0] ?? '')
+}
+
 /** Structural validation of fetched course files before install. Rejects (with
  *  a message) rather than silently skipping, so the user learns why a repo
  *  didn't load. Courses are data, not code — this guards shape + size only. */
@@ -354,6 +368,16 @@ export function validateCourseFiles(files: { path: string; content: string }[]):
   }
   if (lessonIds.size === 0) return { ok: false, error: 'no lessons/ directory found' }
   if (lessonIds.size > MAX_LESSONS) return { ok: false, error: `too many lessons (${lessonIds.size} > ${MAX_LESSONS})` }
+
+  // Courses are data, not code: a lesson starter file (lessons/<id>/files/<rest>)
+  // must not land in a project plugin directory, where it would be executed on
+  // load. Reject (don't silently strip) so the author learns why.
+  for (const f of files) {
+    const m = f.path.match(/^lessons\/[^/]+\/files\/(.+)$/)
+    if (m && isProjectPluginPath(m[1]!)) {
+      return { ok: false, error: `course may not ship plugin code: "${f.path}" — editors/ and converters/ are reserved for project-local plugins, not course content` }
+    }
+  }
 
   let withBody = 0
   for (const id of lessonIds) {
