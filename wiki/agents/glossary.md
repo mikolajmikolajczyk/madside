@@ -49,8 +49,8 @@
 
 ## Workflow terms
 
-- **Radicle** — peer-to-peer code forge. Canonical home of this repo (GitHub is a CI-only mirror).
-- **Patch** — Radicle's pull request. Created by `git push rad HEAD:refs/patches`.
-- **Issue (Radicle)** — like GitHub issue, but signed and replicated peer-to-peer. Labels follow [`../skills/radboard.md`](../skills/radboard.md).
-- **Epic** — issue labeled `epic`. Children link via `parent:<hex7>`.
+- **GitHub** — the canonical forge: source, issues, and PRs, default branch `main`. (Repo `mikolajmikolajczyk/madside`. The project was developed on Radicle in its early days.)
+- **PR (pull request)** — the review surface. Branch/fork → PR to `main` → CI must pass before merge. Links the issue it closes with `Closes #<n>`.
+- **Issue** — a GitHub issue. Labels follow the conventions in [`working-on-issues.md`](working-on-issues.md).
+- **Epic** — issue labeled `epic`. Children link via `parent:#<n>`.
 - **Milestone** — label `milestone:<name>`. Groups issues into work batches.

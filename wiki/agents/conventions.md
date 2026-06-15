@@ -113,5 +113,5 @@ Root cause of `ce0dc6f` / `da6299d` / `d64d0a4`: parallel React state + manual e
 ## When in doubt
 
 - Read the relevant ADR in [`../adr/`](../adr/).
-- Check Radicle issues for active work: `rad issue list --all`.
+- Check GitHub issues for active work: `gh issue list --state all`.
 - Ask the user. Solo project — they're the only deciding authority.

@@ -37,7 +37,7 @@ repos:
         language: system
         entry: pnpm exec prettier --check
         files: '\.(ts|tsx|js|jsx|css|md|json|yaml|yml)$'
-        exclude: '(^pnpm-lock\.yaml|^flake\.lock|^LICENSE|^public/(wasm|altirra)/|^wiki/skills/(radicle|radboard)\.md|^\.claude/skills/)'
+        exclude: '(^pnpm-lock\.yaml|^flake\.lock|^LICENSE|^public/(wasm|altirra)/)'
         stages: [manual]
 
       - id: eslint
@@ -79,7 +79,7 @@ repos:
         language: system
         entry: pnpm exec markdownlint
         files: '\.md$'
-        exclude: '(^wiki/skills/(radicle|radboard)\.md|^\.claude/skills/|^LICENSE)'
+        exclude: '^LICENSE$'
         stages: [manual]
 
       - id: shellcheck

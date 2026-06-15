@@ -50,17 +50,17 @@ The `just` recipes also wrap the app commands above (`just dev`, `just build`, `
 
 Details: [`mads-wasm-build.md`](mads-wasm-build.md), [`altirra-wasm-build.md`](altirra-wasm-build.md). **Do not rebuild casually.** Bump pinned commits in `justfile` deliberately, rerun, smoke-test, commit the new artifact.
 
-## Radicle (issues, patches)
+## GitHub (issues, PRs)
 
 ```sh
-rad issue list                   # open issues
-rad issue list --all             # everything
-rad issue show <ID>              # full issue body
-rad patch list                   # open patches
-rad sync                         # fetch + announce
+gh issue list                    # open issues
+gh issue list --state all        # everything
+gh issue view <n> --comments     # full issue body + comments
+gh pr list                       # open PRs
+gh pr create --base main --fill  # open a PR to main
 ```
 
-Full reference: [`../skills/radicle.md`](../skills/radicle.md). Label conventions: [`../skills/radboard.md`](../skills/radboard.md).
+Issue/label and PR workflow: [`working-on-issues.md`](working-on-issues.md). Contribution flow: repo-root [`CONTRIBUTING.md`](../../CONTRIBUTING.md).
 
 ## Git
 

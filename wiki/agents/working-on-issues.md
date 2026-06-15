@@ -1,26 +1,34 @@
 # Working on issues
 
-Project-specific addendum to the [radboard skill](../skills/radboard.md). Radboard covers the universal lifecycle (open → in-progress → review → solved + hex7 patch linking). This page covers what madside specifically does on top.
+How madside tracks work on its canonical forge, **GitHub**
+([`github.com/mikolajmikolajczyk/madside`](https://github.com/mikolajmikolajczyk/madside),
+default branch `main`). Issues and pull requests both live there; drive them with
+the `gh` CLI. This page covers the project-specific issue/label/PR conventions on
+top of the generic flow in the repo-root [`CONTRIBUTING.md`](../../CONTRIBUTING.md).
 
-## Columns we use
+## State labels we use
 
-The radboard skill says "pick whatever workflow you want". Madside uses **two** state labels. No `state:triage` (the built-in Open column does that job), no `state:review` (solo project, no review step).
+Madside uses **two** state labels on issues. The default (no state label) is the
+backlog. No `state:triage`, no `state:review` (solo project, no review step).
 
 | Label | Meaning |
 |-------|---------|
 | `state:in-progress` | Actively being worked. Apply **before** you start writing code. |
 | `state:blocked` | Waiting on something external (decision, upstream, hardware). Pair with a `blocked:*` label that names the blocker. |
-| (no state label) | Filed, scoped, not started — sits in the built-in **Open** column. Default for every new issue. |
+| (no state label) | Filed, scoped, not started — the default backlog for every new issue. |
 
 Conventions:
 
-- **Exactly one `state:*` label at a time.** When picking up an issue: `-a state:in-progress`. When blocking: `-d state:in-progress -a state:blocked`. When finishing: `rad issue state --solved <ID>` (no need to strip `state:*` — solved issues ignore it).
+- **Exactly one `state:*` label at a time.** Picking up: `gh issue edit <n> --add-label state:in-progress`. Blocking: `gh issue edit <n> --remove-label state:in-progress --add-label state:blocked`. Finishing: just close the issue (`gh issue close <n>`, or let the merged PR close it via a `Closes #<n>` line) — no need to strip `state:*`.
 - **Don't introduce `state:review`** unless a second contributor joins. Solo work doesn't need it; pretending it does just makes the board lie.
-- **`state:blocked` requires a paired `blocked:*` label** (hex7 or free-text). A naked `state:blocked` is invisible — nobody knows what's blocking.
+- **`state:blocked` requires a paired `blocked:*` label** (issue number or free-text). A naked `state:blocked` is invisible — nobody knows what's blocking.
+
+Other labels that keep the board legible: `priority:*`, `milestone:*`, `epic`, and
+`parent:#<n>` links for child issues that roll up to an epic.
 
 ## Branch naming — Conventional Branch
 
-We use [conventionalbranch.org](https://conventionalbranch.org/) for any branch that isn't `master`.
+We use [conventionalbranch.org](https://conventionalbranch.org/) for any branch that isn't `main`.
 
 ```
 <type>/<short-slug>
@@ -28,33 +36,30 @@ We use [conventionalbranch.org](https://conventionalbranch.org/) for any branch 
 
 Types: `feat`, `bugfix`, `hotfix`, `chore`, `docs`, `test`, `release`.
 
-Optional issue prefix: append the 7-char hex if it helps you find the branch later.
+Optional issue prefix: append the issue number if it helps you find the branch later.
 
 ```
 feat/multi-format-loader
-feat/3b73e5d-multi-format-loader     # with issue hint
+feat/142-multi-format-loader     # with issue hint
 chore/eslint-boundaries
 docs/adr-0002-layering
 ```
 
-Why a convention at all on a solo project: future-me, AI agents, and `git branch --list 'feat/*'` queries all want predictability.
+Why a convention at all on a solo project: future-me, AI agents, and
+`git branch --list 'feat/*'` queries all want predictability.
 
-Push branch as patch:
+Conventional Branch is **not** Conventional Commits — commit messages still follow
+Conventional Commits separately (`feat:`, `fix:`, `docs:`, `chore:`, `refactor:`, `release:`).
 
-```sh
-git push rad HEAD:refs/patches
-```
+## PR description template
 
-Conventional Branch is **not** Conventional Commits — commit messages still follow Conventional Commits separately (`feat:`, `fix:`, `docs:`, `chore:`, `refactor:`, `release:`).
-
-## Patch description template
-
-Not a hard requirement, but matches what the project expects. Put this in the patch body when you `git push rad HEAD:refs/patches`:
+Not a hard requirement, but matches what the project expects. The repo ships a PR
+template; fill it in. The shape:
 
 ```markdown
 ## Why
 
-<one paragraph: motivation, link to issue with hex7>
+<one paragraph: motivation; link the issue with `Closes #<n>`>
 
 ## What
 
@@ -71,47 +76,55 @@ Not a hard requirement, but matches what the project expects. Put this in the pa
 <anything reviewers / future-you should know>
 ```
 
-Checked boxes in the patch body let future-you see at a glance what landed vs what slipped.
+`Closes #<n>` in the body auto-closes the issue when the PR merges. Checked boxes
+let future-you see at a glance what landed vs what slipped.
 
-## Issue → patch → solved (madside flow)
+## Issue → PR → merged (madside flow)
 
 ```sh
 # 1. Start
-rad issue label <hex7> -a state:in-progress
+gh issue edit <n> --add-label state:in-progress
 
-# 2. Branch
-git checkout -b feat/<hex7>-<slug>
+# 2. Branch off main
+git checkout main && git pull
+git checkout -b feat/<n>-<slug>
 
-# 3. Work + commit (Conventional Commits, GPG-signed, no Claude co-author)
-git commit -m "feat: <subject> (<hex7>)"
+# 3. Work + commit (Conventional Commits, GPG-signed appreciated, no Claude co-author)
+git commit -m "feat: <subject>"
 
-# 4. Push as patch (single-issue: hex7 in title; multi: hex7 per commit subject)
-git push rad HEAD:refs/patches
+# 4. Open the PR to main (CI must pass)
+git push -u origin HEAD
+gh pr create --base main --fill   # then fill in the template, add `Closes #<n>`
 
-# 5. After patch merges into master
-rad issue state --solved <hex7>
+# 5. Merge once CI is green; the `Closes #<n>` line closes the issue
 ```
 
-If a patch covers multiple issues, **don't `--solved` them until master actually contains the merge**. Solving early misleads the board.
+**CI is the gate** (typecheck · test · lint · build + docs build). Don't merge red.
 
 ## Decision capture inside an issue
 
-For decisions tied to one issue (e.g. "I'm using `mitt` over `nanoevents` for this EventBus implementation"), **comment on the issue**, don't open an ADR.
+For decisions tied to one issue (e.g. "I'm using `mitt` over `nanoevents` for this
+EventBus implementation"), **comment on the issue**, don't open an ADR.
 
 ```sh
-rad issue comment <hex7> -m "Decided: mitt over nanoevents — 200 B vs 150 B, but mitt has typed events out of the box and we don't need RxJS-style streams. Revisit if subscription complexity grows."
+gh issue comment <n> -b "Decided: mitt over nanoevents — 200 B vs 150 B, but mitt has typed events out of the box and we don't need RxJS-style streams. Revisit if subscription complexity grows."
 ```
 
-For cross-cutting decisions that don't belong to a single issue, write to `wiki/decisions/`. For app-shape decisions (constraining plugin contracts), write an ADR. See [`../adr/README.md`](../adr/README.md) for the three-way split.
+For cross-cutting decisions that don't belong to a single issue, write to
+`wiki/decisions/`. For app-shape decisions (constraining plugin contracts), write an
+ADR. See [`../adr/README.md`](../adr/README.md) for the three-way split.
 
 ## Session handoff
 
-When ending a coding session mid-issue, leave a comment on the active issue:
+When ending a coding session mid-issue, leave a comment on the active GitHub issue:
 
 ```sh
-rad issue comment <hex7> -m "Session pause $(date -I). Done: <X>. Next: <Y>. Blocker: <Z|none>."
+gh issue comment <n> -b "Session pause $(date -I). Done: <X>. Next: <Y>. Blocker: <Z|none>."
 ```
 
-The next session (you or an agent) reads recent comments via `rad issue show <hex7>` and picks up without rediscovering state from the diff.
+The next session (you or an agent) reads recent comments via
+`gh issue view <n> --comments` and picks up without rediscovering state from the diff.
 
-This complements the auto-memory file at `~/.claude/projects/-home-mikolaj-src-madside/memory/` (Claude Code only) — the issue comment is forge-visible and agent-agnostic.
+This complements the auto-memory file at
+`~/.claude/projects/-home-mikolaj-src-madside/memory/` (Claude Code only) — the issue
+comment is forge-visible and agent-agnostic.

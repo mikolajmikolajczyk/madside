@@ -1,6 +1,6 @@
 # Feature status (current)
 
-> Snapshot of what works today. Roadmap and active issues live in Radicle (`rad issue list --all`).
+> Snapshot of what works today. Roadmap and active issues live in GitHub (`gh issue list --state all`).
 
 ## Core stack
 
@@ -96,7 +96,7 @@
 
 ## Active work
 
-`rad issue list`. Current milestones use `milestone:v<X.Y.Z>` labels:
+`gh issue list`. Current milestones use `milestone:v<X.Y.Z>` labels:
 
 - `milestone:v0.8.0` — ✅ **done.** M9 NES validation (epic 8cf0a3b): jsnes emulator backend (b41098c), machine-nes plugin (481d76b), manifest-driven machine selection (1972a36), NES sample in MADS (50e22d1), PPU panel + named memory spaces (93c218b). NES validated via **MADS** (assembles NROM iNES directly); ca65 (6bed971) deferred to backlog as a future second toolchain for the C/neslib ecosystem.
 - `milestone:v0.8.5` — ✅ **done.** Bundled templates (`templates/<id>/` via Vite glob, `src/app/templates.ts`) + welcome picker / File→Templates (71acac1, 505492d).

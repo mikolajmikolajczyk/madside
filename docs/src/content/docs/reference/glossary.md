@@ -51,6 +51,6 @@ sidebar:
 
 ## Forge
 
-- **Radicle** — the peer-to-peer code forge that is the canonical home of this repo (GitHub is a CI-only mirror).
-- **Patch** — Radicle's equivalent of a pull request.
-- **Issue** — a Radicle issue: signed and replicated peer-to-peer.
+- **GitHub** — the canonical home of this repo: source, issues, and pull requests, default branch `main`. (The project was developed on Radicle in its early days.)
+- **Pull request (PR)** — the review surface: branch/fork → PR to `main` → CI must pass before merge.
+- **Issue** — a GitHub issue; the roadmap is the set of issues grouped by milestone.

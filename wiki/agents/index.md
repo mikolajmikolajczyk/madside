@@ -15,4 +15,4 @@ Load on demand. Pick the file that matches the task.
 | [altirra-wasm-build.md](altirra-wasm-build.md) | About to rebuild Altirra core |
 | [deferred.md](deferred.md) | Tempted to implement something not asked — check this first |
 
-Roadmap and active issues are in **Radicle**, not in these files. Use `rad issue list --all`.
+Roadmap and active issues are in **GitHub**, not in these files. Use `gh issue list --state all` (repo `mikolajmikolajczyk/madside`).

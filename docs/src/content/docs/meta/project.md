@@ -1,6 +1,6 @@
 ---
 title: The project
-description: madside is developed on Radicle, with GitHub as a CI-only mirror.
+description: madside is developed on GitHub — the canonical home for source, issues, and pull requests.
 sidebar:
   order: 3
 ---
@@ -9,30 +9,28 @@ madside is an in-browser IDE for retro hardware — Atari 8-bit today, NES along
 
 ## Where the code lives
 
-madside is developed on **[Radicle](https://radicle.xyz)**, a peer-to-peer, sovereign code forge. Radicle is the **canonical home** for the source, issues, and patches (Radicle's equivalent of pull requests).
+madside lives on **[GitHub](https://github.com/mikolajmikolajczyk/madside)**, the canonical home for the source, issues, and pull requests. The default branch is `main`.
 
-**GitHub is a CI-only mirror.** It exists to run continuous integration and to give the project a familiar public mirror — but issues, the roadmap, and code review happen on Radicle, not GitHub. Don't expect GitHub issues or PRs to be the source of truth.
+(The project was developed on [Radicle](https://radicle.xyz) in its early days; the canonical forge has since moved to GitHub.)
 
 ## Finding issues and project status
 
-Everything tracked — bugs, features, milestones, the roadmap — lives as **Radicle issues**. With the `rad` CLI installed and the repo cloned:
+Everything tracked — bugs, features, milestones, the roadmap — lives as **GitHub issues**. With the [`gh` CLI](https://cli.github.com) installed, or just in the browser:
 
 ```sh
-rad issue list --all          # everything
-rad issue list                # open issues
-rad issue show <id>           # one issue, with comments
+gh issue list --state all     # everything
+gh issue list                 # open issues
+gh issue view <n> --comments  # one issue, with comments
 ```
 
-Issues follow a label convention (`state:*`, `priority:*`, `milestone:*`, plus `epic` / `parent:<id>` links) so they form a kanban-style board.
+Or browse them at [github.com/mikolajmikolajczyk/madside/issues](https://github.com/mikolajmikolajczyk/madside/issues).
 
-## Getting the repo via Radicle
+Issues follow a label convention (`state:*`, `priority:*`, `milestone:*`, plus `epic` / `parent:#<n>` links) so they form a kanban-style board.
 
-Radicle repos are addressed by a Repository ID (RID), not a URL. Once you have the project's RID:
+## Getting the repo
 
 ```sh
-rad clone <rid>
+git clone https://github.com/mikolajmikolajczyk/madside
 ```
-
-If you only want to browse, the GitHub mirror is a read-only convenience copy.
 
 See also: the [Roadmap](/docs/meta/roadmap/) and [Contributing](/docs/meta/contributing/) pages.

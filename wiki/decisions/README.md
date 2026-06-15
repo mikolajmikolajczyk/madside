@@ -8,7 +8,7 @@ Mid-weight decisions that don't qualify as ADRs but are too durable for a single
 |-------|------|
 | **ADR** (`../adr/`) | Constrains app shape or plugin contracts. Hard to reverse. Affects future contributors. Examples: layering rules, plugin host model, error boundary strategy, schema v2, machine plugin interface. |
 | **Decision log** (this folder) | Cross-cutting tool / library / process choice not tied to one issue. Reversible in days, not months. Examples: "we use mitt over nanoevents for EventBus", "wasm artifacts checked in not built per-CI", "AI agents in this repo write commit messages but never push". |
-| **Issue comment** | Decision tied to a specific issue. Examples: "in `c5aaf5a` we map F-keys via POKEY KBCODE high range, not via console keys". Found via `rad issue show <hex7>`. |
+| **Issue comment** | Decision tied to a specific issue. Examples: "in #41 we map F-keys via POKEY KBCODE high range, not via console keys". Found via `gh issue view <n> --comments`. |
 | **Commit message body** | Decision tied to a specific commit. Examples: "switched from sha256 to sha1 for blob hashing — IDB key length, no collision risk at our scale". |
 
 See [`../adr/README.md`](../adr/README.md) for the ADR bar in detail.
@@ -51,3 +51,4 @@ What would make us re-open this decision.
 - [2026-06-13 — NES uses MADS (not ca65); machines declare named memory spaces](2026-06-13-nes-uses-mads-and-named-memory-spaces.md)
 - [2026-06-14 — Interactive courses: bundled content, persistent lesson projects, declarative checks](2026-06-14-courses-architecture.md)
 - [2026-06-14 — Remote courses are data, not code — trust model](2026-06-14-remote-courses-trust-model.md)
+- [2026-06-15 — Canonical forge moved from Radicle to GitHub](2026-06-15-canonical-forge-github.md)

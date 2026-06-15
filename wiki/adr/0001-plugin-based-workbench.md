@@ -131,6 +131,6 @@ Internal/agent-facing project notes live under [`wiki/`](../index.md) — ADRs (
 
 ## Links
 
-- Roadmap and per-milestone child issues tracked in Radicle (epic-labeled issues).
+- Roadmap and per-milestone child issues tracked in Radicle (epic-labeled issues). *(Update 2026-06: canonical forge moved to GitHub — the roadmap now lives in GitHub issues.)*
 - Prior asset-pipeline plugin contract: Phase 7 in `CLAUDE.md` (will be superseded by this ADR + child documents).
 - Prior file-editor plugin contract: Phase 11 in `CLAUDE.md` (will generalize into `PanelPlugin`).

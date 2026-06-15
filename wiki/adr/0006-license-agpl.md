@@ -51,7 +51,7 @@ The plugin contract documentation (lands M7) will note: "plugins may be released
 
 ### Vendored skill copies + Altirra fork
 
-The `wiki/skills/radicle.md` and `wiki/skills/radboard.md` files are vendored from external sources (canonical upstreams listed in `wiki/skills/index.md`). They retain their upstream licences and are clearly marked as such; this ADR does not change their licensing.
+The `wiki/skills/radicle.md` and `wiki/skills/radboard.md` files were vendored from external sources, retaining their upstream licences. *(Removed 2026-06 when the canonical forge moved to GitHub — the Radicle workflow they documented is no longer used. This note is retained for provenance.)*
 
 The `_notes/altirra/` fork is a separate repo (not part of madside's git tree) and remains under its upstream GPL-3 licence.
 
