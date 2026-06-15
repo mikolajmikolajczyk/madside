@@ -8,6 +8,7 @@ import {
   deleteProject,
   duplicateProject,
   listProjects,
+  loadProject,
   MANIFEST_PATH,
   renameFile as renameFileIDB,
   renameFolder as renameFolderIDB,
@@ -16,7 +17,6 @@ import {
   saveManifest,
   setActiveProjectId,
 } from "@adapters/storage-idb";
-import { ensureActiveProject } from "@adapters/storage-idb";
 import { exportProjectToZip, importProjectFromZip } from "@adapters/storage-idb";
 import { clearBreakpoints, loadBreakpoints, saveBreakpoints } from "@adapters/storage-idb";
 import {
@@ -48,6 +48,21 @@ export interface ProjectState {
 
 const SAVE_DEBOUNCE_MS = 500;
 
+/** The active project lives in the URL (`?project=<id>`) so it survives reload
+ *  ("remember where I was") while a fresh visit with no param defaults to the
+ *  welcome screen. Cleared on delete so we never auto-jump to another project. */
+function readUrlProject(): string | undefined {
+  if (typeof window === "undefined") return undefined;
+  return new URLSearchParams(window.location.search).get("project") ?? undefined;
+}
+function writeUrlProject(id: string | null): void {
+  if (typeof window === "undefined") return;
+  const url = new URL(window.location.href);
+  if (id) url.searchParams.set("project", id);
+  else url.searchParams.delete("project");
+  window.history.replaceState(null, "", url);
+}
+
 const dec = new TextDecoder();
 const enc = new TextEncoder();
 function bytesEqual(a: Uint8Array, b: Uint8Array): boolean {
@@ -73,11 +88,10 @@ export function useProject(events?: EventBus) {
     let cancelled = false;
     (async () => {
       try {
-        const urlProjectId =
-          typeof window !== "undefined"
-            ? new URLSearchParams(window.location.search).get("project") ?? undefined
-            : undefined;
-        const loaded = await ensureActiveProject(urlProjectId);
+        // Default view is the welcome screen. A project is opened only when the
+        // URL carries `?project=<id>` (set on switch); no param → null → picker.
+        const urlProjectId = readUrlProject();
+        const loaded = urlProjectId ? await loadProject(urlProjectId) : null;
         const list = await listProjects();
         if (cancelled) return;
         if (!loaded) {
@@ -179,6 +193,7 @@ export function useProject(events?: EventBus) {
   }, []);
 
   const switchProject = useCallback(async (id: string) => {
+    writeUrlProject(id); // remember where we are across reload
     await setActiveProjectId(id);
     reload();
   }, [reload]);
@@ -197,6 +212,7 @@ export function useProject(events?: EventBus) {
   const duplicateProjectAction = useCallback(async (newName?: string): Promise<ProjectRow | null> => {
     if (!state) return null;
     const project = await duplicateProject(state.projectId, newName);
+    writeUrlProject(project.id);
     await setActiveProjectId(project.id);
     reload();
     return project;
@@ -207,7 +223,8 @@ export function useProject(events?: EventBus) {
     await clearBreakpoints(state.projectId);
     await clearSnapshotsForProject(state.projectId);
     await deleteProject(state.projectId);
-    // ensureActiveProject() will reseed a sandbox if the last one was removed.
+    // Back to the welcome screen — never auto-jump to another project.
+    writeUrlProject(null);
     reload();
   }, [state, reload]);
 
@@ -218,6 +235,7 @@ export function useProject(events?: EventBus) {
 
   const importProjectAction = useCallback(async (zipBytes: Uint8Array, fallbackName: string): Promise<ProjectRow> => {
     const project = await importProjectFromZip(zipBytes, fallbackName);
+    writeUrlProject(project.id);
     await setActiveProjectId(project.id);
     reload();
     return project;
