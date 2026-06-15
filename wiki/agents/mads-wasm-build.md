@@ -1,6 +1,6 @@
 # Rebuilding `mads.wasm`
 
-The MADS assembler ships as a wasm32-wasip1 binary in `public/wasm/mads.wasm`. Pipeline lives in this repo: `_notes/wasm-spike/` + `justfile`.
+The MADS assembler ships as a wasm32-wasip1 binary in `src/plugins/toolchain-mads/wasm-mads/mads.wasm`. Pipeline lives in this repo: `_notes/wasm-spike/` + `justfile`.
 
 ## One command
 
@@ -13,7 +13,7 @@ What it does:
 1. Clones FPC + Mad-Assembler at the pinned commits (in `justfile`).
 2. Bootstraps the FPC wasm32-wasip1 cross-compiler.
 3. Builds MADS via that compiler with the `crt.pas` shim.
-4. Copies the resulting `mads.wasm` into `public/wasm/`.
+4. Copies the resulting `mads.wasm` next to its loader in `src/plugins/toolchain-mads/wasm-mads/` (imported via Vite `?url`).
 
 Sources land in `_notes/wasm-spike/build/` (gitignored).
 
@@ -33,4 +33,4 @@ Assumed on `PATH`: `fpc` 3.2.2+, `gnumake`, `git`, `wasmtime` (for smoke test). 
 
 ## When to rebuild
 
-**Do not rebuild casually.** Bump the pinned commits in `justfile` deliberately, rerun `just build-mads-wasm`, smoke-test, then commit the new `public/wasm/mads.wasm`.
+**Do not rebuild casually.** Bump the pinned commits in `justfile` deliberately, rerun `just build-mads-wasm`, smoke-test, then commit the new `src/plugins/toolchain-mads/wasm-mads/mads.wasm`.

@@ -1,7 +1,7 @@
 // Drives the MADS plugin through the shared ToolchainPlugin contract harness.
-// Node test env doesn't ship a /wasm/mads.wasm URL — we shim global.fetch so
-// the plugin's loader (`fetch("/wasm/mads.wasm")`) resolves to the file on
-// disk under public/wasm/.
+// Node test env can't serve the Vite `?url` asset — we shim global.fetch so the
+// plugin's loader resolves to the wasm on disk (the binary now lives next to its
+// loader in the toolchain plugin, imported via `?url`).
 
 import { readFile } from 'node:fs/promises'
 import { fileURLToPath } from 'node:url'
@@ -9,7 +9,9 @@ import { afterAll, beforeAll, describe, it } from 'vitest'
 import { assertToolchainPlugin } from '@ports/test'
 import { madsToolchain } from '@plugins/toolchain-mads'
 
-const WASM_PATH = fileURLToPath(new URL('../../../public/wasm/mads.wasm', import.meta.url))
+const WASM_PATH = fileURLToPath(
+  new URL('../../../src/plugins/toolchain-mads/wasm-mads/mads.wasm', import.meta.url),
+)
 
 const HELLO = `        org $2000
 start
@@ -30,7 +32,7 @@ describe('madsToolchain — ToolchainPlugin contract', () => {
     originalFetch = globalThis.fetch
     globalThis.fetch = (async (input: RequestInfo | URL) => {
       const url = typeof input === 'string' ? input : input instanceof URL ? input.href : input.url
-      if (url === '/wasm/mads.wasm' || url.endsWith('/wasm/mads.wasm')) {
+      if (url.includes('mads.wasm')) {
         const bytes = await readFile(WASM_PATH)
         return new Response(bytes, { status: 200, headers: { 'content-type': 'application/wasm' } })
       }

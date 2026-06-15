@@ -1,5 +1,8 @@
 import { describe, expect, it } from 'vitest'
-import { JsnesBackend } from '@plugins/emulator-nes-jsnes'
+import { jsnesEmulator } from '@plugins/emulator-nes-jsnes'
+
+// Build the backend through the EmulatorPlugin contract (jsnes boots headless).
+const newBackend = () => jsnesEmulator.createBackend()
 
 // Breakpoint semantics on the jsnes backend. The interesting cases are the
 // reset-entry instruction (PC sits on it after load — jsnes loads it lazily,
@@ -21,14 +24,14 @@ function nrom(code: number[]): Uint8Array {
 const PROGRAM = [0x78, 0xd8, 0x4c, 0x02, 0xc0]
 
 describe('JsnesBackend breakpoints', () => {
-  it('seeds PC to the reset entry so it is observable after load', () => {
-    const be = new JsnesBackend()
+  it('seeds PC to the reset entry so it is observable after load', async () => {
+    const be = await newBackend()
     be.loadMedia('nes', nrom(PROGRAM))
     expect(be.getPC()).toBe(0xc000)
   })
 
-  it('traps on a breakpoint at the reset-entry instruction', () => {
-    const be = new JsnesBackend()
+  it('traps on a breakpoint at the reset-entry instruction', async () => {
+    const be = await newBackend()
     be.loadMedia('nes', nrom(PROGRAM))
     be.setBreakpoints([0xc000])
     be.advanceFrame()
@@ -36,8 +39,8 @@ describe('JsnesBackend breakpoints', () => {
     expect(be.getPC()).toBe(0xc000)
   })
 
-  it('steps over the trapped instruction on resume instead of re-trapping', () => {
-    const be = new JsnesBackend()
+  it('steps over the trapped instruction on resume instead of re-trapping', async () => {
+    const be = await newBackend()
     be.loadMedia('nes', nrom(PROGRAM))
     be.setBreakpoints([0xc000])
     be.advanceFrame() // traps at $C000
@@ -46,8 +49,8 @@ describe('JsnesBackend breakpoints', () => {
     expect(be.getPC()).not.toBe(0xc000)
   })
 
-  it('traps before executing a breakpoint reached mid-program', () => {
-    const be = new JsnesBackend()
+  it('traps before executing a breakpoint reached mid-program', async () => {
+    const be = await newBackend()
     be.loadMedia('nes', nrom(PROGRAM))
     be.setBreakpoints([0xc002])
     be.advanceFrame()

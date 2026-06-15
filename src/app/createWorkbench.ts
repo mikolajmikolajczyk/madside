@@ -4,11 +4,11 @@ import type {
   CommandRegistry,
   DebugAdapterPlugin,
   DebugService,
+  EmulatorPlugin,
   EventBus,
   Logger,
   MachinePlugin,
   PluginRegistry,
-  RunBackend,
   StorageBackend,
   RunService,
   ToolchainPlugin,
@@ -31,6 +31,8 @@ import {
 import { runRecipes } from '@plugins/converters'
 import { atariXl } from '@plugins/machine-atari-xl'
 import { machineNes } from '@plugins/machine-nes'
+import { jsnesEmulator } from '@plugins/emulator-nes-jsnes'
+import { altirraEmulator } from '@adapters/emu'
 import { madsToolchain } from '@plugins/toolchain-mads'
 import { atari6502DebugAdapter } from '@plugins/debug-atari-6502'
 import { registersPanel } from '@plugins/panel-registers'
@@ -128,15 +130,6 @@ const makeDefaultRecipes = (storage: StorageBackend): RecipeRunnerFn => async (p
   }))
 }
 
-const defaultEmuBackendFactory: RunBackendFactory = async () => {
-  // Lazy import so the Altirra emscripten glue (~133 KB) + its wasm stay out of
-  // the eager module graph — only loaded when an Atari project actually boots.
-  // Matches the jsnes backend's lazy import; both keep page-load fast.
-  const { createEmu } = await import('@adapters/emu')
-  const emu = await createEmu()
-  return emu as unknown as RunBackend
-}
-
 export function createWorkbench(deps: WorkbenchDeps): Workbench {
   // Vite injects import.meta.env.VITE_* at build time. When the dev-mode
   // event logger is on, every emit goes through console.group with a
@@ -174,6 +167,12 @@ export function createWorkbench(deps: WorkbenchDeps): Workbench {
     plugin: { ...atari6502DebugAdapter, kind: 'debug-adapter' },
     source: { origin: 'builtin' },
   })
+  // Emulator backends register like every other plugin kind; machines name the
+  // one they run on via `compatibleEmulators`, resolved below. Both plugins'
+  // createBackend lazy-imports its core, so registration stays cheap.
+  for (const emulator of [altirraEmulator, jsnesEmulator]) {
+    plugins.register({ plugin: emulator, source: { origin: 'builtin' } })
+  }
   for (const panel of [registersPanel, memoryPanel, outputPanel, ppuPanel]) {
     plugins.register({
       plugin: { ...panel, kind: 'panel' },
@@ -190,13 +189,25 @@ export function createWorkbench(deps: WorkbenchDeps): Workbench {
       source: { origin: 'builtin' },
     })
   }
+  // Resolve a machine's emulator backend through the registry: the machine
+  // names its emulator in `compatibleEmulators`, the EmulatorPlugin builds the
+  // RunBackend (lazy, so the core loads only on boot).
+  const resolveEmulatorBackend = (machine: MachinePlugin): RunBackendFactory => {
+    const emuId = machine.compatibleEmulators[0]
+    const emulator = plugins.get<EmulatorPlugin>('emulator', emuId)
+    if (!emulator) {
+      throw new Error(`machine '${machine.id}' requires emulator '${emuId}', not registered`)
+    }
+    return () => emulator.createBackend()
+  }
+
   // Machine selection table (1972a36). Each machine pairs a MachinePlugin with
   // its emulator backend factory + debug adapter. setActiveMachine swaps the
   // active entry when the project manifest's `machine` changes. The atari-xl
-  // entry honours the test overrides (emuBackendFactory / debugAdapter); NES
-  // uses the jsnes backend. The atari6502 adapter is CPU-shape-generic
-  // (reads backend.cpuState() in the 6502 struct JsnesBackend also returns),
-  // so it serves NES verbatim until a labelled debug-nes adapter lands.
+  // entry honours the test overrides (emuBackendFactory / debugAdapter). The
+  // atari6502 adapter is CPU-shape-generic (reads backend.cpuState() in the
+  // 6502 struct JsnesBackend also returns), so it serves NES verbatim until a
+  // labelled debug-nes adapter lands.
   interface MachineSetup {
     machine: MachinePlugin
     backendFactory: RunBackendFactory
@@ -205,16 +216,12 @@ export function createWorkbench(deps: WorkbenchDeps): Workbench {
   const machineSetups: Record<string, MachineSetup> = {
     'atari-xl': {
       machine: atariXl,
-      backendFactory: deps.emuBackendFactory ?? defaultEmuBackendFactory,
+      backendFactory: deps.emuBackendFactory ?? resolveEmulatorBackend(atariXl),
       debugAdapter: deps.debugAdapter ?? atari6502DebugAdapter,
     },
     nes: {
       machine: machineNes,
-      // Lazy import so jsnes (~31 KB) is code-split out of the main bundle —
-      // only fetched when a project actually selects the NES machine. Same
-      // shape as Altirra (whose heavy wasm core is fetched on boot).
-      backendFactory: async () =>
-        (await import('@plugins/emulator-nes-jsnes')).createJsnesBackend(),
+      backendFactory: resolveEmulatorBackend(machineNes),
       debugAdapter: deps.debugAdapter ?? atari6502DebugAdapter,
     },
   }

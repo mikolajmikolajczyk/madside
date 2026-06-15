@@ -68,6 +68,7 @@ export type {
   PanelMount,
   PanelPlugin,
 } from './plugin-panel'
+export type { EmulatorPlugin } from './plugin-emulator'
 export type {
   BootEquates,
   CpuId,

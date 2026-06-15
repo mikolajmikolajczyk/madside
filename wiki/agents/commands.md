@@ -42,7 +42,7 @@ Most hooks are still `stages: [manual]` during the Foundation cleanup pass. They
 ## Wasm rebuilds (rare, deliberate)
 
 ```sh
-just build-mads-wasm        # rebuild public/wasm/mads.wasm
+just build-mads-wasm        # rebuild src/plugins/toolchain-mads/wasm-mads/mads.wasm
 just build-altirra-wasm     # rebuild src/adapters/emu/wasm/altirra-core.{wasm,js}
 ```
 

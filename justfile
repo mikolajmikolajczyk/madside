@@ -9,7 +9,7 @@ spike_dir       := justfile_directory() / "_notes/wasm-spike"
 build_dir       := spike_dir / "build"
 fpc_dir         := build_dir / "fpc-src"
 mads_dir        := build_dir / "Mad-Assembler"
-wasm_out        := justfile_directory() / "public/wasm/mads.wasm"
+wasm_out        := justfile_directory() / "src/plugins/toolchain-mads/wasm-mads/mads.wasm"
 
 # Pinned upstream commits — bump deliberately, then rebuild.
 fpc_repo        := "https://gitlab.com/freepascal.org/fpc/source.git"
@@ -45,7 +45,7 @@ install:
 
 # === mads.wasm pipeline ===
 
-# Full pipeline: clone sources, bootstrap FPC wasm cross, build mads.wasm, copy to public/.
+# Full pipeline: clone sources, bootstrap FPC wasm cross, build mads.wasm, copy into the plugin.
 build-mads-wasm: clone-sources bootstrap-fpc-wasm compile-mads install-mads-wasm verify-mads-wasm
 
 # Clone (or update) FPC + Mad-Assembler at pinned commits into _notes/wasm-spike/build/.
@@ -78,7 +78,7 @@ compile-mads:
         -Fu"{{fpc_dir}}/packages/rtl-objpas/units/wasm32-wasip1" \
         -Fu. mads.pas
 
-# Copy built mads.wasm into public/wasm/ so Vite ships it.
+# Copy built mads.wasm next to its loader in the toolchain plugin (Vite ?url).
 install-mads-wasm:
     mkdir -p "$(dirname "{{wasm_out}}")"
     cp "{{mads_dir}}/mads.wasm" "{{wasm_out}}"

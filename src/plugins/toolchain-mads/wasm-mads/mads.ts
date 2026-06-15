@@ -7,6 +7,10 @@ import {
   ConsoleStdout,
   type Inode,
 } from "@bjorn3/browser_wasi_shim";
+// Plugin-owned wasm asset — Vite content-hashes the URL (cache-busting) and
+// tracks it at build time, same as the Altirra core. Mirrors @adapters/emu's
+// `?url` import; this plugin just owns its binary instead of an adapter.
+import madsWasmUrl from "./mads.wasm?url";
 
 export interface AssembleResult {
   ok: boolean;
@@ -30,7 +34,7 @@ let madsModulePromise: Promise<WebAssembly.Module> | null = null;
 
 function loadMadsModule(): Promise<WebAssembly.Module> {
   if (!madsModulePromise) {
-    madsModulePromise = fetch("/wasm/mads.wasm")
+    madsModulePromise = fetch(madsWasmUrl)
       .then((r) => {
         if (!r.ok) throw new Error(`fetch mads.wasm: ${r.status}`);
         return WebAssembly.compileStreaming(r);

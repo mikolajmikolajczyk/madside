@@ -1,6 +1,9 @@
 import { describe, expect, it } from 'vitest'
-import { JsnesBackend } from '@plugins/emulator-nes-jsnes'
+import { jsnesEmulator } from '@plugins/emulator-nes-jsnes'
 import { machineNes } from '@plugins/machine-nes'
+
+// Build the backend through the EmulatorPlugin contract (jsnes boots headless).
+const newBackend = () => jsnesEmulator.createBackend()
 
 // The PPU viewer reads the 'ppu' + 'oam' memory spaces declared in
 // machine-nes.memorySpaces. This guards that the backend routes those space
@@ -19,8 +22,8 @@ describe('NES backend named memory spaces', () => {
     expect(ids).toContain('oam')
   })
 
-  it("reads the 'ppu' space from PPU VRAM", () => {
-    const be = new JsnesBackend()
+  it("reads the 'ppu' space from PPU VRAM", async () => {
+    const be = await newBackend()
     const ppu = (be as unknown as PpuPeek).nes.ppu
     ppu.vramMem[0x3f00] = 0x21
     ppu.vramMem[0x3f01] = 0x0a
@@ -29,15 +32,15 @@ describe('NES backend named memory spaces', () => {
     expect(pal[1]).toBe(0x0a)
   })
 
-  it("reads the 'oam' space from sprite memory", () => {
-    const be = new JsnesBackend()
+  it("reads the 'oam' space from sprite memory", async () => {
+    const be = await newBackend()
     const ppu = (be as unknown as PpuPeek).nes.ppu
     ppu.spriteMem[4] = 0xab
     expect(be.readMem(4, 1, 'oam')[0]).toBe(0xab)
   })
 
-  it("defaults to the CPU space and rejects unknown spaces", () => {
-    const be = new JsnesBackend()
+  it("defaults to the CPU space and rejects unknown spaces", async () => {
+    const be = await newBackend()
     expect(be.readMem(0, 16).length).toBe(16)
     expect(be.readMem(0, 16, 'cpu').length).toBe(16)
     expect(() => be.readMem(0, 1, 'vic')).toThrow(/unknown space/)
