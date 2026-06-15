@@ -1,101 +1,68 @@
 # madside
 
-> Browser-native IDE for retro hardware. Started as an Atari 8-bit workbench (MADS + Altirra wasm), heading toward a plugin-based workbench that any retro platform can target.
-
+[![CI](https://github.com/mikolajmikolajczyk/madside/actions/workflows/ci.yml/badge.svg)](https://github.com/mikolajmikolajczyk/madside/actions/workflows/ci.yml)
+[![License: AGPL-3.0-or-later](https://img.shields.io/badge/license-AGPL--3.0--or--later-blue.svg)](LICENSE)
 [![Status: alpha](https://img.shields.io/badge/status-alpha-orange)](#status)
-[![License: AGPL-3.0-or-later](https://img.shields.io/badge/license-AGPL--3.0--or--later-blue)](LICENSE)
-[![Canonical: Radicle](https://img.shields.io/badge/canonical-radicle-blueviolet)](#contributing)
+
+**An in-browser IDE for retro hardware.** Write 6502 assembly, assemble it, run it on a cycle-accurate emulator, and debug it with breakpoints, a register view, and a memory inspector — all in the browser, nothing to install.
+
+### ▶︎ [Try it live → madside.mikolajczyk.org](https://madside.mikolajczyk.org) · 📖 [Docs](https://madside.mikolajczyk.org/docs/)
 
 <!-- TODO: screenshot or animated demo here -->
 <!-- ![madside running an Atari project](assets/screenshot.png) -->
 
-## What it does
+It currently targets two machines:
 
-- Edit Atari 6502 assembly in the browser (CodeMirror 6, MADS syntax, autocomplete from project labels).
-- Auto-assemble on file change via `mads.wasm`. Source map highlights the current PC.
-- Run + debug in an embedded Altirra core (wasm). Breakpoints, single-instruction step, frame step, register + flag view, live memory inspector.
-- Per-project asset pipeline: PNG → charset, BIN → `.incbin`, write your own converter as a single JS file.
-- Plugin file editors (Phase 11): drop a JS module into `editors/` to render a custom view for a file extension.
-- All project data in IndexedDB. Content-addressable snapshots every 30s. ZIP export/import.
+- **Atari 8-bit** (800XL / 130XE) — the [MADS](https://mads.atari8.info/) assembler on the Altirra core.
+- **NES** — MADS again (it assembles NROM iNES directly), on the [jsnes](https://github.com/bfirsh/jsnes) core.
 
-What it is **not** (yet): a multi-machine workbench. NES, C64, fantasy consoles — coming. See [ADR-0001](wiki/adr/0001-plugin-based-workbench.md).
+Everything beyond the editor is a **plugin**: machines, toolchains, emulators, debug adapters, panels, file converters, and editors. Adding a new retro platform doesn't touch the workbench — it ships as a set of plugins. See [ADR-0001](wiki/adr/0001-plugin-based-workbench.md).
+
+## What you can do
+
+- Start from a **template** or a guided **course** (bundled, or loaded from any public GitHub repo), then edit, assemble, and run.
+- Auto-assemble on edit via `mads.wasm`; a source map drives the address gutter and active-PC highlight.
+- Set source-level **breakpoints**, step by instruction or by frame, and watch registers, flags, and memory update live.
+- Inspect machine-specific state — the NES build ships a **PPU viewer** (pattern tables + palette).
+- Convert assets (images, CSV, binaries) into assembler data with the **asset pipeline**, or write your own converter as a single JS file.
+- Keep work in the browser (IndexedDB) with automatic snapshots, and **export** a project as ZIP or the built binary (`.xex` / `.nes`).
 
 ## Status
 
-Pre-v1. Solo development. Active milestones tracked in [Radicle](#contributing). Functional for Atari development today; APIs change without notice until the M3-services refactor stabilizes the plugin contracts.
+**Alpha**, under active and extensive testing. Functional for Atari + NES development today. Your projects live in your browser; export anything you want to keep. The roadmap lives in [GitHub issues](https://github.com/mikolajmikolajczyk/madside/issues).
 
-## Quick start
+## Quickstart
 
-### With Nix (recommended, lands in Foundation)
-
-```sh
-nix develop          # provisions Node, pnpm, just, static analysis stack
-pnpm install
-pnpm dev             # vite dev server
-```
-
-`direnv` auto-activates the shell on `cd` if you have it.
-
-### Without Nix (fallback)
-
-You need Node ≥ 22 and `pnpm` ≥ 10 on your PATH.
+Requires Node 22 + [pnpm](https://pnpm.io). A [Nix](https://nixos.org) flake is provided (`nix develop`, or `direnv allow` if you use direnv — it provisions the toolchain + static-analysis stack).
 
 ```sh
 pnpm install
-pnpm dev
+pnpm dev          # vite dev server
 ```
 
-`npm` also works (`npm install && npm run dev`).
-
-Open the dev server URL, hit **New Project** → start typing assembly.
-
-## Building from source
+Other commands:
 
 ```sh
-pnpm build           # tsc -b && vite build → dist/
-pnpm preview         # serve dist/
+pnpm build              # tsc -b && vite build → dist/
+pnpm exec vitest run    # tests
+pnpm run lint           # eslint
+pnpm --dir docs dev     # the Astro docs site
 ```
 
-Rebuilding the bundled wasm artifacts (`mads.wasm`, `altirra-core.wasm`) is rare. See [`wiki/agents/mads-wasm-build.md`](wiki/agents/mads-wasm-build.md) and [`wiki/agents/altirra-wasm-build.md`](wiki/agents/altirra-wasm-build.md).
-
-## Architecture
-
-Madside is moving from an Atari-specific IDE to a plugin-based workbench. The pivot, layering rules, and per-milestone scope are documented in:
-
-- **[ADR-0001 — Plugin-based retro-development workbench](wiki/adr/0001-plugin-based-workbench.md)** — vision, plugin taxonomy, migration phases
-- **[AGENTS.md](AGENTS.md)** — repo-specific notes for human and AI contributors
-- **[wiki/agents/architecture.md](wiki/agents/architecture.md)** — current as-built layout
-- **[wiki/](wiki/)** — full documentation tree
-
-## Roadmap
-
-Tracked exclusively in Radicle issues — there is no markdown roadmap.
-
-```sh
-rad issue list --all
-```
-
-Milestones: `m2` (Atari finish) → `m2-5-foundation` (architectural cleanup) → `m3-services` → `m4-machine-plugin` → … → `m9-nes` (second machine validation).
+Rebuilding the bundled wasm artifacts (`mads.wasm`, `altirra-core.wasm`) is rare — see [`wiki/agents/mads-wasm-build.md`](wiki/agents/mads-wasm-build.md) and [`wiki/agents/altirra-wasm-build.md`](wiki/agents/altirra-wasm-build.md).
 
 ## Contributing
 
-Canonical home is **Radicle**, not GitHub.
-
-- Read [`wiki/skills/radicle.md`](wiki/skills/radicle.md) before driving `rad`.
-- Issue conventions (labels, epics, milestones) follow [`wiki/skills/radboard.md`](wiki/skills/radboard.md).
-- Patches: `git push rad HEAD:refs/patches`.
-- GitHub mirror is **CI-only**. Issues and pull requests on GitHub are not accepted.
-
-For coding conventions see [`wiki/agents/conventions.md`](wiki/agents/conventions.md). For the ADR bar see [`wiki/adr/README.md`](wiki/adr/README.md).
+Contributions are welcome — see **[CONTRIBUTING.md](CONTRIBUTING.md)** for the dev setup, the PR flow, and how to add a machine / toolchain / panel / converter / course. The deeper architecture, plugin contracts, and coding conventions live under [`wiki/`](wiki/) and on the [docs site](https://madside.mikolajczyk.org/docs/extending/).
 
 ## License
 
-[**AGPL-3.0-or-later**](LICENSE). Full text in [`LICENSE`](LICENSE), rationale in [ADR-0006](wiki/adr/0006-license-agpl.md).
+[**AGPL-3.0-or-later**](LICENSE). Rationale in [ADR-0006](wiki/adr/0006-license-agpl.md).
 
-Short version: you may use, study, modify, and redistribute madside — including hosting it as a web service — provided that any modified version you distribute or expose over a network is also released under AGPL-3.0-or-later. Plugins may be released under any AGPL-compatible licence (MIT, Apache-2.0, GPL family, LGPL).
+Short version: you may use, study, modify, and redistribute madside — including hosting it as a web service — provided any modified version you distribute or expose over a network is also released under AGPL-3.0-or-later. Plugins may be released under any AGPL-compatible licence (MIT, Apache-2.0, GPL family, LGPL).
 
 ## Acknowledgements
 
-- **Altirra** by Avery Lee — the cycle-exact Atari emulator that powers the run + debug path. The wasm core is built from a [fork](https://github.com/mikolajmikolajczyk/AltirraSDL) with a small embedding shim.
+- **Altirra** by Avery Lee — the cycle-exact Atari emulator powering the run + debug path. The wasm core is built from a [fork](https://github.com/mikolajmikolajczyk/AltirraSDL) with a small embedding shim.
 - **MADS** by Tomasz Biela — the fast, modern 6502 cross-assembler bundled as `mads.wasm`.
-- **8bitworkshop** — earlier reference for the in-browser IDE approach, since replaced by the Altirra wasm path.
+- **jsnes** by Ben Firshman — the NES emulator core.
