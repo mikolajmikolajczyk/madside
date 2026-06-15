@@ -1,0 +1,20 @@
+; common NES register equates
+PPUCTRL   = $2000
+PPUMASK   = $2001
+PPUSTATUS = $2002
+OAMADDR   = $2003
+OAMDATA   = $2004
+PPUSCROLL = $2005
+PPUADDR   = $2006
+PPUDATA   = $2007
+OAMDMA    = $4014
+APUSTATUS = $4015
+JOY1      = $4016
+JOY2      = $4017
+
+; APU pulse channel 1
+SQ1_VOL   = $4000   ; DDLC VVVV  duty / length-halt / const-vol / volume
+SQ1_SWEEP = $4001   ; EPPP NSSS  sweep (E=enable)
+SQ1_LO    = $4002   ; timer low 8 bits
+SQ1_HI    = $4003   ; LLLL LHHH  length-counter load + timer high 3 bits
+FRAMECNT  = $4017   ; frame counter / IRQ (also JOY2 on read)

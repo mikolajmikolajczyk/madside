@@ -34,16 +34,15 @@ A debugger needs `nes.cpu` / `nes.ppu` / `nes.papu`, which jsnes does **not** de
 jsnes's `frame()` traps only at frame granularity. Source-level breakpoints need per-instruction granularity, so `advanceFrame` has two paths:
 
 - **No trap + no breakpoints** → call `nes.frame()` directly (DMA-correct, does the odd-frame / scanline bookkeeping).
-- **Trap or breakpoints present** → own the loop: `cpu.emulate()` + `papu.clockFrameCounter()` per instruction, checking the trap + breakpoint set after each.
+- **Trap or breakpoints present** → own the loop: `stepInstruction()` per iteration, checking the trap + breakpoint set after each. `stepInstruction()` mirrors jsnes's `frame()` body cycle-for-cycle — including the `cpu.cyclesToHalt` branch that drains OAM-DMA / DMC halt cycles via `ppu.advanceDots(3)` instead of fetching the next opcode. So the debug path matches the fast path's PPU timing across DMA (#4).
 
-Known gap (`TODO(frame-parity)` in `jsnes-backend.ts`): the debug path does not drain `cpu.cyclesToHalt` via `ppu.advanceDots(3)`, so OAM-DMA stall cycles slightly under-advance the PPU while single-stepping through a DMA. Irrelevant for step-debugging basic homebrew; matters for cycle-counted DMC tricks. The fast path (most running) is unaffected.
+## Status
 
-## Skeleton status
+Complete backend behind `RunBackend` / `EmulatorPlugin`:
 
-Structure + verified API mapping compile against `RunBackend`. Still stubbed (`TODO(skeleton)`):
+- **Framebuffer** — `onFrame` blit (0x00RRGGBB → canvas 0xAABBGGRR).
+- **Audio** — `onAudioSample` (stereo, mono-mixed) → accumulation buffer → ~5 ms push pump → `jsnes-audio` AudioWorklet sink. Mirrors the Altirra path; `startAudio`/`suspendAudio` drive it on Run / pause-stop. The context is pinned to the NES sample rate (no resampling).
+- **Input** — `sendKey(buttonIndex, _, isDown)` → `nes.buttonDown/Up(1, …)`. The browser-key → button-index map lives in `machine-nes.input.codeToKey`.
+- **Debug** — breakpoint-granular advance loop + DMA-faithful `stepInstruction` (above).
 
-- Framebuffer colour conversion is implemented (0x00RRGGBB → canvas 0xAABBGGRR) but the exact `MachinePlugin.display.pixelFormat` choice is deferred to the machine-nes plugin.
-- `onAudioSample` → AudioWorklet sink wiring (mirror the Altirra POKEY tap).
-- `sendKey` → jsnes controller mapping (a `MachinePlugin.input` concern, separate issue).
-
-Not yet registered in `createWorkbench` — that happens with the machine-nes plugin + `project.json` emulator dispatch (other M9 children).
+Registered as the `jsnes` `EmulatorPlugin` (`plugin.ts`); `createWorkbench` resolves it from `machine-nes.compatibleEmulators`.

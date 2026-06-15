@@ -34,6 +34,9 @@ export interface JsnesCpu {
   /** OAM-DMA / DMC stall cycles owed to the bus. frame() drains these before
    *  fetching the next opcode. */
   cyclesToHalt: number
+  /** Running CPU-cycle counter jsnes bumps while draining halt cycles (keeps
+   *  DMC/APU timing aligned). Advanced by the halt-drain branch of the loop. */
+  _cpuCycleBase: number
   /** APU catch-up cycles already advanced inline; passed to
    *  papu.clockFrameCounter so it doesn't double-count. */
   apuCatchupCycles: number

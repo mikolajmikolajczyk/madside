@@ -6,11 +6,10 @@
 // pick reversible (a Mesen-class wasm core can drop in behind this same
 // contract later).
 //
-// SKELETON STATUS (M9 / v0.8.0): structure + the verified jsnes API mapping
-// are real and compile. Items still stubbed are tagged TODO(skeleton): exact
-// framebuffer colour conversion, AudioWorklet wiring, controller input. The
-// per-instruction breakpoint loop (the one genuinely tricky bit) is
-// implemented here so the hard part isn't hand-waved.
+// Full backend (#4 closed the M9 skeleton gaps): framebuffer blit, AudioWorklet
+// sink (onAudioSample → push pump → worklet), controller input (sendKey →
+// buttonDown/Up), and a breakpoint-granular advance loop that mirrors jsnes's
+// own frame() body cycle-for-cycle (incl. the OAM-DMA halt drain).
 
 import type { RunBackend } from '@ports'
 import { NES } from 'jsnes'
@@ -46,13 +45,27 @@ export class JsnesBackend implements RunBackend {
   // doesn't re-trap in place at the same breakpoint.
   private trappedAt: number | null = null
 
+  // Audio sink (AudioWorklet). jsnes emits samples through onAudioSample during
+  // frame(); they accumulate here and the push pump drains them to the worklet
+  // (same model as the Altirra POKEY tap). ~0.7s at 44.1 kHz; on overrun (pump
+  // stalled) the newest sample is dropped — inaudible vs a glitch.
+  private readonly audioAccum = new Float32Array(1 << 15)
+  private audioLen = 0
+  private audioCtx: AudioContext | null = null
+  private audioWorklet: AudioWorkletNode | null = null
+  private audioPushTimer: number | null = null
+
   constructor() {
     this.nes = new NES({
       sampleRate: DEFAULT_SAMPLE_RATE,
       onFrame: (buffer: Uint32Array) => this.blit(buffer),
-      // TODO(skeleton): route to the AudioWorklet sink (mirror the Altirra
-      // POKEY tap path in @adapters/emu).
-      onAudioSample: () => undefined,
+      // Mono-mix jsnes's stereo APU output into the audio buffer. NES audio is
+      // mono; averaging L/R collapses jsnes's slight channel panning cleanly.
+      onAudioSample: (left: number, right: number) => {
+        if (this.audioLen < this.audioAccum.length) {
+          this.audioAccum[this.audioLen++] = (left + right) * 0.5
+        }
+      },
     }) as NESWithInternals
   }
 
@@ -86,18 +99,27 @@ export class JsnesBackend implements RunBackend {
     this.trappedAt = null
   }
 
-  /** Run one CPU instruction. PPU advances inline inside the bus operations;
-   *  we additionally clock the APU frame counter to match jsnes's own loop. */
+  /** Advance the machine by one loop iteration, byte-for-byte mirroring jsnes's
+   *  own frame() body so our breakpoint-granular loop stays cycle-faithful:
+   *  - normal: execute one instruction (PPU clocked inline in the bus ops),
+   *    then clock the APU frame counter;
+   *  - DMA/DMC halt owed: drain up to 8 halt cycles, stepping the PPU 3 dots
+   *    per cycle instead of fetching the next opcode.
+   *  Without the halt branch the PPU under-advances across OAM-DMA. */
   private stepInstruction(): number {
-    const { cpu, papu } = this.nes
-    const cycles = cpu.emulate()
-    papu.clockFrameCounter(cycles, cpu.apuCatchupCycles)
-    cpu.apuCatchupCycles = 0
-    // TODO(frame-parity): drain cpu.cyclesToHalt via ppu.advanceDots(3) for
-    // exact OAM-DMA stall timing. Omitting it slightly under-advances the PPU
-    // during sprite DMA — irrelevant for step-debugging basic homebrew, but
-    // matters for cycle-counted DMC tricks. See README "frame-loop parity".
-    return cycles
+    const { cpu, ppu, papu } = this.nes
+    if (cpu.cyclesToHalt === 0) {
+      const cycles = cpu.emulate()
+      papu.clockFrameCounter(cycles, cpu.apuCatchupCycles)
+      cpu.apuCatchupCycles = 0
+      return cycles
+    }
+    const chunk = Math.min(cpu.cyclesToHalt, 8)
+    for (let i = 0; i < chunk; i++) ppu.advanceDots(3)
+    papu.clockFrameCounter(chunk)
+    cpu.cyclesToHalt -= chunk
+    cpu._cpuCycleBase += chunk
+    return chunk
   }
 
   step(): number {
@@ -204,19 +226,67 @@ export class JsnesBackend implements RunBackend {
     return out
   }
 
-  sendKey(): void {
-    // TODO(skeleton): map keyCode → jsnes Controller buttons via
-    // nes.buttonDown/buttonUp. Input mapping is a MachinePlugin.input concern
-    // (machine-nes plugin), not part of the emulator-core pick.
+  sendKey(keyCode: number, _charCode: number, isDown: boolean): void {
+    // keyCode is the jsnes Controller button index (0..7), mapped from the
+    // browser key by machine-nes.input.codeToKey. Route to the player-1 pad.
+    // (jsnes types the button as a 0..9 literal union; narrow the guarded int.)
+    if (keyCode < 0 || keyCode > 7) return
+    const btn = keyCode as 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7
+    if (isDown) this.nes.buttonDown(1, btn)
+    else this.nes.buttonUp(1, btn)
   }
 
-  // RunService.startAudio/suspendAudio reach for these via a cast. jsnes emits
-  // samples through onAudioSample; the AudioWorklet sink isn't wired yet
-  // (TODO(skeleton)), so these are no-ops — but they must EXIST, otherwise the
-  // frame loop's `void run.startAudio()` calls undefined and rejects on every
-  // Run.
-  async startAudio(): Promise<void> {}
-  async suspendAudio(): Promise<void> {}
+  // RunService drives these via a cast on Run / pause-stop. The worklet sink is
+  // created lazily on first Run (needs a user gesture for the AudioContext) and
+  // fed by a push pump draining the sample buffer — mirrors AltirraBackend.
+  async startAudio(): Promise<void> {
+    if (this.audioCtx) {
+      if (this.audioCtx.state === 'suspended') await this.audioCtx.resume()
+      this.startAudioPushPump()
+      return
+    }
+    // Pin the context to the NES sample rate so jsnes's output feeds through
+    // without resampling.
+    const ctx = new AudioContext({ sampleRate: this.sampleRate })
+    const workletUrl = new URL('./audio-worklet.js', import.meta.url).href
+    await ctx.audioWorklet.addModule(workletUrl)
+    const node = new AudioWorkletNode(ctx, 'jsnes-audio', {
+      numberOfInputs: 0,
+      numberOfOutputs: 1,
+      outputChannelCount: [1],
+    })
+    node.connect(ctx.destination)
+    this.audioCtx = ctx
+    this.audioWorklet = node
+    this.startAudioPushPump()
+  }
+
+  /** Drain accumulated samples into the worklet every ~5 ms (transfer-zero-copy).
+   *  The worklet consumes at the audio thread's pace, padding silence on
+   *  underrun. */
+  private startAudioPushPump(): void {
+    if (this.audioPushTimer != null) return
+    this.audioPushTimer = window.setInterval(() => {
+      if (!this.audioWorklet || this.audioLen === 0) return
+      const chunk = this.audioAccum.slice(0, this.audioLen)
+      this.audioLen = 0
+      this.audioWorklet.port.postMessage(chunk, [chunk.buffer])
+    }, 5)
+  }
+
+  private stopAudioPushPump(): void {
+    if (this.audioPushTimer != null) {
+      window.clearInterval(this.audioPushTimer)
+      this.audioPushTimer = null
+    }
+  }
+
+  async suspendAudio(): Promise<void> {
+    this.stopAudioPushPump()
+    if (this.audioWorklet) this.audioWorklet.port.postMessage('flush')
+    this.audioLen = 0
+    if (this.audioCtx && this.audioCtx.state === 'running') await this.audioCtx.suspend()
+  }
 
   saveState(): unknown {
     return this.nes.toJSON()

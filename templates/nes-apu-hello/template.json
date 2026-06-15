@@ -1,0 +1,6 @@
+{
+  "name": "NES — APU Hello (square-wave tone)",
+  "description": "Simplest possible NES sound: programs APU pulse channel 1 to play a steady ~440 Hz square-wave tone. No PPU/graphics — just enable the channel, set duty + constant volume + timer, loop. MADS assembles NROM iNES; runs on the jsnes core.",
+  "machine": "nes",
+  "order": 3
+}

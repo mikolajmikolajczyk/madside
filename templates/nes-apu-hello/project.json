@@ -1,0 +1,8 @@
+{
+  "version": 2,
+  "name": "nes-apu-hello",
+  "main": "src/nes-apu-hello.a65",
+  "machine": "nes",
+  "toolchain": "mads",
+  "run": { "default": { "audio": true } }
+}
