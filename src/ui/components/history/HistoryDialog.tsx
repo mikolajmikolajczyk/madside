@@ -2,8 +2,8 @@
 
 import * as RDialog from "@radix-ui/react-dialog";
 import { useMemo, useState } from "react";
-// eslint-disable-next-line boundaries/element-types -- TODO(M3): service extraction lifts this import into a service call
-import { diffSnapshots, type SnapshotMeta } from "@adapters/storage-idb";
+import { diffSnapshots } from "@app";
+import type { SnapshotMeta } from "@ports";
 import { ConfirmDialog } from "../ui/Dialog";
 import "../ui/ui.css";
 import "./HistoryDialog.css";

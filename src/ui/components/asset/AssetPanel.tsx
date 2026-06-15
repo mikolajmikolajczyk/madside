@@ -1,8 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { byteHex, hex } from "@core/hex";
-// eslint-disable-next-line boundaries/element-types -- TODO(M3): Manifest shape lifts to @ports as ProjectManifest in v0.5.0
-import type { Manifest } from "@adapters/storage-idb";
-import type { ConverterMeta, ConverterModule, OptionSpec, Recipe } from "@ports";
+import type { ConverterMeta, ConverterModule, OptionSpec, ProjectManifestV2 as Manifest, Recipe } from "@ports";
 import { buildConverterRegistry as buildRegistry, type ProjectConverterSource } from "@app";
 import "./AssetPanel.css";
 

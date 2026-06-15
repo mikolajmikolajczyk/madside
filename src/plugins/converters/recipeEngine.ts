@@ -2,8 +2,6 @@
 // converter, and write the output. Skip if the input bytes + canonical options
 // haven't changed since last run (sha-256 cache keyed by [projectId, output]).
 
-// eslint-disable-next-line boundaries/element-types -- TODO(M3): service extraction lifts this import into a service call
-import { saveFile } from "@adapters/storage-idb";
 import { sha256Hex } from "@core/hash";
 import { buildRegistry, type ProjectConverterSource } from "./registry";
 import type { Recipe } from "./types";
@@ -12,6 +10,11 @@ export interface FileLike {
   path: string;
   content: Uint8Array;
 }
+
+/** Persists a converter's output. Injected by @app (bound to the StorageBackend)
+ *  so this plugin never reaches into the storage adapter — keeps the converter
+ *  layer free of an `@adapters` dependency (ADR-0002 boundaries). */
+export type RecipeWriter = (path: string, bytes: Uint8Array) => Promise<void>;
 
 const dec = new TextDecoder();
 
@@ -42,6 +45,7 @@ export async function runRecipes(
   projectId: string,
   recipes: Recipe[],
   files: FileLike[],
+  write: RecipeWriter,
 ): Promise<RecipeResult[]> {
   if (recipes.length === 0) return [];
 
@@ -79,7 +83,7 @@ export async function runRecipes(
 
     try {
       const out = await converter.convert(inputBytes, recipe.options ?? {});
-      await saveFile(projectId, recipe.output, out.bytes);
+      await write(recipe.output, out.bytes);
       hashCache.set(cacheKey, fingerprint);
       results.push({
         recipe,

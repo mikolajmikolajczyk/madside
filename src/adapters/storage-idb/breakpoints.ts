@@ -7,9 +7,10 @@
 // here so adding BP-adjacent fields doesn't drift the two shapes apart.
 
 import { getDB } from "./db";
+import type { BreakpointsMap, BreakpointsRecord } from "@ports";
 
-export type BreakpointsMap = Map<string, Set<number>>;
-export type BreakpointsRecord = Record<string, number[]>;
+// Canonical shapes live in @ports/storage; re-export for continuity.
+export type { BreakpointsMap, BreakpointsRecord };
 
 /** Map → Record: drops empty files, sorts lines ascending for stable storage. */
 export function bpsToRecord(bps: BreakpointsMap): BreakpointsRecord {

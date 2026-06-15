@@ -8,22 +8,16 @@
 // purely from the active project — no separate global state to persist or keep
 // in sync.
 
-import {
-  createProject,
-  listProjects,
-  loadProject,
-  saveFile,
-  MANIFEST_PATH,
-  textToBytes,
-  type Manifest,
-} from '@adapters/storage-idb'
+import { storage } from './storage'
+import { MANIFEST_PATH, textToBytes } from '@adapters/storage-idb'
+import type { ProjectManifestV2 as Manifest } from '@ports'
 import { getCourse, getLesson } from './courses'
 
 /** Project id of an existing project instantiated from this lesson, or
  *  undefined if the learner has not opened it yet. */
 export async function findLessonProject(courseId: string, lessonId: string): Promise<string | undefined> {
-  for (const p of await listProjects()) {
-    const loaded = await loadProject(p.id)
+  for (const p of await storage.projects.list()) {
+    const loaded = await storage.projects.load(p.id)
     const c = loaded?.manifest.course
     if (c && c.id === courseId && c.lesson === lessonId) return p.id
   }
@@ -55,7 +49,7 @@ export async function openLesson(courseId: string, lessonId: string): Promise<st
       .map((f) => ({ path: f.path, content: textToBytes(f.content) })),
     { path: MANIFEST_PATH, content: textToBytes(JSON.stringify(manifest, null, 2) + '\n') },
   ]
-  const row = await createProject(name, files, manifest)
+  const row = await storage.projects.create(name, files, manifest)
   return row.id
 }
 
@@ -70,15 +64,15 @@ export async function resetLessonToStarter(courseId: string, lessonId: string): 
   const lesson = getLesson(courseId, lessonId)
   if (!lesson) throw new Error(`resetLessonToStarter: unknown lesson '${courseId}/${lessonId}'`)
 
-  const loaded = await loadProject(projectId)
+  const loaded = await storage.projects.load(projectId)
   const manifest = loaded?.manifest // keep the existing course-stamped manifest
 
   for (const f of lesson.files) {
     if (f.path === MANIFEST_PATH) continue // never let the starter clobber the stamped manifest
-    await saveFile(projectId, f.path, textToBytes(f.content))
+    await storage.projects.writeFile(projectId, f.path, textToBytes(f.content))
   }
   if (manifest) {
-    await saveFile(projectId, MANIFEST_PATH, textToBytes(JSON.stringify(manifest, null, 2) + '\n'))
+    await storage.projects.writeFile(projectId, MANIFEST_PATH, textToBytes(JSON.stringify(manifest, null, 2) + '\n'))
   }
   return projectId
 }

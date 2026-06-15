@@ -1,4 +1,5 @@
 export * from './createWorkbench'
+export * from './storage'
 export * from './fileTemplates'
 export * from './templates'
 export * from './courses'

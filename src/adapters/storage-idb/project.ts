@@ -1,8 +1,9 @@
 // Project-level CRUD. UI layer talks to these, never to idb directly.
 
 import { parseProjectManifest } from "@ports";
+import type { LoadedProject } from "@ports";
 import { getDB } from "./db";
-import type { FileRow, Manifest, ProjectRow } from "./types";
+import type { Manifest, ProjectRow } from "./types";
 
 const enc = new TextEncoder();
 const dec = new TextDecoder();
@@ -10,11 +11,8 @@ const dec = new TextDecoder();
 export const MANIFEST_PATH = "project.json";
 const META_ACTIVE_PROJECT = "activeProjectId";
 
-export interface LoadedProject {
-  project: ProjectRow;
-  manifest: Manifest;
-  files: FileRow[];                    // includes the manifest file itself
-}
+// Canonical shape lives in @ports/storage; re-export for continuity.
+export type { LoadedProject };
 
 export function textToBytes(s: string): Uint8Array { return enc.encode(s); }
 export function bytesToText(b: Uint8Array): string { return dec.decode(b); }

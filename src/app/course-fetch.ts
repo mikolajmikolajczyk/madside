@@ -10,7 +10,7 @@
 // endpoints and need a proxy — deferred to the Phase 2 backlog (8b96cf8).
 
 import { addRemoteCourse, validateCourseFiles, type CourseInfo } from './courses'
-import type { InstalledCourseRow } from '@adapters/storage-idb'
+import type { InstalledCourseRow } from '@ports'
 
 export interface GitHubRef {
   owner: string

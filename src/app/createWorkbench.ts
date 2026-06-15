@@ -8,8 +8,8 @@ import type {
   Logger,
   MachinePlugin,
   PluginRegistry,
-  ProjectRepository,
   RunBackend,
+  StorageBackend,
   RunService,
   ToolchainPlugin,
   Unsubscribe,
@@ -45,7 +45,7 @@ import { editorToPanel, listBuiltinEditors } from '@plugins/editors'
 // @adapters can't reach across each other directly.
 
 export interface WorkbenchDeps {
-  projectRepo: ProjectRepository
+  storage: StorageBackend
   logger: Logger
   /** Override the toolchain resolver — tests pass a stub keyed on the
    *  manifest.toolchain id. Default uses the PluginRegistry. */
@@ -63,7 +63,7 @@ export interface Workbench {
   readonly events: EventBus
   readonly commands: CommandRegistry
   readonly plugins: PluginRegistry
-  readonly projects: ProjectRepository
+  readonly storage: StorageBackend
   readonly build: BuildService
   readonly run: RunService
   readonly debug: DebugService
@@ -118,8 +118,10 @@ const registryToolchainResolver =
     return plugin ? toolchainToBuildHook(plugin) : undefined
   }
 
-const defaultRecipes: RecipeRunnerFn = async (projectId, recipes, files) => {
-  const results = await runRecipes(projectId, recipes, files)
+const makeDefaultRecipes = (storage: StorageBackend): RecipeRunnerFn => async (projectId, recipes, files) => {
+  const results = await runRecipes(projectId, recipes, files, (path, bytes) =>
+    storage.projects.writeFile(projectId, path, bytes),
+  )
   return results.map((r) => ({
     ok: r.ok,
     output: r.output ? { path: r.output.path, content: r.output.bytes } : undefined,
@@ -223,7 +225,7 @@ export function createWorkbench(deps: WorkbenchDeps): Workbench {
     events,
     logger: deps.logger,
     toolchain: deps.toolchain ?? registryToolchainResolver(plugins),
-    recipes: deps.recipes ?? defaultRecipes,
+    recipes: deps.recipes ?? makeDefaultRecipes(deps.storage),
   })
   const run = createRunService({
     events,
@@ -266,6 +268,7 @@ export function createWorkbench(deps: WorkbenchDeps): Workbench {
         projectId,
         recipes,
         files.map((f) => ({ path: f.path, content: new Uint8Array(f.content) })),
+        (path, bytes) => deps.storage.projects.writeFile(projectId, path, bytes),
       )
       return native.map((r) => ({
         ok: r.ok,
@@ -282,7 +285,7 @@ export function createWorkbench(deps: WorkbenchDeps): Workbench {
     events,
     commands,
     plugins,
-    projects: deps.projectRepo,
+    storage: deps.storage,
     build,
     run,
     debug,

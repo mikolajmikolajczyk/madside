@@ -21,7 +21,8 @@
 // store lets React re-render when remote courses are hydrated/installed/removed
 // (consumed via `useCourses`, ADR-0007 useSyncExternalStore style).
 
-import { installRemoteCourse, listInstalledCourses, removeInstalledCourse, type InstalledCourseRow } from '@adapters/storage-idb'
+import { storage } from './storage'
+import type { InstalledCourseRow } from '@ports'
 
 /** A declarative lesson check. The runner (`@app/check-runner`) consumes these;
  *  authored as JSON in each lesson's check.json. Hex strings (e.g. "$0080")
@@ -250,7 +251,7 @@ let hydration: Promise<void> | null = null
 export function hydrateRemoteCourses(): Promise<void> {
   if (!hydration) {
     hydration = (async () => {
-      const rows = await listInstalledCourses()
+      const rows = await storage.courses.list()
       let changed = false
       for (const row of rows) {
         const b = bundleFromRow(row)
@@ -264,7 +265,7 @@ export function hydrateRemoteCourses(): Promise<void> {
 
 /** Persist + register a freshly-fetched remote course (install or refresh). */
 export async function addRemoteCourse(row: InstalledCourseRow): Promise<CourseInfo | null> {
-  await installRemoteCourse(row)
+  await storage.courses.install(row)
   const b = bundleFromRow(row)
   if (!b) return null
   remote.set(b.id, b)
@@ -274,7 +275,7 @@ export async function addRemoteCourse(row: InstalledCourseRow): Promise<CourseIn
 
 /** Remove an installed remote course (storage + registry). */
 export async function removeRemoteCourse(sourceId: string): Promise<void> {
-  await removeInstalledCourse(sourceId)
+  await storage.courses.remove(sourceId)
   if (remote.delete(sourceId)) bump()
 }
 

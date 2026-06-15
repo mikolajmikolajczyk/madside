@@ -1,7 +1,7 @@
 import { createContext, useContext, useMemo, type ReactNode } from "react";
 import type { Workbench } from "./createWorkbench";
 import { createWorkbench } from "./createWorkbench";
-import { createIdbProjectRepository } from "@adapters/storage-idb";
+import { storage } from "./storage";
 import { createConsoleLogger } from "@adapters/logger";
 
 // Workbench Provider lives in @app because wiring concrete adapters into the
@@ -14,7 +14,7 @@ export function WorkbenchProvider({ children }: { children: ReactNode }) {
   const workbench = useMemo(
     () =>
       createWorkbench({
-        projectRepo: createIdbProjectRepository(),
+        storage,
         logger: createConsoleLogger("madside"),
       }),
     [],

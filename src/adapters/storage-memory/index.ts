@@ -1,1 +1,1 @@
-export { createMemoryProjectRepository } from './project-repository'
+export { createMemoryStorage } from './storage'

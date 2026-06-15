@@ -3,7 +3,8 @@
 // with 0897b06.
 
 import type { BuildError, Result } from '../errors'
-import type { Project } from '../project-repository'
+import type { ProjectManifestV2 } from '../project-manifest'
+import type { ProjectFile } from '../storage'
 import type { SourceMap } from '../source-map'
 
 export interface BuildOptions {
@@ -26,14 +27,14 @@ export interface BuildResult {
   extras?: Record<string, unknown>
 }
 
-/** Minimal project shape the build service needs. Either a full Project from
- *  ProjectRepository, or an ad-hoc snapshot built from React state — both
- *  fit. Callers pass the freshest in-memory view; the service does NOT
- *  re-read storage between debounce and run. */
+/** Minimal project shape the build service needs. Either a full project loaded
+ *  from storage, or an ad-hoc snapshot built from React state — both fit.
+ *  Callers pass the freshest in-memory view; the service does NOT re-read
+ *  storage between debounce and run. */
 export interface BuildInput {
   projectId: string
-  files: Project['files']
-  manifest: Project['manifest']
+  files: ProjectFile[]
+  manifest: ProjectManifestV2
 }
 
 export interface BuildService {

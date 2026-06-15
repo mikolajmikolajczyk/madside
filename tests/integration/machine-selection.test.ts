@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { createWorkbench } from '@app/createWorkbench'
-import { createMemoryProjectRepository } from '@adapters/storage-memory'
+import { createMemoryStorage } from '@adapters/storage-memory'
 import { createNoopLogger } from '@adapters/logger'
 import type { RunBackend } from '@ports'
 
@@ -32,7 +32,7 @@ function stubBackend(width = 336, height = 224): RunBackend {
 describe('manifest-driven machine selection', () => {
   it('defaults to atari-xl and resolves machine-nes via the registry', () => {
     const wb = createWorkbench({
-      projectRepo: createMemoryProjectRepository(),
+      storage: createMemoryStorage(),
       logger: createNoopLogger(),
       emuBackendFactory: async () => stubBackend(),
     })
@@ -43,7 +43,7 @@ describe('manifest-driven machine selection', () => {
   it('swaps machine + backend on setActiveMachine, notifying subscribers once', async () => {
     const atari = stubBackend()
     const wb = createWorkbench({
-      projectRepo: createMemoryProjectRepository(),
+      storage: createMemoryStorage(),
       logger: createNoopLogger(),
       emuBackendFactory: async () => atari,
     })
@@ -74,7 +74,7 @@ describe('manifest-driven machine selection', () => {
 
   it('is a no-op for the already-active machine and for unknown ids', () => {
     const wb = createWorkbench({
-      projectRepo: createMemoryProjectRepository(),
+      storage: createMemoryStorage(),
       logger: createNoopLogger(),
       emuBackendFactory: async () => stubBackend(),
     })

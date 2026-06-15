@@ -91,15 +91,26 @@ export type { SourceLoc, SourceMap } from './source-map'
 export { MANIFEST_VERSION, parseProjectManifest } from './project-manifest'
 export type { ProjectManifestV2 } from './project-manifest'
 
-// Storage port
+// Storage port — complete persistence seam (supersedes ProjectRepository)
 export type {
-  Project,
+  BreakpointsMap,
+  BreakpointsRecord,
+  BreakpointStore,
+  CourseStore,
+  FileRow,
+  InstalledCourseRow,
+  KeyValueStore,
+  LoadedProject,
   ProjectFile,
-  ProjectMeta,
-  ProjectRepository,
-  Snapshot,
+  ProjectFileInput,
+  ProjectRow,
+  ProjectStore,
+  SnapshotDiff,
+  SnapshotInput,
   SnapshotMeta,
-} from './project-repository'
+  SnapshotStore,
+  StorageBackend,
+} from './storage'
 
 // Service interfaces (implementations land in @services during M3)
 export type {

@@ -4,19 +4,11 @@
 
 import { getDB } from "./db";
 import { sha256Hex } from "@core/hash";
+import type { SnapshotDiff, SnapshotInput, SnapshotMeta } from "@ports";
 
-export interface SnapshotMeta {
-  id: string;
-  projectId: string;
-  ts: number;
-  summary: string;
-  tree: Record<string, string>;   // path → blob hash
-}
-
-export interface SnapshotInput {
-  path: string;
-  content: Uint8Array;
-}
+// Canonical shapes live in @ports/storage; re-export so `@adapters/storage-idb`
+// keeps surfacing them.
+export type { SnapshotDiff, SnapshotInput, SnapshotMeta };
 
 // Keep N most recent auto-snapshots per project; "manual" ones never pruned.
 const AUTO_KEEP = 100;
@@ -115,13 +107,6 @@ export async function gcOrphanBlobs(): Promise<number> {
   }
   await tx.done;
   return removed;
-}
-
-export interface SnapshotDiff {
-  added: string[];      // paths only in `b`
-  removed: string[];    // paths only in `a`
-  modified: string[];   // paths in both with different hashes
-  unchanged: number;    // count, not list
 }
 
 export function diffSnapshots(a: SnapshotMeta, b: SnapshotMeta): SnapshotDiff {

@@ -1,34 +1,9 @@
 // Project store. IDB-backed, multi-project. Phase 2 adds list + switch + CRUD.
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import {
-  createFile as createFileIDB,
-  deleteFile as deleteFileIDB,
-  deleteFolder as deleteFolderIDB,
-  deleteProject,
-  duplicateProject,
-  listProjects,
-  loadProject,
-  MANIFEST_PATH,
-  renameFile as renameFileIDB,
-  renameFolder as renameFolderIDB,
-  renameProject,
-  saveFile,
-  saveManifest,
-  setActiveProjectId,
-} from "@adapters/storage-idb";
-import { exportProjectToZip, importProjectFromZip } from "@adapters/storage-idb";
-import { clearBreakpoints, loadBreakpoints, saveBreakpoints } from "@adapters/storage-idb";
-import {
-  clearSnapshotsForProject,
-  createSnapshot,
-  deleteSnapshot as deleteSnapshotIDB,
-  listSnapshots,
-  restoreSnapshot as restoreSnapshotIDB,
-  type SnapshotMeta,
-} from "@adapters/storage-idb";
-import type { FileRow, Manifest, ProjectRow } from "@adapters/storage-idb";
-import type { EventBus } from "@ports";
+import { storage } from "../storage";
+import { exportProjectToZip, importProjectFromZip, MANIFEST_PATH } from "@adapters/storage-idb";
+import type { EventBus, FileRow, ProjectManifestV2 as Manifest, ProjectRow, SnapshotMeta } from "@ports";
 
 // Files are stored as bytes end-to-end. Text views (Editor, MADS source list,
 // label scanner, etc.) decode lazily; binary views (AssetPanel, custom Phase 11
@@ -91,8 +66,8 @@ export function useProject(events?: EventBus) {
         // Default view is the welcome screen. A project is opened only when the
         // URL carries `?project=<id>` (set on switch); no param → null → picker.
         const urlProjectId = readUrlProject();
-        const loaded = urlProjectId ? await loadProject(urlProjectId) : null;
-        const list = await listProjects();
+        const loaded = urlProjectId ? await storage.projects.load(urlProjectId) : null;
+        const list = await storage.projects.list();
         if (cancelled) return;
         if (!loaded) {
           // Empty store — no active project. App renders the template picker.
@@ -102,8 +77,8 @@ export function useProject(events?: EventBus) {
           setBooted(true);
           return;
         }
-        const bps = await loadBreakpoints(loaded.project.id);
-        const snaps = await listSnapshots(loaded.project.id);
+        const bps = await storage.breakpoints.load(loaded.project.id);
+        const snaps = await storage.snapshots.list(loaded.project.id);
         if (cancelled) return;
         const files: FileEntry[] = loaded.files.map((f: FileRow) => ({
           path: f.path,
@@ -151,7 +126,7 @@ export function useProject(events?: EventBus) {
       const handle = window.setTimeout(() => {
         const current = state.files.find((x) => x.path === f.path);
         if (!current) return;
-        void saveFile(pid, f.path, current.content).then(() => {
+        void storage.projects.writeFile(pid, f.path, current.content).then(() => {
           lastSavedRef.current.set(key, current.content);
           events?.emit('file:changed', { path: f.path });
         });
@@ -194,7 +169,7 @@ export function useProject(events?: EventBus) {
 
   const switchProject = useCallback(async (id: string) => {
     writeUrlProject(id); // remember where we are across reload
-    await setActiveProjectId(id);
+    await storage.kv.setActiveProjectId(id);
     reload();
   }, [reload]);
 
@@ -204,25 +179,25 @@ export function useProject(events?: EventBus) {
 
   const renameProjectAction = useCallback(async (newName: string): Promise<string | null> => {
     if (!state) return null;
-    const finalName = await renameProject(state.projectId, newName);
+    const finalName = await storage.projects.rename(state.projectId, newName);
     reload();
     return finalName;
   }, [state, reload]);
 
   const duplicateProjectAction = useCallback(async (newName?: string): Promise<ProjectRow | null> => {
     if (!state) return null;
-    const project = await duplicateProject(state.projectId, newName);
+    const project = await storage.projects.duplicate(state.projectId, newName);
     writeUrlProject(project.id);
-    await setActiveProjectId(project.id);
+    await storage.kv.setActiveProjectId(project.id);
     reload();
     return project;
   }, [state, reload]);
 
   const deleteProjectAction = useCallback(async (): Promise<void> => {
     if (!state) return;
-    await clearBreakpoints(state.projectId);
-    await clearSnapshotsForProject(state.projectId);
-    await deleteProject(state.projectId);
+    await storage.breakpoints.clear(state.projectId);
+    await storage.snapshots.clearForProject(state.projectId);
+    await storage.projects.delete(state.projectId);
     // Back to the welcome screen — never auto-jump to another project.
     writeUrlProject(null);
     reload();
@@ -236,7 +211,7 @@ export function useProject(events?: EventBus) {
   const importProjectAction = useCallback(async (zipBytes: Uint8Array, fallbackName: string): Promise<ProjectRow> => {
     const project = await importProjectFromZip(zipBytes, fallbackName);
     writeUrlProject(project.id);
-    await setActiveProjectId(project.id);
+    await storage.kv.setActiveProjectId(project.id);
     reload();
     return project;
   }, [reload]);
@@ -246,7 +221,7 @@ export function useProject(events?: EventBus) {
   const createFile = useCallback(async (path: string, content: string | Uint8Array = ""): Promise<void> => {
     if (!state) return;
     const bytes = typeof content === "string" ? enc.encode(content) : content;
-    await createFileIDB(state.projectId, path, bytes);
+    await storage.projects.createFile(state.projectId, path, bytes);
     reload();
   }, [state, reload]);
 
@@ -254,56 +229,56 @@ export function useProject(events?: EventBus) {
   // hide it from the tree. `prefix` should not include trailing slash.
   const createFolder = useCallback(async (prefix: string): Promise<void> => {
     if (!state) return;
-    await createFileIDB(state.projectId, `${prefix}/.gitkeep`, new Uint8Array());
+    await storage.projects.createFile(state.projectId, `${prefix}/.gitkeep`, new Uint8Array());
     reload();
   }, [state, reload]);
 
   const renameFile = useCallback(async (oldPath: string, newPath: string): Promise<void> => {
     if (!state) return;
-    await renameFileIDB(state.projectId, oldPath, newPath);
+    await storage.projects.renameFile(state.projectId, oldPath, newPath);
     // If renaming the main file, follow it in the manifest.
     if (state.manifest.main === oldPath) {
       const m = { ...state.manifest, main: newPath };
-      await saveManifest(state.projectId, m);
+      await storage.projects.saveManifest(state.projectId, m);
     }
     reload();
   }, [state, reload]);
 
   const renameFolder = useCallback(async (oldPrefix: string, newPrefix: string): Promise<void> => {
     if (!state) return;
-    await renameFolderIDB(state.projectId, oldPrefix, newPrefix);
+    await storage.projects.renameFolder(state.projectId, oldPrefix, newPrefix);
     // Rewrite main if it lived under the old prefix.
     const oldP = oldPrefix.endsWith("/") ? oldPrefix : oldPrefix + "/";
     const newP = newPrefix.endsWith("/") ? newPrefix : newPrefix + "/";
     if (state.manifest.main.startsWith(oldP)) {
       const m = { ...state.manifest, main: newP + state.manifest.main.slice(oldP.length) };
-      await saveManifest(state.projectId, m);
+      await storage.projects.saveManifest(state.projectId, m);
     }
     reload();
   }, [state, reload]);
 
   const deleteFile = useCallback(async (path: string): Promise<void> => {
     if (!state) return;
-    await deleteFileIDB(state.projectId, path);
+    await storage.projects.deleteFile(state.projectId, path);
     reload();
   }, [state, reload]);
 
   const deleteFolder = useCallback(async (prefix: string): Promise<void> => {
     if (!state) return;
-    await deleteFolderIDB(state.projectId, prefix);
+    await storage.projects.deleteFolder(state.projectId, prefix);
     reload();
   }, [state, reload]);
 
   const setMainFile = useCallback(async (path: string): Promise<void> => {
     if (!state) return;
     const m = { ...state.manifest, main: path };
-    await saveManifest(state.projectId, m);
+    await storage.projects.saveManifest(state.projectId, m);
     reload();
   }, [state, reload]);
 
   const updateManifest = useCallback(async (next: Manifest): Promise<void> => {
     if (!state) return;
-    await saveManifest(state.projectId, next);
+    await storage.projects.saveManifest(state.projectId, next);
     reload();
   }, [state, reload]);
 
@@ -311,7 +286,7 @@ export function useProject(events?: EventBus) {
     if (!state) return;
     const src = state.files.find((f) => f.path === path);
     if (!src) return;
-    await createFileIDB(state.projectId, newPath, src.content);
+    await storage.projects.createFile(state.projectId, newPath, src.content);
     reload();
   }, [state, reload]);
 
@@ -336,13 +311,13 @@ export function useProject(events?: EventBus) {
   // === Snapshots ===
 
   const refreshSnapshots = useCallback(async (pid: string) => {
-    const list = await listSnapshots(pid);
+    const list = await storage.snapshots.list(pid);
     setSnapshots(list);
   }, []);
 
   const createSnapshotNow = useCallback(async (summary = "manual"): Promise<SnapshotMeta | null> => {
     if (!state) return null;
-    const snap = await createSnapshot(state.projectId, summary, state.files);
+    const snap = await storage.snapshots.create(state.projectId, summary, state.files);
     if (snap) await refreshSnapshots(state.projectId);
     return snap;
   }, [state, refreshSnapshots]);
@@ -351,13 +326,13 @@ export function useProject(events?: EventBus) {
     if (!state) return;
     const snap = snapshots.find((s) => s.id === id);
     if (!snap) return;
-    await restoreSnapshotIDB(state.projectId, snap);
+    await storage.snapshots.restore(state.projectId, snap);
     reload();
   }, [state, snapshots, reload]);
 
   const deleteSnapshotAction = useCallback(async (id: string): Promise<void> => {
     if (!state) return;
-    await deleteSnapshotIDB(id);
+    await storage.snapshots.delete(id);
     await refreshSnapshots(state.projectId);
   }, [state, refreshSnapshots]);
 
@@ -369,7 +344,7 @@ export function useProject(events?: EventBus) {
     if (autoSnapTimerRef.current != null) clearTimeout(autoSnapTimerRef.current);
     const pid = state.projectId;
     autoSnapTimerRef.current = window.setTimeout(() => {
-      void createSnapshot(pid, "auto", state.files).then((snap) => {
+      void storage.snapshots.create(pid, "auto", state.files).then((snap) => {
         if (snap) void refreshSnapshots(pid);
       });
       autoSnapTimerRef.current = null;
@@ -393,7 +368,7 @@ export function useProject(events?: EventBus) {
     if (snap === bpSavedSnapshotRef.current) return;
     if (bpSaveTimerRef.current != null) clearTimeout(bpSaveTimerRef.current);
     bpSaveTimerRef.current = window.setTimeout(() => {
-      void saveBreakpoints(pid, state.breakpoints).then(() => {
+      void storage.breakpoints.save(pid, state.breakpoints).then(() => {
         bpSavedSnapshotRef.current = snap;
       });
       bpSaveTimerRef.current = null;

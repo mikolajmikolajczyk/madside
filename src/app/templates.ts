@@ -5,7 +5,9 @@
 // Templates menu + the first-run welcome picker list them; picking one
 // instantiates a fresh project into storage.
 
-import { createProject, MANIFEST_PATH, textToBytes, type Manifest, type ProjectRow } from '@adapters/storage-idb'
+import { storage } from './storage'
+import { MANIFEST_PATH, textToBytes } from '@adapters/storage-idb'
+import type { ProjectManifestV2 as Manifest, ProjectRow } from '@ports'
 
 /** Picker-facing descriptor, parsed from each template's template.json. */
 export interface TemplateMeta {
@@ -96,7 +98,7 @@ export async function instantiateTemplate(id: string, name?: string): Promise<Pr
     ...b.files.map((f) => ({ path: f.path, content: textToBytes(f.content) })),
     { path: MANIFEST_PATH, content: textToBytes(JSON.stringify(manifest, null, 2) + '\n') },
   ]
-  return createProject(manifest.name, files, manifest)
+  return storage.projects.create(manifest.name, files, manifest)
 }
 
 /** The template's default project.json text — seeds the blank-project form in
@@ -117,5 +119,5 @@ export async function createBlankProject(manifestText: string): Promise<ProjectR
     ...b.files.map((f) => ({ path: f.path, content: textToBytes(f.content) })),
     { path: MANIFEST_PATH, content: textToBytes(manifestText) },
   ]
-  return createProject(manifest.name, files, manifest)
+  return storage.projects.create(manifest.name, files, manifest)
 }

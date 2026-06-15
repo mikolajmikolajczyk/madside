@@ -1,68 +1,51 @@
 import { describe, expect, it } from 'vitest'
 import { createWorkbench } from '@app/createWorkbench'
-import { createMemoryProjectRepository } from '@adapters/storage-memory'
+import { createMemoryStorage } from '@adapters/storage-memory'
 import { createNoopLogger, createBufferedLogger } from '@adapters/logger'
-import type { Command, Project } from '@ports'
+import type { Command, ProjectManifestV2 } from '@ports'
 
 describe('createWorkbench', () => {
-  const baseProject = (id: string): Project => ({
-    id,
-    name: `hello-${id}`,
-    createdAt: Date.now(),
-    updatedAt: Date.now(),
-    files: [
-      {
-        path: 'src/main.a65',
-        content: new TextEncoder().encode('; minimal seed\n'),
-        updatedAt: Date.now(),
-      },
-    ],
-    manifest: {
-      version: 2,
-      name: `hello-${id}`,
-      main: 'src/main.a65',
-      machine: 'atari-xl',
-      toolchain: 'mads',
-    },
+  const manifest = (name: string): ProjectManifestV2 => ({
+    version: 2,
+    name,
+    main: 'src/main.a65',
+    machine: 'atari-xl',
+    toolchain: 'mads',
   })
+  const seedFiles = [{ path: 'src/main.a65', content: new TextEncoder().encode('; minimal seed\n') }]
 
   it('instantiates without a DOM', () => {
     const wb = createWorkbench({
-      projectRepo: createMemoryProjectRepository(),
+      storage: createMemoryStorage(),
       logger: createNoopLogger(),
     })
     expect(wb.events).toBeDefined()
     expect(wb.commands).toBeDefined()
     expect(wb.plugins).toBeDefined()
-    expect(wb.projects).toBeDefined()
+    expect(wb.storage).toBeDefined()
     expect(wb.logger).toBeDefined()
   })
 
-  it('round-trips a project via the memory ProjectRepository', async () => {
+  it('round-trips a project via the memory StorageBackend', async () => {
     const wb = createWorkbench({
-      projectRepo: createMemoryProjectRepository(),
+      storage: createMemoryStorage(),
       logger: createNoopLogger(),
     })
 
-    const project = baseProject('p1')
-    const saved = await wb.projects.saveProject(project)
-    expect(saved.ok).toBe(true)
+    const row = await wb.storage.projects.create('hello', seedFiles, manifest('hello'))
 
-    const loaded = await wb.projects.loadProject('p1')
-    expect(loaded.ok).toBe(true)
-    if (!loaded.ok) return
-    expect(loaded.value.id).toBe('p1')
-    expect(loaded.value.files).toHaveLength(1)
-    expect(new TextDecoder().decode(loaded.value.files[0]!.content)).toBe('; minimal seed\n')
+    const loaded = await wb.storage.projects.load(row.id)
+    expect(loaded).not.toBeNull()
+    const main = loaded!.files.find((f) => f.path === 'src/main.a65')
+    expect(new TextDecoder().decode(main!.content)).toBe('; minimal seed\n')
 
-    const list = await wb.projects.listProjects()
-    expect(list.ok).toBe(true)
-    if (list.ok) expect(list.value.map((p) => p.id)).toContain('p1')
+    const list = await wb.storage.projects.list()
+    expect(list.map((p) => p.id)).toContain(row.id)
   })
 
   it('emits + receives typed events', () => {
     const wb = createWorkbench({
-      projectRepo: createMemoryProjectRepository(),
+      storage: createMemoryStorage(),
       logger: createNoopLogger(),
     })
 
@@ -78,7 +61,7 @@ describe('createWorkbench', () => {
 
   it('registers + runs a command', async () => {
     const wb = createWorkbench({
-      projectRepo: createMemoryProjectRepository(),
+      storage: createMemoryStorage(),
       logger: createNoopLogger(),
     })
 
@@ -99,7 +82,7 @@ describe('createWorkbench', () => {
 
   it('registers + lists plugins with project shadowing', () => {
     const wb = createWorkbench({
-      projectRepo: createMemoryProjectRepository(),
+      storage: createMemoryStorage(),
       logger: createNoopLogger(),
     })
 
@@ -122,7 +105,7 @@ describe('createWorkbench', () => {
   it('logs through the buffered logger and drains entries', () => {
     const buf = createBufferedLogger('test')
     const wb = createWorkbench({
-      projectRepo: createMemoryProjectRepository(),
+      storage: createMemoryStorage(),
       logger: buf,
     })
 
