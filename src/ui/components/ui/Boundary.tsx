@@ -24,13 +24,13 @@ interface State {
 }
 
 export class Boundary extends React.Component<Props, State> {
-  state: State = { error: null };
+  override state: State = { error: null };
 
   static getDerivedStateFromError(error: Error): State {
     return { error };
   }
 
-  componentDidCatch(error: Error, info: React.ErrorInfo): void {
+  override componentDidCatch(error: Error, info: React.ErrorInfo): void {
     console.error(`[boundary:${this.props.level}] caught`, error, info.componentStack);
   }
 
@@ -39,7 +39,7 @@ export class Boundary extends React.Component<Props, State> {
     this.props.onReset?.();
   };
 
-  render(): React.ReactNode {
+  override render(): React.ReactNode {
     const { error } = this.state;
     if (!error) return this.props.children;
 

@@ -164,8 +164,8 @@ const toHex4 = (n: number) => n.toString(16).toUpperCase().padStart(4, "0");
 class AddrMarker extends GutterMarker {
   readonly text: string;
   constructor(text: string) { super(); this.text = text; }
-  eq(o: GutterMarker) { return o instanceof AddrMarker && o.text === this.text; }
-  toDOM() {
+  override eq(o: GutterMarker) { return o instanceof AddrMarker && o.text === this.text; }
+  override toDOM() {
     const el = document.createElement("span");
     el.textContent = this.text;
     return el;
@@ -200,7 +200,7 @@ async function loadLanguagePack(
 const languageCompartment = new Compartment();
 
 class BpMarker extends GutterMarker {
-  toDOM() {
+  override toDOM() {
     const el = document.createElement("span");
     el.textContent = "●";
     return el;

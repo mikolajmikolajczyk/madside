@@ -7,7 +7,7 @@
 
 export abstract class WorkbenchError extends Error {
   abstract readonly kind: string
-  readonly cause?: unknown
+  override readonly cause?: unknown
 
   constructor(message: string, cause?: unknown) {
     super(message)

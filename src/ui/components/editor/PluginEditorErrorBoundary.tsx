@@ -18,13 +18,13 @@ interface State {
  *  a window-level error listener for async errors thrown from plugin event
  *  handlers — those don't go through React. */
 export class PluginEditorErrorBoundary extends React.Component<Props, State> {
-  state: State = { error: null, componentStack: null };
+  override state: State = { error: null, componentStack: null };
 
   static getDerivedStateFromError(error: Error): Partial<State> {
     return { error };
   }
 
-  componentDidCatch(error: Error, info: React.ErrorInfo): void {
+  override componentDidCatch(error: Error, info: React.ErrorInfo): void {
     this.setState({ componentStack: info.componentStack ?? null });
     console.error(`PluginEditor[${this.props.pluginId}] crashed`, error, info);
     this.props.onCrash?.(error);
@@ -35,7 +35,7 @@ export class PluginEditorErrorBoundary extends React.Component<Props, State> {
     this.props.onReload?.();
   };
 
-  render(): React.ReactNode {
+  override render(): React.ReactNode {
     if (!this.state.error) return this.props.children;
     return (
       <div className="plugin-editor__error">
