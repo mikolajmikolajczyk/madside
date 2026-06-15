@@ -106,6 +106,10 @@ export function PluginEditor({ module, path, value, onChange, assets }: Props) {
     const onRejection = (event: PromiseRejectionEvent) => {
       const reason = event.reason;
       const msg = reason instanceof Error ? reason.message : String(reason);
+      // Only claim rejections attributable to THIS plugin. A global rejection
+      // (a failed fetch, a storage write elsewhere) must not crash an innocent
+      // editor — previously every editor's handler fired for any rejection.
+      if (!msg.includes(pluginId)) return;
       failWith(`unhandled promise: ${msg}`, reason);
     };
     window.addEventListener("error", onWinError);
