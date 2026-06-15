@@ -220,7 +220,9 @@ export function createMemoryStorage(): StorageBackend {
           .sort((a, b) => b.ts - a.ts);
         if (recent.length > 0 && sameTree(recent[0].tree, tree)) return null;
         const ts = Date.now();
-        const id = `${projectId}::${ts.toString(36)}-${Math.floor(Math.random() * 1000).toString(36)}`;
+        // randomUUID, not a 1000-bucket RNG (mirrors the IDB adapter): same-ms
+        // snapshots must not collide and overwrite history.
+        const id = `${projectId}::${ts.toString(36)}-${crypto.randomUUID().slice(0, 8)}`;
         const snapshot: SnapshotMeta = { id, projectId, ts, summary, tree };
         for (const b of pending) blobs.set(b.hash, b.data);
         snapshots.set(id, snapshot);

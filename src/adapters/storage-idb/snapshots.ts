@@ -34,7 +34,9 @@ export async function createSnapshot(
     if (sameTree(last.tree, tree)) return null;
   }
   const ts = Date.now();
-  const id = `${projectId}::${ts.toString(36)}-${Math.floor(Math.random() * 1000).toString(36)}`;
+  // randomUUID, not a 1000-bucket RNG: two snapshots in the same ms must not
+  // collide and silently overwrite each other's history.
+  const id = `${projectId}::${ts.toString(36)}-${crypto.randomUUID().slice(0, 8)}`;
   const snapshot: SnapshotMeta = { id, projectId, ts, summary, tree };
   const tx = db.transaction(["snapshots", "blobs"], "readwrite");
   for (const b of newBlobs) await tx.objectStore("blobs").put(b);
