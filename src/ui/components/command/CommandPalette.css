@@ -1,0 +1,84 @@
+.cmdpal {
+  position: fixed;
+  top: 18vh;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 60;
+  width: min(560px, 92vw);
+  max-height: 60vh;
+  display: flex;
+  flex-direction: column;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-default);
+  border-radius: 10px;
+  box-shadow: 0 16px 48px rgba(0, 0, 0, 0.5);
+  overflow: hidden;
+  font-family: var(--font-mono);
+}
+
+.cmdpal__sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}
+
+.cmdpal__input {
+  flex: 0 0 auto;
+  padding: 14px 16px;
+  background: var(--bg-secondary);
+  border: none;
+  border-bottom: 1px solid var(--border-default);
+  color: var(--text-primary);
+  font: inherit;
+  font-size: 14px;
+}
+.cmdpal__input:focus { outline: none; }
+
+.cmdpal__list {
+  margin: 0;
+  padding: 6px;
+  list-style: none;
+  overflow-y: auto;
+}
+
+.cmdpal__item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 8px 10px;
+  border-radius: 6px;
+  cursor: pointer;
+  color: var(--text-primary);
+}
+
+.cmdpal__item--sel {
+  background: var(--bg-tertiary);
+  outline: 1px solid var(--accent-mint);
+}
+
+.cmdpal__title {
+  font-size: 13px;
+}
+
+.cmdpal__shortcut {
+  flex: 0 0 auto;
+  padding: 1px 6px;
+  border: 1px solid var(--border-default);
+  border-radius: 4px;
+  font-size: 10px;
+  color: var(--text-tertiary);
+  white-space: nowrap;
+}
+
+.cmdpal__empty {
+  padding: 14px 10px;
+  color: var(--text-tertiary);
+  font-size: 12px;
+  text-align: center;
+}

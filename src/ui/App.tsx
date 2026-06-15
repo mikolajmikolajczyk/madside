@@ -18,12 +18,14 @@ const CoursePanel = lazy(() => import("./components/course/CoursePanel").then((m
 import { TooltipProvider } from "./components/ui/Tooltip";
 import { TextPromptDialog, ConfirmDialog, Dialog, DialogContent } from "./components/ui/Dialog";
 import { useProject } from "@app/state";
+import { CommandPalette } from "./components/command/CommandPalette";
+import { buildAppCommands, type AppCommandEnv } from "./commands/appCommands";
 import type { CpuRegs } from "./components/debug/Emulator";
-import type { PanelPlugin, ToolchainPlugin } from "@ports";
+import type { CommandContext, PanelPlugin, ToolchainPlugin } from "@ports";
 import { basename, extOf } from "@core/path";
 import { getCpuLanguage } from "@core";
 import { useSplitterWidth } from "./hooks/useSplitterWidth";
-import { useDebuggerShortcuts } from "./hooks/useDebuggerShortcuts";
+import { useCommandShortcuts } from "./hooks/useCommandShortcuts";
 import { useBreakpointAddrs } from "./hooks/useBreakpointAddrs";
 import { useCursorMemory } from "./hooks/useCursorMemory";
 import { usePluginEditor } from "./hooks/usePluginEditor";
@@ -334,21 +336,6 @@ export default function App() {
     }
   }, [runAssemble, resetEmuState, workbench]);
 
-  // Register the user-action surface on the workbench CommandRegistry.
-  // Toolbar / menu / shortcut dispatch keeps its existing callbacks for now;
-  // future palette UI walks workbench.commands.list() and runs commands by id.
-  useEffect(() => {
-    const disposers = [
-      workbench.commands.register({ id: 'build.assemble', title: 'Build', shortcut: 'Ctrl+B', run: () => { void runAssemble(); } }),
-      workbench.commands.register({ id: 'run.start', title: 'Run', shortcut: 'Ctrl+Enter', run: () => { void onRun(); } }),
-      workbench.commands.register({ id: 'run.pause', title: 'Pause', shortcut: 'Ctrl+.', run: () => onPause() }),
-      workbench.commands.register({ id: 'run.stop', title: 'Stop', shortcut: 'Ctrl+Shift+.', run: () => onStop() }),
-      workbench.commands.register({ id: 'debug.step', title: 'Step', shortcut: 'F10', run: () => onStep() }),
-      workbench.commands.register({ id: 'debug.frame', title: 'Frame', shortcut: 'F11', run: () => onStepFrame() }),
-      workbench.commands.register({ id: 'run.restart', title: 'Restart', shortcut: 'Ctrl+Shift+Enter', run: () => { void onReset(); } }),
-    ];
-    return () => { for (const d of disposers) d(); };
-  }, [workbench, runAssemble, onRun, onPause, onStop, onStep, onStepFrame, onReset]);
 
   // Modal-based dialogs (Radix Dialog) replace native prompt/confirm.
   type DialogKind = "none" | "renameProject" | "duplicateProject" | "deleteProject";
@@ -358,6 +345,7 @@ export default function App() {
   // "New project" returns to the welcome screen (existing projects + empty /
   // templates / courses) instead of a bare name prompt.
   const [showWelcome, setShowWelcome] = useState(false);
+  const [paletteOpen, setPaletteOpen] = useState(false);
   const handleNewProject = useCallback(() => setShowWelcome(true), []);
   const handleRenameProject = useCallback(() => setDialog("renameProject"), []);
   const handleDuplicateProject = useCallback(() => setDialog("duplicateProject"), []);
@@ -498,14 +486,33 @@ export default function App() {
     onToggleBreakpoint(line);
   }, [onToggleBreakpoint]);
 
-  useDebuggerShortcuts(
-    {
+  // The CommandRegistry is the single dispatch path for every user action:
+  // toolbar buttons, keyboard shortcuts, and the command palette all go through
+  // `commands.run(id, ctx)`. Commands register once and read the latest ops /
+  // state via this ref, so they never go stale (and the registry stays the
+  // extension point for plugin-contributed commands).
+  const cmdEnvRef = useRef<AppCommandEnv | null>(null);
+  cmdEnvRef.current = {
+    ops: {
       runAssemble, onRun, onPause, onStop, onStep, onStepFrame, onReset,
       toggleBpAtCursor,
       onSnapshot: () => { if (project.loaded) void project.createSnapshotNow("manual"); },
+      openPalette: () => setPaletteOpen(true),
     },
-    { canRun, running, hasEmu },
-  );
+    state: { canRun, running, hasEmu },
+  };
+  useEffect(() => {
+    const env = (): AppCommandEnv => cmdEnvRef.current!;
+    const disposers = buildAppCommands(env).map((c) => workbench.commands.register(c));
+    return () => { for (const d of disposers) d(); };
+  }, [workbench]);
+
+  const activeProjectId = project.loaded ? project.projectId : undefined;
+  const cmdCtx = useMemo<CommandContext>(() => ({ projectId: activeProjectId }), [activeProjectId]);
+  const cmdCtxRef = useRef<CommandContext>(cmdCtx);
+  cmdCtxRef.current = cmdCtx;
+  const getCmdCtx = useCallback(() => cmdCtxRef.current, []);
+  useCommandShortcuts(workbench.commands, getCmdCtx);
 
   if (showWelcome || !project.loaded) {
     if (!project.loaded && project.error) {
@@ -783,6 +790,13 @@ export default function App() {
           </div>
         </DialogContent>
       </Dialog>
+
+      <CommandPalette
+        open={paletteOpen}
+        onClose={() => setPaletteOpen(false)}
+        commands={workbench.commands}
+        ctx={cmdCtx}
+      />
     </div>
     </TooltipProvider>
   );
