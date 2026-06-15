@@ -150,8 +150,10 @@ export function Welcome({ onOpen, projects = [] }: Props) {
           onClick={() => setEmptyOpen((o) => !o)}
           data-testid="welcome.empty-toggle"
         >
+          <span className="welcome__disclosure-plus" aria-hidden>+</span>
+          <span className="welcome__disclosure-label">New empty project</span>
+          <span className="welcome__disclosure-hint">configure project.json yourself</span>
           <span className="welcome__chevron" aria-hidden>▸</span>
-          <span className="welcome__section-title label">Empty project</span>
         </button>
         {emptyOpen && (
           <div className="welcome__collapse-body">
