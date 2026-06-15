@@ -1,6 +1,7 @@
 import { useMemo, useState } from "react";
 import { createBlankProject, getCourse, getTemplateManifestText, installCourseFromGitHub, instantiateTemplate, listTemplates, openLesson, removeRemoteCourse } from "@app";
 import { useCourses } from "../hooks/useCourses";
+import { useDisclosure } from "../hooks/useDisclosure";
 import { ManifestEditor } from "./manifest/ManifestEditor";
 import "./Welcome.css";
 
@@ -29,6 +30,11 @@ export function Welcome({ onOpen, projects = [] }: Props) {
   const [blankBytes, setBlankBytes] = useState<Uint8Array>(() => enc.encode(getTemplateManifestText("empty") ?? "{}\n"));
   const [busy, setBusy] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+
+  // Progressive disclosure: show a little, expand on demand.
+  const [emptyOpen, setEmptyOpen] = useState(false);
+  const projectsD = useDisclosure(projects, 2);
+  const templatesD = useDisclosure(templates, 2);
 
   const createBlank = async () => {
     setBusy("blank");
@@ -112,7 +118,7 @@ export function Welcome({ onOpen, projects = [] }: Props) {
         <section className="welcome__templates">
           <div className="welcome__section-title label">Your projects</div>
           <div className="welcome__grid">
-            {projects.map((p) => (
+            {projectsD.visible.map((p) => (
               <button
                 key={p.id}
                 type="button"
@@ -128,29 +134,47 @@ export function Welcome({ onOpen, projects = [] }: Props) {
               </button>
             ))}
           </div>
+          {projectsD.hasMore && (
+            <button type="button" className="welcome__more" onClick={projectsD.toggle} data-testid="welcome.projects-more">
+              {projectsD.expanded ? "Show less" : `More (${projectsD.hiddenCount})`}
+            </button>
+          )}
         </section>
       )}
 
       <section className="welcome__blank">
-        <div className="welcome__section-title label">Empty project</div>
-        <div className="welcome__manifest">
-          <ManifestEditor value={blankBytes} onChange={setBlankBytes} files={emptyFiles} />
-        </div>
         <button
           type="button"
-          className="welcome__create"
-          disabled={busy != null}
-          onClick={() => void createBlank()}
-          data-testid="welcome.create-blank"
+          className={"welcome__disclosure" + (emptyOpen ? " welcome__disclosure--open" : "")}
+          aria-expanded={emptyOpen}
+          onClick={() => setEmptyOpen((o) => !o)}
+          data-testid="welcome.empty-toggle"
         >
-          {busy === "blank" ? "creating…" : "Create project"}
+          <span className="welcome__chevron" aria-hidden>▸</span>
+          <span className="welcome__section-title label">Empty project</span>
         </button>
+        {emptyOpen && (
+          <div className="welcome__collapse-body">
+            <div className="welcome__manifest">
+              <ManifestEditor value={blankBytes} onChange={setBlankBytes} files={emptyFiles} />
+            </div>
+            <button
+              type="button"
+              className="welcome__create"
+              disabled={busy != null}
+              onClick={() => void createBlank()}
+              data-testid="welcome.create-blank"
+            >
+              {busy === "blank" ? "creating…" : "Create project"}
+            </button>
+          </div>
+        )}
       </section>
 
       <section className="welcome__templates">
         <div className="welcome__section-title label">Or start from a template</div>
         <div className="welcome__grid">
-          {templates.map((t) => (
+          {templatesD.visible.map((t) => (
             <button
               key={t.id}
               type="button"
@@ -173,6 +197,11 @@ export function Welcome({ onOpen, projects = [] }: Props) {
             </button>
           ))}
         </div>
+        {templatesD.hasMore && (
+          <button type="button" className="welcome__more" onClick={templatesD.toggle} data-testid="welcome.templates-more">
+            {templatesD.expanded ? "Show less" : `More (${templatesD.hiddenCount})`}
+          </button>
+        )}
       </section>
 
       <section className="welcome__templates">

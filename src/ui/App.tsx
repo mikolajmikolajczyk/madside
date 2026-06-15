@@ -527,7 +527,9 @@ export default function App() {
     return (
       <Suspense fallback={<div className="app app--loading"><div className="app__loading">loading…</div></div>}>
         <Welcome
-          projects={project.projects.map((p) => ({ id: p.id, name: p.name }))}
+          projects={[...project.projects]
+            .sort((a, b) => b.updatedAt - a.updatedAt)
+            .map((p) => ({ id: p.id, name: p.name }))}
           onOpen={(id) => { void project.switchProject(id); setShowWelcome(false); }}
         />
       </Suspense>

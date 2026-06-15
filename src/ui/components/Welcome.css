@@ -143,6 +143,56 @@
   background: var(--bg-secondary);
 }
 
+/* === progressive disclosure === */
+.welcome__more {
+  align-self: flex-start;
+  margin-top: 2px;
+  padding: 2px 4px;
+  background: none;
+  border: none;
+  color: var(--text-tertiary);
+  font: inherit;
+  font-size: 11px;
+  text-decoration: underline;
+  cursor: pointer;
+}
+.welcome__more:hover { color: var(--accent-mint); }
+
+/* collapsible "Empty project" header */
+.welcome__disclosure {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 0;
+  background: none;
+  border: none;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+}
+
+.welcome__chevron {
+  display: inline-block;
+  color: var(--text-tertiary);
+  font-size: 10px;
+  transition: transform 120ms ease;
+}
+.welcome__disclosure--open .welcome__chevron { transform: rotate(90deg); }
+.welcome__disclosure:hover .welcome__section-title { color: var(--text-primary); }
+
+.welcome__collapse-body {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-top: 10px;
+  animation: welcome-slide 160ms ease;
+}
+
+@keyframes welcome-slide {
+  from { opacity: 0; transform: translateY(-6px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
 /* === add course from GitHub === */
 .welcome__add-course {
   display: flex;
