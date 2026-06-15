@@ -1,0 +1,59 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+# Cancel superseded runs on the same ref.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  app:
+    name: typecheck · test · lint · build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 11.5.1
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+
+      # `pnpm build` runs `tsc -b` (typecheck across the project references)
+      # then `vite build`, so it covers both typecheck and the production build.
+      - name: Typecheck + build
+        run: pnpm build
+
+      - name: Test
+        run: pnpm exec vitest run
+
+      - name: Lint
+        run: pnpm run lint
+
+  docs:
+    name: docs build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 11.5.1
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      # docs/ is a self-contained pnpm root (own lockfile + build-script allowlist).
+      - name: Build docs
+        run: pnpm install --frozen-lockfile && pnpm build
+        working-directory: docs
