@@ -1,0 +1,52 @@
+# static-web-server config — security headers + caching + compression for the
+# madside deploy. Startup keys (port/root/fallback) are also set via SERVER_*
+# env in the Dockerfile; env takes precedence, so a mistake here can't stop the
+# server from booting — it only adds headers.
+#
+# IMPORTANT: verify in a browser before shipping a new image. The CSP must allow
+# everything the app legitimately does:
+#   - 'wasm-unsafe-eval'  — Altirra / jsnes / MADS all WebAssembly.compile()
+#   - blob:               — project-local plugin loader (Blob-URL dynamic import)
+#                           and AudioWorklet
+#   - connect jsdelivr    — remote course fetch (data.jsdelivr.com listing,
+#                           cdn.jsdelivr.net files)
+#   - style 'unsafe-inline' — React inline styles + Radix + Vite-injected CSS
+
+[general]
+host = "::"
+port = 3004
+root = "/public"
+fallback-page = "/public/index.html"
+compression = true
+
+[advanced]
+
+# Security headers on every response.
+[[advanced.headers]]
+source = "/**"
+[advanced.headers.headers]
+Content-Security-Policy = "default-src 'self'; script-src 'self' 'wasm-unsafe-eval' blob:; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self'; connect-src 'self' https://cdn.jsdelivr.net https://data.jsdelivr.com; worker-src 'self' blob:; object-src 'none'; base-uri 'self'; frame-ancestors 'none'; form-action 'self'"
+X-Content-Type-Options = "nosniff"
+Referrer-Policy = "strict-origin-when-cross-origin"
+
+# Content-hashed build assets (JS/CSS/wasm) never change — cache them hard.
+[[advanced.headers]]
+source = "/assets/**"
+[advanced.headers.headers]
+Cache-Control = "public, max-age=31536000, immutable"
+
+[[advanced.headers]]
+source = "/docs/_astro/**"
+[advanced.headers.headers]
+Cache-Control = "public, max-age=31536000, immutable"
+
+# The HTML entry points must always revalidate so a deploy is picked up.
+[[advanced.headers]]
+source = "/index.html"
+[advanced.headers.headers]
+Cache-Control = "no-cache"
+
+[[advanced.headers]]
+source = "/docs/index.html"
+[advanced.headers.headers]
+Cache-Control = "no-cache"

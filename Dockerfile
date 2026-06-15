@@ -25,7 +25,12 @@ FROM ghcr.io/static-web-server/static-web-server:2
 # App at the root, docs under /docs (Astro built with base "/docs").
 COPY --from=build /app/dist /public
 COPY --from=build /app/docs/dist /public/docs
+# Security headers + caching + compression live in the config file; the SERVER_*
+# env below still set the startup essentials (env wins over the file), so a
+# config typo can only drop headers, never stop the server booting.
+COPY static-web-server.toml /etc/sws.toml
 ENV SERVER_PORT=3004 \
     SERVER_ROOT=/public \
-    SERVER_FALLBACK_PAGE=/public/index.html
+    SERVER_FALLBACK_PAGE=/public/index.html \
+    SERVER_CONFIG_FILE=/etc/sws.toml
 EXPOSE 3004
