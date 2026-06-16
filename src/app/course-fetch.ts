@@ -10,6 +10,7 @@
 // endpoints and need a proxy — deferred to the Phase 2 backlog (8b96cf8).
 
 import { addRemoteCourse, validateCourseFiles, type CourseInfo } from './courses'
+import { NetworkError } from '@ports'
 import type { InstalledCourseRow } from '@ports'
 
 export interface GitHubRef {
@@ -54,9 +55,14 @@ interface JsdelivrFlat {
 }
 
 async function listFiles(owner: string, repo: string, ref: string): Promise<JsdelivrFlat | null> {
-  const res = await fetch(`${DATA}/${owner}/${repo}@${encodeURIComponent(ref)}?structure=flat`)
+  let res: Response
+  try {
+    res = await fetch(`${DATA}/${owner}/${repo}@${encodeURIComponent(ref)}?structure=flat`)
+  } catch (e) {
+    throw new NetworkError(`jsDelivr listing request failed`, e)
+  }
   if (res.status === 404) return null
-  if (!res.ok) throw new Error(`jsDelivr listing failed (${res.status})`)
+  if (!res.ok) throw new NetworkError(`jsDelivr listing failed (${res.status})`)
   return (await res.json()) as JsdelivrFlat
 }
 
@@ -87,8 +93,13 @@ export async function fetchGitHubCourse(
   const fetchRef = listing.version || usedRef
   const files = await Promise.all(
     wanted.map(async (path) => {
-      const res = await fetch(`${CDN}/${owner}/${repo}@${encodeURIComponent(fetchRef)}/${path}`)
-      if (!res.ok) throw new Error(`failed to fetch ${path} (${res.status})`)
+      let res: Response
+      try {
+        res = await fetch(`${CDN}/${owner}/${repo}@${encodeURIComponent(fetchRef)}/${path}`)
+      } catch (e) {
+        throw new NetworkError(`failed to fetch ${path}`, e)
+      }
+      if (!res.ok) throw new NetworkError(`failed to fetch ${path} (${res.status})`)
       return { path, content: await res.text() }
     }),
   )
