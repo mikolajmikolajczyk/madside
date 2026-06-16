@@ -29,7 +29,9 @@ import {
   type ToolchainAssembleFn,
   type ToolchainResolverFn,
 } from '@services'
-import { runRecipes } from '@plugins/converters'
+import { runRecipes, setConverterLoaderFactory } from '@plugins/converters'
+import { setEditorLoaderFactory } from '@plugins/editors'
+import { createPluginLoader } from '@adapters'
 import { atariXl } from '@plugins/machine-atari-xl'
 import { machineNes } from '@plugins/machine-nes'
 import { jsnesEmulator } from '@plugins/emulator-nes-jsnes'
@@ -133,6 +135,12 @@ const makeDefaultRecipes = (storage: StorageBackend): RecipeRunnerFn => async (p
 }
 
 export function createWorkbench(deps: WorkbenchDeps): Workbench {
+  // Inject the concrete Blob-URL plugin loader (an adapter) into the converter
+  // and editor registries. They depend on the @ports loader contract; @app is
+  // the only layer allowed to hand them the adapter implementation (#25).
+  setConverterLoaderFactory(createPluginLoader)
+  setEditorLoaderFactory(createPluginLoader)
+
   // Vite injects import.meta.env.VITE_* at build time. When the dev-mode
   // event logger is on, every emit goes through console.group with a
   // monotonic counter + delta + subscriber count. Off by default (zero

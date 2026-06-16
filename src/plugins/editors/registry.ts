@@ -1,15 +1,15 @@
 // Editor resolver. Project `editors/*.js` shadow built-ins by meta.id; lookup
 // happens by file extension via `manifest.editors` map.
 
-import { createPluginLoader, type PluginSource } from "@adapters/plugin-loader";
+import type { PluginLoader, PluginLoaderFactory, ProjectPluginSource } from "@ports";
 import type { EditorModule } from "./types";
 import bitmap from "./builtins/bitmap";
 
 const BUILTINS: EditorModule[] = [bitmap];
 
-export type ProjectEditorSource = PluginSource;
+export type ProjectEditorSource = ProjectPluginSource;
 
-const loader = createPluginLoader<EditorModule>((mod) => {
+function validateEditorModule(mod: unknown): EditorModule {
   const m = mod as { meta?: unknown; default?: unknown };
   // Default export is the EditorModule (`{ mount }`) or a function returning one.
   const def = m.default as { mount?: unknown } | undefined;
@@ -20,7 +20,14 @@ const loader = createPluginLoader<EditorModule>((mod) => {
     meta: m.meta as EditorModule["meta"],
     mount: def.mount as EditorModule["mount"],
   };
-});
+}
+
+// Null until @app wires the factory (ADR-0002, #25) — the Blob-URL loader is an
+// adapter; this plugin layer depends only on @ports.
+let loader: PluginLoader<EditorModule> | null = null;
+export function setEditorLoaderFactory(factory: PluginLoaderFactory): void {
+  loader = factory(validateEditorModule);
+}
 
 export async function buildEditorRegistry(
   projectSources: ProjectEditorSource[],
@@ -28,6 +35,10 @@ export async function buildEditorRegistry(
   const out = new Map<string, EditorModule>();
   for (const b of BUILTINS) out.set(b.meta.id, b);
   for (const src of projectSources) {
+    if (!loader) {
+      console.warn(`editor loader not wired; skipping ${src.path}`);
+      continue;
+    }
     try {
       const mod = await loader.load(src);
       out.set(mod.meta.id, mod);

@@ -9,21 +9,12 @@
 // content hash changes we revoke the old URL and re-import.
 
 import { sha256Hex } from "@core/hash";
-
-export interface PluginSource {
-  path: string;
-  content: string;
-}
+import type { PluginLoader, ProjectPluginSource } from "@ports";
 
 interface CachedModule<T> {
   hash: string;
   module: T;
   url: string;
-}
-
-export interface PluginLoader<T> {
-  /** Load (or fetch from cache) a single project plugin. */
-  load(src: PluginSource): Promise<T>;
 }
 
 export function createPluginLoader<T>(
@@ -34,7 +25,7 @@ export function createPluginLoader<T>(
 ): PluginLoader<T> {
   const cache = new Map<string, CachedModule<T>>();
   return {
-    async load(src) {
+    async load(src: ProjectPluginSource) {
       const hash = await sha256Hex(src.content);
       const cached = cache.get(src.path);
       if (cached && cached.hash === hash) return cached.module;

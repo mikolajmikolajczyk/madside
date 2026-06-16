@@ -27,6 +27,11 @@ export type {
   PluginRegistry,
   PluginSource,
 } from './plugin-registry'
+export type {
+  PluginLoader,
+  PluginLoaderFactory,
+  ProjectPluginSource,
+} from './plugin-loader'
 
 // Plugin contracts
 export type {
