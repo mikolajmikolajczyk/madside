@@ -69,6 +69,7 @@ export type {
   PanelPlugin,
 } from './plugin-panel'
 export type { EmulatorPlugin } from './plugin-emulator'
+export type { Cpu6502State } from './cpu'
 export type {
   BootEquates,
   CpuId,

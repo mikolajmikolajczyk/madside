@@ -4,6 +4,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { storage } from "../storage";
 import { createFileSaver, type FileSaver } from "./file-saver";
 import { exportProjectToZip, importProjectFromZip, MANIFEST_PATH } from "@adapters/storage-idb";
+import { parseProjectManifest } from "@ports";
 import type { EventBus, FileRow, ProjectManifestV2 as Manifest, ProjectRow, SnapshotMeta } from "@ports";
 
 // Files are stored as bytes end-to-end. Text views (Editor, MADS source list,
@@ -139,9 +140,14 @@ export function useProject(events?: EventBus) {
       };
       if (prev.activePath === MANIFEST_PATH) {
         try {
-          next.manifest = JSON.parse(dec.decode(bytes)) as Manifest;
+          // Validate through the real parser, not a bare `as Manifest` — keep
+          // the previous manifest in live state while the edited JSON is invalid
+          // (malformed, or a rejected v1 shape) so a half-typed edit can't push
+          // a structurally-broken manifest into BuildService / plugin lookups.
+          const parsed = parseProjectManifest(JSON.parse(dec.decode(bytes)));
+          if (parsed.ok) next.manifest = parsed.value;
         } catch {
-          // Leave previous manifest while JSON is invalid.
+          // Invalid JSON — keep the previous manifest.
         }
       }
       return next;

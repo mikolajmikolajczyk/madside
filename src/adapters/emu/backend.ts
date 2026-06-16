@@ -2,10 +2,10 @@
 // specific implementation. Future Altirra-wasm backend drops in by satisfying
 // the same contract.
 
-export interface CpuRegs {
-  a: number; x: number; y: number; pc: number; sp: number;
-  flags: { n: boolean; v: boolean; b: boolean; d: boolean; i: boolean; z: boolean; c: boolean };
-}
+import type { Cpu6502State } from "@ports";
+
+/** Altirra's CPU register snapshot — the shared 6502 shape. */
+export type CpuRegs = Cpu6502State;
 
 export interface EmuBackend {
   /** Visible canvas width × height; pixels are filled by the backend each frame. */

@@ -11,7 +11,7 @@
 // buttonDown/Up), and a breakpoint-granular advance loop that mirrors jsnes's
 // own frame() body cycle-for-cycle (incl. the OAM-DMA halt drain).
 
-import type { RunBackend } from '@ports'
+import type { Cpu6502State, RunBackend } from '@ports'
 import { NES } from 'jsnes'
 import type { NESWithInternals } from './jsnes-internals'
 
@@ -21,17 +21,6 @@ const NES_HEIGHT = 240
  *  MachinePlugin.audio.sampleRate when the machine-nes plugin lands. */
 const DEFAULT_SAMPLE_RATE = 44100
 
-/** Register snapshot in the shape the MOS6502 debug adapter expects — the
- *  same struct AltirraBackend.cpuState() returns, so debug-atari-6502's
- *  attach() (MOS6502_REGISTERS/FLAGS) is reusable for NES verbatim. */
-export interface NesCpuState {
-  a: number
-  x: number
-  y: number
-  pc: number
-  sp: number
-  flags: { n: boolean; v: boolean; b: boolean; d: boolean; i: boolean; z: boolean; c: boolean }
-}
 
 export class JsnesBackend implements RunBackend {
   readonly width = NES_WIDTH
@@ -170,7 +159,7 @@ export class JsnesBackend implements RunBackend {
     for (const a of addrs) this.bp.add(a & 0xffff)
   }
 
-  cpuState(): NesCpuState {
+  cpuState(): Cpu6502State {
     const c = this.nes.cpu
     return {
       a: c.REG_ACC,
