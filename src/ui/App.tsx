@@ -194,8 +194,9 @@ export default function App() {
   const onResumeFollow = useCallback(() => setMemBaseTouched(false), []);
 
   // PanelPlugin lookup — manifest.panels (if present) drives the Debug column
-  // order; otherwise machine.defaultPanels; otherwise [registers, memory].
-  // Output panel is a fixed slot above the editor.
+  // order; otherwise machine.defaultPanels; otherwise [registers, memory]. Each
+  // panel declares its layout slot ('debug' column vs the fixed 'output' slot),
+  // so placement is data-driven — no panel id is special-cased here.
   const allPanels = useMemo(
     () => workbench.plugins.list<PanelPlugin>('panel'),
     [workbench.plugins],
@@ -205,21 +206,23 @@ export default function App() {
     for (const p of allPanels) m.set(p.id, p);
     return m;
   }, [allPanels]);
+  const isDebugSlot = useCallback(
+    (id: string) => { const p = panelById.get(id); return !!p && (p.slot ?? 'debug') === 'debug'; },
+    [panelById],
+  );
   const debugColumnPanelIds = useMemo(() => {
     const manifestPanels = project.loaded ? project.manifest.panels : undefined;
-    const fromManifest = manifestPanels?.filter((id) => id !== 'output');
+    const fromManifest = manifestPanels?.filter(isDebugSlot);
     if (fromManifest && fromManifest.length > 0) return fromManifest;
-    const fromMachine = machine.defaultPanels.filter(
-      (id) => id !== 'output' && panelById.has(id),
-    );
+    const fromMachine = machine.defaultPanels.filter(isDebugSlot);
     if (fromMachine.length > 0) return fromMachine;
     return ['registers', 'memory'];
-  }, [project, machine, panelById]);
+  }, [project, machine, isDebugSlot]);
   const debugColumnPanels = useMemo(
     () => debugColumnPanelIds.map((id) => panelById.get(id)).filter((p): p is PanelPlugin => !!p),
     [debugColumnPanelIds, panelById],
   );
-  const outputPanel = panelById.get('output');
+  const outputPanel = useMemo(() => allPanels.find((p) => p.slot === 'output'), [allPanels]);
 
   // Live cpu + memory bytes flow through ctx.events now (panels self-fetch
   // via DebugService on debug:step-done / debug:bp-hit / run:state). App

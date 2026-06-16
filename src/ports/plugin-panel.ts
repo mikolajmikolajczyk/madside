@@ -57,6 +57,10 @@ interface PanelPluginBase extends PluginBase {
   readonly kind: 'panel'
   readonly id: string
   readonly title: string
+  /** Layout slot. 'debug' (default) → the movable debug column; 'output' → the
+   *  fixed full-width slot above the editor. The host places each panel by its
+   *  slot, so there's one model — no panel id is special-cased. */
+  readonly slot?: 'debug' | 'output'
   /** Optional capability gate. When false, the workbench hides the panel for
    *  the active MachinePlugin. */
   supports?(machine: MachinePlugin): boolean

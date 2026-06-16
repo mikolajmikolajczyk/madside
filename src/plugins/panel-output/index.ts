@@ -5,5 +5,6 @@ export const outputPanel: PanelPlugin = {
   kind: 'panel',
   id: 'output',
   title: 'Output',
+  slot: 'output',
   Component: OutputPanel,
 }
