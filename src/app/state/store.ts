@@ -43,6 +43,12 @@ function writeUrlProject(id: string | null): void {
 const dec = new TextDecoder();
 const enc = new TextEncoder();
 
+function bytesEqual(a: Uint8Array, b: Uint8Array): boolean {
+  if (a.length !== b.length) return false;
+  for (let i = 0; i < a.length; i++) if (a[i] !== b[i]) return false;
+  return true;
+}
+
 export function useProject(storage: StorageBackend, events?: EventBus) {
   const [state, setState] = useState<ProjectState | null>(null);
   const [projects, setProjects] = useState<ProjectRow[]>([]);
@@ -371,6 +377,38 @@ export function useProject(storage: StorageBackend, events?: EventBus) {
       bpSavedSnapshotRef.current = "";
     };
   }, [state?.projectId]);
+
+  // Surface asset-pipeline output: a build runs recipes that write generated/*
+  // straight to storage (bypassing this store), so the file tree never saw them
+  // until a reload. Pull them in after each build. Generated files are output —
+  // never user-edited — so merging them can't clobber in-flight edits.
+  const activeProjectId = state?.projectId;
+  useEffect(() => {
+    if (!events || !activeProjectId) return;
+    return events.on('build:done', (p) => {
+      if (p.projectId !== activeProjectId) return;
+      void (async () => {
+        const loaded = await storage.projects.load(p.projectId);
+        const generated = loaded?.files.filter((f) => f.path.startsWith('generated/')) ?? [];
+        if (generated.length === 0) return;
+        setState((prev) => {
+          if (!prev || prev.projectId !== p.projectId) return prev;
+          const byPath = new Map(prev.files.map((f) => [f.path, f]));
+          let changed = false;
+          for (const g of generated) {
+            const ex = byPath.get(g.path);
+            if (!ex || !bytesEqual(ex.content, g.content)) {
+              byPath.set(g.path, { path: g.path, content: g.content });
+              changed = true;
+            }
+          }
+          if (!changed) return prev;
+          const files = [...byPath.values()].sort((a, b) => a.path.localeCompare(b.path));
+          return { ...prev, files };
+        });
+      })();
+    });
+  }, [events, activeProjectId, storage]);
 
   if (!state) {
     // No active project. The picker uses `projects` (empty on first run) +
