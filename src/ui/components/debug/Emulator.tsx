@@ -245,13 +245,22 @@ export function Emulator({ breakpoints, onState }: Props) {
     };
   }, [status, workbench, machine]);
 
+  // Audio lifecycle — deliberately separate from the frame loop below. Keyed on
+  // run state only, NOT on `breakpoints`: a rebuild while running produces a new
+  // sourceMap → a new `breakpoints` Set identity, which used to tear down + restart
+  // this effect. The async startAudio/suspendAudio then raced and the AudioContext
+  // got stuck suspended (audio died on any edit during a run). Splitting it out
+  // means editing only restarts the cheap rAF loop, never the audio.
+  useEffect(() => {
+    if (status !== "ready" || !running) return;
+    void workbench.run.startAudio();
+    return () => { void workbench.run.suspendAudio(); };
+  }, [running, status, workbench]);
+
   // Frame loop while running
   useEffect(() => {
     const emu = emuRef.current;
     if (!emu || status !== "ready" || !running) return;
-
-    // Resume/start audio on user gesture (Run). Suspend on pause to free CPU.
-    void workbench.run.startAudio();
 
     // Push the BP address set into the backend. AltirraBackend traps in
     // C++ on the instruction boundary — zero JS roundtrip cost per cycle.
@@ -283,7 +292,6 @@ export function Emulator({ breakpoints, onState }: Props) {
     return () => {
       if (rafRef.current != null) cancelAnimationFrame(rafRef.current);
       rafRef.current = null;
-      void workbench.run.suspendAudio();
       // One final CPU snapshot so App-side pcLine + status bar reflect
       // where the sim stopped. Panel refresh on pause is handled by
       // run:state{paused} — RunService emits it the moment pause() is

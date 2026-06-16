@@ -353,6 +353,12 @@ export function Editor({ value, onChange, filename, pcLine, breakpointLines, lin
         }),
         keymap.of([
           { key: "Mod-s", preventDefault: true, run: () => { onSaveRef.current?.(); return true; } },
+          // Consume the Run / Restart accelerators so the browser doesn't insert
+          // a newline into the contenteditable (CM only preventDefaults keys it
+          // binds). The window-level shortcut handler still fires the command —
+          // CM doesn't stopPropagation — so this is no-op-but-swallow.
+          { key: "Mod-Enter", preventDefault: true, run: () => true },
+          { key: "Shift-Mod-Enter", preventDefault: true, run: () => true },
           indentWithTab,
           ...completionKeymap,
           ...defaultKeymap,
