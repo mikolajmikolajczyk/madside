@@ -4,6 +4,7 @@ export { createCommandRegistry } from './command-registry'
 export { createPluginRegistry } from './plugin-registry'
 export {
   createBuildService,
+  DEFAULT_DEBOUNCE_MS,
   type BuildFileLike,
   type BuildServiceDeps,
   type RecipeRunResult as BuildRecipeRunResult,

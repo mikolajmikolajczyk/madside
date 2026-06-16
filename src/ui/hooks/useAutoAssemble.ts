@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
+import { DEFAULT_DEBOUNCE_MS } from "@services";
 import type {
   BuildInput,
   BuildResult,
@@ -116,9 +117,12 @@ export function useAutoAssemble({
   }, [buildService, files, manifest, projectId]);
 
   useEffect(() => {
+    // Same debounce window as BuildService.buildDebounced — shared constant so
+    // the two can't drift (#23). The hook debounces build() (not buildDebounced)
+    // because it needs the returned result to drive React state.
     const id = setTimeout(() => {
       void runAssemble();
-    }, 400);
+    }, DEFAULT_DEBOUNCE_MS);
     return () => clearTimeout(id);
   }, [runAssemble]);
 

@@ -72,7 +72,9 @@ export interface BuildServiceDeps {
   logger?: Logger
 }
 
-const DEFAULT_DEBOUNCE_MS = 400
+/** Auto-build debounce. Exported so the React-side auto-assemble hook reuses the
+ *  same value instead of hardcoding its own (they must not drift — #23). */
+export const DEFAULT_DEBOUNCE_MS = 400
 
 export function createBuildService(deps: BuildServiceDeps): BuildService {
   const log = deps.logger?.child('build') ?? deps.logger

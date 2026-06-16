@@ -14,6 +14,7 @@
 // Check kinds v1: build / label / register / memory. framebuffer-colour and JS
 // check modules are deferred (epic decision).
 
+import { byteHex } from '@core/hex'
 import type { CourseCheck } from './courses'
 
 /** Parse a hex (`$94`, `0x94`) or decimal (`148`) literal to a number. */
@@ -29,7 +30,7 @@ export function parseBytes(s: string): number[] {
   return s.trim().split(/[\s,]+/).filter(Boolean).map(parseNum)
 }
 
-const hex = (n: number) => '$' + n.toString(16).padStart(2, '0')
+const hex = (n: number) => '$' + byteHex(n)
 const hexBytes = (b: ArrayLike<number>) => Array.from(b, hex).join(' ')
 
 /** Stable key for a materialised memory read (so the pure evaluator can look up
