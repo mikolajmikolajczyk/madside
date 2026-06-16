@@ -22,6 +22,21 @@ export default defineConfig({
   optimizeDeps: {
     include: ['jsnes'],
   },
+  build: {
+    rollupOptions: {
+      output: {
+        // Split the big eager vendors out of the index chunk so they cache
+        // independently and load in parallel (react-dom, CodeMirror, and Radix
+        // are the heavy ones). Everything else stays in the entry chunk.
+        manualChunks(id) {
+          if (!id.includes('node_modules')) return
+          if (/[\\/]node_modules[\\/](react|react-dom|scheduler)[\\/]/.test(id)) return 'react'
+          if (id.includes('@codemirror') || id.includes('@lezer')) return 'codemirror'
+          if (id.includes('@radix-ui')) return 'radix'
+        },
+      },
+    },
+  },
   resolve: {
     alias: [
       { find: /^@core$/,       replacement: r('./src/core') },
