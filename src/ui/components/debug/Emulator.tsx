@@ -270,9 +270,10 @@ export function Emulator({ breakpoints, onState }: Props) {
       ? () => emu.isAtInstrBoundary() && breakpoints.has(emu.getPC())
       : undefined;
 
-    // Throttle the cpu/mem snapshot so we don't pay the readMem cost
-    // every frame at 60 Hz — every ~10 frames (≈6/s) keeps the panel
+    // Throttle the cpu/mem snapshot so we don't pay the readMem cost every
+    // frame at 60 Hz — every SNAPSHOT_EVERY_FRAMES frames (≈6/s) keeps the panel
     // lively without dominating the loop.
+    const SNAPSHOT_EVERY_FRAMES = 10;
     let snapshotTick = 0;
     const tick = () => {
       emu.advanceFrame(trap);
@@ -282,7 +283,7 @@ export function Emulator({ breakpoints, onState }: Props) {
         workbench.events.emit('debug:bp-hit', { pc: emu.getPC() });
         return;
       }
-      if (++snapshotTick >= 10) {
+      if (++snapshotTick >= SNAPSHOT_EVERY_FRAMES) {
         snapshotTick = 0;
         emit(emu);
       }

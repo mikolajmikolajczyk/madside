@@ -7,6 +7,9 @@ import { hex } from '@core/hex'
 // palette + both pattern tables. Machine-neutral mechanism, NES-specific
 // decode: 2bpp tiles + the 2C02 master palette live here, not in the core.
 
+/** Live-refresh cadence while running (events drive step/pause refreshes). */
+const PPU_REFRESH_MS = 250
+
 // Standard NTSC 2C02 master palette (64 entries, 0xRRGGBB). Index 0x0D ("blacker
 // than black") folded to black. A viewer doesn't need emphasis bits.
 const NES_PALETTE: readonly number[] = [
@@ -86,7 +89,9 @@ export function PpuPanel({ ctx }: { ctx: PanelContext }) {
         if (p.status === 'paused' || p.status === 'loaded') void refresh()
       }),
     ]
-    const timer = setInterval(() => void refresh(), 250)
+    // Poll while running (events cover step/pause); 250ms ≈ 4 Hz keeps the
+    // VRAM/pattern view live without dominating the frame loop.
+    const timer = setInterval(() => void refresh(), PPU_REFRESH_MS)
     return () => {
       cancelled = true
       clearInterval(timer)
