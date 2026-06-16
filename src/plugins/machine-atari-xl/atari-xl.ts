@@ -7,6 +7,7 @@ import type { MachinePlugin } from '@ports'
 // c4f26da, sendKey c5aaf5a).
 
 export const atariXl: MachinePlugin = {
+  kind: 'machine',
   id: 'atari-xl',
   name: 'Atari 800XL / 130XE',
   cpu: 'mos6502',

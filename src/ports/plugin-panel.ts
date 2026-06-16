@@ -5,6 +5,7 @@
 // FileEditorPlugin generalisation in cae0633.
 
 import type { ComponentType } from 'react'
+import type { PluginBase } from './plugin-registry'
 import type { CommandRegistry } from './command-registry'
 import type { EventBus } from './event-bus'
 import type { EditorAsset } from './plugin-editor'
@@ -52,7 +53,8 @@ export type PanelMount = (
   ctx: PanelContext,
 ) => { destroy: () => void }
 
-interface PanelPluginBase {
+interface PanelPluginBase extends PluginBase {
+  readonly kind: 'panel'
   readonly id: string
   readonly title: string
   /** Optional capability gate. When false, the workbench hides the panel for

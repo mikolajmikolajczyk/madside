@@ -8,6 +8,7 @@ import type { EditorModule, PanelPlugin } from '@ports'
 
 export function editorToPanel(editor: EditorModule): PanelPlugin {
   return {
+    kind: 'panel',
     id: editor.meta.id,
     title: editor.meta.label,
     fileExt: editor.meta.fileExt,

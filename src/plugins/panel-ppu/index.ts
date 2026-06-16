@@ -2,6 +2,7 @@ import type { PanelPlugin } from '@ports'
 import { PpuPanel } from './PpuPanel'
 
 export const ppuPanel: PanelPlugin = {
+  kind: 'panel',
   id: 'ppu',
   title: 'PPU',
   // Universal gate: shown for any machine that declares a 'ppu' memory space

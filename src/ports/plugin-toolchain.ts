@@ -3,6 +3,7 @@
 // plugin; ca65 (NES, v1.0.0) and KickAssembler (C64) follow the same shape.
 
 import type { SourceMap } from './source-map'
+import type { PluginBase } from './plugin-registry'
 
 export interface ToolchainFile {
   /** POSIX path relative to project root. Same shape as ProjectFile but
@@ -67,7 +68,8 @@ export interface ToolchainLanguage {
   readonly snippets?: readonly ToolchainSnippet[]
 }
 
-export interface ToolchainPlugin {
+export interface ToolchainPlugin extends PluginBase {
+  readonly kind: 'toolchain'
   readonly id: string
   readonly name: string
   /** Extensions (no dot, lowercase) the toolchain considers source files. */

@@ -27,8 +27,8 @@ export function ManifestEditor({ value, onChange, files }: Props) {
   const [mode, setMode] = useState<"form" | "json">("form");
 
   const text = useMemo(() => dec.decode(value), [value]);
-  const machines = useMemo(() => workbench.plugins.list("machine") as unknown as MachinePlugin[], [workbench]);
-  const toolchains = useMemo(() => workbench.plugins.list("toolchain") as unknown as ToolchainPlugin[], [workbench]);
+  const machines = useMemo(() => workbench.plugins.list<MachinePlugin>("machine"), [workbench]);
+  const toolchains = useMemo(() => workbench.plugins.list<ToolchainPlugin>("toolchain"), [workbench]);
   const sourceFiles = useMemo(() => files.map((f) => f.path).filter((p) => SRC_RE.test(p)).sort(), [files]);
 
   // Raw parsed object (null when the JSON is malformed) + schema validation.

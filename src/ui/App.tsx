@@ -197,7 +197,7 @@ export default function App() {
   // order; otherwise machine.defaultPanels; otherwise [registers, memory].
   // Output panel is a fixed slot above the editor.
   const allPanels = useMemo(
-    () => workbench.plugins.list('panel') as unknown as PanelPlugin[],
+    () => workbench.plugins.list<PanelPlugin>('panel'),
     [workbench.plugins],
   );
   const panelById = useMemo(() => {

@@ -8,7 +8,6 @@ import type {
   EventBus,
   Logger,
   MachinePlugin,
-  PluginBase,
   PluginRegistry,
   StorageBackend,
   RunService,
@@ -157,26 +156,14 @@ export function createWorkbench(deps: WorkbenchDeps): Workbench {
   // Register the bundled Atari-XL MachinePlugin + MADS ToolchainPlugin.
   // BuildService now dispatches via manifest.toolchain → PluginRegistry,
   // so adding a second toolchain (M9: ca65) is a register() call away.
-  plugins.register({
-    plugin: { ...atariXl, kind: 'machine' },
-    source: { origin: 'builtin' },
-  })
+  plugins.register({ plugin: atariXl, source: { origin: 'builtin' } })
   // machine-nes resolves via the registry (plugins.get('machine','nes')); the
   // active `machine` field below stays atari-xl until manifest-driven machine
   // selection lands (the end-to-end NES path — separate from this plugin's
   // data + registration).
-  plugins.register({
-    plugin: { ...machineNes, kind: 'machine' },
-    source: { origin: 'builtin' },
-  })
-  plugins.register({
-    plugin: { ...madsToolchain, kind: 'toolchain' },
-    source: { origin: 'builtin' },
-  })
-  plugins.register({
-    plugin: { ...atari6502DebugAdapter, kind: 'debug-adapter' },
-    source: { origin: 'builtin' },
-  })
+  plugins.register({ plugin: machineNes, source: { origin: 'builtin' } })
+  plugins.register({ plugin: madsToolchain, source: { origin: 'builtin' } })
+  plugins.register({ plugin: atari6502DebugAdapter, source: { origin: 'builtin' } })
   // Emulator backends register like every other plugin kind; machines name the
   // one they run on via `compatibleEmulators`, resolved below. Both plugins'
   // createBackend lazy-imports its core, so registration stays cheap.
@@ -184,10 +171,7 @@ export function createWorkbench(deps: WorkbenchDeps): Workbench {
     plugins.register({ plugin: emulator, source: { origin: 'builtin' } })
   }
   for (const panel of [registersPanel, memoryPanel, outputPanel, ppuPanel]) {
-    plugins.register({
-      plugin: { ...panel, kind: 'panel' },
-      source: { origin: 'builtin' },
-    })
+    plugins.register({ plugin: panel, source: { origin: 'builtin' } })
   }
   // Phase 11 built-in editors surface through the unified PluginRegistry as
   // file-bound panels. Project-side editors (editors/*.js, Blob-URL-loaded)
@@ -195,7 +179,7 @@ export function createWorkbench(deps: WorkbenchDeps): Workbench {
   // PanelSlot for file editing.
   for (const editor of listBuiltinEditors()) {
     plugins.register({
-      plugin: { ...editorToPanel(editor), kind: 'panel' },
+      plugin: editorToPanel(editor),
       source: { origin: 'builtin' },
     })
   }
@@ -215,9 +199,7 @@ export function createWorkbench(deps: WorkbenchDeps): Workbench {
   // `compatibleDebugAdapters`, resolved from the registry (no hardcoded table).
   const resolveDebugAdapter = (machine: MachinePlugin): DebugAdapterPlugin => {
     const id = machine.compatibleDebugAdapters[0]
-    // DebugAdapterPlugin gets its `kind` at registration; intersect with
-    // PluginBase to satisfy the registry's generic constraint.
-    const adapter = plugins.get<DebugAdapterPlugin & PluginBase>('debug-adapter', id)
+    const adapter = plugins.get<DebugAdapterPlugin>('debug-adapter', id)
     if (!adapter) {
       throw new Error(`machine '${machine.id}' requires debug adapter '${id}', not registered`)
     }

@@ -7,6 +7,7 @@ import type { MachinePlugin } from '@ports'
 // (proven b41098c), so no NES-specific toolchain is required for validation.
 
 export const machineNes: MachinePlugin = {
+  kind: 'machine',
   id: 'nes',
   name: 'Nintendo Entertainment System (NTSC)',
   cpu: 'ricoh-2a03',

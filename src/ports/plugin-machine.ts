@@ -9,6 +9,8 @@
 // (40e0373), boot equates (c4f26da), loader formats (3b73e5d), sendKey
 // (c5aaf5a), pixel pack (4bd1338).
 
+import type { PluginBase } from './plugin-registry'
+
 export type CpuId = 'mos6502' | 'mos6510' | 'ricoh-2a03' | string
 
 export type MemoryRegionKind = 'ram' | 'rom' | 'io' | 'mirror' | 'unmapped'
@@ -118,7 +120,8 @@ export interface BootEquates {
   content: string
 }
 
-export interface MachinePlugin {
+export interface MachinePlugin extends PluginBase {
+  readonly kind: 'machine'
   readonly id: string
   readonly name: string
   readonly cpu: CpuId

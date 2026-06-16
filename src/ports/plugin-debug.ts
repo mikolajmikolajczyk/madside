@@ -5,6 +5,7 @@
 // in @plugins/debug-atari-6502 and is reusable for NES (M9).
 
 import type { RunBackend } from './services/run-service'
+import type { PluginBase } from './plugin-registry'
 
 export interface RegisterDescriptor {
   /** Stable id consumed by code (e.g. 'a', 'pc', 'sp'). */
@@ -59,7 +60,8 @@ export interface DebugTarget {
 /** DebugAdapter plugin — bridges a generic DebugTarget contract to a specific
  *  emulator backend. PluginRegistry kind: 'debug-adapter'. Manifest dispatch
  *  via `project.json.debugAdapter`. */
-export interface DebugAdapterPlugin {
+export interface DebugAdapterPlugin extends PluginBase {
+  readonly kind: 'debug-adapter'
   readonly id: string
   readonly name: string
   /** Build a DebugTarget bound to the supplied backend. Adapter authors keep

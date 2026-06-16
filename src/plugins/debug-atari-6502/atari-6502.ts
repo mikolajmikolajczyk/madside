@@ -58,6 +58,7 @@ const attach = (backend: RunBackend): DebugTarget => ({
 })
 
 export const atari6502DebugAdapter: DebugAdapterPlugin = {
+  kind: 'debug-adapter',
   id: 'atari-6502-debug',
   name: 'Atari 6502 (Altirra)',
   attach,

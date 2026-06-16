@@ -8,6 +8,7 @@ import { assemble, parseLabFile, parseSourceMap, type SourceFile } from './wasm-
 // adapter directly.
 
 export const madsToolchain: ToolchainPlugin = {
+  kind: 'toolchain',
   id: 'mads',
   name: 'Mad-Assembler (MADS)',
   inputExt: ['a65', 'asm', 'inc'],
