@@ -1,5 +1,8 @@
 export * from './createWorkbench'
-export * from './storage'
+// Only the pure diff helper is public — the `storage` singleton stays internal
+// (imported solely by workbench-context, the composition root) so the data layer
+// can't reach for the global instead of the injected `workbench.storage` (#16).
+export { diffSnapshots } from './storage'
 export * from './export-project'
 export * from './fileTemplates'
 export * from './templates'

@@ -1,11 +1,10 @@
 // Project store. IDB-backed, multi-project. Phase 2 adds list + switch + CRUD.
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { storage } from "../storage";
 import { createFileSaver, type FileSaver } from "./file-saver";
 import { exportProjectToZip, importProjectFromZip, MANIFEST_PATH } from "@adapters/storage-idb";
 import { parseProjectManifest } from "@ports";
-import type { EventBus, FileRow, ProjectManifestV2 as Manifest, ProjectRow, SnapshotMeta } from "@ports";
+import type { EventBus, FileRow, ProjectManifestV2 as Manifest, ProjectRow, SnapshotMeta, StorageBackend } from "@ports";
 
 // Files are stored as bytes end-to-end. Text views (Editor, MADS source list,
 // label scanner, etc.) decode lazily; binary views (AssetPanel, custom Phase 11
@@ -43,7 +42,7 @@ function writeUrlProject(id: string | null): void {
 const dec = new TextDecoder();
 const enc = new TextEncoder();
 
-export function useProject(events?: EventBus) {
+export function useProject(storage: StorageBackend, events?: EventBus) {
   const [state, setState] = useState<ProjectState | null>(null);
   const [projects, setProjects] = useState<ProjectRow[]>([]);
   const [snapshots, setSnapshots] = useState<SnapshotMeta[]>([]);

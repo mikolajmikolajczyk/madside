@@ -63,7 +63,7 @@ const DOCS_URL =
 export default function App() {
   const workbench = useWorkbench();
   const toast = useToast();
-  const project = useProject(workbench.events);
+  const project = useProject(workbench.storage, workbench.events);
 
   // Run lifecycle is owned by RunService (ADR-0007). UI reads via the hook;
   // no parallel React state. `running` + `hasEmu` are derived primitives.
@@ -406,9 +406,9 @@ export default function App() {
 
   const handleOpenLesson = useCallback(async (courseId: string, lessonId: string) => {
     if (!project.loaded) return;
-    const id = await openLesson(courseId, lessonId);
+    const id = await openLesson(workbench.storage, courseId, lessonId);
     await project.switchProject(id);
-  }, [project]);
+  }, [project, workbench]);
 
   // Run a lesson's declarative checks: assemble (reusing the auto-assemble
   // pipeline for the binary + label table), then — only if a register/memory
@@ -440,16 +440,16 @@ export default function App() {
   const handleRefreshCourse = useCallback(async (courseId: string) => {
     const c = getCourse(courseId);
     if (c?.source.kind !== "github") return;
-    await refreshCourseFromGitHub({ owner: c.source.owner, repo: c.source.repo, ref: c.source.ref });
-  }, []);
+    await refreshCourseFromGitHub(workbench.storage, { owner: c.source.owner, repo: c.source.repo, ref: c.source.ref });
+  }, [workbench]);
 
   // Discard a lesson's edits, restoring the (refreshed) starter files, then
   // reload the project so the editor shows them.
   const handleResetLesson = useCallback(async (courseId: string, lessonId: string) => {
     if (!project.loaded) return;
-    const id = await resetLessonToStarter(courseId, lessonId);
+    const id = await resetLessonToStarter(workbench.storage, courseId, lessonId);
     if (id) await project.switchProject(id);
-  }, [project]);
+  }, [project, workbench]);
 
   const [historyOpen, setHistoryOpen] = useState(false);
   const [aboutOpen, setAboutOpen] = useState(false);

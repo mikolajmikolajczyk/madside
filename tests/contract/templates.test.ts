@@ -1,7 +1,9 @@
 import { beforeEach, describe, expect, it } from 'vitest'
 import 'fake-indexeddb/auto'
 import { createBlankProject, getTemplateManifestText, instantiateTemplate, listTemplates } from '@app/templates'
-import { __resetDb, loadProject } from '@adapters/storage-idb'
+import { __resetDb, createIdbStorage, loadProject } from '@adapters/storage-idb'
+
+const storage = createIdbStorage()
 
 // Bundled-template foundation (71acac1). Verifies the Vite glob loader picks up
 // templates/<id>/ and the service instantiates them into storage.
@@ -22,7 +24,7 @@ describe('project templates', () => {
   })
 
   it('instantiates the empty template (used by File → New project)', async () => {
-    const row = await instantiateTemplate('empty', 'my-proj')
+    const row = await instantiateTemplate(storage, 'empty', 'my-proj')
     expect(row.name).toBe('my-proj')
     const loaded = await loadProject(row.id)
     expect(loaded!.manifest.machine).toBe('atari-xl')
@@ -41,7 +43,7 @@ describe('project templates', () => {
       null,
       2,
     )
-    const row = await createBlankProject(manifest)
+    const row = await createBlankProject(storage, manifest)
     expect(row.name).toBe('blank-nes')
     const loaded = await loadProject(row.id)
     expect(loaded!.manifest.machine).toBe('nes') // caller manifest wins
@@ -49,7 +51,7 @@ describe('project templates', () => {
   })
 
   it('instantiates a template into storage as a loadable project', async () => {
-    const row = await instantiateTemplate('atari-hello')
+    const row = await instantiateTemplate(storage, 'atari-hello')
     const loaded = await loadProject(row.id)
     expect(loaded).not.toBeNull()
     expect(loaded!.manifest.machine).toBe('atari-xl')
@@ -61,7 +63,7 @@ describe('project templates', () => {
   })
 
   it('instantiates the NES template with iNES-producing source', async () => {
-    const row = await instantiateTemplate('nes-hello')
+    const row = await instantiateTemplate(storage, 'nes-hello')
     const loaded = await loadProject(row.id)
     expect(loaded!.manifest.machine).toBe('nes')
     const main = loaded!.files.find((f) => f.path === 'src/nes-hello.a65')
@@ -70,8 +72,8 @@ describe('project templates', () => {
   })
 
   it('honours a name override and rejects unknown ids', async () => {
-    const row = await instantiateTemplate('atari-hello', 'My Project')
+    const row = await instantiateTemplate(storage, 'atari-hello', 'My Project')
     expect(row.name).toBe('My Project')
-    await expect(instantiateTemplate('nope')).rejects.toThrow(/unknown template/)
+    await expect(instantiateTemplate(storage, 'nope')).rejects.toThrow(/unknown template/)
   })
 })

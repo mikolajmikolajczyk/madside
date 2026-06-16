@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { createBlankProject, getCourse, getTemplateManifestText, installCourseFromGitHub, instantiateTemplate, listTemplates, openLesson, removeRemoteCourse } from "@app";
+import { createBlankProject, getCourse, getTemplateManifestText, installCourseFromGitHub, instantiateTemplate, listTemplates, openLesson, removeRemoteCourse, useWorkbench } from "@app";
 import { useCourses } from "../hooks/useCourses";
 import { useDisclosure } from "../hooks/useDisclosure";
 import { ManifestEditor } from "./manifest/ManifestEditor";
@@ -19,6 +19,7 @@ const dec = new TextDecoder();
  *  properties editor + Create. Below: bundled-template cards. Picking either
  *  creates a project into storage and opens it. */
 export function Welcome({ onOpen, projects = [] }: Props) {
+  const workbench = useWorkbench();
   // Templates minus 'empty' (the empty flow is the top section).
   const templates = useMemo(() => listTemplates().filter((t) => t.id !== "empty"), []);
   const courses = useCourses();
@@ -40,7 +41,7 @@ export function Welcome({ onOpen, projects = [] }: Props) {
     setBusy("blank");
     setError(null);
     try {
-      const row = await createBlankProject(dec.decode(blankBytes));
+      const row = await createBlankProject(workbench.storage, dec.decode(blankBytes));
       onOpen(row.id);
     } catch (e) {
       setError(`could not create project: ${String(e)}`);
@@ -52,7 +53,7 @@ export function Welcome({ onOpen, projects = [] }: Props) {
     setBusy(id);
     setError(null);
     try {
-      const row = await instantiateTemplate(id);
+      const row = await instantiateTemplate(workbench.storage, id);
       onOpen(row.id);
     } catch (e) {
       setError(String(e));
@@ -67,7 +68,7 @@ export function Welcome({ onOpen, projects = [] }: Props) {
     try {
       const first = getCourse(id)?.lessons[0];
       if (!first) throw new Error(`course '${id}' has no lessons`);
-      const projectId = await openLesson(id, first);
+      const projectId = await openLesson(workbench.storage, id, first);
       onOpen(projectId);
     } catch (e) {
       setError(String(e));
@@ -82,11 +83,11 @@ export function Welcome({ onOpen, projects = [] }: Props) {
     setBusy("add-course");
     setError(null);
     try {
-      const info = await installCourseFromGitHub(input);
+      const info = await installCourseFromGitHub(workbench.storage, input);
       setRepoInput("");
       const first = info.lessons[0];
       if (!first) throw new Error("course has no lessons");
-      const projectId = await openLesson(info.id, first);
+      const projectId = await openLesson(workbench.storage, info.id, first);
       onOpen(projectId);
     } catch (e) {
       setError(`could not add course: ${String(e instanceof Error ? e.message : e)}`);
@@ -98,7 +99,7 @@ export function Welcome({ onOpen, projects = [] }: Props) {
     setBusy(`remove:${id}`);
     setError(null);
     try {
-      await removeRemoteCourse(id);
+      await removeRemoteCourse(workbench.storage, id);
     } catch (e) {
       setError(String(e));
     } finally {

@@ -12,7 +12,9 @@ import {
   removeRemoteCourse,
   validateCourseFiles,
 } from '@app'
-import { __resetDb, listInstalledCourses } from '@adapters/storage-idb'
+import { __resetDb, createIdbStorage, listInstalledCourses } from '@adapters/storage-idb'
+
+const storage = createIdbStorage()
 
 // Remote course fetch + install (epic ecd5258). Network is mocked; the jsDelivr
 // CDN shape is faked. fake-indexeddb backs the install persistence.
@@ -132,10 +134,10 @@ describe('fetchGitHubCourse', () => {
 
 describe('installCourseFromGitHub', () => {
   beforeEach(async () => { await __resetDb(); installMockFetch() })
-  afterEach(async () => { vi.restoreAllMocks(); await removeRemoteCourse('gh:me/course@default') })
+  afterEach(async () => { vi.restoreAllMocks(); await removeRemoteCourse(storage, 'gh:me/course@default') })
 
   it('installs, registers, and persists a remote course', async () => {
-    const info = await installCourseFromGitHub('https://github.com/me/course')
+    const info = await installCourseFromGitHub(storage, 'https://github.com/me/course')
     expect(info.id).toBe('gh:me/course@default')
     expect(info.title).toBe('Test Course')
     expect(info.source.kind).toBe('github')
@@ -152,16 +154,16 @@ describe('installCourseFromGitHub', () => {
   })
 
   it('rejects a non-GitHub URL before fetching', async () => {
-    await expect(installCourseFromGitHub('https://gitlab.com/me/course')).rejects.toThrow(/GitHub/)
+    await expect(installCourseFromGitHub(storage, 'https://gitlab.com/me/course')).rejects.toThrow(/GitHub/)
   })
 })
 
 describe('refreshCourseFromGitHub', () => {
   beforeEach(async () => { await __resetDb(); installMockFetch() })
-  afterEach(async () => { vi.restoreAllMocks(); await removeRemoteCourse('gh:me/course@main') })
+  afterEach(async () => { vi.restoreAllMocks(); await removeRemoteCourse(storage, 'gh:me/course@main') })
 
   it('re-installs from the stored owner/repo/ref', async () => {
-    const info = await refreshCourseFromGitHub({ owner: 'me', repo: 'course', ref: 'main' })
+    const info = await refreshCourseFromGitHub(storage, { owner: 'me', repo: 'course', ref: 'main' })
     expect(info.id).toBe('gh:me/course@main')
     expect(info.title).toBe('Test Course')
     expect(info.lessons).toEqual(['01-first'])

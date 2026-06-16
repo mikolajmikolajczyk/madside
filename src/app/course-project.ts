@@ -8,14 +8,13 @@
 // purely from the active project — no separate global state to persist or keep
 // in sync.
 
-import { storage } from './storage'
 import { MANIFEST_PATH, textToBytes } from '@adapters/storage-idb'
-import type { ProjectManifestV2 as Manifest } from '@ports'
+import type { ProjectManifestV2 as Manifest, StorageBackend } from '@ports'
 import { getCourse, getLesson, isProjectPluginPath } from './courses'
 
 /** Project id of an existing project instantiated from this lesson, or
  *  undefined if the learner has not opened it yet. */
-export async function findLessonProject(courseId: string, lessonId: string): Promise<string | undefined> {
+export async function findLessonProject(storage: StorageBackend, courseId: string, lessonId: string): Promise<string | undefined> {
   for (const p of await storage.projects.list()) {
     const loaded = await storage.projects.load(p.id)
     const c = loaded?.manifest.course
@@ -29,8 +28,8 @@ export async function findLessonProject(courseId: string, lessonId: string): Pro
  *  project when one exists — preserving edits — otherwise instantiates the
  *  lesson's starter files, stamping `manifest.course` so the project is
  *  recognisably a course lesson. Throws on an unknown course/lesson id. */
-export async function openLesson(courseId: string, lessonId: string): Promise<string> {
-  const existing = await findLessonProject(courseId, lessonId)
+export async function openLesson(storage: StorageBackend, courseId: string, lessonId: string): Promise<string> {
+  const existing = await findLessonProject(storage, courseId, lessonId)
   if (existing) return existing
 
   const course = getCourse(courseId)
@@ -61,8 +60,8 @@ export async function openLesson(courseId: string, lessonId: string): Promise<st
  *  the learner's edits for this lesson. The course-stamped manifest is
  *  preserved. Returns the project id, or undefined if the lesson hasn't been
  *  opened yet. */
-export async function resetLessonToStarter(courseId: string, lessonId: string): Promise<string | undefined> {
-  const projectId = await findLessonProject(courseId, lessonId)
+export async function resetLessonToStarter(storage: StorageBackend, courseId: string, lessonId: string): Promise<string | undefined> {
+  const projectId = await findLessonProject(storage, courseId, lessonId)
   if (!projectId) return undefined
   const lesson = getLesson(courseId, lessonId)
   if (!lesson) throw new Error(`resetLessonToStarter: unknown lesson '${courseId}/${lessonId}'`)

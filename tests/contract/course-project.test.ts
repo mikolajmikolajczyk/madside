@@ -2,8 +2,10 @@ import { beforeEach, describe, expect, it } from 'vitest'
 import 'fake-indexeddb/auto'
 import { lessonNav, openLesson } from '@app/course-project'
 import { addRemoteCourse, removeRemoteCourse } from '@app'
-import { __resetDb, loadProject, saveFile, textToBytes } from '@adapters/storage-idb'
+import { __resetDb, createIdbStorage, loadProject, saveFile, textToBytes } from '@adapters/storage-idb'
 import type { InstalledCourseRow } from '@ports'
+
+const storage = createIdbStorage()
 
 // Lesson → project instantiation (500f11c). Lessons become persistent
 // per-lesson projects; re-opening reuses the same project so edits survive.
@@ -14,7 +16,7 @@ describe('lesson → project instantiation', () => {
   })
 
   it('instantiates a lesson into a project stamped with its course identity', async () => {
-    const id = await openLesson('atari-basics', '01-hello')
+    const id = await openLesson(storage, 'atari-basics', '01-hello')
     const loaded = await loadProject(id)
     expect(loaded!.manifest.machine).toBe('atari-xl')
     expect(loaded!.manifest.course).toEqual({ id: 'atari-basics', lesson: '01-hello' })
@@ -22,10 +24,10 @@ describe('lesson → project instantiation', () => {
   })
 
   it('reuses the persisted lesson project and preserves edits on re-open', async () => {
-    const id1 = await openLesson('atari-basics', '01-hello')
+    const id1 = await openLesson(storage, 'atari-basics', '01-hello')
     // learner edits the source
     await saveFile(id1, 'src/main.a65', textToBytes('; my work\n'))
-    const id2 = await openLesson('atari-basics', '01-hello')
+    const id2 = await openLesson(storage, 'atari-basics', '01-hello')
     expect(id2).toBe(id1) // same project, not a fresh instantiation
     const loaded = await loadProject(id2)
     const main = loaded!.files.find((f) => f.path === 'src/main.a65')!
@@ -33,14 +35,14 @@ describe('lesson → project instantiation', () => {
   })
 
   it('keeps lessons as distinct projects', async () => {
-    const a = await openLesson('atari-basics', '01-hello')
-    const b = await openLesson('atari-basics', '02-loops')
+    const a = await openLesson(storage, 'atari-basics', '01-hello')
+    const b = await openLesson(storage, 'atari-basics', '02-loops')
     expect(a).not.toBe(b)
   })
 
   it('rejects an unknown lesson', async () => {
-    await expect(openLesson('atari-basics', 'nope')).rejects.toThrow(/unknown lesson/)
-    await expect(openLesson('nope', '01-hello')).rejects.toThrow(/unknown lesson/)
+    await expect(openLesson(storage, 'atari-basics', 'nope')).rejects.toThrow(/unknown lesson/)
+    await expect(openLesson(storage, 'nope', '01-hello')).rejects.toThrow(/unknown lesson/)
   })
 
   it('strips course-supplied plugin code when instantiating a lesson (defense-in-depth)', async () => {
@@ -58,15 +60,15 @@ describe('lesson → project instantiation', () => {
         { path: 'lessons/01/files/converters/evil.js', content: 'globalThis.__pwned2 = 1' },
       ],
     }
-    await addRemoteCourse(row)
+    await addRemoteCourse(storage, row)
     try {
-      const pid = await openLesson('gh:evil/course@main', '01')
+      const pid = await openLesson(storage, 'gh:evil/course@main', '01')
       const loaded = await loadProject(pid)
       const paths = loaded!.files.map((f) => f.path)
       expect(paths).toContain('src/main.a65')
       expect(paths.some((p) => p.startsWith('editors/') || p.startsWith('converters/'))).toBe(false)
     } finally {
-      await removeRemoteCourse('gh:evil/course@main')
+      await removeRemoteCourse(storage, 'gh:evil/course@main')
     }
   })
 

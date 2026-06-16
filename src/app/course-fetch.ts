@@ -11,7 +11,7 @@
 
 import { addRemoteCourse, validateCourseFiles, type CourseInfo } from './courses'
 import { NetworkError } from '@ports'
-import type { InstalledCourseRow } from '@ports'
+import type { InstalledCourseRow, StorageBackend } from '@ports'
 
 export interface GitHubRef {
   owner: string
@@ -110,7 +110,7 @@ export async function fetchGitHubCourse(
  *  shorthand). Returns the installed CourseInfo. Throws with a user-facing
  *  message on a bad URL, a non-course repo, a validation failure, or a network
  *  error. Re-installing the same ref overwrites (this is also `refresh`). */
-export async function installCourseFromGitHub(input: string): Promise<CourseInfo> {
+export async function installCourseFromGitHub(storage: StorageBackend, input: string): Promise<CourseInfo> {
   const parsed = parseGitHubRef(input)
   if (!parsed) throw new Error('not a GitHub repo URL (expected github.com/owner/repo or owner/repo)')
 
@@ -128,7 +128,7 @@ export async function installCourseFromGitHub(input: string): Promise<CourseInfo
     fetchedAt: Date.now(),
     files,
   }
-  const info = await addRemoteCourse(row)
+  const info = await addRemoteCourse(storage, row)
   if (!info) throw new Error('course could not be assembled (no usable lessons)')
   return info
 }
@@ -136,10 +136,10 @@ export async function installCourseFromGitHub(input: string): Promise<CourseInfo
 /** Re-fetch an installed GitHub course from its stored ref and overwrite it
  *  (preserving learner edits — only the course *definition* updates). Returns
  *  the refreshed CourseInfo. */
-export async function refreshCourseFromGitHub(source: {
+export async function refreshCourseFromGitHub(storage: StorageBackend, source: {
   owner: string
   repo: string
   ref: string
 }): Promise<CourseInfo> {
-  return installCourseFromGitHub(`${source.owner}/${source.repo}${source.ref ? `@${source.ref}` : ''}`)
+  return installCourseFromGitHub(storage, `${source.owner}/${source.repo}${source.ref ? `@${source.ref}` : ''}`)
 }

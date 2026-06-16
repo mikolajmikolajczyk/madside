@@ -5,9 +5,8 @@
 // Templates menu + the first-run welcome picker list them; picking one
 // instantiates a fresh project into storage.
 
-import { storage } from './storage'
 import { MANIFEST_PATH, textToBytes } from '@adapters/storage-idb'
-import type { ProjectManifestV2 as Manifest, ProjectRow } from '@ports'
+import type { ProjectManifestV2 as Manifest, ProjectRow, StorageBackend } from '@ports'
 
 /** Picker-facing descriptor, parsed from each template's template.json. */
 export interface TemplateMeta {
@@ -90,7 +89,7 @@ export function listTemplates(): TemplateInfo[] {
 /** Instantiate a template into storage as a new project. `name` overrides the
  *  template's default project name. Returns the created row (caller switches
  *  to it). Throws on an unknown template id. */
-export async function instantiateTemplate(id: string, name?: string): Promise<ProjectRow> {
+export async function instantiateTemplate(storage: StorageBackend, id: string, name?: string): Promise<ProjectRow> {
   const b = BUNDLES.get(id)
   if (!b) throw new Error(`instantiateTemplate: unknown template '${id}'`)
   const manifest: Manifest = { ...b.manifest, name: name ?? b.manifest.name }
@@ -111,7 +110,7 @@ export function getTemplateManifestText(id: string): string | undefined {
 /** Create a blank project: the 'empty' template's source files + a
  *  caller-supplied project.json (edited in the welcome picker's manifest form).
  *  The manifest text is assumed already validated by the form. */
-export async function createBlankProject(manifestText: string): Promise<ProjectRow> {
+export async function createBlankProject(storage: StorageBackend, manifestText: string): Promise<ProjectRow> {
   const b = BUNDLES.get('empty')
   if (!b) throw new Error('createBlankProject: empty template missing')
   const manifest = JSON.parse(manifestText) as Manifest
