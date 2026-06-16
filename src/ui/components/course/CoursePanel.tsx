@@ -2,6 +2,7 @@ import { useMemo, useState } from "react";
 import Markdown from "react-markdown";
 import { getCourse, getLesson, lessonNav } from "@app";
 import type { CheckReport, CourseCheck } from "@app";
+import { errorMessage } from "@ports";
 import { useCourses } from "../../hooks/useCourses";
 import "./CoursePanel.css";
 
@@ -64,7 +65,7 @@ export function CoursePanel({ courseId, lessonId, onOpenLesson, onCheck, onRefre
     try {
       setReport(await onCheck(checks));
     } catch (e) {
-      setReport({ pass: false, results: [{ kind: "build", pass: false, label: "check", message: String(e) }] });
+      setReport({ pass: false, results: [{ kind: "build", pass: false, label: "check", message: errorMessage(e) }] });
     } finally {
       setChecking(false);
     }

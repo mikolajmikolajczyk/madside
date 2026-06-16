@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { errorMessage } from "@ports";
 import type { RunBackend } from "@ports";
 import { useWorkbench } from "@app";
 import { useRunStatus } from "../../hooks/useRunStatus";
@@ -58,7 +59,7 @@ export function Emulator({ breakpoints, onState }: Props) {
         setStatus("ready");
       } catch (e) {
         if (cancelled) return;
-        setError(String(e));
+        setError(errorMessage(e));
         setStatus("error");
       }
     })();

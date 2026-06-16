@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { DEFAULT_DEBOUNCE_MS } from "@services";
+import { errorMessage } from "@ports";
 import type {
   BuildInput,
   BuildResult,
@@ -106,7 +107,7 @@ export function useAutoAssemble({
       const outcome: AutoAssembleOutcome = {
         ok: false,
         stdout: "",
-        stderr: `[runtime] ${String(e)}`,
+        stderr: `[runtime] ${errorMessage(e)}`,
         exitCode: 1,
       };
       setResult(outcome);

@@ -4,7 +4,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { createFileSaver, type FileSaver } from "./file-saver";
 import { exportProjectZip, importProjectZip } from "../project-zip";
 import { MANIFEST_PATH } from "@adapters/storage-idb";
-import { parseProjectManifest } from "@ports";
+import { errorMessage, parseProjectManifest } from "@ports";
 import type { EventBus, FileRow, ProjectManifestV2 as Manifest, ProjectRow, SnapshotMeta, StorageBackend } from "@ports";
 
 // Files are stored as bytes end-to-end. Text views (Editor, MADS source list,
@@ -98,7 +98,7 @@ export function useProject(storage: StorageBackend, events?: EventBus) {
           events.emit('project:switched', { projectId: loaded.project.id });
         }
       } catch (e) {
-        if (!cancelled) { setError(String(e)); setBooted(true); }
+        if (!cancelled) { setError(errorMessage(e)); setBooted(true); }
       }
     })();
     return () => { cancelled = true; };

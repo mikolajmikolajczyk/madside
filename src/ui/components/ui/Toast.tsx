@@ -3,6 +3,7 @@
 // they stack and never block input.
 
 import { createContext, useCallback, useContext, useMemo, useRef, useState, type ReactNode } from "react";
+import { errorMessage } from "@ports";
 import "./Toast.css";
 
 type ToastKind = "error" | "info";
@@ -39,7 +40,7 @@ export function ToastProvider({ children }: { children: ReactNode }) {
   const api = useMemo<ToastApi>(
     () => ({
       push,
-      error: (e) => push("error", e instanceof Error ? e.message : String(e)),
+      error: (e) => push("error", errorMessage(e)),
     }),
     [push],
   );

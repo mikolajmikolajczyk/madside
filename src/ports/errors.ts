@@ -77,3 +77,12 @@ export const err = <E extends WorkbenchError>(error: E): Result<never, E> => ({
   ok: false,
   error,
 })
+
+/** User-facing message for any caught value. Typed errors (WorkbenchError) and
+ *  plain Errors carry an already-meaningful `message`; `String(e)` would prefix
+ *  "Error: " or stringify to "[object Object]". Use this at UI catch sites
+ *  instead of `String(e)` so typed errors aren't flattened (ADR-0004). */
+export function errorMessage(e: unknown): string {
+  if (e instanceof Error) return e.message
+  return String(e)
+}

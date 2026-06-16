@@ -15,6 +15,7 @@
 // check modules are deferred (epic decision).
 
 import { byteHex } from '@core/hex'
+import { errorMessage } from '@ports'
 import type { CourseCheck } from './courses'
 
 /** Parse a hex (`$94`, `0x94`) or decimal (`148`) literal to a number. */
@@ -172,7 +173,7 @@ export async function runChecks(checks: CourseCheck[], deps: CheckRunDeps): Prom
       }
       ctx.mem = mem
     } catch (e) {
-      ctx.runError = String(e)
+      ctx.runError = errorMessage(e)
     }
   }
 

@@ -1,5 +1,6 @@
 import { useMemo, useState } from "react";
 import { createBlankProject, getCourse, getTemplateManifestText, installCourseFromGitHub, instantiateTemplate, listTemplates, openLesson, removeRemoteCourse, useWorkbench } from "@app";
+import { errorMessage, NetworkError } from "@ports";
 import { useCourses } from "../hooks/useCourses";
 import { useDisclosure } from "../hooks/useDisclosure";
 import { ManifestEditor } from "./manifest/ManifestEditor";
@@ -44,7 +45,7 @@ export function Welcome({ onOpen, projects = [] }: Props) {
       const row = await createBlankProject(workbench.storage, dec.decode(blankBytes));
       onOpen(row.id);
     } catch (e) {
-      setError(`could not create project: ${String(e)}`);
+      setError(`could not create project: ${errorMessage(e)}`);
       setBusy(null);
     }
   };
@@ -56,7 +57,7 @@ export function Welcome({ onOpen, projects = [] }: Props) {
       const row = await instantiateTemplate(workbench.storage, id);
       onOpen(row.id);
     } catch (e) {
-      setError(String(e));
+      setError(errorMessage(e));
       setBusy(null);
     }
   };
@@ -71,7 +72,7 @@ export function Welcome({ onOpen, projects = [] }: Props) {
       const projectId = await openLesson(workbench.storage, id, first);
       onOpen(projectId);
     } catch (e) {
-      setError(String(e));
+      setError(errorMessage(e));
       setBusy(null);
     }
   };
@@ -90,7 +91,12 @@ export function Welcome({ onOpen, projects = [] }: Props) {
       const projectId = await openLesson(workbench.storage, info.id, first);
       onOpen(projectId);
     } catch (e) {
-      setError(`could not add course: ${String(e instanceof Error ? e.message : e)}`);
+      // Branch on the typed error: a network failure is the repo/CDN being
+      // unreachable, not a bad course — give the user the right hint.
+      const detail = e instanceof NetworkError
+        ? "couldn't reach GitHub/jsDelivr — check the repo and your connection"
+        : errorMessage(e);
+      setError(`could not add course: ${detail}`);
       setBusy(null);
     }
   };
@@ -101,7 +107,7 @@ export function Welcome({ onOpen, projects = [] }: Props) {
     try {
       await removeRemoteCourse(workbench.storage, id);
     } catch (e) {
-      setError(String(e));
+      setError(errorMessage(e));
     } finally {
       setBusy(null);
     }
