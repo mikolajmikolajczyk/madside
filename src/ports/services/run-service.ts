@@ -1,5 +1,5 @@
-// RunService — emulator lifecycle. Wraps an EmuBackend today; M4 dispatches
-// to the EmulatorPlugin matching the project's MachinePlugin.
+// RunService — emulator lifecycle. Drives the RunBackend built by the active
+// machine's EmulatorPlugin (resolved from the registry in createWorkbench).
 //
 // The service owns load / run / pause / reset / status + audio. The full
 // debug surface (step, breakpoints, registers, memory) is delegated through

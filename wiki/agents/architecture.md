@@ -24,17 +24,19 @@ src/
     event-bus.ts         # EventBus + WorkbenchEvents declaration-merging map
     command-registry.ts  # CommandRegistry
     plugin-registry.ts   # PluginRegistry (kinds: machine|toolchain|debug-adapter|panel|emulator|converter|editor)
-    project-repository.ts # ProjectRepository + typed Project + Snapshot
+    storage.ts           # StorageBackend port (projects/snapshots/breakpoints/courses/kv) + domain types
     project-manifest.ts  # ProjectManifestV2 + parseProjectManifest validator (v1 hard-cut)
     source-map.ts        # SourceMap shared between toolchain plugins + UI
     plugin-machine.ts    # MachinePlugin contract (v0.4.0)
     plugin-toolchain.ts  # ToolchainPlugin contract (v0.5.0)
     plugin-debug.ts      # DebugAdapterPlugin + DebugTarget + RegisterDescriptor / FlagDescriptor (v0.6.0)
     plugin-panel.ts      # PanelPlugin tagged union (React Component | vanilla mount) + PanelContext (v0.7.0)
+    plugin-emulator.ts   # EmulatorPlugin contract — createBackend(): RunBackend
     plugin-converter.ts  # ConverterModule (Phase 7)
     plugin-editor.ts     # EditorModule (Phase 11 — folded into PanelPlugin via editorToPanel)
+    cpu.ts               # Cpu6502State — shared 6502 register snapshot
     services/            # Build/Run/Debug/AssetPipeline contracts
-    test/                # assert<Kind>Plugin harnesses for external authors (Toolchain ✅)
+    test/                # assert<Kind>Plugin harnesses for external authors (Toolchain + Emulator ✅)
 
   services/              # workbench-core services (impl)
     index.ts
@@ -48,12 +50,12 @@ src/
 
   adapters/              # port implementations (machine-/toolchain-agnostic only)
     plugin-loader.ts     # Blob URL + dynamic import + sha256 cache
-    storage-idb/         # IDB schema (projects/files/meta/snapshots/blobs/breakpoints)
-                         #   + createIdbProjectRepository() — @ports.ProjectRepository impl
+    storage-idb/         # IDB schema v3 (projects/files/meta/snapshots/blobs/breakpoints/courses)
+                         #   + createIdbStorage() — @ports.StorageBackend impl
                          #   + parseProjectManifest at load (rejects v1)
-    storage-memory/      # in-memory ProjectRepository (tests, future CLI)
+    storage-memory/      # createMemoryStorage() — StorageBackend (tests, future CLI)
     logger/              # Console / Buffered / Noop logger adapters
-    emu/                 # EmuBackend interface + AltirraBackend (loadMedia + hardware setters + AudioWorklet)
+    emu/                 # EmuBackend (Altirra-internal) + AltirraBackend + altirraEmulator EmulatorPlugin
                          #   wasm/altirra-core.{js,wasm}  — Altirra core (~134 KB js + ~4.6 MB wasm), Vite-tracked
                          #   altirra.ts loads it via `import createAltirraCore from "./wasm/altirra-core.js"` + `./wasm/altirra-core.wasm?url`
 
@@ -175,7 +177,7 @@ Every domain (run, debug, build, project, file) has one FSM owned by its service
 
 ## Emulator interface (v0.6.0)
 
-Two related contracts exist. **`EmuBackend`** (`src/adapters/emu/backend.ts`) is the original Altirra-shaped interface below. **`RunBackend`** (`@ports/services/run-service.ts`) is the de-facto, machine-agnostic backend contract that `RunService` actually consumes (Altirra adapts to it; the jsnes NES backend implements it directly). Named memory spaces live on `RunBackend.readMem(addr, len, space?)` (`space` defaults to the CPU bus; backends throw on unknown spaces) and on `DebugTarget.readMemory(addr, len, space?)`, mirroring `MachinePlugin.memorySpaces`. The legacy `EmuBackend.readMem` shown below is still the plain `(addr, len)` form.
+Two related contracts exist. **`EmuBackend`** (`src/adapters/emu/backend.ts`) is the Altirra-internal interface below (its `CpuRegs` is now an alias of the shared `Cpu6502State`). **`RunBackend`** (`@ports/services/run-service.ts`) is the machine-agnostic backend contract `RunService` consumes and the `EmulatorPlugin.createBackend()` returns (Altirra adapts to it; the jsnes NES backend implements it directly). Named memory spaces live on `RunBackend.readMem(addr, len, space?)` (`space` defaults to the CPU bus; backends throw on unknown spaces) and on `DebugTarget.readMemory(addr, len, space?)`, mirroring `MachinePlugin.memorySpaces`. The legacy `EmuBackend.readMem` shown below is still the plain `(addr, len)` form.
 
 ```ts
 interface EmuBackend {
@@ -205,7 +207,7 @@ interface EmuBackend {
 
 `frameRefresh` dropped in `61414f2` — broken contract (snapshot/restore left sim inconsistent); per-step refresh research lives in backlog `c309619` and will land under a new typed method when something works.
 
-Implementations: `AltirraBackend` (Atari) and `JsnesBackend` (NES, `@plugins/emulator-nes-jsnes`, over the `jsnes` npm package). `EightBitWorkshopBackend` removed Phase 12. Manifest-driven backend dispatch already ships (the `machineSetups` table in `createWorkbench`; see component map). A dedicated **EmulatorPlugin port still does not exist** — `RunBackend` in `@ports/services/run-service.ts` is the de-facto contract that backends implement and `RunService` consumes.
+Implementations: `AltirraBackend` (Atari) and `JsnesBackend` (NES, `@plugins/emulator-nes-jsnes`, over the `jsnes` npm package). `EightBitWorkshopBackend` removed Phase 12. The **`EmulatorPlugin` port** (`@ports/plugin-emulator.ts`, `createBackend(): RunBackend`) now formalizes the backend contract: `altirraEmulator` (in `@adapters/emu`) and `jsnesEmulator` register on the PluginRegistry, and `createWorkbench` resolves the backend from the machine's `compatibleEmulators` (debug adapters resolve the same way via `compatibleDebugAdapters`). `RunBackend` itself stays the per-frame surface `RunService` drives — including `startAudio`/`suspendAudio`.
 
 ## Storage (IDB)
 
@@ -222,7 +224,7 @@ stores:
 
 Path-based files (binary + text unified, Phase 11). Snapshots = tree `{ path → contentHash }` + manifest copy. Deduped via blobs (SHA-256 from `@core/hash`).
 
-`createIdbProjectRepository()` implements `@ports.ProjectRepository`. Memory adapter for tests under `@adapters/storage-memory`. On load the IDB adapter runs `parseProjectManifest` and rejects v1 with `'project.json v1 unsupported, recreate project'`.
+`createIdbStorage()` implements `@ports.StorageBackend` (projects/snapshots/breakpoints/courses/kv); `createMemoryStorage()` is the test/CLI adapter, both verified by the `assertStorageBackend` contract harness. On load the IDB adapter runs `parseProjectManifest` and rejects v1 with `'project.json v1 unsupported, recreate project'`.
 
 ## Manifest (`project.json`)
 
@@ -240,7 +242,7 @@ v2 shipped in M5 (`443eaed`). Validated by `parseProjectManifest` in `@ports/pro
 | **PanelPlugin** | `@ports/plugin-panel` | `@plugins/panel-registers/memory/output` | v0.7.0 ✅ (React + vanilla mount union; FileEditor folded via `editorToPanel`; + `@plugins/panel-ppu`, v0.8.0 — `supports()` gated on the `ppu` memory space) |
 | **ConverterModule** | `@ports/plugin-converter` | `@plugins/converters/*` | Phase 7 ✅ |
 | **EditorModule** | `@ports/plugin-editor` | `@plugins/editors/*` | Phase 11 ✅, bridge to PanelPlugin shipped in `6f2dc20` |
-| **EmulatorPlugin** | — (no port) | `@plugins/emulator-nes-jsnes` `JsnesBackend` | de-facto contract is `RunBackend` in `@ports/services/run-service.ts` — no dedicated EmulatorPlugin port yet; backends register via the `machineSetups` table |
+| **EmulatorPlugin** | `@ports/plugin-emulator.ts` | `altirraEmulator` (`@adapters/emu`), `jsnesEmulator` (`@plugins/emulator-nes-jsnes`) | `createBackend(): RunBackend`; resolved from the machine's `compatibleEmulators` via the PluginRegistry. `assertEmulatorPlugin` harness. |
 
 External authors get an `assert<Kind>Plugin(impl, fixture)` Vitest harness under `@ports/test/` (Toolchain shipped in `51e047c`; Machine has a drift contract test, full harness pending).
 

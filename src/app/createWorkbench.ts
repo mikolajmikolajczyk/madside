@@ -55,10 +55,11 @@ export interface WorkbenchDeps {
   toolchain?: ToolchainResolverFn
   /** Override the recipe runner — defaults to @plugins/converters.runRecipes. */
   recipes?: RecipeRunnerFn
-  /** Override the emulator backend factory — defaults to @adapters/emu.createEmu. */
+  /** Override the emulator backend factory (atari-xl only; tests pass a stub).
+   *  Default resolves the machine's `compatibleEmulators[0]` from the registry. */
   emuBackendFactory?: RunBackendFactory
-  /** Override the active DebugAdapter — defaults to atari6502DebugAdapter.
-   *  v1.0.0 manifest-driven selection lands with EmulatorPlugin (M4-followup). */
+  /** Override the active DebugAdapter — tests pass a stub. Default resolves the
+   *  machine's `compatibleDebugAdapters[0]` from the registry. */
   debugAdapter?: DebugAdapterPlugin
 }
 

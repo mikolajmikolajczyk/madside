@@ -115,9 +115,8 @@ export const atariXl: MachinePlugin = {
     basic: false,
   },
 
-  // Common Atari OS equates. Canonical source — @adapters/storage-idb/seed.ts
-  // currently has a parallel copy; the duplicate disappears when v0.5.0
-  // ToolchainPlugin work routes seed injection through workbench.machine.
+  // Common Atari OS equates, injected into new projects from here (the machine
+  // plugin is the single source).
   bootEquates: {
     path: 'src/atari.a65',
     content: `; common Atari OS equates

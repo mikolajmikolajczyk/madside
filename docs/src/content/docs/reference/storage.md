@@ -8,10 +8,11 @@ sidebar:
 Projects live entirely in the browser's IndexedDB. There is no server.
 
 - **Database name:** `madside`
-- **Current version:** `2` (the v2 baseline; future bumps append migrations)
+- **Current version:** `3` (v2 baseline + the v3 `courses` store)
 
 There are no production v1 databases — any pre-v2 store set is torn down and
-replaced wholesale with the v2 baseline. Migrations from v3 onward run normally.
+replaced wholesale with the v2 baseline. From there, versioned migrations run
+normally (v3 added the `courses` store).
 
 ## Object stores
 
@@ -23,6 +24,7 @@ replaced wholesale with the v2 baseline. Migrations from v3 onward run normally.
 | `snapshots` | `id` (string) | `byProject` → `projectId` | `{ id, projectId, ts, summary, tree: Record<string,string> }` |
 | `blobs` | `hash` (string, sha-256 hex) | — | `{ hash, data: Uint8Array }` |
 | `breakpoints` | `projectId` (string) | — | `{ projectId, bps: Record<string, number[]>, updatedAt }` |
+| `courses` | `sourceId` (string, e.g. `gh:owner/repo@ref`) | — | `{ sourceId, kind, owner, repo, ref, resolvedRef?, fetchedAt, files: { path, content }[] }` |
 
 ## Notes
 

@@ -91,7 +91,7 @@
 - TypeScript project references (9ccb4fa) — incremental layer builds
 - Pre-commit: eslint, madge --circular, typecheck, GPG UID guard (fa6ff3a)
 - Nix flake devShell — pinned toolchain (d8935a9)
-- Vitest + fake-indexeddb; headless workbench tests cover services end-to-end (ADR-0005). 151 tests passing across `src/**/*.test.ts` + `tests/{integration,contract,plugins}/*.test.ts` — RunService wire contract + fast-check property fuzz over the FSM landed in v0.7.5.
+- Vitest + fake-indexeddb; headless workbench tests cover services end-to-end (ADR-0005). The suite spans `src/**/*.test.ts` + `tests/{unit,integration,contract,plugins}/*.test.ts` — RunService wire contract + fast-check property fuzz over the FSM, the StorageBackend contract run against both adapters, and the NES audio end-to-end. Run `npx vitest run` for the current count.
 - E2E-ready guardrails: stable testids, URL-loadable project state
 
 ## Active work
@@ -104,7 +104,7 @@
 - `milestone:v0.9.0` — ✅ **done.** Visual `project.json` manifest editor (form + raw, f6c22ae) + `build.args`→toolchain wiring (04bdb5a); Astro Starlight docs site under `docs/` (1116ee3) — content for using/extending/reference/meta now written.
 - `milestone:v0.9.5` — Courses (epic 2e9c7cc) — **essentially complete**: course format + glob loader + CourseService (3ed11be), lesson→project instantiation (500f11c, 30ba629), declarative check runner (29540fd), entry points + Check wiring (2921c6c) all shipped. Only the course-authoring **docs** child (17bd00e) remains open.
 - `milestone:v1.0.0` — first post-docs major release; TBD
-- `milestone:backlog` — BP Map/Record drift (609be37), IDB schema migration framework (18ac6a7), Altirra bindings.cpp split (cd90f9d), per-step display refresh research (c309619), ca65/ld65 wasm toolchain for C/neslib ecosystem (6bed971)
+- `milestone:backlog` — Altirra bindings.cpp split (cd90f9d), per-step display refresh research (c309619), ca65/ld65 wasm toolchain for C/neslib ecosystem (GH #1). IDB schema migration framework shipped (`migrations.ts`, v3 courses store); BP Map/Record drift test shipped.
 - **Infra epic 70269cc** (no milestone, separate clock) — GitHub mirror (edbc165), VPS hosting (efc75d1)
 
 Cancelled: M8 monorepo split (c2f4590) — see [`../decisions/2026-06-12-monorepo-split-cancelled.md`](../decisions/2026-06-12-monorepo-split-cancelled.md).

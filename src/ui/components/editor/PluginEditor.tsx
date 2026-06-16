@@ -13,7 +13,7 @@
 // offers a "Reload editor" button.
 
 import { useCallback, useEffect, useRef, useState } from "react";
-// eslint-disable-next-line boundaries/element-types -- TODO(M3): service extraction lifts this import into a service call
+// eslint-disable-next-line boundaries/element-types -- ui→plugins editor types; lift EditorHandle/EditorModule to @ports (tracked in #16)
 import type { EditorHandle, EditorModule } from "@plugins/editors";
 import { PluginEditorErrorBoundary } from "./PluginEditorErrorBoundary";
 import { useWorkbench } from "@app";
