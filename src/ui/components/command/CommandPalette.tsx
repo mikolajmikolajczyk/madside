@@ -19,9 +19,13 @@ interface Props {
   onClose: () => void;
   commands: CommandRegistry;
   ctx: CommandContext;
+  /** Refocus the pre-open surface (the editor) on close. Radix's default
+   *  focus-restore doesn't reliably re-focus CodeMirror's contenteditable, so
+   *  the host passes an explicit `view.focus()` (#24). */
+  restoreFocus?: () => void;
 }
 
-export function CommandPalette({ open, onClose, commands, ctx }: Props) {
+export function CommandPalette({ open, onClose, commands, ctx, restoreFocus }: Props) {
   const [query, setQuery] = useState("");
   const [sel, setSel] = useState(0);
 
@@ -57,7 +61,13 @@ export function CommandPalette({ open, onClose, commands, ctx }: Props) {
           className="cmdpal"
           aria-label="Command palette"
           onKeyDown={onKeyDown}
-          onCloseAutoFocus={() => {
+          onCloseAutoFocus={(e) => {
+            // Radix's default restore doesn't reliably re-focus CodeMirror —
+            // take over and call the host's explicit refocus, then run the
+            // chosen command so a focus-moving command (Build → output) still
+            // wins over the editor refocus.
+            e.preventDefault();
+            restoreFocus?.();
             const id = pendingRef.current;
             pendingRef.current = null;
             if (id) queueMicrotask(() => void commands.run(id, ctx));

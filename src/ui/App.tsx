@@ -799,6 +799,7 @@ export default function App() {
         onClose={() => setPaletteOpen(false)}
         commands={workbench.commands}
         ctx={cmdCtx}
+        restoreFocus={() => editorViewRef.current?.focus()}
       />
     </div>
     </TooltipProvider>
