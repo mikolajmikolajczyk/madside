@@ -210,7 +210,6 @@ export function Emulator({ breakpoints, onState }: Props) {
       const charCode = e.key.length === 1 ? e.key.charCodeAt(0) : 0;
       // Pull mapped key from MachinePlugin first; fall back to (deprecated
       // but still-supported) event.keyCode for any code not in the table.
-      // eslint-disable-next-line @typescript-eslint/no-deprecated
       const key = codeToKey[e.code] ?? e.keyCode;
       const mods = computeMods(e);
       if (down) {

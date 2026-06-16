@@ -1,3 +1,5 @@
+/* eslint-disable no-console -- this IS the console Logger adapter; the no-console
+   guardrail exists to push the rest of the app through this port. */
 import type { Logger } from '@ports'
 
 const prefix = (scope: string | undefined) => (scope ? `[${scope}]` : '')
