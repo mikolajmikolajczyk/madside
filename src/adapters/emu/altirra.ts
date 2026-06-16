@@ -6,6 +6,7 @@
 // heavy lifting lives in the wasm core (Altirra by Avery Lee), and the
 // host only owns the pixel/audio plumbing.
 
+import { AudioPushPump } from "@core/audio";
 import type { CpuRegs, EmuBackend } from "./backend";
 
 interface AltirraCoreInstance {
@@ -171,64 +172,21 @@ export class AltirraBackend implements EmuBackend {
     return view.slice();
   }
 
-  private audioCtx: AudioContext | null = null;
-  private audioWorklet: AudioWorkletNode | null = null;
-  private audioPushTimer: number | null = null;
+  // Copy out of the wasm-memory view (the next core call invalidates it); the
+  // pump transfers the buffer to the worklet thread (zero-copy boundary).
+  private readonly audioPump = new AudioPushPump("altirra-audio", {
+    pull: () => {
+      const fresh = this.core.getAudioSamples();
+      return fresh.length > 0 ? new Float32Array(fresh) : null;
+    },
+  });
 
   async startAudio(): Promise<void> {
-    if (this.audioCtx) {
-      if (this.audioCtx.state === "suspended") await this.audioCtx.resume();
-      this.startAudioPushPump();
-      return;
-    }
-    const ctx = new AudioContext();
-    // Vite hashes the worklet module URL relative to import.meta.url at
-    // build time; addModule needs a same-origin URL.
-    const workletUrl = new URL("./wasm/audio-worklet.js", import.meta.url).href;
-    await ctx.audioWorklet.addModule(workletUrl);
-    const node = new AudioWorkletNode(ctx, "altirra-audio", {
-      numberOfInputs: 0,
-      numberOfOutputs: 1,
-      outputChannelCount: [1],
-    });
-    node.connect(ctx.destination);
-    this.audioCtx = ctx;
-    this.audioWorklet = node;
-    this.startAudioPushPump();
-  }
-
-  /** Periodically drain the wasm core's sample buffer into the worklet via
-   *  port.postMessage. Worklet runs on the audio thread and consumes at its
-   *  own pace; a tight push interval (~5ms) keeps the queue stable while
-   *  staying below scheduler jitter from longer windows. */
-  private startAudioPushPump(): void {
-    if (this.audioPushTimer != null) return;
-    this.audioPushTimer = window.setInterval(() => {
-      if (!this.audioWorklet) return;
-      const fresh = this.core.getAudioSamples();
-      if (fresh.length > 0) {
-        // Copy out of the wasm-memory view (the next core call invalidates
-        // it) and transfer ownership of the buffer to the worklet — zero-copy
-        // boundary.
-        const chunk = new Float32Array(fresh);
-        this.audioWorklet.port.postMessage(chunk, [chunk.buffer]);
-      }
-    }, 5);
-  }
-
-  private stopAudioPushPump(): void {
-    if (this.audioPushTimer != null) {
-      window.clearInterval(this.audioPushTimer);
-      this.audioPushTimer = null;
-    }
+    await this.audioPump.start();
   }
 
   async suspendAudio(): Promise<void> {
-    this.stopAudioPushPump();
-    if (this.audioWorklet) this.audioWorklet.port.postMessage("flush");
-    if (this.audioCtx && this.audioCtx.state === "running") {
-      await this.audioCtx.suspend();
-    }
+    await this.audioPump.suspend();
   }
 
   sendKey(keyCode: number, charCode: number, isDown: boolean, modifiers = 0) {

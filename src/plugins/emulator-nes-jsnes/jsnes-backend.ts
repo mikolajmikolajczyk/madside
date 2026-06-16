@@ -12,6 +12,7 @@
 // own frame() body cycle-for-cycle (incl. the OAM-DMA halt drain).
 
 import type { Cpu6502State, RunBackend } from '@ports'
+import { AudioPushPump } from '@core/audio'
 import { NES } from 'jsnes'
 import type { NESWithInternals } from './jsnes-internals'
 
@@ -40,9 +41,17 @@ export class JsnesBackend implements RunBackend {
   // stalled) the newest sample is dropped — inaudible vs a glitch.
   private readonly audioAccum = new Float32Array(1 << 15)
   private audioLen = 0
-  private audioCtx: AudioContext | null = null
-  private audioWorklet: AudioWorkletNode | null = null
-  private audioPushTimer: number | null = null
+  // Pinned to the NES sample rate so jsnes's APU output feeds through without
+  // resampling. Drains audioAccum each tick; the buffer transfers to the worklet.
+  private readonly audioPump = new AudioPushPump('jsnes-audio', {
+    sampleRate: this.sampleRate,
+    pull: () => {
+      if (this.audioLen === 0) return null
+      const chunk = this.audioAccum.slice(0, this.audioLen)
+      this.audioLen = 0
+      return chunk
+    },
+  })
 
   constructor() {
     this.nes = new NES({
@@ -225,56 +234,16 @@ export class JsnesBackend implements RunBackend {
     else this.nes.buttonUp(1, btn)
   }
 
-  // RunService drives these via a cast on Run / pause-stop. The worklet sink is
-  // created lazily on first Run (needs a user gesture for the AudioContext) and
-  // fed by a push pump draining the sample buffer — mirrors AltirraBackend.
+  // The worklet sink is created lazily on first Run (needs a user gesture for
+  // the AudioContext) and fed by a push pump draining the sample buffer —
+  // shared with AltirraBackend via @core/audio (#10).
   async startAudio(): Promise<void> {
-    if (this.audioCtx) {
-      if (this.audioCtx.state === 'suspended') await this.audioCtx.resume()
-      this.startAudioPushPump()
-      return
-    }
-    // Pin the context to the NES sample rate so jsnes's output feeds through
-    // without resampling.
-    const ctx = new AudioContext({ sampleRate: this.sampleRate })
-    const workletUrl = new URL('./audio-worklet.js', import.meta.url).href
-    await ctx.audioWorklet.addModule(workletUrl)
-    const node = new AudioWorkletNode(ctx, 'jsnes-audio', {
-      numberOfInputs: 0,
-      numberOfOutputs: 1,
-      outputChannelCount: [1],
-    })
-    node.connect(ctx.destination)
-    this.audioCtx = ctx
-    this.audioWorklet = node
-    this.startAudioPushPump()
-  }
-
-  /** Drain accumulated samples into the worklet every ~5 ms (transfer-zero-copy).
-   *  The worklet consumes at the audio thread's pace, padding silence on
-   *  underrun. */
-  private startAudioPushPump(): void {
-    if (this.audioPushTimer != null) return
-    this.audioPushTimer = window.setInterval(() => {
-      if (!this.audioWorklet || this.audioLen === 0) return
-      const chunk = this.audioAccum.slice(0, this.audioLen)
-      this.audioLen = 0
-      this.audioWorklet.port.postMessage(chunk, [chunk.buffer])
-    }, 5)
-  }
-
-  private stopAudioPushPump(): void {
-    if (this.audioPushTimer != null) {
-      window.clearInterval(this.audioPushTimer)
-      this.audioPushTimer = null
-    }
+    await this.audioPump.start()
   }
 
   async suspendAudio(): Promise<void> {
-    this.stopAudioPushPump()
-    if (this.audioWorklet) this.audioWorklet.port.postMessage('flush')
+    await this.audioPump.suspend()
     this.audioLen = 0
-    if (this.audioCtx && this.audioCtx.state === 'running') await this.audioCtx.suspend()
   }
 
   saveState(): unknown {
