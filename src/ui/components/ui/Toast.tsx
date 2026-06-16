@@ -60,7 +60,6 @@ export function ToastProvider({ children }: { children: ReactNode }) {
   );
 }
 
-// eslint-disable-next-line react-refresh/only-export-components -- hook colocated with its provider
 export function useToast(): ToastApi {
   const api = useContext(ToastContext);
   if (!api) throw new Error("useToast called outside <ToastProvider>");

@@ -75,13 +75,16 @@ export default defineConfig([
       ],
 
       // React-hooks v7 ships a batch of React-Compiler-readiness rules
-      // (set-state-in-effect, refs, preserve-manual-memoization). Existing
-      // UI works at runtime; refactoring for the compiler comes after M3
-      // when service extraction touches these surfaces. Downgrade to warn so
-      // they're visible but don't block.
-      'react-hooks/set-state-in-effect': 'warn',
-      'react-hooks/refs': 'warn',
-      'react-hooks/preserve-manual-memoization': 'warn',
+      // (set-state-in-effect, refs, preserve-manual-memoization). The codebase
+      // predates React Compiler and these flag correct-for-us patterns (caching
+      // refs, async-load setState in effects), not bugs. Keeping them as `warn`
+      // was theatrical — never enforced. Turn them OFF honestly and track the
+      // actual migration in issue #28 (React-Compiler readiness) rather than
+      // leave noise that defeats the `--max-warnings 0` gate.
+      'react-hooks/set-state-in-effect': 'off',
+      'react-hooks/refs': 'off',
+      'react-hooks/preserve-manual-memoization': 'off',
+      // exhaustive-deps stays enforced — it catches real stale-closure bugs.
       'react-hooks/exhaustive-deps': 'warn',
       'preserve-caught-error': 'off',
 
@@ -118,14 +121,12 @@ export default defineConfig([
     rules: { 'boundaries/element-types': 'off' },
   },
   {
-    // Radix wrapper components re-export primitive parts as `const`. The
-    // react-refresh rule misclassifies those as non-component exports.
+    // Radix wrapper modules deliberately re-export primitive parts alongside
+    // the wrapper component (one import site for the whole primitive). Fast
+    // Refresh granularity doesn't apply — turn the rule off for these wrappers.
     files: ['src/ui/components/ui/**/*.{ts,tsx}'],
     rules: {
-      'react-refresh/only-export-components': [
-        'warn',
-        { allowConstantExport: true },
-      ],
+      'react-refresh/only-export-components': 'off',
     },
   },
 ])

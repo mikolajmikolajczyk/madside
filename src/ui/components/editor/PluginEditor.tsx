@@ -88,7 +88,7 @@ export function PluginEditor({ module, path, value, onChange, assets }: Props) {
     if (!handle?.onValueChange) return;
     try { handle.onValueChange(value); }
     catch (e) { failWith(`onValueChange threw: ${String(e)}`, e); }
-  }, [value]);
+  }, [value, failWith]);
 
   // Catch async errors from plugin event handlers + promises. Scoped to the
   // lifetime of this PluginEditor so only the broken panel falls back; rest

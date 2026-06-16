@@ -102,7 +102,7 @@ export function useProject(storage: StorageBackend, events?: EventBus) {
       }
     })();
     return () => { cancelled = true; };
-  }, [reloadKey]);
+  }, [reloadKey, storage, events]);
 
   const reload = useCallback(() => setReloadKey((k) => k + 1), []);
 
@@ -162,7 +162,7 @@ export function useProject(storage: StorageBackend, events?: EventBus) {
     writeUrlProject(id); // remember where we are across reload
     await storage.kv.setActiveProjectId(id);
     reload();
-  }, [reload]);
+  }, [reload, storage]);
 
   // New-project creation moved to the bundled 'empty' template
   // (instantiateTemplate in @app/templates) — one source of truth for a blank
@@ -173,7 +173,7 @@ export function useProject(storage: StorageBackend, events?: EventBus) {
     const finalName = await storage.projects.rename(state.projectId, newName);
     reload();
     return finalName;
-  }, [state, reload]);
+  }, [state, reload, storage]);
 
   const duplicateProjectAction = useCallback(async (newName?: string): Promise<ProjectRow | null> => {
     if (!state) return null;
@@ -182,7 +182,7 @@ export function useProject(storage: StorageBackend, events?: EventBus) {
     await storage.kv.setActiveProjectId(project.id);
     reload();
     return project;
-  }, [state, reload]);
+  }, [state, reload, storage]);
 
   const deleteProjectAction = useCallback(async (): Promise<void> => {
     if (!state) return;
@@ -192,7 +192,7 @@ export function useProject(storage: StorageBackend, events?: EventBus) {
     // Back to the welcome screen — never auto-jump to another project.
     writeUrlProject(null);
     reload();
-  }, [state, reload]);
+  }, [state, reload, storage]);
 
   const exportProjectAction = useCallback(async (): Promise<Uint8Array | null> => {
     if (!state) return null;
@@ -214,7 +214,7 @@ export function useProject(storage: StorageBackend, events?: EventBus) {
     const bytes = typeof content === "string" ? enc.encode(content) : content;
     await storage.projects.createFile(state.projectId, path, bytes);
     reload();
-  }, [state, reload]);
+  }, [state, reload, storage]);
 
   // Empty folders aren't first-class — we drop a .gitkeep placeholder and
   // hide it from the tree. `prefix` should not include trailing slash.
@@ -222,7 +222,7 @@ export function useProject(storage: StorageBackend, events?: EventBus) {
     if (!state) return;
     await storage.projects.createFile(state.projectId, `${prefix}/.gitkeep`, new Uint8Array());
     reload();
-  }, [state, reload]);
+  }, [state, reload, storage]);
 
   const renameFile = useCallback(async (oldPath: string, newPath: string): Promise<void> => {
     if (!state) return;
@@ -233,7 +233,7 @@ export function useProject(storage: StorageBackend, events?: EventBus) {
       await storage.projects.saveManifest(state.projectId, m);
     }
     reload();
-  }, [state, reload]);
+  }, [state, reload, storage]);
 
   const renameFolder = useCallback(async (oldPrefix: string, newPrefix: string): Promise<void> => {
     if (!state) return;
@@ -246,32 +246,32 @@ export function useProject(storage: StorageBackend, events?: EventBus) {
       await storage.projects.saveManifest(state.projectId, m);
     }
     reload();
-  }, [state, reload]);
+  }, [state, reload, storage]);
 
   const deleteFile = useCallback(async (path: string): Promise<void> => {
     if (!state) return;
     await storage.projects.deleteFile(state.projectId, path);
     reload();
-  }, [state, reload]);
+  }, [state, reload, storage]);
 
   const deleteFolder = useCallback(async (prefix: string): Promise<void> => {
     if (!state) return;
     await storage.projects.deleteFolder(state.projectId, prefix);
     reload();
-  }, [state, reload]);
+  }, [state, reload, storage]);
 
   const setMainFile = useCallback(async (path: string): Promise<void> => {
     if (!state) return;
     const m = { ...state.manifest, main: path };
     await storage.projects.saveManifest(state.projectId, m);
     reload();
-  }, [state, reload]);
+  }, [state, reload, storage]);
 
   const updateManifest = useCallback(async (next: Manifest): Promise<void> => {
     if (!state) return;
     await storage.projects.saveManifest(state.projectId, next);
     reload();
-  }, [state, reload]);
+  }, [state, reload, storage]);
 
   const duplicateFile = useCallback(async (path: string, newPath: string): Promise<void> => {
     if (!state) return;
@@ -279,7 +279,7 @@ export function useProject(storage: StorageBackend, events?: EventBus) {
     if (!src) return;
     await storage.projects.createFile(state.projectId, newPath, src.content);
     reload();
-  }, [state, reload]);
+  }, [state, reload, storage]);
 
   // === Breakpoints ===
 
@@ -304,14 +304,14 @@ export function useProject(storage: StorageBackend, events?: EventBus) {
   const refreshSnapshots = useCallback(async (pid: string) => {
     const list = await storage.snapshots.list(pid);
     setSnapshots(list);
-  }, []);
+  }, [storage]);
 
   const createSnapshotNow = useCallback(async (summary = "manual"): Promise<SnapshotMeta | null> => {
     if (!state) return null;
     const snap = await storage.snapshots.create(state.projectId, summary, state.files);
     if (snap) await refreshSnapshots(state.projectId);
     return snap;
-  }, [state, refreshSnapshots]);
+  }, [state, refreshSnapshots, storage]);
 
   const restoreSnapshotAction = useCallback(async (id: string): Promise<void> => {
     if (!state) return;
@@ -319,13 +319,13 @@ export function useProject(storage: StorageBackend, events?: EventBus) {
     if (!snap) return;
     await storage.snapshots.restore(state.projectId, snap);
     reload();
-  }, [state, snapshots, reload]);
+  }, [state, snapshots, reload, storage]);
 
   const deleteSnapshotAction = useCallback(async (id: string): Promise<void> => {
     if (!state) return;
     await storage.snapshots.delete(id);
     await refreshSnapshots(state.projectId);
-  }, [state, refreshSnapshots]);
+  }, [state, refreshSnapshots, storage]);
 
   // Auto-snapshot: 30s of no-edit → create a snapshot tagged "auto". Dedup
   // against the previous snapshot's tree means rapid no-op timer fires are cheap.
@@ -346,7 +346,7 @@ export function useProject(storage: StorageBackend, events?: EventBus) {
         autoSnapTimerRef.current = null;
       }
     };
-  }, [state, refreshSnapshots]);
+  }, [state, refreshSnapshots, storage]);
 
   // Debounced BP persistence — write to IDB ~300ms after last toggle. Cleared
   // on projectId change so a quick switch never lands stale state.
@@ -364,7 +364,7 @@ export function useProject(storage: StorageBackend, events?: EventBus) {
       });
       bpSaveTimerRef.current = null;
     }, 300);
-  }, [state]);
+  }, [state, storage]);
   useEffect(() => {
     return () => {
       if (bpSaveTimerRef.current != null) clearTimeout(bpSaveTimerRef.current);

@@ -157,6 +157,10 @@ export function Emulator({ breakpoints, onState }: Props) {
         }
       }
     }
+    // blit/emit are plain render helpers (recreated each render); listing them
+    // would re-run this effect every render. It must fire only on a run-state
+    // transition, so the omission is intentional.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [runStatus, onState, status]);
 
   // 1e38ae3: DebugService.step / stepFrame is the canonical step path.
@@ -299,6 +303,10 @@ export function Emulator({ breakpoints, onState }: Props) {
       // called (panels subscribe via ADR-0007 wire).
       emit(emu);
     };
+    // blit/emit are plain render helpers (recreated each render); listing them
+    // would tear down + restart the rAF loop every render (and thrash audio).
+    // The loop's lifecycle is keyed on run-state + breakpoints above.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [running, status, breakpoints, onState, workbench]);
 
   return (

@@ -126,7 +126,10 @@ export default function App() {
     resetEmuState();
   }, [projectId, resetEmuState]);
 
-  const bpLinesByFile = project.loaded ? project.breakpoints : new Map<string, Set<number>>();
+  const bpLinesByFile = useMemo(
+    () => (project.loaded ? project.breakpoints : new Map<string, Set<number>>()),
+    [project],
+  );
 
   const sourceMap = result?.sourceMap ?? null;
 
