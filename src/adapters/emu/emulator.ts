@@ -1,6 +1,9 @@
 // Altirra registered as an EmulatorPlugin. The wasm core stays an adapter (the
 // vendored Emscripten build under ./wasm); this is the thin, port-facing
-// wrapper the workbench registers and resolves like any other plugin.
+// wrapper the workbench registers and resolves like any other plugin. Why this
+// lives in @adapters while jsnes is a @plugins plugin: wiki/decisions/
+// 2026-06-16-emulator-layer-placement.md (wasm/native glue = adapter; pure-JS
+// lib = plugin).
 //
 // `createBackend` lazy-imports the facade so the ~4.5 MB core is fetched only
 // when an Atari project actually boots — importing this module is cheap.
