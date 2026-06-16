@@ -2,7 +2,8 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { createFileSaver, type FileSaver } from "./file-saver";
-import { exportProjectToZip, importProjectFromZip, MANIFEST_PATH } from "@adapters/storage-idb";
+import { exportProjectZip, importProjectZip } from "../project-zip";
+import { MANIFEST_PATH } from "@adapters/storage-idb";
 import { parseProjectManifest } from "@ports";
 import type { EventBus, FileRow, ProjectManifestV2 as Manifest, ProjectRow, SnapshotMeta, StorageBackend } from "@ports";
 
@@ -195,16 +196,16 @@ export function useProject(storage: StorageBackend, events?: EventBus) {
 
   const exportProjectAction = useCallback(async (): Promise<Uint8Array | null> => {
     if (!state) return null;
-    return exportProjectToZip(state.projectId);
-  }, [state]);
+    return exportProjectZip(storage, state.projectId);
+  }, [state, storage]);
 
   const importProjectAction = useCallback(async (zipBytes: Uint8Array, fallbackName: string): Promise<ProjectRow> => {
-    const project = await importProjectFromZip(zipBytes, fallbackName);
+    const project = await importProjectZip(storage, zipBytes, fallbackName);
     writeUrlProject(project.id);
     await storage.kv.setActiveProjectId(project.id);
     reload();
     return project;
-  }, [reload]);
+  }, [reload, storage]);
 
   // === File CRUD ===
 

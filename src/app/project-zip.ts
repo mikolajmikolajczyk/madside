@@ -1,15 +1,19 @@
-// Project ZIP import/export. `fflate` for tiny sync zip codec (~20KB).
-// Export excludes generated/ — those are reproducible by the asset pipeline.
+// Project ZIP import/export, expressed purely over the StorageBackend port
+// (load → files, list/create → import) so it works with any backend — no
+// reach into a concrete adapter (ADR-0002, #16). `fflate` is a tiny sync zip
+// codec (~20KB). Export excludes generated/ (reproducible by the asset pipeline).
 
 import { unzipSync, zipSync } from "fflate";
 import { MANIFEST_VERSION, parseProjectManifest } from "@ports";
-import { createProject, listProjects, loadProject, MANIFEST_PATH, textToBytes, bytesToText } from "./project";
-import type { Manifest, ProjectRow } from "./types";
+import type { ProjectManifestV2 as Manifest, ProjectRow, StorageBackend } from "@ports";
+import { MANIFEST_PATH, serializeManifest, uniquify } from "@adapters/storage-shared";
 
+const enc = new TextEncoder();
+const dec = new TextDecoder();
 const GENERATED_DIR = "generated/";
 
-export async function exportProjectToZip(id: string): Promise<Uint8Array> {
-  const loaded = await loadProject(id);
+export async function exportProjectZip(storage: StorageBackend, id: string): Promise<Uint8Array> {
+  const loaded = await storage.projects.load(id);
   if (!loaded) throw new Error(`project ${id} not found`);
   const entries: Record<string, Uint8Array> = {};
   for (const f of loaded.files) {
@@ -19,7 +23,11 @@ export async function exportProjectToZip(id: string): Promise<Uint8Array> {
   return zipSync(entries, { level: 6 });
 }
 
-export async function importProjectFromZip(zip: Uint8Array, fallbackName: string): Promise<ProjectRow> {
+export async function importProjectZip(
+  storage: StorageBackend,
+  zip: Uint8Array,
+  fallbackName: string,
+): Promise<ProjectRow> {
   const raw = unzipSync(zip);
   // Drop empty directory entries (some zippers add them).
   const entries: Record<string, Uint8Array> = {};
@@ -30,28 +38,27 @@ export async function importProjectFromZip(zip: Uint8Array, fallbackName: string
 
   let manifest: Manifest;
   if (entries[MANIFEST_PATH]) {
-    // v1 imports + malformed JSON surface to the caller so the UI can show
-    // the ManifestError ('project.json v1 unsupported, recreate project').
-    const parsed = parseProjectManifest(JSON.parse(bytesToText(entries[MANIFEST_PATH])));
+    // v1 imports + malformed JSON surface to the caller so the UI can show the
+    // ManifestError ('project.json v1 unsupported, recreate project').
+    const parsed = parseProjectManifest(JSON.parse(dec.decode(entries[MANIFEST_PATH])));
     if (!parsed.ok) throw parsed.error;
     manifest = parsed.value;
   } else {
     manifest = synthesizeManifest(entries, fallbackName);
-    entries[MANIFEST_PATH] = textToBytes(JSON.stringify(manifest, null, 2) + "\n");
+    entries[MANIFEST_PATH] = enc.encode(serializeManifest(manifest));
   }
 
-  const allProjects = await listProjects();
-  const taken = new Set(allProjects.map((p) => p.name));
+  const taken = new Set((await storage.projects.list()).map((p) => p.name));
   const name = uniquify(manifest.name || fallbackName, taken);
   if (name !== manifest.name) {
     manifest.name = name;
-    entries[MANIFEST_PATH] = textToBytes(JSON.stringify(manifest, null, 2) + "\n");
+    entries[MANIFEST_PATH] = enc.encode(serializeManifest(manifest));
   }
 
   const files = Object.entries(entries)
     .filter(([p]) => p !== MANIFEST_PATH)
     .map(([path, content]) => ({ path, content }));
-  return createProject(name, files, manifest);
+  return storage.projects.create(name, files, manifest);
 }
 
 function synthesizeManifest(entries: Record<string, Uint8Array>, fallbackName: string): Manifest {
@@ -64,13 +71,4 @@ function synthesizeManifest(entries: Record<string, Uint8Array>, fallbackName: s
     toolchain: "mads",
     run: { default: { audio: true } },
   };
-}
-
-function uniquify(name: string, taken: Set<string>): string {
-  if (!taken.has(name)) return name;
-  const m = /^(.*?)(?:\s*\((\d+)\))?$/.exec(name);
-  const base = (m?.[1] ?? name).trim();
-  let n = m?.[2] ? parseInt(m[2], 10) + 1 : 2;
-  while (taken.has(`${base} (${n})`)) n++;
-  return `${base} (${n})`;
 }

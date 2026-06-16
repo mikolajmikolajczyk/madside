@@ -1,8 +1,13 @@
 // "Don't lose work" escape hatch for the root error boundary (ADR-0004 Level 1).
 // Exports the URL-active project to a downloaded ZIP. No-throw by design — the
 // caller is already in a crashed state.
+//
+// This is the one deliberate exception to storage DI (#16): the root boundary
+// renders ABOVE <WorkbenchProvider>, so it can't read `workbench.storage` (the
+// thing that may have crashed). It instantiates the default IDB backend directly.
 
-import { exportProjectToZip, listProjects } from "@adapters/storage-idb";
+import { createIdbStorage } from "@adapters/storage-idb";
+import { exportProjectZip } from "./project-zip";
 
 function activeProjectId(): string | undefined {
   if (typeof window === "undefined") return undefined;
@@ -11,9 +16,10 @@ function activeProjectId(): string | undefined {
 
 export async function exportActiveProjectToZip(): Promise<void> {
   try {
-    const id = activeProjectId() ?? (await listProjects())[0]?.id;
+    const storage = createIdbStorage();
+    const id = activeProjectId() ?? (await storage.projects.list())[0]?.id;
     if (!id) return;
-    const bytes = await exportProjectToZip(id);
+    const bytes = await exportProjectZip(storage, id);
     const blob = new Blob([bytes as BlobPart], { type: "application/zip" });
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
