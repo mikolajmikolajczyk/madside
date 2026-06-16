@@ -45,6 +45,11 @@ export interface RunBackend {
   sendKey(keyCode: number, charCode: number, isDown: boolean, modifiers?: number): void
   saveState(): unknown
   loadState(snapshot: unknown): void
+  /** Start audio output. Lazily creates the AudioContext on first call (needs a
+   *  user gesture). RunService calls this on Run. */
+  startAudio(): Promise<void>
+  /** Stop audio output (pause / stop). */
+  suspendAudio(): Promise<void>
 }
 
 /** Inputs for swapping the active emulator backend when the project's machine

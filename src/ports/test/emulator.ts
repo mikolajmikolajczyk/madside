@@ -35,6 +35,8 @@ const RUN_BACKEND_METHODS = [
   'sendKey',
   'saveState',
   'loadState',
+  'startAudio',
+  'suspendAudio',
 ] as const
 
 export async function assertEmulatorPlugin(

@@ -213,12 +213,12 @@ export function createRunService(deps: RunServiceDeps): RunService {
 
     async startAudio() {
       if (!backend) return
-      await (backend as RunBackend & { startAudio(): Promise<void> }).startAudio()
+      await backend.startAudio()
     },
 
     async suspendAudio() {
       if (!backend) return
-      await (backend as RunBackend & { suspendAudio(): Promise<void> }).suspendAudio()
+      await backend.suspendAudio()
     },
 
     backend() {

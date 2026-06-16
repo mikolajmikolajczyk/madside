@@ -28,6 +28,8 @@ function fakeBackend(loadOverride?: () => void): RunBackend {
     sendKey: () => undefined,
     saveState: () => null,
     loadState: () => undefined,
+    startAudio: async () => {},
+    suspendAudio: async () => {},
   }
 }
 

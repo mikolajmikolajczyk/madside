@@ -26,6 +26,8 @@ function stubBackend(width = 336, height = 224): RunBackend {
     sendKey: () => undefined,
     saveState: () => null,
     loadState: () => undefined,
+    startAudio: async () => {},
+    suspendAudio: async () => {},
   }
 }
 

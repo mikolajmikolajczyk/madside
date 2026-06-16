@@ -42,6 +42,8 @@ function backendFactory(loadShouldThrowRef: { current: boolean }): RunBackendFac
     sendKey: () => undefined,
     saveState: () => null,
     loadState: () => undefined,
+    startAudio: async () => {},
+    suspendAudio: async () => {},
   }
   return async () => backend
 }
