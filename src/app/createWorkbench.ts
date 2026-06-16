@@ -31,6 +31,9 @@ import {
 import { runRecipes, setConverterLoaderFactory } from '@plugins/converters'
 import { setEditorLoaderFactory } from '@plugins/editors'
 import { createPluginLoader } from '@adapters'
+// NOTE: editorToPanel/listBuiltinEditors intentionally NOT imported — built-in
+// editors are no longer registered as panels (see the deleted dead scaffolding
+// + decision note below).
 import { atariXl } from '@plugins/machine-atari-xl'
 import { machineNes } from '@plugins/machine-nes'
 import { jsnesEmulator } from '@plugins/emulator-nes-jsnes'
@@ -41,7 +44,6 @@ import { registersPanel } from '@plugins/panel-registers'
 import { memoryPanel } from '@plugins/panel-memory'
 import { outputPanel } from '@plugins/panel-output'
 import { ppuPanel } from '@plugins/panel-ppu'
-import { editorToPanel, listBuiltinEditors } from '@plugins/editors'
 
 // Workbench Core — the headless workbench instance the rest of the app talks
 // to. UI consumes it via React context; tests instantiate it directly with
@@ -173,16 +175,14 @@ export function createWorkbench(deps: WorkbenchDeps): Workbench {
   for (const panel of [registersPanel, memoryPanel, outputPanel, ppuPanel]) {
     plugins.register({ plugin: panel, source: { origin: 'builtin' } })
   }
-  // Phase 11 built-in editors surface through the unified PluginRegistry as
-  // file-bound panels. Project-side editors (editors/*.js, Blob-URL-loaded)
-  // still go through the legacy buildEditorRegistry path until UI swaps to
-  // PanelSlot for file editing.
-  for (const editor of listBuiltinEditors()) {
-    plugins.register({
-      plugin: editorToPanel(editor),
-      source: { origin: 'builtin' },
-    })
-  }
+  // NOTE: converters + editors are deliberately NOT in the PluginRegistry —
+  // they have a different lifecycle (project-local, per-file, content-addressed
+  // JS loaded on demand via Blob URL, resolved by file extension). The
+  // PluginRegistry models built-in singletons (machine/toolchain/emulator/
+  // debug/panel); converters/editors use their dedicated content-addressed
+  // loaders (@plugins/converters, @plugins/editors). See
+  // wiki/decisions/2026-06-16-plugin-registry-vs-dedicated-loaders.md.
+
   // Resolve a machine's emulator backend through the registry: the machine
   // names its emulator in `compatibleEmulators`, the EmulatorPlugin builds the
   // RunBackend (lazy, so the core loads only on boot).
