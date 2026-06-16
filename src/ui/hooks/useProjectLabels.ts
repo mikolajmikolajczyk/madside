@@ -1,5 +1,5 @@
-import { useMemo } from "react";
-import { reservedWords, scanFileLabels } from "@app/labels";
+import { useMemo, useRef } from "react";
+import { reservedWords, scanFile } from "@app/labels";
 import type { CpuLanguage, LabelInfo } from "@core";
 import type { SourceMap, ToolchainLanguage } from "@ports";
 import { basename } from "@core/path";
@@ -26,14 +26,35 @@ export function useProjectLabels(
   cpu: CpuLanguage | undefined,
   toolchain: ToolchainLanguage | undefined,
 ): Map<string, LabelInfo> {
+  // Reserved-word set is stable per cpu/toolchain — recomputing it every
+  // keystroke would invalidate the per-file cache below.
+  const reserved = useMemo(
+    () => (cpu && toolchain ? reservedWords(cpu, toolchain) : new Set<string>()),
+    [cpu, toolchain],
+  );
+  // Per-file label scan cached by file *content* identity. Typing only changes
+  // the active file's Uint8Array reference (store.ts maps a fresh object for it
+  // and keeps the rest), so every other file hits the cache — the scan no longer
+  // re-runs the whole project on each keystroke (#20). Reset when reserved swaps.
+  const cacheRef = useRef<WeakMap<Uint8Array, Map<string, LabelInfo>>>(new WeakMap());
+  const reservedRef = useRef(reserved);
+  if (reservedRef.current !== reserved) {
+    reservedRef.current = reserved;
+    cacheRef.current = new WeakMap();
+  }
+
   return useMemo<Map<string, LabelInfo>>(() => {
     const out = new Map<string, LabelInfo>();
-    const reserved = cpu && toolchain ? reservedWords(cpu, toolchain) : new Set<string>();
     if (files) {
       const dec = new TextDecoder();
       for (const f of files) {
         if (!/\.(a65|asm|inc|s|mac)$/i.test(f.path)) continue;
-        scanFileLabels(dec.decode(f.content), basename(f.path), out, reserved);
+        let fileLabels = cacheRef.current.get(f.content);
+        if (!fileLabels) {
+          fileLabels = scanFile(dec.decode(f.content), basename(f.path), reserved);
+          cacheRef.current.set(f.content, fileLabels);
+        }
+        for (const [name, info] of fileLabels) if (!out.has(name)) out.set(name, info);
       }
     }
     if (labels) {
@@ -47,5 +68,5 @@ export function useProjectLabels(
       }
     }
     return out;
-  }, [files, labels, sourceMap, cpu, toolchain]);
+  }, [files, labels, sourceMap, reserved]);
 }

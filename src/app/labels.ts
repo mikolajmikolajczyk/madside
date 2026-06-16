@@ -19,10 +19,10 @@ export function reservedWords(cpu: CpuLanguage, lang: ToolchainLanguage): Readon
   return out;
 }
 
-/** Pull a short body preview starting at the label's declaration line.
- *  Stops at the next top-level label or after `max` lines. */
-export function extractPreview(content: string, startLine: number, max = 10): string {
-  const lines = content.split(/\r?\n/);
+// Line-based cores — the file is split once by the caller and reused, instead
+// of re-splitting the whole buffer for every label (was O(labels × lines)).
+
+function previewFromLines(lines: string[], startLine: number, max = 10): string {
   if (startLine < 1 || startLine > lines.length) return "";
   const out: string[] = [];
   for (let i = startLine - 1; i < lines.length && out.length < max; i++) {
@@ -33,10 +33,7 @@ export function extractPreview(content: string, startLine: number, max = 10): st
   return out.join("\n").trimEnd();
 }
 
-/** Read `;` comment lines immediately above the declaration as a doc
- *  block. Stops at the first blank or non-comment line. */
-export function extractDoc(content: string, startLine: number): string {
-  const lines = content.split(/\r?\n/);
+function docFromLines(lines: string[], startLine: number): string {
   if (startLine < 2) return "";
   const out: string[] = [];
   for (let i = startLine - 2; i >= 0; i--) {
@@ -50,30 +47,46 @@ export function extractDoc(content: string, startLine: number): string {
   return out.join("\n");
 }
 
-/** Scan a single source buffer for label declarations and merge them
- *  into `out`. First definition wins on collisions. */
+/** Pull a short body preview starting at the label's declaration line.
+ *  Stops at the next top-level label or after `max` lines. */
+export function extractPreview(content: string, startLine: number, max = 10): string {
+  return previewFromLines(content.split(/\r?\n/), startLine, max);
+}
+
+/** Read `;` comment lines immediately above the declaration as a doc block. */
+export function extractDoc(content: string, startLine: number): string {
+  return docFromLines(content.split(/\r?\n/), startLine);
+}
+
+/** Scan one source buffer for label declarations, splitting it once. First
+ *  definition wins on in-file collisions. Pure + content-addressable, so the
+ *  caller can cache the result by file content and skip unchanged files. */
+export function scanFile(content: string, base: string, reserved: ReadonlySet<string>): Map<string, LabelInfo> {
+  const lines = content.split(/\r?\n/);
+  const out = new Map<string, LabelInfo>();
+  for (let i = 0; i < lines.length; i++) {
+    const m = /^([A-Za-z_][A-Za-z0-9_]*)\b/.exec(lines[i]);
+    if (!m) continue;
+    const name = m[1];
+    if (reserved.has(name.toUpperCase())) continue;
+    if (out.has(name)) continue;
+    const lineNo = i + 1;
+    const info: LabelInfo = { file: base, line: lineNo, preview: previewFromLines(lines, lineNo) };
+    const doc = docFromLines(lines, lineNo);
+    if (doc) info.doc = doc;
+    out.set(name, info);
+  }
+  return out;
+}
+
+/** Scan a single source buffer and merge its labels into `out` (first wins). */
 export function scanFileLabels(
   content: string,
   base: string,
   out: Map<string, LabelInfo>,
   reserved: ReadonlySet<string>,
 ) {
-  const lines = content.split(/\r?\n/);
-  for (let i = 0; i < lines.length; i++) {
-    const m = /^([A-Za-z_][A-Za-z0-9_]*)\b/.exec(lines[i]);
-    if (!m) continue;
-    const name = m[1];
-    const upper = name.toUpperCase();
-    if (reserved.has(upper)) continue;
-    if (out.has(name)) continue;
-    const lineNo = i + 1;
-    const info: LabelInfo = {
-      file: base,
-      line: lineNo,
-      preview: extractPreview(content, lineNo),
-    };
-    const doc = extractDoc(content, lineNo);
-    if (doc) info.doc = doc;
-    out.set(name, info);
+  for (const [name, info] of scanFile(content, base, reserved)) {
+    if (!out.has(name)) out.set(name, info);
   }
 }
