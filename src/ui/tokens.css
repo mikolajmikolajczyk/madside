@@ -12,7 +12,9 @@
   --text-primary: #c9d1d9;
   --text-heading: #f0f6fc;
   --text-secondary: #8b949e;
-  --text-tertiary: #6e7681;
+  /* Bumped from #6e7681 (3.77:1 on --bg-secondary, below WCAG AA) to meet
+     4.5:1 — #838b94 is ~4.9:1. Diverges from the blog token by design (#16). */
+  --text-tertiary: #838b94;
   --text-quaternary: #4a5159;
 
   --accent-mint: #4ade80;

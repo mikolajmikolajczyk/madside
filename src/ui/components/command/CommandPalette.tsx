@@ -6,7 +6,7 @@
 // free, since they register on the same registry.
 
 import * as RDialog from "@radix-ui/react-dialog";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import type { CommandContext, CommandRegistry } from "@ports";
 import { fuzzyFilter, visibleCommands } from "../../commands/filterCommands";
 import { PALETTE_COMMAND_ID } from "../../commands/appCommands";
@@ -35,7 +35,13 @@ export function CommandPalette({ open, onClose, commands, ctx }: Props) {
   useEffect(() => { if (open) { setQuery(""); setSel(0); } }, [open]);
   useEffect(() => { setSel(0); }, [query]);
 
-  const run = (id: string) => { onClose(); void commands.run(id, ctx); };
+  // Defer the chosen command until the palette has closed AND Radix has restored
+  // focus to the pre-open element (usually the editor). Running it in
+  // onCloseAutoFocus → microtask means a no-focus-change command (Run/Step/
+  // Snapshot) leaves the caret back in the editor, while a command that
+  // intentionally moves focus (Build → output) still wins (#24).
+  const pendingRef = useRef<string | null>(null);
+  const run = (id: string) => { pendingRef.current = id; onClose(); };
 
   const onKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === "ArrowDown") { e.preventDefault(); setSel((s) => Math.min(s + 1, results.length - 1)); }
@@ -47,7 +53,16 @@ export function CommandPalette({ open, onClose, commands, ctx }: Props) {
     <RDialog.Root open={open} onOpenChange={(o) => { if (!o) onClose(); }}>
       <RDialog.Portal>
         <RDialog.Overlay className="ui-dialog__overlay" />
-        <RDialog.Content className="cmdpal" aria-label="Command palette" onKeyDown={onKeyDown}>
+        <RDialog.Content
+          className="cmdpal"
+          aria-label="Command palette"
+          onKeyDown={onKeyDown}
+          onCloseAutoFocus={() => {
+            const id = pendingRef.current;
+            pendingRef.current = null;
+            if (id) queueMicrotask(() => void commands.run(id, ctx));
+          }}
+        >
           <RDialog.Title className="cmdpal__sr-only">Command palette</RDialog.Title>
           <input
             autoFocus
@@ -55,13 +70,20 @@ export function CommandPalette({ open, onClose, commands, ctx }: Props) {
             placeholder="Type a command…"
             value={query}
             onChange={(e) => setQuery(e.target.value)}
+            role="combobox"
+            aria-label="Search commands"
+            aria-expanded={results.length > 0}
+            aria-controls="cmdpal-list"
+            aria-autocomplete="list"
+            aria-activedescendant={results[sel] ? `cmdpal-opt-${results[sel].id}` : undefined}
             data-testid="cmdpal.input"
           />
-          <ul className="cmdpal__list" role="listbox">
+          <ul id="cmdpal-list" className="cmdpal__list" role="listbox" aria-label="Commands">
             {results.length === 0 && <li className="cmdpal__empty">No matching commands</li>}
             {results.map((c, i) => (
               <li
                 key={c.id}
+                id={`cmdpal-opt-${c.id}`}
                 role="option"
                 aria-selected={i === sel}
                 className={"cmdpal__item" + (i === sel ? " cmdpal__item--sel" : "")}
