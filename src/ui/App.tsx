@@ -577,6 +577,7 @@ export default function App() {
         onSnapshotNow={handleSnapshotNow}
         onOpenHistory={() => setHistoryOpen(true)}
         onAbout={() => setAboutOpen(true)}
+        onCommandPalette={() => setPaletteOpen(true)}
       />
       <input
         ref={importFileInputRef}

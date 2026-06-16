@@ -11,11 +11,15 @@ so it never hijacks browser reload (`F5` / `Ctrl+R`).
 On macOS, `Cmd` works wherever `Ctrl` is shown — the handler treats
 `ctrlKey || metaKey` identically.
 
+Every action is a command — the **command palette** (`Ctrl+K`, or `Ctrl+Shift+P`)
+fuzzy-searches them all and shows each accelerator, so this table and the palette
+never disagree.
+
 | Action | Shortcut |
 |--------|----------|
+| Command palette | `Ctrl+K` (or `Ctrl+Shift+P`) |
 | Save + assemble + snapshot | `Ctrl+S` |
 | Assemble (no save) | `Ctrl+B` |
-| Assemble (no save) | `Ctrl+Shift+B` |
 | Run | `Ctrl+Enter` |
 | Restart (reset, then run if it was running) | `Ctrl+Shift+Enter` |
 | Pause | `Ctrl+.` |
@@ -23,11 +27,12 @@ On macOS, `Cmd` works wherever `Ctrl` is shown — the handler treats
 | Toggle breakpoint at cursor | `F9` |
 | Step instruction | `F10` |
 | Step frame | `F11` |
-| Undo | `Ctrl+Z` |
-| Redo | `Ctrl+Shift+Z` |
 
 `F10` (step) and `F11` (frame) only act when the emulator is loaded and not
 running. `Run` only fires when the project can run and is not already running.
+
+Undo / redo (`Ctrl+Z`, `Ctrl+Shift+Z`) are handled by the code editor while it
+has focus, not the global command dispatcher.
 
 ## Menu shortcuts
 
@@ -47,3 +52,4 @@ listed in the Edit menu but are currently disabled placeholders.
 | Run → Frame | `F11` |
 | Run → Toggle breakpoint | `F9` |
 | Run → Restart | `Ctrl+Shift+Enter` |
+| Help → Command Palette | `Ctrl+K` |

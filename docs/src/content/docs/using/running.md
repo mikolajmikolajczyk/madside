@@ -30,6 +30,7 @@ The common controls have shortcuts:
 
 | Key | Action |
 |-----|--------|
+| Ctrl+K (or Ctrl+Shift+P) | Command palette — search + run any action |
 | Ctrl+Enter | Run |
 | Ctrl+. | Pause |
 | Ctrl+Shift+. | Stop |
@@ -37,6 +38,9 @@ The common controls have shortcuts:
 | F10 | Step instruction |
 | F11 | Step frame |
 | F9 | Toggle breakpoint at cursor |
+
+Don't remember a shortcut? Open the **command palette** with `Ctrl+K` and type —
+every action is there with its key shown next to it.
 | Ctrl+S | Save + assemble + snapshot |
 | Ctrl+B | Build |
 
