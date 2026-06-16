@@ -3,7 +3,9 @@
   border-top: 1px solid var(--border-default);
   display: flex;
   flex-direction: column;
-  min-height: 0;
+  /* Don't let the editor column squeeze the output away — it must stay tall
+     enough to read a multi-line assembler error (the editor shrinks instead). */
+  flex-shrink: 0;
 }
 
 .output__header {
@@ -32,8 +34,8 @@
   font-size: 12px;
   color: var(--text-secondary);
   white-space: pre-wrap;
-  overflow: auto;
-  flex: 1;
-  min-height: 80px;
-  max-height: 160px;
+  /* Fixed, scrollable height: ~10 lines visible, scroll for the rest. Not
+     `flex:1`, which collapsed to a few lines when the column was tight. */
+  height: 150px;
+  overflow-y: auto;
 }

@@ -384,6 +384,11 @@ export function Editor({ value, onChange, filename, pcLine, breakpointLines, lin
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // Sync an externally-changed value into the doc — a project switch, opening a
+  // course lesson, or a snapshot restore all replace the file content while the
+  // path (and so this component) stays mounted. Keyed on `value`, not `filename`,
+  // so same-path content swaps refresh the editor. Guarded by `current !== value`
+  // so the user's own edits (echoed back through onChange → value) don't loop.
   useEffect(() => {
     const view = viewRef.current;
     if (!view) return;
@@ -391,7 +396,13 @@ export function Editor({ value, onChange, filename, pcLine, breakpointLines, lin
     if (current !== value) {
       view.dispatch({ changes: { from: 0, to: current.length, insert: value } });
     }
-    // Reset file-scoped state synchronously so stale markers don't linger.
+  }, [value]);
+
+  useEffect(() => {
+    const view = viewRef.current;
+    if (!view) return;
+    // Reset file-scoped state synchronously so stale markers don't linger; the
+    // breakpoint / lineAddrs / label effects below re-populate from props.
     view.dispatch({
       effects: [
         setLineAddrs.of(new Map()),
@@ -407,7 +418,6 @@ export function Editor({ value, onChange, filename, pcLine, breakpointLines, lin
       view.dispatch({ effects: languageCompartment.reconfigure(exts) });
     });
     return () => { cancelled = true; };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [filename, cpuLanguage, toolchainLanguage]);
 
   useEffect(() => {

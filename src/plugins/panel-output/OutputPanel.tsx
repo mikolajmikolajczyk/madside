@@ -22,7 +22,10 @@ export function OutputPanel({ ctx }: { ctx: PanelContext }) {
         setState({ stdout: p.result.stdout, stderr: p.result.stderr, ok: true })
       }),
       ctx.events.on('build:error', (p) => {
-        setState((s) => ({ stdout: s.stdout, stderr: p.message, ok: false }))
+        // Show the assembler's diagnostics (MADS prints them to stdout; line +
+        // message). Fall back to the short summary only when there's no output.
+        const detail = [p.stdout, p.stderr].filter(Boolean).join('\n')
+        setState({ stdout: '', stderr: detail || p.message, ok: false })
       }),
     ]
     return () => { for (const off of offs) off() }

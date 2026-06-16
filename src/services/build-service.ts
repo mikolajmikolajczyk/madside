@@ -134,8 +134,16 @@ export function createBuildService(deps: BuildServiceDeps): BuildService {
 
       if (!assembleResult.ok || !assembleResult.binary) {
         const message = `assemble exit ${assembleResult.exitCode}`
-        const e = new BuildError(message, assembleResult.stderr)
-        deps.events.emit('build:error', { projectId: input.projectId, message })
+        const e = new BuildError(message, assembleResult.stderr || assembleResult.stdout)
+        // Carry the assembler's output so the Output panel shows *where* it
+        // failed, not just the exit code (#4). MADS prints diagnostics
+        // (file + line + message) to stdout, so include both streams.
+        deps.events.emit('build:error', {
+          projectId: input.projectId,
+          message,
+          stdout: assembleResult.stdout,
+          stderr: assembleResult.stderr,
+        })
         log?.warn('build failed', { projectId: input.projectId, exit: assembleResult.exitCode })
         return err(e)
       }

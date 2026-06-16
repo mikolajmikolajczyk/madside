@@ -10,7 +10,7 @@ import type { BuildResult } from './services/build-service'
 export interface WorkbenchEvents {
   'build:start': { projectId: string }
   'build:done': { projectId: string; result: BuildResult }
-  'build:error': { projectId: string; message: string }
+  'build:error': { projectId: string; message: string; stdout?: string; stderr?: string }
 
   'run:state': {
     status: 'idle' | 'loaded' | 'running' | 'paused' | 'crashed'
