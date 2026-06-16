@@ -63,7 +63,7 @@ export function FileTree(p: Props) {
   return (
     <ContextMenu.Root>
       <ContextMenu.Trigger asChild>
-        <div className="filetree">
+        <div className="filetree" role="tree" aria-label="Project files">
           {tree.map((node) => (
             <NodeView
               key={node.path}
@@ -126,7 +126,12 @@ function NodeView(p: NodeViewProps) {
   const isEditing = p.editing?.path === node.path && p.editing.isFolder === isFolder;
 
   const rowKey = (e: React.KeyboardEvent) => {
-    if (e.key === "F2") { e.preventDefault(); p.onBeginRename(node.path, isFolder); }
+    if (e.key === "F2") { e.preventDefault(); p.onBeginRename(node.path, isFolder); return; }
+    // Enter / Space activate the row: open a file, toggle a folder.
+    if (e.key === "Enter" || e.key === " ") { e.preventDefault(); onClick(); return; }
+    // Arrow Right/Left expand/collapse a folder.
+    if (isFolder && e.key === "ArrowRight" && !isExpanded) { e.preventDefault(); p.onToggle(node.path); return; }
+    if (isFolder && e.key === "ArrowLeft" && isExpanded) { e.preventDefault(); p.onToggle(node.path); return; }
   };
 
   const onClick = () => {
@@ -139,6 +144,10 @@ function NodeView(p: NodeViewProps) {
       <ContextMenu.Root>
         <ContextMenu.Trigger asChild>
           <div
+            role="treeitem"
+            aria-level={p.depth + 1}
+            aria-selected={isActive}
+            aria-expanded={isFolder ? isExpanded : undefined}
             className={
               "filetree__row"
               + (isActive ? " filetree__row--active" : "")
@@ -279,6 +288,9 @@ function NodeIcon({ isFolder, expanded, name }: { isFolder: boolean; expanded: b
 function RenameInput({ initial, onCommit, onCancel }: { initial: string; onCommit: (name: string) => void; onCancel: () => void }) {
   const [value, setValue] = useState(initial);
   const ref = useRef<HTMLInputElement | null>(null);
+  // Enter committed or Escape cancelled — the resulting blur must not re-fire a
+  // second (stale) commit.
+  const done = useRef(false);
   useEffect(() => {
     ref.current?.focus();
     ref.current?.select();
@@ -291,10 +303,10 @@ function RenameInput({ initial, onCommit, onCancel }: { initial: string; onCommi
       onClick={(e) => e.stopPropagation()}
       onChange={(e) => setValue(e.target.value)}
       onKeyDown={(e) => {
-        if (e.key === "Enter") { e.preventDefault(); onCommit(value.trim()); }
-        else if (e.key === "Escape") { e.preventDefault(); onCancel(); }
+        if (e.key === "Enter") { e.preventDefault(); done.current = true; onCommit(value.trim()); }
+        else if (e.key === "Escape") { e.preventDefault(); done.current = true; onCancel(); }
       }}
-      onBlur={() => onCommit(value.trim())}
+      onBlur={() => { if (!done.current) onCommit(value.trim()); }}
     />
   );
 }
