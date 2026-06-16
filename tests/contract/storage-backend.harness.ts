@@ -171,6 +171,49 @@ export function assertStorageBackend(fresh: () => StorageBackend): void {
     expect((await s.breakpoints.load('proj')).size).toBe(0)
   })
 
+  it('snapshots.delete removes one from the list', async () => {
+    const s = fresh()
+    const row = await s.projects.create('snap-del', seedFiles('; v1\n'), manifest('snap-del'))
+    const snap = await s.snapshots.create(row.id, 'manual', [{ path: 'f', content: enc.encode('A') }])
+    await s.snapshots.delete(snap!.id)
+    expect(await s.snapshots.list(row.id)).toEqual([])
+  })
+
+  it('pruneAuto drops oldest autos beyond keep, manual snapshots immune', async () => {
+    const s = fresh()
+    const row = await s.projects.create('snap-prune', seedFiles('; v1\n'), manifest('snap-prune'))
+    // 1 manual + 3 autos with distinct content (distinct trees dodge dedup→null)
+    await s.snapshots.create(row.id, 'manual', [{ path: 'f', content: enc.encode('m') }])
+    for (const c of ['a', 'b', 'c']) {
+      expect(await s.snapshots.create(row.id, 'auto', [{ path: 'f', content: enc.encode(c) }])).not.toBeNull()
+    }
+    expect(await s.snapshots.pruneAuto(row.id, 1)).toBe(2) // 3 autos, keep 1 → drop 2
+    const left = await s.snapshots.list(row.id)
+    expect(left).toHaveLength(2) // 1 kept auto + the immune manual
+    expect(left.filter((x) => x.summary === 'manual')).toHaveLength(1)
+  })
+
+  it('pruneAuto with keep 0 clears every auto but keeps manual', async () => {
+    const s = fresh()
+    const row = await s.projects.create('snap-prune0', seedFiles('; v1\n'), manifest('snap-prune0'))
+    await s.snapshots.create(row.id, 'manual', [{ path: 'f', content: enc.encode('m') }])
+    await s.snapshots.create(row.id, 'auto', [{ path: 'f', content: enc.encode('a') }])
+    await s.snapshots.pruneAuto(row.id, 0)
+    expect((await s.snapshots.list(row.id)).map((x) => x.summary)).toEqual(['manual'])
+  })
+
+  it('gcOrphanBlobs keeps blobs a snapshot still references (restore survives gc)', async () => {
+    const s = fresh()
+    const row = await s.projects.create('snap-gc', seedFiles('; v1\n'), manifest('snap-gc'))
+    const all = (await s.projects.load(row.id))!.files.map((f) => ({ path: f.path, content: f.content }))
+    const snap = await s.snapshots.create(row.id, 'manual', all)
+    await s.projects.writeFile(row.id, 'src/main.a65', enc.encode('; v2\n'))
+    await s.snapshots.gcOrphanBlobs() // must NOT collect the snapshot's blobs
+    await s.snapshots.restore(row.id, snap!)
+    const main = (await s.projects.load(row.id))!.files.find((f) => f.path === 'src/main.a65')
+    expect(dec.decode(main!.content)).toBe('; v1\n')
+  })
+
   it('courses install → list → get → remove', async () => {
     const s = fresh()
     const row = {

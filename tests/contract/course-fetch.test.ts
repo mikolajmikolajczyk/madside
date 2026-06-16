@@ -8,6 +8,7 @@ import {
   installCourseFromGitHub,
   listCourses,
   parseGitHubRef,
+  refreshCourseFromGitHub,
   removeRemoteCourse,
   validateCourseFiles,
 } from '@app'
@@ -152,5 +153,17 @@ describe('installCourseFromGitHub', () => {
 
   it('rejects a non-GitHub URL before fetching', async () => {
     await expect(installCourseFromGitHub('https://gitlab.com/me/course')).rejects.toThrow(/GitHub/)
+  })
+})
+
+describe('refreshCourseFromGitHub', () => {
+  beforeEach(async () => { await __resetDb(); installMockFetch() })
+  afterEach(async () => { vi.restoreAllMocks(); await removeRemoteCourse('gh:me/course@main') })
+
+  it('re-installs from the stored owner/repo/ref', async () => {
+    const info = await refreshCourseFromGitHub({ owner: 'me', repo: 'course', ref: 'main' })
+    expect(info.id).toBe('gh:me/course@main')
+    expect(info.title).toBe('Test Course')
+    expect(info.lessons).toEqual(['01-first'])
   })
 })
