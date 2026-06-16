@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { storage } from "../storage";
+import { createFileSaver, type FileSaver } from "./file-saver";
 import { exportProjectToZip, importProjectFromZip, MANIFEST_PATH } from "@adapters/storage-idb";
 import type { EventBus, FileRow, ProjectManifestV2 as Manifest, ProjectRow, SnapshotMeta } from "@ports";
 
@@ -40,11 +41,6 @@ function writeUrlProject(id: string | null): void {
 
 const dec = new TextDecoder();
 const enc = new TextEncoder();
-function bytesEqual(a: Uint8Array, b: Uint8Array): boolean {
-  if (a.length !== b.length) return false;
-  for (let i = 0; i < a.length; i++) if (a[i] !== b[i]) return false;
-  return true;
-}
 
 export function useProject(events?: EventBus) {
   const [state, setState] = useState<ProjectState | null>(null);
@@ -109,40 +105,29 @@ export function useProject(events?: EventBus) {
 
   const reload = useCallback(() => setReloadKey((k) => k + 1), []);
 
-  // Debounced file persistence keyed on (projectId, path). Pending timers are
-  // cleared when projectId changes so a stale write doesn't land on the new project.
-  const lastSavedRef = useRef<Map<string, Uint8Array>>(new Map());
-  const timersRef = useRef<Map<string, number>>(new Map());
+  // Debounced file persistence, behind a testable saver (see ./file-saver).
+  // `events` is read through a ref so the saver can be created once.
+  const eventsRef = useRef(events);
+  eventsRef.current = events;
+  const saverRef = useRef<FileSaver | null>(null);
+  if (!saverRef.current) {
+    saverRef.current = createFileSaver({
+      write: (pid, path, content) => storage.projects.writeFile(pid, path, content),
+      onSaved: (path) => eventsRef.current?.emit('file:changed', { path }),
+      delayMs: SAVE_DEBOUNCE_MS,
+    });
+  }
 
+  // Schedule dirty-file writes; the saver's returned cleanup cancels exactly
+  // this run's timers, so a file removed inside the debounce window can't
+  // resurrect its old bytes.
   useEffect(() => {
     if (!state) return;
-    const pid = state.projectId;
-    for (const f of state.files) {
-      const key = `${pid}::${f.path}`;
-      const prev = lastSavedRef.current.get(key);
-      if (prev && bytesEqual(prev, f.content)) continue;
-      const existingTimer = timersRef.current.get(key);
-      if (existingTimer != null) clearTimeout(existingTimer);
-      const handle = window.setTimeout(() => {
-        const current = state.files.find((x) => x.path === f.path);
-        if (!current) return;
-        void storage.projects.writeFile(pid, f.path, current.content).then(() => {
-          lastSavedRef.current.set(key, current.content);
-          events?.emit('file:changed', { path: f.path });
-        });
-        timersRef.current.delete(key);
-      }, SAVE_DEBOUNCE_MS);
-      timersRef.current.set(key, handle);
-    }
+    return saverRef.current!.sync(state.projectId, state.files);
   }, [state]);
 
-  useEffect(() => {
-    return () => {
-      for (const h of timersRef.current.values()) clearTimeout(h);
-      timersRef.current.clear();
-      lastSavedRef.current.clear();
-    };
-  }, [state?.projectId]);
+  // Cancel everything + forget save history on project switch / unmount.
+  useEffect(() => () => saverRef.current?.reset(), [state?.projectId]);
 
   const updateActive = useCallback((content: string | Uint8Array) => {
     const bytes = typeof content === "string" ? enc.encode(content) : content;
