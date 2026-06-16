@@ -117,6 +117,10 @@ Operands are written as hex (`$94`, `$02C6`) or decimal — the way assembly aut
 
 `afterFrames` advances the emulator that many display frames before reading (default `0`). `register` and `memory` checks run the program; `build` and `label` only assemble.
 
+:::caution[`afterFrames` counts from load — including boot]
+The frames are counted from the moment the binary loads, and the machine has to **boot** before your code runs (an Atari cold start is dozens of frames). A small `afterFrames` reads **pre-boot** state — `memory`/`register` will see `$00` even though a manual run shows the right value. Until this is improved, prefer `build` + `label` checks (they don't run the program), or use a generously large `afterFrames`. When in doubt, lean on `build`/`label`: they're strong gates and never flaky.
+:::
+
 ### Examples
 
 ```json
@@ -164,7 +168,7 @@ github.com/you/my-atari-course
   lessons/02-…/
 ```
 
-**Pin a ref for reproducibility.** By default the course tracks your default branch (`main`/`master`), so edits reach learners on Refresh. To freeze a known-good version, learners can target a tag or commit: `github.com/you/my-atari-course/tree/v1` or `you/my-atari-course@v1`. Tagging releases is recommended.
+**Pin a ref — and know the CDN caches branches.** A bare `<owner>/<repo>` tracks your default branch, but jsDelivr **caches a branch for hours**, so pushed edits don't reach learners promptly (and *Refresh* re-fetches the same cached branch). A **tag or commit is immutable**, so jsDelivr serves it fresh the first time and forever after. So: develop on a branch, but **release with a tag** and share that — `github.com/you/my-atari-course/tree/v1` or `you/my-atari-course@v1`. Bump the tag for each update; learners on the old tag are unaffected, those you point at the new one get it instantly.
 
 **What's fetched, and the limits.** Courses load over the jsDelivr CDN (CORS-enabled, cached) — only `course.json` and `lessons/**` are read; everything else in the repo is ignored. Constraints today:
 
