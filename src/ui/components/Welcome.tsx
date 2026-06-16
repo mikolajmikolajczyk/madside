@@ -1,7 +1,8 @@
 import { useMemo, useState } from "react";
-import { createBlankProject, getCourse, getTemplateManifestText, installCourseFromGitHub, instantiateTemplate, listTemplates, openLesson, removeRemoteCourse, useWorkbench } from "@app";
+import { createBlankProject, getCourse, getTemplateManifestText, installCourseFromGitHub, instantiateTemplate, listTemplates, officialCourseRef, officialCourseSourceId, openLesson, removeRemoteCourse, useWorkbench, type OfficialCourse } from "@app";
 import { errorMessage, NetworkError } from "@ports";
 import { useCourses } from "../hooks/useCourses";
+import { useOfficialCourses } from "../hooks/useOfficialCourses";
 import { useDisclosure } from "../hooks/useDisclosure";
 import { ManifestEditor } from "./manifest/ManifestEditor";
 import "./Welcome.css";
@@ -24,6 +25,13 @@ export function Welcome({ onOpen, projects = [] }: Props) {
   // Templates minus 'empty' (the empty flow is the top section).
   const templates = useMemo(() => listTemplates().filter((t) => t.id !== "empty"), []);
   const courses = useCourses();
+  const officialCourses = useOfficialCourses();
+  // Official courses the learner hasn't installed yet — shown by default so a
+  // fresh visit surfaces them without a manual GitHub add.
+  const featured = useMemo(() => {
+    const installed = new Set(courses.map((c) => c.id));
+    return officialCourses.filter((o) => !installed.has(officialCourseSourceId(o)));
+  }, [officialCourses, courses]);
   const [repoInput, setRepoInput] = useState("");
   const emptyFiles = useMemo(
     () => (listTemplates().find((t) => t.id === "empty")?.files ?? []).map((path) => ({ path })),
@@ -73,6 +81,26 @@ export function Welcome({ onOpen, projects = [] }: Props) {
       onOpen(projectId);
     } catch (e) {
       setError(errorMessage(e));
+      setBusy(null);
+    }
+  };
+
+  // Open an official (catalogue) course: install it from its ref, then open
+  // its first lesson — same path as a manual add, just pre-filled.
+  const pickOfficial = async (c: OfficialCourse) => {
+    setBusy(`official:${c.id}`);
+    setError(null);
+    try {
+      const info = await installCourseFromGitHub(workbench.storage, officialCourseRef(c));
+      const first = info.lessons[0];
+      if (!first) throw new Error("course has no lessons");
+      const projectId = await openLesson(workbench.storage, info.id, first);
+      onOpen(projectId);
+    } catch (e) {
+      const detail = e instanceof NetworkError
+        ? "couldn't reach GitHub/jsDelivr — check your connection"
+        : errorMessage(e);
+      setError(`could not open course: ${detail}`);
       setBusy(null);
     }
   };
@@ -235,6 +263,29 @@ export function Welcome({ onOpen, projects = [] }: Props) {
             {busy === "add-course" ? "adding…" : "Add"}
           </button>
         </div>
+        {featured.length > 0 && (
+          <div className="welcome__grid">
+            {featured.map((c) => (
+              <div key={c.id} className="welcome__card-wrap">
+                <button
+                  type="button"
+                  className="welcome__card"
+                  disabled={busy != null}
+                  onClick={() => void pickOfficial(c)}
+                  data-testid={`welcome.official.${c.id}`}
+                >
+                  <span className="welcome__card-head">
+                    <span className="welcome__card-name">{c.title}</span>
+                    <span className="welcome__card-machine label">{c.machine}</span>
+                  </span>
+                  <span className="welcome__card-desc">{c.description}</span>
+                  <span className="welcome__card-files">official · madside-courses</span>
+                  {busy === `official:${c.id}` && <span className="welcome__card-busy">opening…</span>}
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
         {courses.length > 0 && (
           <div className="welcome__grid">
             {courses.map((c) => {
