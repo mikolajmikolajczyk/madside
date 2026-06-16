@@ -1,13 +1,14 @@
 // Altirra wasm-core backend. Lazy-loads the Emscripten ES module from
 // `./wasm/altirra-core.js` (Vite-tracked), instantiates the C++ `AltirraCore` class,
-// and forwards all `EmuBackend` calls into it.
+// and forwards all `RunBackend` calls into it.
 //
 // Compared with the 8bw backend (now retired) this is a thin shim: the
 // heavy lifting lives in the wasm core (Altirra by Avery Lee), and the
 // host only owns the pixel/audio plumbing.
 
 import { AudioPushPump } from "@core/audio";
-import type { CpuRegs, EmuBackend } from "./backend";
+import type { RunBackend } from "@ports";
+import type { CpuRegs } from "./backend";
 
 interface AltirraCoreInstance {
   reset(): void;
@@ -69,7 +70,7 @@ function loadModule(): Promise<AltirraModule> {
   return p;
 }
 
-export class AltirraBackend implements EmuBackend {
+export class AltirraBackend implements RunBackend {
   static async create(): Promise<AltirraBackend> {
     const mod = await loadModule();
     const core = new mod.AltirraCore();
@@ -91,16 +92,6 @@ export class AltirraBackend implements EmuBackend {
     // advanceFrame via `this.refreshPixels()`.
     this.pixels = new Uint32Array(this.width * this.height);
   }
-
-  reset() {
-    this.core.reset();
-    this.refreshPixels();
-  }
-
-  loadXEX(xex: Uint8Array) { this.loadMedia('xex', xex); }
-  loadATR(atr: Uint8Array) { this.loadMedia('atr', atr); }
-  loadCAR(car: Uint8Array) { this.loadMedia('car', car); }
-  loadCAS(cas: Uint8Array) { this.loadMedia('cas', cas); }
 
   loadMedia(format: string, bytes: Uint8Array) {
     const fn = format === 'xex' ? this.core.loadXEX
@@ -170,6 +161,14 @@ export class AltirraBackend implements EmuBackend {
     // guarantees a detached, owned copy.
     const view = this.core.readMem(addr, len);
     return view.slice();
+  }
+
+  saveState(): unknown {
+    return this.core.saveState();
+  }
+
+  loadState(snapshot: unknown): void {
+    this.core.loadState(snapshot);
   }
 
   // Copy out of the wasm-memory view (the next core call invalidates it); the

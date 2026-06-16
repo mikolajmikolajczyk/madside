@@ -1,12 +1,11 @@
-// Public entrypoint for the emulator. Returns an `EmuBackend` — UI code uses
-// only that interface. Swapping in a different backend (e.g. Altirra wasm) is
-// a one-import change here.
+// Public entrypoint for the emulator. Returns a `RunBackend` (the canonical port
+// contract) — swapping in a different backend is a one-import change here.
 
 import { AltirraBackend } from "./altirra";
-import type { EmuBackend } from "./backend";
+import type { RunBackend } from "@ports";
 
-export type { CpuRegs, EmuBackend } from "./backend";
+export type { CpuRegs } from "./backend";
 
-export async function createEmu(): Promise<EmuBackend> {
+export async function createEmu(): Promise<RunBackend> {
   return AltirraBackend.create();
 }
