@@ -138,6 +138,9 @@ export interface MachinePlugin {
   readonly compatibleToolchains: string[]
   /** Emulator plugin ids known to host this machine. M4 EmulatorPlugin. */
   readonly compatibleEmulators: string[]
+  /** Debug-adapter plugin ids that can debug this machine's CPU. Resolved
+   *  through the PluginRegistry, same as compatibleEmulators. */
+  readonly compatibleDebugAdapters: string[]
   /** Optional file the seed-project flow injects into new projects. */
   readonly bootEquates?: BootEquates
   /** Hardware-config applied to the emulator backend on boot. Mapped 1:1 to

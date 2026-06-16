@@ -8,6 +8,7 @@ import type {
   EventBus,
   Logger,
   MachinePlugin,
+  PluginBase,
   PluginRegistry,
   StorageBackend,
   RunService,
@@ -201,13 +202,24 @@ export function createWorkbench(deps: WorkbenchDeps): Workbench {
     return () => emulator.createBackend()
   }
 
+  // Same pattern for the debug adapter: the machine names it via
+  // `compatibleDebugAdapters`, resolved from the registry (no hardcoded table).
+  const resolveDebugAdapter = (machine: MachinePlugin): DebugAdapterPlugin => {
+    const id = machine.compatibleDebugAdapters[0]
+    // DebugAdapterPlugin gets its `kind` at registration; intersect with
+    // PluginBase to satisfy the registry's generic constraint.
+    const adapter = plugins.get<DebugAdapterPlugin & PluginBase>('debug-adapter', id)
+    if (!adapter) {
+      throw new Error(`machine '${machine.id}' requires debug adapter '${id}', not registered`)
+    }
+    return adapter
+  }
+
   // Machine selection table (1972a36). Each machine pairs a MachinePlugin with
-  // its emulator backend factory + debug adapter. setActiveMachine swaps the
-  // active entry when the project manifest's `machine` changes. The atari-xl
-  // entry honours the test overrides (emuBackendFactory / debugAdapter). The
-  // atari6502 adapter is CPU-shape-generic (reads backend.cpuState() in the
-  // 6502 struct JsnesBackend also returns), so it serves NES verbatim until a
-  // labelled debug-nes adapter lands.
+  // its emulator backend + debug adapter, both resolved from the registry via
+  // the machine's `compatibleEmulators` / `compatibleDebugAdapters`. The
+  // atari-xl entry honours the test overrides (emuBackendFactory / debugAdapter).
+  // setActiveMachine swaps the active entry when the manifest's `machine` changes.
   interface MachineSetup {
     machine: MachinePlugin
     backendFactory: RunBackendFactory
@@ -217,12 +229,12 @@ export function createWorkbench(deps: WorkbenchDeps): Workbench {
     'atari-xl': {
       machine: atariXl,
       backendFactory: deps.emuBackendFactory ?? resolveEmulatorBackend(atariXl),
-      debugAdapter: deps.debugAdapter ?? atari6502DebugAdapter,
+      debugAdapter: deps.debugAdapter ?? resolveDebugAdapter(atariXl),
     },
     nes: {
       machine: machineNes,
       backendFactory: resolveEmulatorBackend(machineNes),
-      debugAdapter: deps.debugAdapter ?? atari6502DebugAdapter,
+      debugAdapter: deps.debugAdapter ?? resolveDebugAdapter(machineNes),
     },
   }
   let activeMachine: MachinePlugin = atariXl

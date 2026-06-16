@@ -82,6 +82,7 @@ export const atariXl: MachinePlugin = {
   defaultPanels: ['memory', 'registers', 'output', 'asset'],
   compatibleToolchains: ['mads'],
   compatibleEmulators: ['altirra-wasm'],
+  compatibleDebugAdapters: ['atari-6502-debug'],
 
   media: {
     formats: ['xex', 'atr', 'car', 'cas'],
