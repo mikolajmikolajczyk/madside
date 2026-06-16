@@ -11,32 +11,26 @@ import type {
   ProjectFileInput,
   ProjectManifestV2,
   ProjectRow,
-  SnapshotDiff,
   SnapshotInput,
   SnapshotMeta,
   StorageBackend,
 } from "@ports";
 import { sha256Hex } from "@core/hash";
+import {
+  AUTO_KEEP,
+  MANIFEST_PATH,
+  diffSnapshots,
+  newProjectId,
+  newSnapshotId,
+  sameTree,
+  serializeManifest,
+  uniquify,
+} from "../storage-shared";
 
 const enc = new TextEncoder();
 const dec = new TextDecoder();
-const MANIFEST_PATH = "project.json";
 
 const fileKey = (projectId: string, path: string) => `${projectId} ${path}`;
-
-function makeProjectId(name: string): string {
-  const slug = name.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "") || "project";
-  return `${slug}-${Date.now().toString(36)}`;
-}
-
-function uniquify(name: string, taken: Set<string>): string {
-  if (!taken.has(name)) return name;
-  const m = /^(.*?)(?:\s*\((\d+)\))?$/.exec(name);
-  const base = (m?.[1] ?? name).trim();
-  let n = m?.[2] ? parseInt(m[2], 10) + 1 : 2;
-  while (taken.has(`${base} (${n})`)) n++;
-  return `${base} (${n})`;
-}
 
 export function createMemoryStorage(): StorageBackend {
   const projects = new Map<string, ProjectRow>();
@@ -95,13 +89,13 @@ export function createMemoryStorage(): StorageBackend {
         return { project: { ...project }, manifest: parsed.value, files: fs };
       },
       async create(name, input: ProjectFileInput[], manifest: ProjectManifestV2): Promise<ProjectRow> {
-        const id = makeProjectId(name);
+        const id = newProjectId(name);
         const now = Date.now();
         const project: ProjectRow = { id, name, createdAt: now, updatedAt: now };
         projects.set(id, project);
         for (const f of input) putFile(id, f.path, f.content, now);
         if (!input.some((f) => f.path === MANIFEST_PATH)) {
-          putFile(id, MANIFEST_PATH, enc.encode(JSON.stringify(manifest, null, 2) + "\n"), now);
+          putFile(id, MANIFEST_PATH, enc.encode(serializeManifest(manifest)), now);
         }
         meta.activeProjectId = id;
         return { ...project };
@@ -120,7 +114,7 @@ export function createMemoryStorage(): StorageBackend {
             const parsed = parseProjectManifest(JSON.parse(dec.decode(manifestRow.content)));
             if (parsed.ok) {
               const m: ProjectManifestV2 = { ...parsed.value, name };
-              putFile(id, MANIFEST_PATH, enc.encode(JSON.stringify(m, null, 2) + "\n"), now);
+              putFile(id, MANIFEST_PATH, enc.encode(serializeManifest(m)), now);
             }
           } catch {
             // invalid/malformed manifest — leave on disk, same as IDB.
@@ -202,7 +196,7 @@ export function createMemoryStorage(): StorageBackend {
         touch(projectId, now);
       },
       async saveManifest(projectId, manifest) {
-        await this.writeFile(projectId, MANIFEST_PATH, enc.encode(JSON.stringify(manifest, null, 2) + "\n"));
+        await this.writeFile(projectId, MANIFEST_PATH, enc.encode(serializeManifest(manifest)));
       },
     },
 
@@ -220,13 +214,11 @@ export function createMemoryStorage(): StorageBackend {
           .sort((a, b) => b.ts - a.ts);
         if (recent.length > 0 && sameTree(recent[0].tree, tree)) return null;
         const ts = Date.now();
-        // randomUUID, not a 1000-bucket RNG (mirrors the IDB adapter): same-ms
-        // snapshots must not collide and overwrite history.
-        const id = `${projectId}::${ts.toString(36)}-${crypto.randomUUID().slice(0, 8)}`;
+        const id = newSnapshotId(projectId, ts);
         const snapshot: SnapshotMeta = { id, projectId, ts, summary, tree };
         for (const b of pending) blobs.set(b.hash, b.data);
         snapshots.set(id, snapshot);
-        await pruneAuto(projectId, 100);
+        await pruneAuto(projectId, AUTO_KEEP);
         return { ...snapshot, tree: { ...tree } };
       },
       async list(projectId) {
@@ -260,7 +252,7 @@ export function createMemoryStorage(): StorageBackend {
       async gcOrphanBlobs() {
         return gcOrphanBlobs();
       },
-      diff,
+      diff: diffSnapshots,
     },
 
     breakpoints: {
@@ -297,36 +289,10 @@ export function createMemoryStorage(): StorageBackend {
   };
 }
 
-function sameTree(a: Record<string, string>, b: Record<string, string>): boolean {
-  const ka = Object.keys(a);
-  if (ka.length !== Object.keys(b).length) return false;
-  for (const k of ka) if (a[k] !== b[k]) return false;
-  return true;
-}
-
 function recordToMap(rec: Record<string, number[]>): Map<string, Set<number>> {
   const out = new Map<string, Set<number>>();
   for (const [path, lines] of Object.entries(rec)) {
     if (lines.length > 0) out.set(path, new Set(lines));
   }
   return out;
-}
-
-function diff(a: SnapshotMeta, b: SnapshotMeta): SnapshotDiff {
-  const added: string[] = [];
-  const removed: string[] = [];
-  const modified: string[] = [];
-  let unchanged = 0;
-  for (const path of Object.keys(b.tree)) {
-    if (!(path in a.tree)) added.push(path);
-    else if (a.tree[path] !== b.tree[path]) modified.push(path);
-    else unchanged++;
-  }
-  for (const path of Object.keys(a.tree)) {
-    if (!(path in b.tree)) removed.push(path);
-  }
-  added.sort();
-  removed.sort();
-  modified.sort();
-  return { added, removed, modified, unchanged };
 }

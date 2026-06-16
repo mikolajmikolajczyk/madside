@@ -4,14 +4,14 @@
 
 import { getDB } from "./db";
 import { sha256Hex } from "@core/hash";
+import { AUTO_KEEP, diffSnapshots, newSnapshotId, sameTree } from "../storage-shared";
 import type { SnapshotDiff, SnapshotInput, SnapshotMeta } from "@ports";
 
 // Canonical shapes live in @ports/storage; re-export so `@adapters/storage-idb`
-// keeps surfacing them.
+// keeps surfacing them. Shared persistence helpers (id/diff/sameTree/AUTO_KEEP)
+// live in @adapters/storage-shared so the memory adapter can't drift (#19).
 export type { SnapshotDiff, SnapshotInput, SnapshotMeta };
-
-// Keep N most recent auto-snapshots per project; "manual" ones never pruned.
-const AUTO_KEEP = 100;
+export { diffSnapshots };
 
 export async function createSnapshot(
   projectId: string,
@@ -34,9 +34,7 @@ export async function createSnapshot(
     if (sameTree(last.tree, tree)) return null;
   }
   const ts = Date.now();
-  // randomUUID, not a 1000-bucket RNG: two snapshots in the same ms must not
-  // collide and silently overwrite each other's history.
-  const id = `${projectId}::${ts.toString(36)}-${crypto.randomUUID().slice(0, 8)}`;
+  const id = newSnapshotId(projectId, ts);
   const snapshot: SnapshotMeta = { id, projectId, ts, summary, tree };
   const tx = db.transaction(["snapshots", "blobs"], "readwrite");
   for (const b of newBlobs) await tx.objectStore("blobs").put(b);
@@ -44,14 +42,6 @@ export async function createSnapshot(
   await tx.done;
   await pruneAutoSnapshots(projectId, AUTO_KEEP);
   return snapshot;
-}
-
-function sameTree(a: Record<string, string>, b: Record<string, string>): boolean {
-  const ka = Object.keys(a);
-  const kb = Object.keys(b);
-  if (ka.length !== kb.length) return false;
-  for (const k of ka) if (a[k] !== b[k]) return false;
-  return true;
 }
 
 export async function listSnapshots(projectId: string): Promise<SnapshotMeta[]> {
@@ -109,25 +99,6 @@ export async function gcOrphanBlobs(): Promise<number> {
   }
   await tx.done;
   return removed;
-}
-
-export function diffSnapshots(a: SnapshotMeta, b: SnapshotMeta): SnapshotDiff {
-  const added: string[] = [];
-  const removed: string[] = [];
-  const modified: string[] = [];
-  let unchanged = 0;
-  for (const path of Object.keys(b.tree)) {
-    if (!(path in a.tree)) added.push(path);
-    else if (a.tree[path] !== b.tree[path]) modified.push(path);
-    else unchanged++;
-  }
-  for (const path of Object.keys(a.tree)) {
-    if (!(path in b.tree)) removed.push(path);
-  }
-  added.sort();
-  removed.sort();
-  modified.sort();
-  return { added, removed, modified, unchanged };
 }
 
 // Overwrite the project's files with the snapshot contents. Files not in the

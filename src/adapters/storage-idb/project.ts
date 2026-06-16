@@ -3,12 +3,15 @@
 import { parseProjectManifest } from "@ports";
 import type { LoadedProject } from "@ports";
 import { getDB } from "./db";
+import { MANIFEST_PATH, newProjectId, serializeManifest, uniquify } from "../storage-shared";
 import type { Manifest, ProjectRow } from "./types";
 
 const enc = new TextEncoder();
 const dec = new TextDecoder();
 
-export const MANIFEST_PATH = "project.json";
+// Shared persistence helpers live in @adapters/storage-shared (#19). Re-export
+// MANIFEST_PATH for the many call sites that import it from this module.
+export { MANIFEST_PATH };
 const META_ACTIVE_PROJECT = "activeProjectId";
 
 // Canonical shape lives in @ports/storage; re-export for continuity.
@@ -65,7 +68,7 @@ export async function deleteFile(projectId: string, path: string): Promise<void>
 
 export async function createProject(name: string, files: { path: string; content: Uint8Array }[], manifest: Manifest): Promise<ProjectRow> {
   const db = await getDB();
-  const id = makeProjectId(name);
+  const id = newProjectId(name);
   const now = Date.now();
   const project: ProjectRow = { id, name, createdAt: now, updatedAt: now };
   const tx = db.transaction(["projects", "files", "meta"], "readwrite");
@@ -78,18 +81,13 @@ export async function createProject(name: string, files: { path: string; content
     await tx.objectStore("files").put({
       projectId: id,
       path: MANIFEST_PATH,
-      content: enc.encode(JSON.stringify(manifest, null, 2) + "\n"),
+      content: enc.encode(serializeManifest(manifest)),
       updatedAt: now,
     });
   }
   await tx.objectStore("meta").put({ key: META_ACTIVE_PROJECT, value: id });
   await tx.done;
   return project;
-}
-
-function makeProjectId(name: string): string {
-  const slug = name.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "") || "project";
-  return `${slug}-${Date.now().toString(36)}`;
 }
 
 // Rename project + sync manifest.name. Disambiguates collisions with " (2)" suffixes.
@@ -112,7 +110,7 @@ export async function renameProject(id: string, requestedName: string): Promise<
       const parsed = parseProjectManifest(JSON.parse(bytesToText(manifestRow.content)));
       if (parsed.ok) {
         const manifest: Manifest = { ...parsed.value, name };
-        manifestRow.content = textToBytes(JSON.stringify(manifest, null, 2) + "\n");
+        manifestRow.content = textToBytes(serializeManifest(manifest));
         manifestRow.updatedAt = Date.now();
         await tx.objectStore("files").put(manifestRow);
       }
@@ -227,15 +225,5 @@ export async function deleteFolder(projectId: string, prefix: string): Promise<v
 
 /** Update the manifest file in storage. Manifest is just `project.json`. */
 export async function saveManifest(projectId: string, manifest: Manifest): Promise<void> {
-  await saveFile(projectId, MANIFEST_PATH, textToBytes(JSON.stringify(manifest, null, 2) + "\n"));
-}
-
-function uniquify(name: string, taken: Set<string>): string {
-  if (!taken.has(name)) return name;
-  // Strip existing "(n)" suffix if present, then bump.
-  const m = /^(.*?)(?:\s*\((\d+)\))?$/.exec(name);
-  const base = (m?.[1] ?? name).trim();
-  let n = m?.[2] ? parseInt(m[2], 10) + 1 : 2;
-  while (taken.has(`${base} (${n})`)) n++;
-  return `${base} (${n})`;
+  await saveFile(projectId, MANIFEST_PATH, textToBytes(serializeManifest(manifest)));
 }
