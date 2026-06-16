@@ -3,6 +3,7 @@ import { basename, dirname as parentDir } from "@core/path";
 import { FileTree } from "./FileTree";
 import { TextPromptDialog, ConfirmDialog } from "../ui/Dialog";
 import { Tip } from "../ui/Tooltip";
+import { useToast } from "../ui/Toast";
 import { Menu, MenuTrigger, MenuContent, MenuItem } from "../ui/Menu";
 import { TEMPLATES, findTemplate, type FileTemplate } from "@app/fileTemplates";
 import "./Explorer.css";
@@ -35,6 +36,7 @@ type DialogState =
 const joinPath = (dir: string, name: string) => (dir ? `${dir}/${name}` : name);
 
 export function Explorer(props: Props) {
+  const toast = useToast();
   const [dialog, setDialog] = useState<DialogState>({ kind: "none" });
   const close = () => setDialog({ kind: "none" });
 
@@ -60,7 +62,7 @@ export function Explorer(props: Props) {
       if (isFolder) await props.onRenameFolder(oldPath, newPath);
       else await props.onRenameFile(oldPath, newPath);
     } catch (e) {
-      alert(String(e));
+      toast.error(e);
     }
   };
 
@@ -122,7 +124,7 @@ export function Explorer(props: Props) {
           const tpl = findTemplate(d.templateId);
           const content = tpl?.defaultContent ?? "";
           try { await props.onCreateFile(path.trim(), content); }
-          catch (e) { alert(String(e)); }
+          catch (e) { toast.error(e); }
         }}
       />
       <TextPromptDialog
@@ -141,7 +143,7 @@ export function Explorer(props: Props) {
           if (!name.trim() || d.kind !== "newFolder") return;
           const fullPath = joinPath(d.parentDir, name.trim());
           try { await props.onCreateFolder(fullPath); }
-          catch (e) { alert(String(e)); }
+          catch (e) { toast.error(e); }
         }}
       />
       <TextPromptDialog
@@ -156,7 +158,7 @@ export function Explorer(props: Props) {
           close();
           if (!path.trim() || d.kind !== "duplicate") return;
           try { await props.onDuplicateFile(d.sourcePath, path.trim()); }
-          catch (e) { alert(String(e)); }
+          catch (e) { toast.error(e); }
         }}
       />
       <ConfirmDialog

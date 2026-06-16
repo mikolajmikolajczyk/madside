@@ -19,6 +19,7 @@ import { TooltipProvider } from "./components/ui/Tooltip";
 import { TextPromptDialog, ConfirmDialog, Dialog, DialogContent } from "./components/ui/Dialog";
 import { useProject } from "@app/state";
 import { CommandPalette } from "./components/command/CommandPalette";
+import { useToast } from "./components/ui/Toast";
 import { buildAppCommands, type AppCommandEnv } from "./commands/appCommands";
 import type { CpuRegs } from "./components/debug/Emulator";
 import type { CommandContext, PanelPlugin, ToolchainPlugin } from "@ports";
@@ -61,6 +62,7 @@ const DOCS_URL =
 
 export default function App() {
   const workbench = useWorkbench();
+  const toast = useToast();
   const project = useProject(workbench.events);
 
   // Run lifecycle is owned by RunService (ADR-0007). UI reads via the hook;
@@ -391,9 +393,9 @@ export default function App() {
     try {
       await project.importProject(buf, fallback);
     } catch (err) {
-      alert(`import failed: ${String(err)}`);
+      toast.error(err instanceof Error ? err : `import failed: ${String(err)}`);
     }
-  }, [project]);
+  }, [project, toast]);
 
   const handleSwitchProject = useCallback(async (id: string) => {
     if (!project.loaded) return;
