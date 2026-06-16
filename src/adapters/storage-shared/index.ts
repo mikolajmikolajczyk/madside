@@ -3,9 +3,23 @@
 // generation, manifest serialization, name disambiguation, and tree compare/diff
 // all live here instead of being reimplemented per adapter.
 
-import type { ProjectManifestV2, SnapshotDiff, SnapshotMeta } from "@ports";
+import type { ProjectManifestV2, ProjectRow, SnapshotDiff, SnapshotMeta } from "@ports";
 
 export const MANIFEST_PATH = "project.json";
+
+/** Structural guard for a persisted project row — used to quarantine a corrupt
+ *  IDB record on read instead of flowing a malformed row into typed state
+ *  (ADR-0004, #12). */
+export function isProjectRow(v: unknown): v is ProjectRow {
+  if (!v || typeof v !== "object") return false;
+  const r = v as Record<string, unknown>;
+  return (
+    typeof r.id === "string" &&
+    typeof r.name === "string" &&
+    typeof r.createdAt === "number" &&
+    typeof r.updatedAt === "number"
+  );
+}
 
 /** Keep N most recent auto-snapshots per project; "manual" ones never pruned. */
 export const AUTO_KEEP = 100;

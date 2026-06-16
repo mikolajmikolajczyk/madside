@@ -3,7 +3,7 @@
 // Mirrors the IDB adapter's semantics: same id generation, manifest-file
 // injection, content-addressable snapshots, and prune/gc behaviour.
 
-import { parseProjectManifest } from "@ports";
+import { parseProjectManifest, StorageError } from "@ports";
 import type {
   FileRow,
   InstalledCourseRow,
@@ -83,7 +83,7 @@ export function createMemoryStorage(): StorageBackend {
         if (!project) return null;
         const fs = filesOf(id);
         const manifestFile = fs.find((f) => f.path === MANIFEST_PATH);
-        if (!manifestFile) throw new Error(`project ${id} missing ${MANIFEST_PATH}`);
+        if (!manifestFile) throw new StorageError(`project ${id} missing ${MANIFEST_PATH}`);
         const parsed = parseProjectManifest(JSON.parse(dec.decode(manifestFile.content)));
         if (!parsed.ok) throw parsed.error;
         return { project: { ...project }, manifest: parsed.value, files: fs };
@@ -102,7 +102,7 @@ export function createMemoryStorage(): StorageBackend {
       },
       async rename(id, requestedName): Promise<string> {
         const project = projects.get(id);
-        if (!project) throw new Error(`project ${id} not found`);
+        if (!project) throw new StorageError(`project ${id} not found`);
         const taken = new Set([...projects.values()].filter((p) => p.id !== id).map((p) => p.name));
         const name = uniquify(requestedName.trim() || "project", taken);
         const now = Date.now();
@@ -124,10 +124,10 @@ export function createMemoryStorage(): StorageBackend {
       },
       async duplicate(id, requestedName): Promise<ProjectRow> {
         const project = projects.get(id);
-        if (!project) throw new Error(`project ${id} not found`);
+        if (!project) throw new StorageError(`project ${id} not found`);
         const fs = filesOf(id);
         const manifestFile = fs.find((f) => f.path === MANIFEST_PATH);
-        if (!manifestFile) throw new Error(`project ${id} missing ${MANIFEST_PATH}`);
+        if (!manifestFile) throw new StorageError(`project ${id} missing ${MANIFEST_PATH}`);
         const parsed = parseProjectManifest(JSON.parse(dec.decode(manifestFile.content)));
         if (!parsed.ok) throw parsed.error;
         const taken = new Set([...projects.values()].map((p) => p.name));
@@ -149,7 +149,7 @@ export function createMemoryStorage(): StorageBackend {
         touch(projectId, now);
       },
       async createFile(projectId, path, content = new Uint8Array()) {
-        if (files.has(fileKey(projectId, path))) throw new Error(`file exists: ${path}`);
+        if (files.has(fileKey(projectId, path))) throw new StorageError(`file exists: ${path}`);
         await this.writeFile(projectId, path, content);
       },
       async deleteFile(projectId, path) {
@@ -157,9 +157,9 @@ export function createMemoryStorage(): StorageBackend {
       },
       async renameFile(projectId, oldPath, newPath) {
         if (oldPath === newPath) return;
-        if (files.has(fileKey(projectId, newPath))) throw new Error(`destination exists: ${newPath}`);
+        if (files.has(fileKey(projectId, newPath))) throw new StorageError(`destination exists: ${newPath}`);
         const src = files.get(fileKey(projectId, oldPath));
-        if (!src) throw new Error(`source missing: ${oldPath}`);
+        if (!src) throw new StorageError(`source missing: ${oldPath}`);
         const now = Date.now();
         files.delete(fileKey(projectId, oldPath));
         putFile(projectId, newPath, src.content, now);
@@ -174,7 +174,7 @@ export function createMemoryStorage(): StorageBackend {
           if (f.path.startsWith(oldP)) {
             const candidate = newP + f.path.slice(oldP.length);
             if (all.some((x) => x.path === candidate && !x.path.startsWith(oldP))) {
-              throw new Error(`destination collision: ${candidate}`);
+              throw new StorageError(`destination collision: ${candidate}`);
             }
           }
         }

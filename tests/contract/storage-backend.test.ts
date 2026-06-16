@@ -74,4 +74,27 @@ describe('IDB restoreSnapshot drops files whose blob is missing', () => {
     expect(loaded).not.toBeNull()
     expect(loaded!.files.some((f) => f.path === 'src/main.a65')).toBe(false)
   })
+
+  function putRawProject(value: unknown): Promise<void> {
+    return new Promise((resolve, reject) => {
+      const open = (globalThis as { indexedDB: IDBFactory }).indexedDB.open('madside')
+      open.onsuccess = () => {
+        const db = open.result
+        const tx = db.transaction('projects', 'readwrite')
+        tx.objectStore('projects').put(value)
+        tx.oncomplete = () => { db.close(); resolve() }
+        tx.onerror = () => { db.close(); reject(tx.error as Error) }
+      }
+      open.onerror = () => reject(open.error as Error)
+    })
+  }
+
+  it('quarantines a structurally-corrupt project row on load (#12)', async () => {
+    const s = createIdbStorage()
+    await s.projects.list() // open + create the schema (stores) before raw write
+    // A row whose envelope is malformed (name is a number) — must not flow into
+    // typed state; load throws StorageError instead.
+    await putRawProject({ id: 'broken', name: 123, createdAt: 1, updatedAt: 1 })
+    await expect(s.projects.load('broken')).rejects.toThrow(/corrupt project row/)
+  })
 })

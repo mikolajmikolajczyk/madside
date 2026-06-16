@@ -1,9 +1,9 @@
 // Project-level CRUD. UI layer talks to these, never to idb directly.
 
-import { parseProjectManifest } from "@ports";
+import { parseProjectManifest, StorageError } from "@ports";
 import type { LoadedProject } from "@ports";
 import { getDB } from "./db";
-import { MANIFEST_PATH, newProjectId, serializeManifest, uniquify } from "../storage-shared";
+import { MANIFEST_PATH, isProjectRow, newProjectId, serializeManifest, uniquify } from "../storage-shared";
 import type { Manifest, ProjectRow } from "./types";
 
 const enc = new TextEncoder();
@@ -40,9 +40,13 @@ export async function loadProject(id: string): Promise<LoadedProject | null> {
   const db = await getDB();
   const project = await db.get("projects", id);
   if (!project) return null;
+  // Quarantine a structurally-corrupt row instead of flowing it into typed
+  // state (ADR-0004): the manifest is validated below, but the row envelope
+  // wasn't until now.
+  if (!isProjectRow(project)) throw new StorageError(`corrupt project row: ${id}`);
   const files = await db.getAllFromIndex("files", "byProject", id);
   const manifestFile = files.find((f) => f.path === MANIFEST_PATH);
-  if (!manifestFile) throw new Error(`project ${id} missing ${MANIFEST_PATH}`);
+  if (!manifestFile) throw new StorageError(`project ${id} missing ${MANIFEST_PATH}`);
   const parsed = parseProjectManifest(JSON.parse(bytesToText(manifestFile.content)));
   if (!parsed.ok) throw parsed.error;
   return { project, manifest: parsed.value, files };
@@ -99,7 +103,7 @@ export async function renameProject(id: string, requestedName: string): Promise<
 
   const tx = db.transaction(["projects", "files"], "readwrite");
   const project = await tx.objectStore("projects").get(id);
-  if (!project) { await tx.done; throw new Error(`project ${id} not found`); }
+  if (!project) { await tx.done; throw new StorageError(`project ${id} not found`); }
   project.name = name;
   project.updatedAt = Date.now();
   await tx.objectStore("projects").put(project);
@@ -137,7 +141,7 @@ export async function deleteProject(id: string): Promise<void> {
 
 export async function duplicateProject(id: string, requestedName?: string): Promise<ProjectRow> {
   const loaded = await loadProject(id);
-  if (!loaded) throw new Error(`project ${id} not found`);
+  if (!loaded) throw new StorageError(`project ${id} not found`);
   const all = await listProjects();
   const taken = new Set(all.map((p) => p.name));
   const baseName = requestedName?.trim() || `${loaded.project.name} (copy)`;
@@ -155,7 +159,7 @@ export async function duplicateProject(id: string, requestedName?: string): Prom
 export async function createFile(projectId: string, path: string, content: Uint8Array = new Uint8Array()): Promise<void> {
   const db = await getDB();
   const existing = await db.get("files", [projectId, path]);
-  if (existing) throw new Error(`file exists: ${path}`);
+  if (existing) throw new StorageError(`file exists: ${path}`);
   await saveFile(projectId, path, content);
 }
 
@@ -166,9 +170,9 @@ export async function renameFile(projectId: string, oldPath: string, newPath: st
   const tx = db.transaction(["files", "projects"], "readwrite");
   const files = tx.objectStore("files");
   const target = await files.get([projectId, newPath]);
-  if (target) { await tx.done; throw new Error(`destination exists: ${newPath}`); }
+  if (target) { await tx.done; throw new StorageError(`destination exists: ${newPath}`); }
   const src = await files.get([projectId, oldPath]);
-  if (!src) { await tx.done; throw new Error(`source missing: ${oldPath}`); }
+  if (!src) { await tx.done; throw new StorageError(`source missing: ${oldPath}`); }
   await files.delete([projectId, oldPath]);
   await files.put({ projectId, path: newPath, content: src.content, updatedAt: Date.now() });
   const project = await tx.objectStore("projects").get(projectId);
@@ -191,7 +195,7 @@ export async function renameFolder(projectId: string, oldPrefix: string, newPref
       const candidate = newP + f.path.slice(oldP.length);
       if (all.some((x) => x.path === candidate && !x.path.startsWith(oldP))) {
         await tx.done;
-        throw new Error(`destination collision: ${candidate}`);
+        throw new StorageError(`destination collision: ${candidate}`);
       }
     }
   }
