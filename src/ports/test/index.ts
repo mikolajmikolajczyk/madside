@@ -3,6 +3,11 @@
 // plugins use and external authors reuse.
 export { assertToolchainPlugin, type ToolchainHarnessFixture } from './toolchain'
 export { assertEmulatorPlugin, type EmulatorHarnessOptions } from './emulator'
+export { assertMachinePlugin } from './machine'
+export { assertPanelPlugin } from './panel'
+export { assertDebugAdapterPlugin } from './debug-adapter'
+export { assertConverterPlugin } from './converter'
+export { assertEditorPlugin } from './editor'
 export {
   assertExactlyOneEvent,
   assertNoEvent,
