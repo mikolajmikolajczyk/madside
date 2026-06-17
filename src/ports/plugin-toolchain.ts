@@ -61,6 +61,17 @@ export interface ToolchainSnippet {
   template: string
 }
 
+/** A C library symbol a toolchain offers for autocomplete + hover in C sources
+ *  (cc65's conio / stdlib). Declarative — no CodeMirror dependency. */
+export interface ToolchainCSymbol {
+  /** Identifier as typed, e.g. `cputs`. */
+  readonly label: string
+  /** One-line signature shown alongside the completion, e.g. `void cputs(const char*)`. */
+  readonly detail?: string
+  /** Longer hover/info text. */
+  readonly info?: string
+}
+
 /** Editor-language metadata for a toolchain (epic 78b12bf). Declarative + lib-
  *  agnostic so toolchain plugins don't depend on CodeMirror. The 6502 opcodes
  *  come from the machine's CPU (@core/cpu); this carries the assembler-specific
@@ -74,6 +85,9 @@ export interface ToolchainLanguage {
   readonly lineComment: string | readonly string[]
   /** Editor snippets offered in autocomplete. */
   readonly snippets?: readonly ToolchainSnippet[]
+  /** C library symbols offered for autocomplete + hover in `.c`/`.h` sources
+   *  (cc65 conio + stdlib). Drives the C editor completion (#48). */
+  readonly cSymbols?: readonly ToolchainCSymbol[]
 }
 
 export interface ToolchainPlugin extends PluginBase {

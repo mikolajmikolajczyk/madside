@@ -240,10 +240,16 @@ async function loadLanguagePack(
     const { json } = await import("@codemirror/lang-json");
     return [json()];
   }
-  // C / C++ sources (cc65 projects, #47).
+  // C / C++ sources (cc65 projects, #47). Add the toolchain's C library
+  // completions + hover (cc65 conio/stdlib) when it provides them (#48).
   if (/\.(c|h|cc|cpp|hpp)$/.test(lower)) {
     const { cpp } = await import("@codemirror/lang-cpp");
-    return [cpp()];
+    const support = cpp();
+    if (toolchain?.cSymbols?.length) {
+      const { cLibraryExtensions } = await import("@ui/codemirror");
+      return [support, ...cLibraryExtensions(support, toolchain.cSymbols)];
+    }
+    return [support];
   }
   // Assembly: built from the active machine CPU + project toolchain language.
   return cpu && toolchain ? [buildAssemblyLanguage(cpu, toolchain)] : [];
