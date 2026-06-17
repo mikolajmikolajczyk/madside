@@ -350,11 +350,13 @@ export default function App() {
   const [dialog, setDialog] = useState<DialogKind>("none");
   const closeDialog = useCallback(() => setDialog("none"), []);
 
-  // "New project" returns to the welcome screen (existing projects + empty /
-  // templates / courses) instead of a bare name prompt.
-  const [showWelcome, setShowWelcome] = useState(false);
   const [paletteOpen, setPaletteOpen] = useState(false);
-  const handleNewProject = useCallback(() => setShowWelcome(true), []);
+  // Close the active project → the welcome hub (existing projects + empty /
+  // templates / courses). It's "close", not "new": the menu item led to the
+  // hub, not a fresh project, which misread as a create action.
+  const handleCloseProject = useCallback(() => {
+    if (project.loaded) void project.closeProject();
+  }, [project]);
   const handleRenameProject = useCallback(() => setDialog("renameProject"), []);
   const handleDuplicateProject = useCallback(() => setDialog("duplicateProject"), []);
   const handleDeleteProject = useCallback(() => setDialog("deleteProject"), []);
@@ -522,7 +524,7 @@ export default function App() {
   const getCmdCtx = useCallback(() => cmdCtxRef.current, []);
   useCommandShortcuts(workbench.commands, getCmdCtx);
 
-  if (showWelcome || !project.loaded) {
+  if (!project.loaded) {
     if (!project.loaded && project.error) {
       return (
         <div className="app app--loading">
@@ -545,7 +547,7 @@ export default function App() {
           projects={[...project.projects]
             .sort((a, b) => b.updatedAt - a.updatedAt)
             .map((p) => ({ id: p.id, name: p.name }))}
-          onOpen={(id) => { void project.switchProject(id); setShowWelcome(false); }}
+          onOpen={(id) => { void project.switchProject(id); }}
         />
       </Suspense>
     );
@@ -558,7 +560,7 @@ export default function App() {
         projects={project.projects}
         activeProjectId={project.projectId}
         activeProjectName={project.manifest.name}
-        onNewProject={handleNewProject}
+        onCloseProject={handleCloseProject}
         onSwitchProject={handleSwitchProject}
         onRenameProject={handleRenameProject}
         onDuplicateProject={handleDuplicateProject}

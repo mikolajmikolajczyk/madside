@@ -170,6 +170,14 @@ export function useProject(storage: StorageBackend, events?: EventBus) {
     reload();
   }, [reload, storage]);
 
+  // Close the active project: drop the URL pointer and reload, so the boot
+  // resolves to no project and the welcome hub shows. The project stays in
+  // storage — reopen it from the welcome's project list.
+  const closeProject = useCallback(async () => {
+    writeUrlProject(null);
+    reload();
+  }, [reload]);
+
   // New-project creation moved to the bundled 'empty' template
   // (instantiateTemplate in @app/templates) — one source of truth for a blank
   // project. App's File → New project routes through it.
@@ -430,6 +438,7 @@ export function useProject(storage: StorageBackend, events?: EventBus) {
     updateActive,
     projects,
     switchProject,
+    closeProject,
     renameProject: renameProjectAction,
     duplicateProject: duplicateProjectAction,
     deleteProject: deleteProjectAction,

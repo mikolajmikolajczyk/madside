@@ -17,8 +17,9 @@ export interface MenuBarProps {
   projects: ProjectRow[];
   activeProjectId: string;
   activeProjectName: string;
-  /** Return to the welcome screen (existing projects + new / templates / courses). */
-  onNewProject: () => void;
+  /** Close the active project → the welcome hub (existing projects + empty /
+   *  templates / courses). */
+  onCloseProject: () => void;
   onSwitchProject: (id: string) => void;
   onRenameProject: () => void;
   onDuplicateProject: () => void;
@@ -55,7 +56,7 @@ export function MenuBar(p: MenuBarProps) {
       <Menu>
         <MenuTrigger data-testid="menu.file">File</MenuTrigger>
         <MenuContent>
-          <MenuItem data-testid="menu.file.new" onSelect={p.onNewProject}>New project</MenuItem>
+          <MenuItem data-testid="menu.file.close" onSelect={p.onCloseProject}>Close project</MenuItem>
           <MenuItem data-testid="menu.file.save" onSelect={p.onAssemble} shortcut="Ctrl+S">Save</MenuItem>
           <MenuSeparator />
           <MenuItem data-testid="menu.file.rename" onSelect={p.onRenameProject}>Rename…</MenuItem>
