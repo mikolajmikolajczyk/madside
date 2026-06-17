@@ -5,7 +5,15 @@
 #
 # IMPORTANT: verify in a browser before shipping a new image. The CSP must allow
 # everything the app legitimately does:
-#   - 'wasm-unsafe-eval'  — Altirra / jsnes / MADS all WebAssembly.compile()
+#   - 'unsafe-eval'       — the Altirra core's Emscripten glue generates call
+#                           invokers with `new Function(...)` (DYNAMIC_EXECUTION).
+#                           'wasm-unsafe-eval' only permits WebAssembly.compile,
+#                           NOT the Function constructor, so it is insufficient
+#                           and the emulator fails with "kernel load failed: call
+#                           to Function() blocked by CSP". Dropping eval needs the
+#                           wasm rebuilt with -sDYNAMIC_EXECUTION=0 (deferred).
+#                           Marginal risk is low: the app already runs untrusted
+#                           plugin/converter JS via blob: dynamic import by design.
 #   - blob:               — project-local plugin loader (Blob-URL dynamic import)
 #                           and AudioWorklet
 #   - connect jsdelivr    — remote course fetch (data.jsdelivr.com listing,
@@ -25,7 +33,7 @@ compression = true
 [[advanced.headers]]
 source = "/**"
 [advanced.headers.headers]
-Content-Security-Policy = "default-src 'self'; script-src 'self' 'wasm-unsafe-eval' blob:; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self'; connect-src 'self' https://cdn.jsdelivr.net https://data.jsdelivr.com; worker-src 'self' blob:; object-src 'none'; base-uri 'self'; frame-ancestors 'none'; form-action 'self'"
+Content-Security-Policy = "default-src 'self'; script-src 'self' 'unsafe-eval' blob:; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self'; connect-src 'self' https://cdn.jsdelivr.net https://data.jsdelivr.com; worker-src 'self' blob:; object-src 'none'; base-uri 'self'; frame-ancestors 'none'; form-action 'self'"
 X-Content-Type-Options = "nosniff"
 Referrer-Policy = "strict-origin-when-cross-origin"
 
