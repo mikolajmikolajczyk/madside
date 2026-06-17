@@ -1,5 +1,5 @@
 import { useEffect, useRef } from "react";
-import { Compartment, EditorState, StateEffect, StateField, RangeSet, type Extension } from "@codemirror/state";
+import { Compartment, EditorState, StateEffect, StateField, RangeSet, type Extension, type Range } from "@codemirror/state";
 import { EditorView, keymap, lineNumbers, highlightActiveLine, Decoration, gutter, GutterMarker, type DecorationSet } from "@codemirror/view";
 import { defaultKeymap, history, historyKeymap, indentWithTab } from "@codemirror/commands";
 import { bracketMatching, syntaxHighlighting, HighlightStyle, indentUnit } from "@codemirror/language";
@@ -59,6 +59,9 @@ const theme = EditorView.theme(
     ".cm-addrGutter .cm-gutterElement": {
       padding: "0 6px",
       textAlign: "right",
+    },
+    ".cm-addrGutter .cm-equateValue": {
+      color: "var(--accent-amber)",
     },
     ".cm-tooltip.cm-tooltip-autocomplete": {
       background: "var(--bg-secondary)",
@@ -178,6 +181,7 @@ const lineAddrsField = StateField.define<Map<number, number>>({
 });
 
 const toHex4 = (n: number) => n.toString(16).toUpperCase().padStart(4, "0");
+const toHex2 = (n: number) => (n & 0xff).toString(16).toUpperCase().padStart(2, "0");
 
 class AddrMarker extends GutterMarker {
   readonly text: string;
@@ -190,6 +194,30 @@ class AddrMarker extends GutterMarker {
   }
 }
 const addrSpacer = new AddrMarker("FFFF");
+
+// Live byte value for an address equate (#34) — shown in the same gutter column
+// as the emitted code address, but on equate lines (which have no emitted addr),
+// dimmed in an accent colour to read as "current value, not address".
+class EquateValueMarker extends GutterMarker {
+  readonly value: number;
+  constructor(value: number) { super(); this.value = value; }
+  override eq(o: GutterMarker) { return o instanceof EquateValueMarker && o.value === this.value; }
+  override toDOM() {
+    const el = document.createElement("span");
+    el.className = "cm-equateValue";
+    el.textContent = "$" + toHex2(this.value);
+    return el;
+  }
+}
+
+const setEquateValues = StateEffect.define<Map<number, number>>();
+const equateValuesField = StateField.define<Map<number, number>>({
+  create() { return new Map(); },
+  update(map, tr) {
+    for (const e of tr.effects) if (e.is(setEquateValues)) return e.value;
+    return map;
+  },
+});
 
 // Language packs are loaded on demand. MADS (small + always needed) is the
 // synchronous default; JS / JSON modules are dynamically imported when the
@@ -263,6 +291,9 @@ interface Props {
   pcLine?: number | null;
   breakpointLines?: Set<number>;
   lineAddrs?: Map<number, number>;
+  /** Live byte values for address equates (`COLOR4 = $02C8`), keyed by 1-based
+   *  line — shown in the addr gutter while debugging (#34). Empty when idle. */
+  equateValues?: Map<number, number>;
   /** Inline build errors/warnings for this file — red squiggle + gutter +
    *  hover message (#29). Cleared when the next build passes (empty array). */
   diagnostics?: BuildDiagnostic[];
@@ -280,7 +311,7 @@ interface Props {
   onCursorLine?: (line: number) => void;
 }
 
-export function Editor({ value, onChange, filename, pcLine, breakpointLines, lineAddrs, diagnostics, projectLabels, cpuLanguage, toolchainLanguage, gotoTarget, onToggleBreakpoint, onSave, onViewReady, onJumpToLabel, onCursorLine }: Props) {
+export function Editor({ value, onChange, filename, pcLine, breakpointLines, lineAddrs, equateValues, diagnostics, projectLabels, cpuLanguage, toolchainLanguage, gotoTarget, onToggleBreakpoint, onSave, onViewReady, onJumpToLabel, onCursorLine }: Props) {
   const hostRef = useRef<HTMLDivElement>(null);
   const viewRef = useRef<EditorView | null>(null);
   const onChangeRef = useRef(onChange);
@@ -304,13 +335,20 @@ export function Editor({ value, onChange, filename, pcLine, breakpointLines, lin
           class: "cm-addrGutter",
           renderEmptyElements: true,
           markers: (view) => {
-            const map = view.state.field(lineAddrsField);
-            if (map.size === 0) return RangeSet.empty;
-            const ranges = [];
+            const addrs = view.state.field(lineAddrsField);
+            const values = view.state.field(equateValuesField);
+            if (addrs.size === 0 && values.size === 0) return RangeSet.empty;
+            const ranges: Range<GutterMarker>[] = [];
             const doc = view.state.doc;
-            for (const [line, addr] of map) {
+            for (const [line, addr] of addrs) {
               if (line < 1 || line > doc.lines) continue;
               ranges.push(new AddrMarker(toHex4(addr)).range(doc.line(line).from));
+            }
+            // Equate lines carry no emitted code address, so they never collide
+            // with the addr markers above — show the live byte value there (#34).
+            for (const [line, value] of values) {
+              if (line < 1 || line > doc.lines || addrs.has(line)) continue;
+              ranges.push(new EquateValueMarker(value).range(doc.line(line).from));
             }
             ranges.sort((a, b) => a.from - b.from);
             return RangeSet.of(ranges, true);
@@ -355,6 +393,7 @@ export function Editor({ value, onChange, filename, pcLine, breakpointLines, lin
         syntaxHighlighting(highlight),
         bpField,
         lineAddrsField,
+        equateValuesField,
         pcLineField,
         projectLabelsField,
         lintGutter(),
@@ -428,6 +467,7 @@ export function Editor({ value, onChange, filename, pcLine, breakpointLines, lin
     view.dispatch({
       effects: [
         setLineAddrs.of(new Map()),
+        setEquateValues.of(new Map()),
         setBreakpoints.of(new Set()),
         setPcLine.of(null),
       ],
@@ -459,6 +499,12 @@ export function Editor({ value, onChange, filename, pcLine, breakpointLines, lin
     if (!view) return;
     view.dispatch({ effects: setLineAddrs.of(lineAddrs ?? new Map()) });
   }, [lineAddrs]);
+
+  useEffect(() => {
+    const view = viewRef.current;
+    if (!view) return;
+    view.dispatch({ effects: setEquateValues.of(equateValues ?? new Map()) });
+  }, [equateValues]);
 
   useEffect(() => {
     const view = viewRef.current;

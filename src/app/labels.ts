@@ -79,6 +79,33 @@ export function scanFile(content: string, base: string, reserved: ReadonlySet<st
   return out;
 }
 
+// An equate of a label to a literal address: `COLOR4 = $02C8`, `screen = $80`,
+// `EOL = $9B`. Only pure numeric literals are matched — `FOO = BAR+1` and
+// `label = *` can't be resolved statically, so they're skipped.
+const EQUATE_RE = /^([A-Za-z_][A-Za-z0-9_]*)\s*=\s*(\$[0-9a-f]+|0x[0-9a-f]+|\d+)\s*(?:;.*)?$/i
+
+/** Scan a source buffer for address equates → `Map<lineNumber (1-based), addr>`.
+ *  Powers the editor gutter's live memory-value markers (#30 → #34): the runner
+ *  reads the byte at each address and shows it next to the line while debugging.
+ *  Pure + content-addressable, so the caller can memoise by file content. */
+export function scanEquates(content: string): Map<number, number> {
+  const lines = content.split(/\r?\n/)
+  const out = new Map<number, number>()
+  for (let i = 0; i < lines.length; i++) {
+    const m = EQUATE_RE.exec(lines[i].trim())
+    if (!m) continue
+    const lit = m[2]
+    const addr = /^\$/.test(lit)
+      ? parseInt(lit.slice(1), 16)
+      : /^0x/i.test(lit)
+        ? parseInt(lit.slice(2), 16)
+        : parseInt(lit, 10)
+    if (!Number.isFinite(addr) || addr < 0 || addr > 0xffff) continue
+    out.set(i + 1, addr)
+  }
+  return out
+}
+
 /** Scan a single source buffer and merge its labels into `out` (first wins). */
 export function scanFileLabels(
   content: string,

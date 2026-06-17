@@ -29,13 +29,14 @@ import { useSplitterWidth } from "./hooks/useSplitterWidth";
 import { useCommandShortcuts } from "./hooks/useCommandShortcuts";
 import { useBreakpointAddrs } from "./hooks/useBreakpointAddrs";
 import { useCursorMemory } from "./hooks/useCursorMemory";
+import { useEquateValues } from "./hooks/useEquateValues";
 import { usePluginEditor } from "./hooks/usePluginEditor";
 import { useProjectLabels } from "./hooks/useProjectLabels";
 import { useAutoAssemble } from "./hooks/useAutoAssemble";
 import { useRunStatus } from "./hooks/useRunStatus";
 import { useActiveMachine } from "./hooks/useActiveMachine";
 import { useWorkbench } from "@app";
-import { getCourse, openLesson, refreshCourseFromGitHub, resetLessonToStarter, runChecks } from "@app";
+import { getCourse, openLesson, refreshCourseFromGitHub, resetLessonToStarter, runChecks, scanEquates } from "@app";
 import type { CheckReport, CheckRunDeps } from "@app";
 import type { CourseCheck } from "@app";
 import "./App.css";
@@ -293,6 +294,20 @@ export default function App() {
     const base = activePath.split("/").pop();
     return all.filter((d) => d.file.split("/").pop() === base);
   }, [result, activePath]);
+
+  // Live memory values next to address equates (#34). Scan the open assembly
+  // file for `LABEL = $addr` lines; the hook then reads the byte at each address
+  // on every debug step / pause and feeds them to the editor gutter. Gated on an
+  // assembly file (toolchainLanguage present) — other editors have no equates —
+  // and on a live backend (the hook returns empty when not debugging).
+  const activeContent = project.loaded ? project.active.content : null;
+  const equateAddrs = useMemo(
+    () => (activeContent && toolchainLanguage
+      ? scanEquates(new TextDecoder().decode(activeContent))
+      : new Map<number, number>()),
+    [activeContent, toolchainLanguage],
+  );
+  const equateValues = useEquateValues(equateAddrs);
 
   const toggleBpRef = useRef<((path: string, line: number) => void) | null>(null);
   toggleBpRef.current = project.loaded ? project.toggleBreakpoint : null;
@@ -722,6 +737,7 @@ export default function App() {
                 pcLine={pcLine}
                 breakpointLines={breakpointLines}
                 lineAddrs={lineAddrs}
+                equateValues={equateValues}
                 diagnostics={editorDiagnostics}
                 projectLabels={projectLabels}
                 cpuLanguage={cpuLanguage}
