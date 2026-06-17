@@ -1,12 +1,5 @@
-import {
-  WASI,
-  File,
-  Directory,
-  OpenFile,
-  PreopenDirectory,
-  ConsoleStdout,
-  type Inode,
-} from "@bjorn3/browser_wasi_shim";
+import { WASI, File, OpenFile, ConsoleStdout } from "@bjorn3/browser_wasi_shim";
+import { createVfs, MemoryProvider, vfsToPreopen, readFromPreopen } from "@core/vfs";
 // Plugin-owned wasm asset — Vite content-hashes the URL (cache-busting) and
 // tracks it at build time, same as the Altirra core. Mirrors @adapters/emu's
 // `?url` import; this plugin just owns its binary instead of an adapter.
@@ -23,6 +16,7 @@ export interface AssembleResult {
 }
 
 const decoder = new TextDecoder();
+const encoder = new TextEncoder();
 
 export interface SourceFile {
   /** POSIX path within the project root, no leading slash. */
@@ -43,55 +37,6 @@ function loadMadsModule(): Promise<WebAssembly.Module> {
   return madsModulePromise;
 }
 
-const encoder = new TextEncoder();
-
-// Split a POSIX path into non-empty segments. Empty path → []; trailing /
-// stripped. Shared by placeFile + readFile.
-function splitPath(path: string): string[] {
-  return path.split("/").filter((p) => p.length > 0);
-}
-
-// Walk dirs, creating Directory inodes on the way. Returns the deepest dir.
-function mkdirP(root: Directory, dirs: string[]): Directory {
-  return dirs.reduce((dir, name) => {
-    const existing = dir.contents.get(name);
-    if (existing instanceof Directory) return existing;
-    const next = new Directory(new Map<string, Inode>());
-    dir.contents.set(name, next);
-    return next;
-  }, root);
-}
-
-// Walk dirs without creating. Returns undefined when any segment is missing
-// or shadowed by a non-Directory inode.
-function resolveDir(root: Directory, dirs: string[]): Directory | undefined {
-  let dir = root;
-  for (const name of dirs) {
-    const next = dir.contents.get(name);
-    if (!(next instanceof Directory)) return undefined;
-    dir = next;
-  }
-  return dir;
-}
-
-// Insert a file at a POSIX-style path into a Directory tree, creating subdirs as needed.
-function placeFile(root: Directory, path: string, data: Uint8Array) {
-  const parts = splitPath(path);
-  if (parts.length === 0) return;
-  const dir = mkdirP(root, parts.slice(0, -1));
-  dir.contents.set(parts[parts.length - 1]!, new File(data));
-}
-
-// Read a file by POSIX path from the Directory tree. Returns undefined if missing.
-function readFile(root: Directory, path: string): Uint8Array | undefined {
-  const parts = splitPath(path);
-  if (parts.length === 0) return undefined;
-  const dir = resolveDir(root, parts.slice(0, -1));
-  const leaf = dir?.contents.get(parts[parts.length - 1]!);
-  if (!(leaf instanceof File) || leaf.data.length === 0) return undefined;
-  return leaf.data;
-}
-
 export async function assemble(
   mainPath: string,
   files: SourceFile[],
@@ -99,27 +44,26 @@ export async function assemble(
 ): Promise<AssembleResult> {
   const module = await loadMadsModule();
 
-  const root = new PreopenDirectory(".", new Map<string, Inode>());
-  for (const f of files) {
-    const data = typeof f.content === "string" ? encoder.encode(f.content) : f.content;
-    placeFile(root.dir, f.path, data);
-  }
-  // Output placeholders next to main.
   const base = mainPath.replace(/\.(a65|asm)$/i, "");
   const outPath = `${base}.xex`;
   const lstPath = `${base}.lst`;
   const labPath = `${base}.lab`;
-  placeFile(root.dir, outPath, new Uint8Array());
-  placeFile(root.dir, lstPath, new Uint8Array());
-  placeFile(root.dir, labPath, new Uint8Array());
+
+  // Project sources as a single writable mount, materialised into the WASI
+  // preopen by the shared VFS bridge (ADR-0008) with the output files
+  // pre-created so MADS can open them.
+  const project = new MemoryProvider(
+    files.map((f) => [f.path, typeof f.content === "string" ? encoder.encode(f.content) : f.content] as const),
+  );
+  const vfs = createVfs([{ prefix: "", provider: project, ro: false }]);
+  const root = await vfsToPreopen(vfs, { outputs: [outPath, lstPath, labPath] });
 
   let stdout = "";
   let stderr = "";
 
   const args = ["mads", mainPath, `-o:${outPath}`, `-l:${lstPath}`, `-t:${labPath}`, ...extraArgs];
-  const env: string[] = [];
 
-  const wasi = new WASI(args, env, [
+  const wasi = new WASI(args, [], [
     new OpenFile(new File([])), // stdin
     ConsoleStdout.lineBuffered((m) => { stdout += m + "\n"; }),
     ConsoleStdout.lineBuffered((m) => { stderr += m + "\n"; }),
@@ -143,10 +87,9 @@ export async function assemble(
     }
   }
 
-  const xexBytes = readFile(root.dir, outPath);
-  const xex = xexBytes ? xexBytes.slice() : undefined;
-  const lstBytes = readFile(root.dir, lstPath);
-  const labBytes = readFile(root.dir, labPath);
+  const xex = readFromPreopen(root, outPath);
+  const lstBytes = readFromPreopen(root, lstPath);
+  const labBytes = readFromPreopen(root, labPath);
   const lst = lstBytes ? decoder.decode(lstBytes) : undefined;
   const lab = labBytes ? decoder.decode(labBytes) : undefined;
 
