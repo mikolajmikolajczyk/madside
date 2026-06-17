@@ -14,6 +14,38 @@ import type { ToolchainCSymbol } from "@ports";
 
 const escapeRe = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 
+// C keywords that look like identifiers in the scan but aren't completable defs.
+const C_KEYWORDS = new Set([
+  "if", "else", "for", "while", "do", "switch", "case", "return", "sizeof",
+  "void", "char", "int", "long", "short", "unsigned", "signed", "const",
+  "static", "struct", "union", "enum", "typedef", "extern", "register",
+]);
+
+/** Scan a C buffer for the user's own completable symbols — function/global
+ *  definitions (`type name(` / `type name =` / `type name;`) and `#define`s.
+ *  Regex, not a full parse, but dynamic + good enough; excludes library symbols
+ *  (offered separately) and keywords. */
+function scanBufferSymbols(
+  text: string,
+  libSymbols: Map<string, unknown>,
+): { label: string; type: string; detail: string }[] {
+  const out = new Map<string, string>(); // name → kind
+  // function definitions / prototypes: `... name(`
+  for (const m of text.matchAll(/\b([A-Za-z_]\w*)\s*\(/g)) {
+    const name = m[1]!;
+    if (!C_KEYWORDS.has(name) && !libSymbols.has(name)) out.set(name, "function");
+  }
+  // #define NAME
+  for (const m of text.matchAll(/^[ \t]*#\s*define\s+([A-Za-z_]\w*)/gm)) {
+    out.set(m[1]!, "constant");
+  }
+  return [...out].map(([label, type]) => ({
+    label,
+    type,
+    detail: type === "function" ? "in this file" : "macro",
+  }));
+}
+
 /** A change that adds `#include <header>` if the doc doesn't already include it,
  *  placed after the last existing #include (else at the top). */
 function includeInsert(state: EditorState, header: string): { from: number; insert: string } | null {
@@ -50,16 +82,22 @@ export function cLibraryExtensions(
   const completeC = (ctx: CompletionContext): CompletionResult | null => {
     const word = ctx.matchBefore(/[A-Za-z_][A-Za-z0-9_]*/);
     if (!word || (word.from === word.to && !ctx.explicit)) return null;
+    // Library symbols (with auto-#include) plus the buffer's own definitions, so
+    // a user's functions / macros complete alongside the cc65 stdlib (#48).
+    const buffer = scanBufferSymbols(ctx.state.doc.toString(), byLabel);
     return {
       from: word.from,
-      options: symbols.map((s) => ({
-        label: s.label,
-        type: "function",
-        // Header shown at a glance; the signature + doc go in the info popup.
-        detail: s.header,
-        info: [s.detail, s.info].filter(Boolean).join(" — ") || undefined,
-        apply: apply(s),
-      })),
+      options: [
+        ...symbols.map((s) => ({
+          label: s.label,
+          type: "function",
+          // Header shown at a glance; the signature + doc go in the info popup.
+          detail: s.header,
+          info: [s.detail, s.info].filter(Boolean).join(" — ") || undefined,
+          apply: apply(s),
+        })),
+        ...buffer,
+      ],
       validFor: /^[A-Za-z_][A-Za-z0-9_]*$/,
     };
   };
