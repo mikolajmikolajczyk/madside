@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { DEFAULT_DEBOUNCE_MS } from "@services";
 import { errorMessage } from "@ports";
 import type {
+  BuildDiagnostic,
   BuildInput,
   BuildResult,
   BuildService,
@@ -29,6 +30,8 @@ export interface AutoAssembleOutcome {
   xex?: Uint8Array;
   sourceMap?: SourceMap;
   labels?: Map<string, number>;
+  /** Inline error/warning markers for the editor (#29). */
+  diagnostics?: BuildDiagnostic[];
   stdout: string;
   stderr: string;
   exitCode: number;
@@ -49,6 +52,7 @@ const toOutcome = (r: BuildResult): AutoAssembleOutcome => ({
   xex: r.binary,
   sourceMap: r.sourceMap,
   labels: r.labels,
+  diagnostics: r.diagnostics,
   stdout: r.stdout,
   stderr: r.stderr,
   exitCode: 0,
@@ -96,6 +100,7 @@ export function useAutoAssemble({
       }
       const outcome: AutoAssembleOutcome = {
         ok: false,
+        diagnostics: built.error.diagnostics,
         stdout: "",
         stderr: built.error.stderr ?? built.error.message,
         exitCode: 1,

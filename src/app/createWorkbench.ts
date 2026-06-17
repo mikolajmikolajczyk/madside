@@ -111,6 +111,7 @@ const toolchainToBuildHook = (plugin: ToolchainPlugin): ToolchainAssembleFn =>
       stderr: out.stderr,
       sourceMap: out.sourceMap,
       labels: out.labels,
+      diagnostics: out.diagnostics,
       extras: out.extras,
       exitCode: out.exitCode,
     }

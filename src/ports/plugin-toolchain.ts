@@ -3,6 +3,7 @@
 // plugin; ca65 (NES, v1.0.0) and KickAssembler (C64) follow the same shape.
 
 import type { SourceMap } from './source-map'
+import type { BuildDiagnostic } from './diagnostics'
 import type { PluginBase } from './plugin-registry'
 
 export interface ToolchainFile {
@@ -38,6 +39,9 @@ export interface ToolchainBuildOutput {
   /** Parsed label dump — `name → address`. Toolchain plugin owns the parse so
    *  the workbench never sees raw `.lab` / `.sym` text. */
   labels?: Map<string, number>
+  /** Parsed error/warning locations (#29). Present on success too (warnings).
+   *  Toolchain plugin parses its own diagnostic format. */
+  diagnostics?: BuildDiagnostic[]
   /** Toolchain-specific extras passed through unchanged (raw listing text for
    *  editor download, etc.). */
   extras?: Record<string, unknown>

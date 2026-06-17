@@ -19,10 +19,19 @@ export abstract class WorkbenchError extends Error {
 export class BuildError extends WorkbenchError {
   readonly kind = 'build' as const
   readonly stderr?: string
+  /** Parsed error/warning locations from the toolchain (#29). Carried so the
+   *  editor can mark failing lines inline, not just print the exit code. */
+  readonly diagnostics?: import('./diagnostics').BuildDiagnostic[]
 
-  constructor(message: string, stderr?: string, cause?: unknown) {
+  constructor(
+    message: string,
+    stderr?: string,
+    cause?: unknown,
+    diagnostics?: import('./diagnostics').BuildDiagnostic[],
+  ) {
     super(message, cause)
     this.stderr = stderr
+    this.diagnostics = diagnostics
   }
 }
 

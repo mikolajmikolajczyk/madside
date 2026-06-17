@@ -6,11 +6,12 @@
 // declaration-merging block from any layer.
 
 import type { BuildResult } from './services/build-service'
+import type { BuildDiagnostic } from './diagnostics'
 
 export interface WorkbenchEvents {
   'build:start': { projectId: string }
   'build:done': { projectId: string; result: BuildResult }
-  'build:error': { projectId: string; message: string; stdout?: string; stderr?: string }
+  'build:error': { projectId: string; message: string; stdout?: string; stderr?: string; diagnostics?: BuildDiagnostic[] }
 
   'run:state': {
     status: 'idle' | 'loaded' | 'running' | 'paused' | 'crashed'

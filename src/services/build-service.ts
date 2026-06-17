@@ -1,4 +1,5 @@
 import type {
+  BuildDiagnostic,
   BuildError as BuildErrorType,
   BuildInput,
   BuildOptions,
@@ -35,6 +36,8 @@ export interface ToolchainAssembleResult {
   stderr: string
   sourceMap?: SourceMap
   labels?: Map<string, number>
+  /** Parsed error/warning locations (#29). Present on success too (warnings). */
+  diagnostics?: BuildDiagnostic[]
   /** Toolchain-specific extras forwarded to BuildResult.extras unchanged. */
   extras?: Record<string, unknown>
   exitCode: number
@@ -134,15 +137,22 @@ export function createBuildService(deps: BuildServiceDeps): BuildService {
 
       if (!assembleResult.ok || !assembleResult.binary) {
         const message = `assemble exit ${assembleResult.exitCode}`
-        const e = new BuildError(message, assembleResult.stderr || assembleResult.stdout)
+        const e = new BuildError(
+          message,
+          assembleResult.stderr || assembleResult.stdout,
+          undefined,
+          assembleResult.diagnostics,
+        )
         // Carry the assembler's output so the Output panel shows *where* it
         // failed, not just the exit code (#4). MADS prints diagnostics
-        // (file + line + message) to stdout, so include both streams.
+        // (file + line + message) to stdout, so include both streams. The
+        // structured `diagnostics` drive inline editor markers (#29).
         deps.events.emit('build:error', {
           projectId: input.projectId,
           message,
           stdout: assembleResult.stdout,
           stderr: assembleResult.stderr,
+          diagnostics: assembleResult.diagnostics,
         })
         log?.warn('build failed', { projectId: input.projectId, exit: assembleResult.exitCode })
         return err(e)
@@ -154,6 +164,7 @@ export function createBuildService(deps: BuildServiceDeps): BuildService {
         stderr: assembleResult.stderr,
         sourceMap: assembleResult.sourceMap,
         labels: assembleResult.labels,
+        diagnostics: assembleResult.diagnostics,
         extras: assembleResult.extras,
       }
 

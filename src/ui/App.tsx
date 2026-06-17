@@ -280,6 +280,20 @@ export default function App() {
     return sourceMap?.locToAddr.get(activePath) ?? new Map<number, number>();
   }, [sourceMap, activePath]);
 
+  // Inline build diagnostics for the active file (#29). The latest build result
+  // carries every diagnostic; filter to the open file so switching tabs shows
+  // that file's markers. Prefer exact path match (same scheme as the source
+  // map); fall back to basename only when nothing matches exactly, so a build
+  // that reports a bare filename still lights up the right editor.
+  const editorDiagnostics = useMemo(() => {
+    const all = result?.diagnostics ?? [];
+    if (all.length === 0) return [];
+    const exact = all.filter((d) => d.file === activePath);
+    if (exact.length > 0) return exact;
+    const base = activePath.split("/").pop();
+    return all.filter((d) => d.file.split("/").pop() === base);
+  }, [result, activePath]);
+
   const toggleBpRef = useRef<((path: string, line: number) => void) | null>(null);
   toggleBpRef.current = project.loaded ? project.toggleBreakpoint : null;
   const onToggleBreakpoint = useCallback((line: number) => {
@@ -691,6 +705,7 @@ export default function App() {
                 pcLine={pcLine}
                 breakpointLines={breakpointLines}
                 lineAddrs={lineAddrs}
+                diagnostics={editorDiagnostics}
                 projectLabels={projectLabels}
                 cpuLanguage={cpuLanguage}
                 toolchainLanguage={toolchainLanguage}

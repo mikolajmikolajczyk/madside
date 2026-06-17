@@ -6,6 +6,7 @@ import type { BuildError, Result } from '../errors'
 import type { ProjectManifestV2 } from '../project-manifest'
 import type { ProjectFile } from '../storage'
 import type { SourceMap } from '../source-map'
+import type { BuildDiagnostic } from '../diagnostics'
 
 export interface BuildOptions {
   /** Hard-cancel any in-flight build before starting this one. */
@@ -23,6 +24,8 @@ export interface BuildResult {
   sourceMap?: SourceMap
   /** Parsed label dump — `name → address`. Toolchain plugin owns the parse. */
   labels?: Map<string, number>
+  /** Error/warning locations the editor marks inline (#29). */
+  diagnostics?: BuildDiagnostic[]
   /** Toolchain-specific extras (e.g. raw listing for download). */
   extras?: Record<string, unknown>
 }

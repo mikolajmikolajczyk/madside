@@ -5,9 +5,10 @@ import { defaultKeymap, history, historyKeymap, indentWithTab } from "@codemirro
 import { bracketMatching, syntaxHighlighting, HighlightStyle, indentUnit } from "@codemirror/language";
 import { tags as t } from "@lezer/highlight";
 import { autocompletion, completionKeymap } from "@codemirror/autocomplete";
+import { lintGutter, setDiagnostics, type Diagnostic } from "@codemirror/lint";
 import { buildAssemblyLanguage, projectLabelsField, setProjectLabels } from "@ui/codemirror";
 import type { CpuLanguage, LabelInfo } from "@core";
-import type { ToolchainLanguage } from "@ports";
+import type { BuildDiagnostic, ToolchainLanguage } from "@ports";
 import "./Editor.css";
 
 const theme = EditorView.theme(
@@ -101,6 +102,23 @@ const theme = EditorView.theme(
       border: "1px solid var(--border-default)",
       boxShadow: "0 4px 12px rgba(0,0,0,0.6)",
     },
+    // Build diagnostics (#29). Lint tooltip + gutter markers, themed to match.
+    ".cm-tooltip.cm-tooltip-lint": {
+      background: "var(--bg-secondary)",
+      border: "1px solid var(--border-default)",
+      boxShadow: "0 4px 12px rgba(0,0,0,0.6)",
+    },
+    ".cm-diagnostic": {
+      fontFamily: "var(--font-mono)",
+      fontSize: "12px",
+      padding: "4px 8px",
+      borderLeftWidth: "4px",
+    },
+    ".cm-diagnostic-error": { borderLeftColor: "var(--accent-coral)" },
+    ".cm-diagnostic-warning": { borderLeftColor: "var(--accent-amber)" },
+    ".cm-lintRange-error": { backgroundPosition: "left bottom" },
+    ".cm-lint-marker-error": { color: "var(--accent-coral)" },
+    ".cm-lint-marker-warning": { color: "var(--accent-amber)" },
     ".cm-mads-preview": {
       display: "flex",
       flexDirection: "column",
@@ -245,6 +263,9 @@ interface Props {
   pcLine?: number | null;
   breakpointLines?: Set<number>;
   lineAddrs?: Map<number, number>;
+  /** Inline build errors/warnings for this file — red squiggle + gutter +
+   *  hover message (#29). Cleared when the next build passes (empty array). */
+  diagnostics?: BuildDiagnostic[];
   projectLabels?: Map<string, LabelInfo>;
   /** Active machine CPU vocabulary + project toolchain language — drive the
    *  assembly highlight / hover / autocomplete. */
@@ -259,7 +280,7 @@ interface Props {
   onCursorLine?: (line: number) => void;
 }
 
-export function Editor({ value, onChange, filename, pcLine, breakpointLines, lineAddrs, projectLabels, cpuLanguage, toolchainLanguage, gotoTarget, onToggleBreakpoint, onSave, onViewReady, onJumpToLabel, onCursorLine }: Props) {
+export function Editor({ value, onChange, filename, pcLine, breakpointLines, lineAddrs, diagnostics, projectLabels, cpuLanguage, toolchainLanguage, gotoTarget, onToggleBreakpoint, onSave, onViewReady, onJumpToLabel, onCursorLine }: Props) {
   const hostRef = useRef<HTMLDivElement>(null);
   const viewRef = useRef<EditorView | null>(null);
   const onChangeRef = useRef(onChange);
@@ -336,6 +357,7 @@ export function Editor({ value, onChange, filename, pcLine, breakpointLines, lin
         lineAddrsField,
         pcLineField,
         projectLabelsField,
+        lintGutter(),
         autocompletion(),
         EditorView.domEventHandlers({
           mousedown(e, view) {
@@ -443,6 +465,32 @@ export function Editor({ value, onChange, filename, pcLine, breakpointLines, lin
     if (!view) return;
     view.dispatch({ effects: setProjectLabels.of(projectLabels ?? new Map()) });
   }, [projectLabels]);
+
+  // Inline build diagnostics (#29). Map each toolchain diagnostic (1-based line,
+  // optional column) onto a document range and hand them to @codemirror/lint —
+  // squiggle on the text, marker in the lint gutter, message on hover. An empty
+  // array (passed after a clean build, or on file switch) clears the markers.
+  useEffect(() => {
+    const view = viewRef.current;
+    if (!view) return;
+    const doc = view.state.doc;
+    const cm: Diagnostic[] = [];
+    for (const d of diagnostics ?? []) {
+      if (d.line < 1 || d.line > doc.lines) continue;
+      const lineObj = doc.line(d.line);
+      let from: number;
+      if (d.column && d.column >= 1) {
+        from = Math.min(lineObj.from + (d.column - 1), lineObj.to);
+      } else {
+        // No column: underline from the first non-whitespace char to EOL.
+        const lead = lineObj.text.length - lineObj.text.trimStart().length;
+        from = lineObj.from + Math.min(lead, lineObj.text.length);
+      }
+      const to = lineObj.to > from ? lineObj.to : from;
+      cm.push({ from, to, severity: d.severity, message: d.message });
+    }
+    view.dispatch(setDiagnostics(view.state, cm));
+  }, [diagnostics]);
 
   useEffect(() => {
     const view = viewRef.current;

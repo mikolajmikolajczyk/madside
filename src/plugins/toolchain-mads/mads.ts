@@ -1,6 +1,7 @@
 import type { ToolchainBuildOutput, ToolchainPlugin } from '@ports'
 import { MADS_DIRECTIVES } from '@core'
 import { assemble, parseLabFile, parseSourceMap, type SourceFile } from './wasm-mads'
+import { parseMadsDiagnostics } from './diagnostics'
 
 // MADS toolchain — Tomasz Biela's 6502 assembler shipped as @adapters/wasm-mads
 // + the listing parser. Wrapped here as the first ToolchainPlugin so v0.5.0
@@ -73,6 +74,7 @@ export const madsToolchain: ToolchainPlugin = {
       if (typeof f.content === 'string') fileMap.set(f.path, f.content)
       else fileMap.set(f.path, decoder.decode(f.content))
     }
+    const diagnostics = parseMadsDiagnostics(r.stdout, r.stderr)
     if (!r.ok || !r.xex) {
       // MADS occasionally exits 0 even when it failed to emit a binary
       // (parse errors during pass 2, missing labels reported as warnings).
@@ -82,6 +84,7 @@ export const madsToolchain: ToolchainPlugin = {
         ok: false,
         stdout: r.stdout,
         stderr: r.stderr,
+        diagnostics,
         exitCode,
       }
     }
@@ -97,6 +100,7 @@ export const madsToolchain: ToolchainPlugin = {
       stderr: r.stderr,
       sourceMap: r.lst ? parseSourceMap(r.lst, { main: input.main, files: fileMap }) : undefined,
       labels,
+      diagnostics,
       extras: { lst: r.lst, lab: r.lab },
       exitCode: r.exitCode,
     }
