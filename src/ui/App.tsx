@@ -159,7 +159,7 @@ export default function App() {
   const sysrootProvider = useMemo(() => {
     if (!project.loaded) return undefined;
     const tp = workbench.plugins.get('toolchain', project.manifest.toolchain) as ToolchainPlugin | undefined;
-    return tp?.sysroot?.();
+    return tp?.sysroot?.(project.manifest.machine);
   }, [project, workbench]);
   const [systemFilesState, setSystemFiles] = useState<string[]>([]);
   useEffect(() => {

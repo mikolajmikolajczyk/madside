@@ -1,0 +1,6 @@
+{
+  "name": "Atari — Hello (C, cc65)",
+  "description": "Write Atari 8-bit programs in C. cc65 compiles main.c, ca65 assembles it, ld65 links against the bundled Atari runtime into a .xex — all in the browser. Runs on the Altirra core. Uses conio to print text.",
+  "machine": "atari-xl",
+  "order": 5
+}

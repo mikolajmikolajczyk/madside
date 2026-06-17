@@ -14,7 +14,8 @@ import type { PreopenDirectory } from "@bjorn3/browser_wasi_shim";
 import cc65WasmUrl from "./cc65.wasm?url";
 import ca65WasmUrl from "./ca65.wasm?url";
 import ld65WasmUrl from "./ld65.wasm?url";
-import sysrootZipUrl from "../nes-sysroot.zip?url";
+import nesSysrootZipUrl from "../nes-sysroot.zip?url";
+import atariSysrootZipUrl from "../atari-sysroot.zip?url";
 
 const encoder = new TextEncoder();
 
@@ -33,9 +34,23 @@ export interface Cc65BuildResult {
   exitCode: number;
 }
 
-// The sysroot zip is fetched + unzipped once and cached by the provider. Shared
-// between the build (mounted RO) and the file tree's system view (#50).
-export const nesSysroot = new ZipAssetProvider(sysrootZipUrl);
+// Per-target sysroot zips (cc65's bundled runtime + headers). Each provider is
+// lazy + cached; only the target being built/browsed is fetched + unzipped.
+// Shared between the build (mounted RO) and the file tree's system view (#50).
+const SYSROOT_URL: Record<string, string> = {
+  nes: nesSysrootZipUrl,
+  atari: atariSysrootZipUrl,
+};
+const sysrootProviders = new Map<string, ZipAssetProvider>();
+
+/** The read-only sysroot provider for a cc65 target, or undefined if unbundled. */
+export function sysrootFor(target: string): ZipAssetProvider | undefined {
+  const url = SYSROOT_URL[target];
+  if (!url) return undefined;
+  let p = sysrootProviders.get(target);
+  if (!p) { p = new ZipAssetProvider(url); sysrootProviders.set(target, p); }
+  return p;
+}
 
 // --- one WASI run of a tool over a shared preopen ----------------------------
 
@@ -75,14 +90,18 @@ async function runTool(
   return { stdout, stderr, exitCode };
 }
 
-const TARGET = "nes";
 const stem = (path: string) => path.replace(/\.[^./]+$/, "");
+const OUT_EXT: Record<string, string> = { nes: "nes", atari: "xex" };
 
-/** Compile + assemble + link a cc65 project into an iNES ROM. `main` selects the
- *  entry source (its stem names the output); every `.c` is compiled with cc65,
- *  every `.c`/`.s`/`.asm` is assembled with ca65, then ld65 links the objects
- *  against `nes.lib` using `nes.cfg`. */
-export async function buildCc65(main: string, files: Cc65File[]): Promise<Cc65BuildResult> {
+/** Compile + assemble + link a cc65 project for `target` (cc65 platform id).
+ *  `main`'s stem names the output; every `.c` is compiled with cc65, every
+ *  `.c`/`.s`/`.asm` is assembled with ca65, then ld65 links the objects against
+ *  `<target>.lib` using `<target>.cfg` from the bundled sysroot. */
+export async function buildCc65(main: string, files: Cc65File[], target = "nes"): Promise<Cc65BuildResult> {
+  const sysroot = sysrootFor(target);
+  if (!sysroot) {
+    return { ok: false, stdout: "", stderr: `cc65: no bundled sysroot for target '${target}'`, exitCode: 1 };
+  }
   const [cc65Mod, ca65Mod, ld65Mod] = await Promise.all([
     loadWasmModule(cc65WasmUrl),
     loadWasmModule(ca65WasmUrl),
@@ -94,16 +113,16 @@ export async function buildCc65(main: string, files: Cc65File[]): Promise<Cc65Bu
   const asmSources = new Set<string>(sources.filter((p) => /\.(s|asm)$/i.test(p)));
   for (const c of cFiles) asmSources.add(`${stem(c)}.s`);
   const objects = [...asmSources].map((s) => `${stem(s)}.o`);
-  const outPath = `${stem(main)}.nes`;
+  const outPath = `${stem(main)}.${OUT_EXT[target] ?? "bin"}`;
 
-  // Mount project sources (RW) over the read-only NES sysroot, materialise into
-  // the WASI preopen with the tool outputs pre-created so the tools can open them.
+  // Mount project sources (RW) over the read-only target sysroot, materialise
+  // into the WASI preopen with the tool outputs pre-created so tools can open them.
   const project = new MemoryProvider(
     files.map((f) => [f.path, typeof f.content === "string" ? encoder.encode(f.content) : f.content] as const),
   );
   const vfs = createVfs([
     { prefix: "", provider: project, ro: false },
-    { prefix: "", provider: nesSysroot, ro: true },
+    { prefix: "", provider: sysroot, ro: true },
   ]);
   const root = await vfsToPreopen(vfs, {
     outputs: [...cFiles.map((c) => `${stem(c)}.s`), ...objects, outPath],
@@ -120,20 +139,20 @@ export async function buildCc65(main: string, files: Cc65File[]): Promise<Cc65Bu
   // 1. cc65: every .c → .s
   for (const src of cFiles) {
     const code = collect("cc65", await runTool(cc65Mod, root,
-      ["cc65", "-O", "-t", TARGET, "-I", "include", "-o", `${stem(src)}.s`, src]));
+      ["cc65", "-O", "-t", target, "-I", "include", "-o", `${stem(src)}.s`, src]));
     if (code !== 0) return { ok: false, stdout, stderr, exitCode: code };
   }
 
   // 2. ca65: every .s (project + cc65-generated) → .o
   for (const src of asmSources) {
     const code = collect("ca65", await runTool(ca65Mod, root,
-      ["ca65", "-t", TARGET, "-I", "asminc", "-o", `${stem(src)}.o`, src]));
+      ["ca65", "-t", target, "-I", "asminc", "-o", `${stem(src)}.o`, src]));
     if (code !== 0) return { ok: false, stdout, stderr, exitCode: code };
   }
 
-  // 3. ld65: link objects + nes.lib → .nes
+  // 3. ld65: link objects + <target>.lib → output
   const linkCode = collect("ld65", await runTool(ld65Mod, root,
-    ["ld65", "-C", "nes.cfg", "-o", outPath, ...objects, "lib/nes.lib"]));
+    ["ld65", "-C", `${target}.cfg`, "-o", outPath, ...objects, `lib/${target}.lib`]));
   if (linkCode !== 0) return { ok: false, stdout, stderr, exitCode: linkCode };
 
   const binary = readFromPreopen(root, outPath);

@@ -26,6 +26,9 @@ export interface ToolchainBuildInput {
   /** Free-form options forwarded from the project manifest. Schema lives in
    *  the toolchain plugin docs. */
   options?: Record<string, unknown>
+  /** Active machine id (`manifest.machine`). A multi-target toolchain (cc65)
+   *  maps it to its compiler target + the matching sysroot. */
+  machine?: string
 }
 
 export interface ToolchainBuildOutput {
@@ -92,6 +95,7 @@ export interface ToolchainPlugin extends PluginBase {
   /** Optional read-only sysroot the toolchain mounts at build time — its bundled
    *  runtime/headers (cc65 ships `include/`, `lib/<target>.lib`, the linker cfg).
    *  Exposed so the same provider drives both the build and the file tree's
-   *  read-only "system" view (ADR-0008, #50). Absent ⇒ no bundled sysroot (MADS). */
-  sysroot?(): VfsProvider | undefined
+   *  read-only "system" view (ADR-0008, #50). `machine` selects the target's
+   *  sysroot for a multi-target toolchain. Absent ⇒ no bundled sysroot (MADS). */
+  sysroot?(machine?: string): VfsProvider | undefined
 }

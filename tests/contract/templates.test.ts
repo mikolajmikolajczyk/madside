@@ -15,12 +15,13 @@ describe('project templates', () => {
 
   it('lists the bundled templates with display metadata, ordered', () => {
     const list = listTemplates()
-    expect(list.map((t) => t.id)).toEqual(['atari-hello', 'nes-hello', 'nes-apu-hello', 'nes-c-hello', 'empty'])
+    expect(list.map((t) => t.id)).toEqual(['atari-hello', 'nes-hello', 'nes-apu-hello', 'nes-c-hello', 'atari-c-hello', 'empty'])
     expect(list[0]).toMatchObject({ machine: 'atari-xl', name: expect.stringContaining('Atari') })
     expect(list[1]).toMatchObject({ machine: 'nes' })
     expect(list[2]).toMatchObject({ id: 'nes-apu-hello', machine: 'nes' })
     expect(list[3]).toMatchObject({ id: 'nes-c-hello', machine: 'nes' })
-    expect(list[4]).toMatchObject({ id: 'empty', machine: 'atari-xl' })
+    expect(list[4]).toMatchObject({ id: 'atari-c-hello', machine: 'atari-xl' })
+    expect(list[5]).toMatchObject({ id: 'empty', machine: 'atari-xl' })
     expect(list[0]!.description.length).toBeGreaterThan(0)
   })
 

@@ -107,7 +107,10 @@ cc65_build_dir  := cc65_spike_dir / "build"
 wasi_sdk_dir    := cc65_build_dir / "wasi-sdk"
 cc65_src_dir    := cc65_build_dir / "cc65"
 cc65_out_dir    := justfile_directory() / "src/plugins/toolchain-ca65/wasm"
-cc65_sysroot_zip := justfile_directory() / "src/plugins/toolchain-ca65/nes-sysroot.zip"
+cc65_plugin_dir := justfile_directory() / "src/plugins/toolchain-ca65"
+# cc65 targets to build a sysroot for (one zip each). Add a target here + a row
+# in the plugin's CC65_TARGET / SYSROOT_URL maps to support another platform.
+cc65_targets    := "nes atari"
 
 # Pinned upstream — bump deliberately, then rebuild + smoke + commit the wasm.
 cc65_repo       := "https://github.com/cc65/cc65.git"
@@ -118,19 +121,23 @@ wasi_sdk_asset  := "wasi-sdk-33.0-x86_64-linux.tar.gz"
 # Full pipeline: fetch wasi-sdk, clone cc65, build the NES sysroot (native libs),
 # build the wasm tools, install + smoke. The NES sysroot step runs FIRST and
 # ends with `make clean` so the native + wasm builds don't share `wrk/` objects.
-build-cc65-wasm: fetch-wasi-sdk clone-cc65 build-nes-sysroot compile-cc65-wasm install-cc65-wasm verify-cc65-wasm
+build-cc65-wasm: fetch-wasi-sdk clone-cc65 build-sysroots compile-cc65-wasm install-cc65-wasm verify-cc65-wasm
 
-# Build the NES C runtime (nes.lib + nes.cfg + headers) with NATIVE cc65, then
-# zip it as the in-browser WASI sysroot the toolchain plugin mounts. Native
-# build is fine — the libs are target (6502) artifacts, host-independent.
-build-nes-sysroot:
+# Build each target's C runtime (<t>.lib + <t>.cfg + the shared headers) with
+# NATIVE cc65, then zip it as the in-browser WASI sysroot the toolchain plugin
+# mounts (one zip per target → `<t>-sysroot.zip`). Native build is fine — the
+# libs are 6502 artifacts, host-independent. Runs FIRST and ends with `make
+# clean` so the native + wasm builds don't share `wrk/` objects.
+build-sysroots:
     cd "{{cc65_src_dir}}" && make clean >/dev/null 2>&1 || true
     cd "{{cc65_src_dir}}" && make -C src -j4
-    cd "{{cc65_src_dir}}" && mkdir -p lib && make -C libsrc nes -j4
-    rm -f "{{cc65_sysroot_zip}}"
-    mkdir -p "$(dirname "{{cc65_sysroot_zip}}")"
-    python3 "{{cc65_spike_dir}}/make-sysroot-zip.py" "{{cc65_src_dir}}" "{{cc65_sysroot_zip}}"
-    @echo "sysroot → {{cc65_sysroot_zip}}"; ls -lh "{{cc65_sysroot_zip}}"
+    cd "{{cc65_src_dir}}" && mkdir -p lib && make -C libsrc {{cc65_targets}} -j4
+    for t in {{cc65_targets}}; do \
+        out="{{cc65_plugin_dir}}/$t-sysroot.zip"; \
+        rm -f "$out"; \
+        python3 "{{cc65_spike_dir}}/make-sysroot-zip.py" "{{cc65_src_dir}}" "$t" "$out"; \
+    done
+    @ls -lh "{{cc65_plugin_dir}}/"*-sysroot.zip
     cd "{{cc65_src_dir}}" && make clean >/dev/null 2>&1 || true
 
 # Download + extract wasi-sdk (clang + wasi-libc sysroot). Idempotent.

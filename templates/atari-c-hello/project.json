@@ -1,0 +1,8 @@
+{
+  "version": 2,
+  "name": "atari-c-hello",
+  "main": "src/main.c",
+  "machine": "atari-xl",
+  "toolchain": "cc65",
+  "run": { "default": { "audio": false } }
+}

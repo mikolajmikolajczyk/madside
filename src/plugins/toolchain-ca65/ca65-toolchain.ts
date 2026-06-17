@@ -1,6 +1,15 @@
 import type { BuildDiagnostic, ToolchainBuildOutput, ToolchainPlugin } from '@ports'
 import type { VfsProvider } from '@core/vfs'
-import { buildCc65, nesSysroot, type Cc65File } from './wasm/cc65-wasm'
+import { buildCc65, sysrootFor, type Cc65File } from './wasm/cc65-wasm'
+
+// madside machine id → cc65 compiler target (`-t`). The same id selects the
+// bundled sysroot. Add a row here + bundle that target's sysroot zip to support
+// another platform (#52).
+const CC65_TARGET: Record<string, string> = {
+  nes: 'nes',
+  'atari-xl': 'atari',
+}
+const targetFor = (machine?: string) => CC65_TARGET[machine ?? ''] ?? 'nes'
 
 // cc65 toolchain — the C compiler + ca65 assembler + ld65 linker for the 6502,
 // shipped as WASI wasm (see wasm/cc65-wasm.ts). Second ToolchainPlugin after
@@ -37,17 +46,20 @@ export const cc65Toolchain: ToolchainPlugin = {
   name: 'cc65 (C / ca65 / ld65)',
   // C plus the ca65 assembly family; headers/includes travel with the project.
   inputExt: ['c', 's', 'asm', 'h', 'inc'],
+  // Output extension varies by target (.nes / .xex); outputExt is the common
+  // default. The build picks the real extension from the target.
   outputExt: 'nes',
 
-  // The bundled NES C runtime + headers (read-only). Same provider the build
-  // mounts, so the file tree's system view (#50) shows exactly what links.
-  sysroot(): VfsProvider {
-    return nesSysroot
+  // The bundled C runtime + headers (read-only) for the active machine's target.
+  // Same provider the build mounts, so the file tree's system view (#50) shows
+  // exactly what links.
+  sysroot(machine?: string): VfsProvider | undefined {
+    return sysrootFor(targetFor(machine))
   },
 
   async build(input): Promise<ToolchainBuildOutput> {
     const files: Cc65File[] = input.files.map((f) => ({ path: f.path, content: f.content }))
-    const r = await buildCc65(input.main, files)
+    const r = await buildCc65(input.main, files, targetFor(input.machine))
     const diagnostics = parseDiagnostics(r.stdout, r.stderr)
     if (!r.ok || !r.binary) {
       return {
