@@ -7,6 +7,14 @@
   min-height: 0;
 }
 
+/* Drag-and-drop import target (#31): highlight the whole pane while a file is
+   dragged over it. */
+.explorer--dragover {
+  outline: 2px dashed var(--accent-mint);
+  outline-offset: -2px;
+  background: var(--bg-tertiary);
+}
+
 .explorer__header {
   padding: 8px 10px;
   border-bottom: 1px solid var(--border-default);

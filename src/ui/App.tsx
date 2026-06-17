@@ -563,6 +563,23 @@ export default function App() {
     return () => { for (const d of disposers) d(); };
   }, [workbench]);
 
+  // Swallow external *file* drops that miss the Explorer's import dropzone (#31)
+  // so the browser doesn't navigate away to the dropped file and blow away app
+  // state. Gated on a Files payload so it never interferes with in-app drags
+  // (e.g. CodeMirror's drag-to-move-text, which carries text/* not Files). The
+  // Explorer's own onDrop still handles drops landing on the Files pane.
+  useEffect(() => {
+    const prevent = (e: DragEvent) => {
+      if (e.dataTransfer?.types.includes("Files")) e.preventDefault();
+    };
+    window.addEventListener("dragover", prevent);
+    window.addEventListener("drop", prevent);
+    return () => {
+      window.removeEventListener("dragover", prevent);
+      window.removeEventListener("drop", prevent);
+    };
+  }, []);
+
   const activeProjectId = project.loaded ? project.projectId : undefined;
   const cmdCtx = useMemo<CommandContext>(() => ({ projectId: activeProjectId }), [activeProjectId]);
   const cmdCtxRef = useRef<CommandContext>(cmdCtx);
@@ -668,6 +685,7 @@ export default function App() {
               mainPath={project.manifest.main}
               onSelect={project.setActivePath}
               onCreateFile={project.createFile}
+              onImportFile={project.createFile}
               onCreateFolder={project.createFolder}
               onRenameFile={project.renameFile}
               onRenameFolder={project.renameFolder}

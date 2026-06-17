@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { basename, dirname as parentDir } from "@core/path";
 import { FileTree } from "./FileTree";
 import { TextPromptDialog, ConfirmDialog } from "../ui/Dialog";
@@ -16,6 +16,9 @@ interface Props {
   mainPath?: string;
   onSelect: (path: string) => void;
   onCreateFile: (path: string, content?: string) => Promise<unknown>;
+  /** Import a raw file from outside the project (upload / drag-drop). Binary-
+   *  safe — bytes are stored verbatim so PNG/bin survive intact (#31). */
+  onImportFile: (path: string, bytes: Uint8Array) => Promise<unknown>;
   onCreateFolder: (path: string) => Promise<unknown>;
   onRenameFile: (oldPath: string, newPath: string) => Promise<unknown>;
   onRenameFolder: (oldPrefix: string, newPrefix: string) => Promise<unknown>;
@@ -39,6 +42,39 @@ export function Explorer(props: Props) {
   const toast = useToast();
   const [dialog, setDialog] = useState<DialogState>({ kind: "none" });
   const close = () => setDialog({ kind: "none" });
+
+  const importInputRef = useRef<HTMLInputElement>(null);
+  const [dragOver, setDragOver] = useState(false);
+
+  // Import one or more external files into `dir` (root by default). Binary-safe;
+  // collisions get a `-N` suffix so an import never clobbers an existing file.
+  const importFiles = async (fileList: FileList | File[], dir = "") => {
+    const list = Array.from(fileList);
+    if (list.length === 0) return;
+    const taken = new Set(props.files.map((f) => f.path));
+    let firstPath: string | null = null;
+    let count = 0;
+    for (const file of list) {
+      const path = uniquePath(taken, dir, sanitizeName(file.name));
+      taken.add(path);
+      try {
+        const bytes = new Uint8Array(await file.arrayBuffer());
+        await props.onImportFile(path, bytes);
+        if (!firstPath) firstPath = path;
+        count++;
+      } catch (e) {
+        toast.error(e);
+      }
+    }
+    if (firstPath) props.onSelect(firstPath);
+    if (count > 0) toast.push("info", `Imported ${count} file${count > 1 ? "s" : ""}`);
+  };
+
+  const onDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    setDragOver(false);
+    if (e.dataTransfer.files.length > 0) void importFiles(e.dataTransfer.files);
+  };
 
   // Default template for context-menu "New file" — first entry in the registry.
   const defaultTemplate: FileTemplate = TEMPLATES[0];
@@ -72,10 +108,33 @@ export function Explorer(props: Props) {
     : "";
 
   return (
-    <aside className="explorer">
+    <aside
+      className={`explorer${dragOver ? " explorer--dragover" : ""}`}
+      onDragOver={(e) => { e.preventDefault(); if (!dragOver) setDragOver(true); }}
+      onDragLeave={(e) => { if (e.currentTarget === e.target) setDragOver(false); }}
+      onDrop={onDrop}
+    >
+      <input
+        ref={importInputRef}
+        type="file"
+        multiple
+        hidden
+        onChange={(e) => {
+          const files = e.target.files;
+          e.target.value = "";
+          if (files) void importFiles(files);
+        }}
+      />
       <div className="explorer__header">
         <span className="explorer__label label">Files</span>
         <div className="explorer__actions">
+          <Tip label="Import file" side="bottom">
+            <button
+              className="explorer__iconbtn"
+              onClick={() => importInputRef.current?.click()}
+              aria-label="Import file"
+            >↥</button>
+          </Tip>
           <Menu>
             <Tip label="New file" side="bottom">
               <MenuTrigger className="explorer__iconbtn" aria-label="New file">+f</MenuTrigger>
@@ -191,6 +250,27 @@ export function Explorer(props: Props) {
       />
     </aside>
   );
+}
+
+// Browsers hand back a bare filename, but be defensive: strip any path parts and
+// characters that don't belong in a project path.
+function sanitizeName(name: string): string {
+  const base = name.split(/[\\/]/).pop() ?? name;
+  return base.replace(/[^A-Za-z0-9._-]/g, "_") || "imported";
+}
+
+// First free `dir/name`, suffixing `-1`, `-2`, … before the extension on
+// collision so an import never overwrites an existing file.
+function uniquePath(taken: ReadonlySet<string>, dir: string, name: string): string {
+  let candidate = joinPath(dir, name);
+  if (!taken.has(candidate)) return candidate;
+  const dot = name.lastIndexOf(".");
+  const stem = dot > 0 ? name.slice(0, dot) : name;
+  const ext = dot > 0 ? name.slice(dot) : "";
+  for (let i = 1; ; i++) {
+    candidate = joinPath(dir, `${stem}-${i}${ext}`);
+    if (!taken.has(candidate)) return candidate;
+  }
 }
 
 function suggestDup(path: string): string {
