@@ -68,15 +68,16 @@ jobs:
           fetch-depth: 0
 
       # Secret scan. Free for personal/public repos (no license key needed).
+      # Pinned to a commit SHA (Dependabot github-actions ecosystem bumps it).
       - name: gitleaks
-        uses: gitleaks/gitleaks-action@v2
+        uses: gitleaks/gitleaks-action@dcedce43c6f43de0b836d1fe38946645c9c638dc # v2
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       # Dependency + IaC scan: fails the job on HIGH/CRITICAL findings. Mirrors
       # the manual pre-commit trivy hook so CI catches what local runs skip.
       - name: trivy fs
-        uses: aquasecurity/trivy-action@0.28.0
+        uses: aquasecurity/trivy-action@a9c7b0f06e461e9d4b4d1711f154ee024b8d7ab8 # v0.36.0
         with:
           scan-type: fs
           scan-ref: .
