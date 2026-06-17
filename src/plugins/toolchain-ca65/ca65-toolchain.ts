@@ -50,6 +50,31 @@ export const cc65Toolchain: ToolchainPlugin = {
   // default. The build picks the real extension from the target.
   outputExt: 'nes',
 
+  // ca65 editor language for .s sources (#47). Directives are bare words — the
+  // editor's assembly highlighter strips the leading '.', so `.segment` matches
+  // `segment` here. The 6502 opcode set comes from the machine CPU.
+  language: {
+    directives: [
+      'segment', 'code', 'data', 'bss', 'rodata', 'zeropage', 'org', 'reloc',
+      'proc', 'endproc', 'scope', 'endscope', 'macro', 'endmacro', 'mac', 'endmac',
+      'struct', 'endstruct', 'union', 'endunion', 'enum', 'endenum',
+      'byte', 'word', 'dword', 'addr', 'res', 'asciiz', 'dbyt',
+      'import', 'importzp', 'export', 'exportzp', 'global', 'globalzp',
+      'include', 'incbin', 'if', 'ifdef', 'ifndef', 'ifblank', 'ifnblank',
+      'else', 'elseif', 'endif', 'repeat', 'endrepeat', 'endrep',
+      'define', 'undefine', 'setcpu', 'feature', 'align', 'assert',
+      'error', 'warning', 'out', 'tag', 'local', 'case', 'charmap',
+      'a8', 'a16', 'i8', 'i16', 'p02', 'p816', 'autoimport', 'debuginfo',
+      'forceimport', 'macpack', 'condes', 'pushseg', 'popseg',
+    ],
+    lineComment: ';',
+    snippets: [
+      { label: 'proc', detail: 'ca65 procedure', template: '.proc ${1:name}\n        ${2:; body}\n        rts\n.endproc\n' },
+      { label: 'segment', detail: 'segment directive', template: '.segment "${1:CODE}"\n' },
+      { label: 'macro', detail: 'ca65 macro', template: '.macro ${1:name}${2:, arg}\n        ${3:; body}\n.endmacro\n' },
+    ],
+  },
+
   // The bundled C runtime + headers (read-only) for the active machine's target.
   // Same provider the build mounts, so the file tree's system view (#50) shows
   // exactly what links.

@@ -240,6 +240,11 @@ async function loadLanguagePack(
     const { json } = await import("@codemirror/lang-json");
     return [json()];
   }
+  // C / C++ sources (cc65 projects, #47).
+  if (/\.(c|h|cc|cpp|hpp)$/.test(lower)) {
+    const { cpp } = await import("@codemirror/lang-cpp");
+    return [cpp()];
+  }
   // Assembly: built from the active machine CPU + project toolchain language.
   return cpu && toolchain ? [buildAssemblyLanguage(cpu, toolchain)] : [];
 }
