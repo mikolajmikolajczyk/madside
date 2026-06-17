@@ -5,6 +5,7 @@
 import type { SourceMap } from './source-map'
 import type { BuildDiagnostic } from './diagnostics'
 import type { PluginBase } from './plugin-registry'
+import type { VfsProvider } from '@core/vfs'
 
 export interface ToolchainFile {
   /** POSIX path relative to project root. Same shape as ProjectFile but
@@ -88,4 +89,9 @@ export interface ToolchainPlugin extends PluginBase {
   /** Run the build. Plugin is responsible for cancellation handling if its
    *  internal pipeline is long-running. */
   build(input: ToolchainBuildInput): Promise<ToolchainBuildOutput>
+  /** Optional read-only sysroot the toolchain mounts at build time — its bundled
+   *  runtime/headers (cc65 ships `include/`, `lib/<target>.lib`, the linker cfg).
+   *  Exposed so the same provider drives both the build and the file tree's
+   *  read-only "system" view (ADR-0008, #50). Absent ⇒ no bundled sysroot (MADS). */
+  sysroot?(): VfsProvider | undefined
 }

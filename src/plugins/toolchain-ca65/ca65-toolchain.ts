@@ -1,5 +1,6 @@
 import type { BuildDiagnostic, ToolchainBuildOutput, ToolchainPlugin } from '@ports'
-import { buildCc65, type Cc65File } from './wasm/cc65-wasm'
+import type { VfsProvider } from '@core/vfs'
+import { buildCc65, nesSysroot, type Cc65File } from './wasm/cc65-wasm'
 
 // cc65 toolchain — the C compiler + ca65 assembler + ld65 linker for the 6502,
 // shipped as WASI wasm (see wasm/cc65-wasm.ts). Second ToolchainPlugin after
@@ -37,6 +38,12 @@ export const cc65Toolchain: ToolchainPlugin = {
   // C plus the ca65 assembly family; headers/includes travel with the project.
   inputExt: ['c', 's', 'asm', 'h', 'inc'],
   outputExt: 'nes',
+
+  // The bundled NES C runtime + headers (read-only). Same provider the build
+  // mounts, so the file tree's system view (#50) shows exactly what links.
+  sysroot(): VfsProvider {
+    return nesSysroot
+  },
 
   async build(input): Promise<ToolchainBuildOutput> {
     const files: Cc65File[] = input.files.map((f) => ({ path: f.path, content: f.content }))

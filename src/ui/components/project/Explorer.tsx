@@ -1,6 +1,7 @@
 import { useRef, useState } from "react";
 import { basename, dirname as parentDir } from "@core/path";
 import { FileTree } from "./FileTree";
+import { SystemTree } from "./SystemTree";
 import { TextPromptDialog, ConfirmDialog } from "../ui/Dialog";
 import { Tip } from "../ui/Tooltip";
 import { useToast } from "../ui/Toast";
@@ -26,6 +27,11 @@ interface Props {
   onDeleteFolder: (prefix: string) => Promise<unknown>;
   onDuplicateFile: (path: string, newPath: string) => Promise<unknown>;
   onSetMain: (path: string) => Promise<unknown>;
+  /** Read-only sysroot files of the active toolchain (#50) — bundled runtime +
+   *  headers a user may #include. Shown in a collapsed, non-editable section. */
+  systemFiles?: string[];
+  activeSystem?: string;
+  onSelectSystemFile?: (path: string) => void;
 }
 
 type DialogState =
@@ -168,6 +174,15 @@ export function Explorer(props: Props) {
         onDuplicate={handleDuplicate}
         onSetMain={(p) => { void props.onSetMain(p); }}
       />
+
+      {props.systemFiles && props.systemFiles.length > 0 && props.onSelectSystemFile && (
+        <SystemTree
+          label="toolchain (system)"
+          files={props.systemFiles}
+          activePath={props.activeSystem}
+          onSelect={props.onSelectSystemFile}
+        />
+      )}
 
       <TextPromptDialog
         open={dialog.kind === "newFile"}

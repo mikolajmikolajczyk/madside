@@ -4,6 +4,7 @@ import { MenuBar } from "./components/layout/MenuBar";
 import { DebugBar } from "./components/layout/DebugBar";
 import { StatusBar } from "./components/layout/StatusBar";
 import { Explorer } from "./components/project/Explorer";
+import { SystemFileView } from "./components/editor/SystemFileView";
 import { Splitter } from "./components/layout/Splitter";
 const Editor = lazy(() => import("./components/editor/Editor").then((m) => ({ default: m.Editor })));
 const AssetPanel = lazy(() => import("./components/asset/AssetPanel").then((m) => ({ default: m.AssetPanel })));
@@ -152,6 +153,34 @@ export default function App() {
     const tp = workbench.plugins.get('toolchain', project.manifest.toolchain) as ToolchainPlugin | undefined;
     return tp?.language;
   }, [project, workbench]);
+
+  // Active toolchain's read-only sysroot (bundled runtime + headers), surfaced
+  // in the file tree so users can browse what they may #include (#50, ADR-0008).
+  const sysrootProvider = useMemo(() => {
+    if (!project.loaded) return undefined;
+    const tp = workbench.plugins.get('toolchain', project.manifest.toolchain) as ToolchainPlugin | undefined;
+    return tp?.sysroot?.();
+  }, [project, workbench]);
+  const [systemFilesState, setSystemFiles] = useState<string[]>([]);
+  useEffect(() => {
+    // No sync clear here (set-state-in-effect, #28); the derived value below
+    // returns [] when there's no provider.
+    if (!sysrootProvider) return;
+    let cancelled = false;
+    void sysrootProvider.list().then((f) => { if (!cancelled) setSystemFiles(f); }).catch(() => {});
+    return () => { cancelled = true; };
+  }, [sysrootProvider]);
+  const systemFiles = sysrootProvider ? systemFilesState : [];
+
+  // A sysroot file opened read-only — kept apart from the project's active file
+  // so it never enters storage or the breakpoint / source-map model.
+  const [viewSystemFile, setViewSystemFile] = useState<{ path: string; text: string } | null>(null);
+  const openSystemFile = useCallback((path: string) => {
+    if (!sysrootProvider) return;
+    void sysrootProvider.read(path).then((bytes) => {
+      setViewSystemFile({ path, text: bytes ? new TextDecoder().decode(bytes) : "" });
+    });
+  }, [sysrootProvider]);
 
   const projectLabels = useProjectLabels(
     project.loaded ? project.files : null,
@@ -698,9 +727,9 @@ export default function App() {
           const explorerEl = (
             <Explorer
               files={project.files}
-              active={project.activePath}
+              active={viewSystemFile ? "" : project.activePath}
               mainPath={project.manifest.main}
-              onSelect={project.setActivePath}
+              onSelect={(p) => { setViewSystemFile(null); project.setActivePath(p); }}
               onCreateFile={project.createFile}
               onImportFile={project.createFile}
               onCreateFolder={project.createFolder}
@@ -710,6 +739,9 @@ export default function App() {
               onDeleteFolder={project.deleteFolder}
               onDuplicateFile={project.duplicateFile}
               onSetMain={project.setMainFile}
+              systemFiles={systemFiles}
+              activeSystem={viewSystemFile?.path}
+              onSelectSystemFile={openSystemFile}
             />
           );
           const course = project.manifest.course;
@@ -733,7 +765,13 @@ export default function App() {
         })()}
         <Splitter onResize={(dx) => setExplorerW((w) => clampExplorer(w + dx))} />
         <main className="app__main" data-focus-region="editor">
-          {activeEditorModule ? (
+          {viewSystemFile ? (
+            <SystemFileView
+              path={viewSystemFile.path}
+              text={viewSystemFile.text}
+              onClose={() => setViewSystemFile(null)}
+            />
+          ) : activeEditorModule ? (
             <Suspense fallback={<div className="app__loading">loading editor…</div>}>
               <PluginEditor
                 module={activeEditorModule}

@@ -48,8 +48,9 @@ function loadModule(url: string): Promise<WebAssembly.Module> {
   return p;
 }
 
-// The sysroot zip is fetched + unzipped once and cached by the provider.
-const sysroot = new ZipAssetProvider(sysrootZipUrl);
+// The sysroot zip is fetched + unzipped once and cached by the provider. Shared
+// between the build (mounted RO) and the file tree's system view (#50).
+export const nesSysroot = new ZipAssetProvider(sysrootZipUrl);
 
 // --- one WASI run of a tool over a shared preopen ----------------------------
 
@@ -117,7 +118,7 @@ export async function buildCc65(main: string, files: Cc65File[]): Promise<Cc65Bu
   );
   const vfs = createVfs([
     { prefix: "", provider: project, ro: false },
-    { prefix: "", provider: sysroot, ro: true },
+    { prefix: "", provider: nesSysroot, ro: true },
   ]);
   const root = await vfsToPreopen(vfs, {
     outputs: [...cFiles.map((c) => `${stem(c)}.s`), ...objects, outPath],
