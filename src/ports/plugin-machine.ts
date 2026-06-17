@@ -48,6 +48,12 @@ export interface DeviceDescriptor {
   ioRange?: { start: number; end: number }
 }
 
+/** Executable address span of a loaded program (#30). Inclusive bounds. */
+export interface ProgramLoadRange {
+  lo: number
+  hi: number
+}
+
 /** A named address space beyond the CPU bus. The CPU space ('cpu') is implicit
  *  and always present — this declares the *extra* spaces a machine exposes for
  *  inspection (NES PPU VRAM + OAM, C64 VIC, …). A backend's `readMem(addr,
@@ -153,4 +159,12 @@ export interface MachinePlugin extends PluginBase {
   /** Media-format table — populated when the emulator can load more than
    *  one file format. Workbench dispatches load() through these hooks. */
   readonly media?: MachineMedia
+  /** Optional: parse the loaded program's executable address range from a built
+   *  binary, so the headless check-runner can wait out OS cold-boot before
+   *  counting `afterFrames` (#30) — the PC entering this range means "the user's
+   *  program has started". Machines whose program runs straight from load (NES
+   *  seeds PC from the reset vector) omit it; the runner then steps a fixed
+   *  number of frames from load, as before. Returns null when the bytes aren't a
+   *  recognizable executable for this machine. */
+  readonly programLoadRange?: (binary: Uint8Array) => ProgramLoadRange | null
 }

@@ -449,13 +449,30 @@ export default function App() {
         if (workbench.run.status !== "idle") workbench.run.unload();
         const loaded = await workbench.run.load(binary);
         if (!loaded.ok) throw new Error(loaded.error.message);
+        // Boot allowance (#30): a loaded program may not run the user's code
+        // until the machine has cold-booted (an Atari XEX waits out tens of
+        // frames of OS boot). Advance until the PC enters the program's load
+        // range, so the author's `afterFrames` counts frames *after the program
+        // starts* — not a boot-time guess. The range comes from the active
+        // MachinePlugin, so each platform owns its own format (Atari parses the
+        // XEX; NES omits it — PC is seeded from the reset vector, runs from
+        // load). Capped; falls back to plain frame stepping when absent.
+        const range = machine.programLoadRange?.(binary) ?? null;
+        if (range) {
+          const BOOT_CAP = 600; // ~10s of simulated frames — generous upper bound
+          for (let i = 0; i < BOOT_CAP; i++) {
+            await workbench.debug.stepFrame();
+            const pc = (await workbench.debug.registers()).pc;
+            if (pc >= range.lo && pc <= range.hi) break;
+          }
+        }
         for (let i = 0; i < frames; i++) await workbench.debug.stepFrame();
         const regs = await workbench.debug.registers();
         return { regs, readMem: (a, l, s) => workbench.debug.readMemory(a, l, s) };
       },
     };
     return runChecks(checks, deps);
-  }, [runAssemble, workbench]);
+  }, [runAssemble, workbench, machine]);
 
   // Re-fetch a remote course from its repo (preserves learner edits — only the
   // course definition updates; the active lesson project is left as-is).

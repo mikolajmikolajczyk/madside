@@ -1,4 +1,5 @@
 import type { MachinePlugin } from '@ports'
+import { parseXexLoadRange } from './xex'
 
 // Atari 800XL / 130XE — the first MachinePlugin. Constants here are the
 // canonical truth; @adapters / @ui consumers migrate to read from this object
@@ -105,6 +106,11 @@ export const atariXl: MachinePlugin = {
       return undefined
     },
   },
+
+  // Boot allowance for the check-runner (#30): the program's load range, parsed
+  // from the XEX, lets the runner advance past the Atari OS cold-boot before
+  // counting `afterFrames`.
+  programLoadRange: parseXexLoadRange,
 
   // Numeric values track ATHardwareMode / ATMemoryMode in
   // Altirra/h/constants.h. 800XL = 1, 64K = 2. kernel left undefined so the

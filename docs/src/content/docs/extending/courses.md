@@ -115,10 +115,12 @@ Operands are written as hex (`$94`, `$02C6`) or decimal — the way assembly aut
 | `register` | `reg`, `equals`, `afterFrames?` | After running, CPU register `reg` (`a`/`x`/`y`/`sp`/`pc`) equals `equals`. |
 | `memory` | `addr`, `equals`, `space?`, `afterFrames?` | After running, the bytes at `addr` equal `equals` (one or more space-separated bytes). `space` selects a [named memory space](/docs/reference/memory-spaces/) (e.g. NES `ppu`/`oam`); default is the CPU bus. |
 
-`afterFrames` advances the emulator that many display frames before reading (default `0`). `register` and `memory` checks run the program; `build` and `label` only assemble.
+`afterFrames` advances the emulator that many display frames **after your program starts** before reading (default `0`). `register` and `memory` checks run the program; `build` and `label` only assemble.
 
-:::caution[`afterFrames` counts from load — including boot]
-The frames are counted from the moment the binary loads, and the machine has to **boot** before your code runs (an Atari cold start is dozens of frames). A small `afterFrames` reads **pre-boot** state — `memory`/`register` will see `$00` even though a manual run shows the right value. Until this is improved, prefer `build` + `label` checks (they don't run the program), or use a generously large `afterFrames`. When in doubt, lean on `build`/`label`: they're strong gates and never flaky.
+:::note[`afterFrames` counts from when your code starts, not from load]
+The runner first lets the machine boot — it advances until the CPU is executing inside your program's loaded address range, *then* counts `afterFrames`. So a small, intuitive value works: `afterFrames: 2` means "two frames after my code begins running", not "two frames after a cold start" (which used to read **pre-boot** `$00`). A few frames is plenty for a program that writes a value and loops.
+
+This boot allowance is automatic for Atari XEX programs. If you ever need to read the very first frame of your program, use `afterFrames: 0` or `1`. `build` and `label` checks never run the program, so they're still the strongest, flake-free gates when a runtime read isn't essential.
 :::
 
 ### Examples

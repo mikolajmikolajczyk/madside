@@ -89,6 +89,7 @@ export type {
   MemoryRegion,
   MemoryRegionKind,
   MemorySpace,
+  ProgramLoadRange,
 } from './plugin-machine'
 
 // Toolchain output types
