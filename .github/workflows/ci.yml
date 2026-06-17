@@ -57,3 +57,30 @@ jobs:
       - name: Build docs
         run: pnpm install --frozen-lockfile && pnpm build
         working-directory: docs
+
+  security:
+    name: secret + vuln scan
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # gitleaks scans history on push; fetch it all.
+          fetch-depth: 0
+
+      # Secret scan. Free for personal/public repos (no license key needed).
+      - name: gitleaks
+        uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      # Dependency + IaC scan: fails the job on HIGH/CRITICAL findings. Mirrors
+      # the manual pre-commit trivy hook so CI catches what local runs skip.
+      - name: trivy fs
+        uses: aquasecurity/trivy-action@0.28.0
+        with:
+          scan-type: fs
+          scan-ref: .
+          scanners: vuln,secret,misconfig
+          severity: HIGH,CRITICAL
+          exit-code: "1"
+          ignore-unfixed: true

@@ -1,0 +1,36 @@
+version: 2
+updates:
+  # App dependencies (pnpm — handled by the npm ecosystem).
+  - package-ecosystem: npm
+    directory: "/"
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 5
+    groups:
+      # Keep the noisy, frequently-bumped UI/editor stacks as one PR each.
+      codemirror:
+        patterns:
+          - "@codemirror/*"
+          - "@lezer/*"
+      radix:
+        patterns:
+          - "@radix-ui/*"
+
+  # Docs is a self-contained pnpm workspace with its own lockfile.
+  - package-ecosystem: npm
+    directory: "/docs"
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 5
+
+  # CI / workflow actions.
+  - package-ecosystem: github-actions
+    directory: "/"
+    schedule:
+      interval: weekly
+
+  # Base image digests in the Dockerfile.
+  - package-ecosystem: docker
+    directory: "/"
+    schedule:
+      interval: weekly

@@ -59,13 +59,6 @@ repos:
         # Incremental — first run primes the cache, subsequent runs cost
         # only the changed projects. Promoted to pre-commit stage.
 
-      - id: knip
-        name: knip
-        language: system
-        entry: pnpm exec knip
-        pass_filenames: false
-        stages: [manual]
-
       - id: madge-circular
         name: madge --circular
         language: system

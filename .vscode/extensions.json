@@ -1,0 +1,8 @@
+{
+  // Recommended extensions for working on madside. `.gitignore` keeps the rest
+  // of `.vscode/` untracked but allows this file (shared editor tooling hints).
+  "recommendations": [
+    "dbaeumer.vscode-eslint",
+    "editorconfig.editorconfig"
+  ]
+}

@@ -4,6 +4,7 @@
   "version": "0.10.0",
   "license": "AGPL-3.0-or-later",
   "type": "module",
+  "packageManager": "pnpm@11.5.1",
   "scripts": {
     "dev": "vite",
     "build": "tsc -b && vite build",
@@ -32,7 +33,7 @@
     "@radix-ui/react-tooltip": "^1.2.8",
     "fflate": "^0.8.3",
     "idb": "^8.0.3",
-    "jsnes": "^2.1.0",
+    "jsnes": "2.1.0",
     "react": "^19.2.6",
     "react-dom": "^19.2.6",
     "react-markdown": "^10.1.0"
@@ -54,7 +55,6 @@
     "fake-indexeddb": "^6.2.5",
     "fast-check": "^4.8.0",
     "globals": "^17.6.0",
-    "knip": "^6.16.1",
     "madge": "^8.0.0",
     "markdownlint-cli": "^0.48.0",
     "playwright": "^1.60.0",
