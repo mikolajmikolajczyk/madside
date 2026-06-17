@@ -75,7 +75,7 @@ export const machineNes: MachinePlugin = {
   },
 
   defaultPanels: ['memory', 'registers', 'ppu', 'output'],
-  compatibleToolchains: ['mads'],
+  compatibleToolchains: ['mads', 'cc65'],
   compatibleEmulators: ['jsnes'],
   // NES is a 6502; the Atari 6502 adapter is CPU-shape-generic and serves it
   // verbatim until a labelled debug-nes adapter lands.

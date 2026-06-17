@@ -96,6 +96,93 @@ verify-mads-wasm:
 clean-mads-build:
     rm -rf "{{build_dir}}"
 
+# === cc65 wasm pipeline (ca65 / ld65 / cc65) ===
+# Builds the cc65 toolchain to wasm32-wasip1 with wasi-sdk (clang). Self-
+# contained: downloads wasi-sdk + clones cc65 into _notes/ca65-wasm-spike/build/
+# (gitignored). Requires (host tooling): curl, gnumake, git, node 18+ (for the
+# WASI smoke). No nix shell needed — wasi-sdk ships its own clang.
+
+cc65_spike_dir  := justfile_directory() / "_notes/ca65-wasm-spike"
+cc65_build_dir  := cc65_spike_dir / "build"
+wasi_sdk_dir    := cc65_build_dir / "wasi-sdk"
+cc65_src_dir    := cc65_build_dir / "cc65"
+cc65_out_dir    := justfile_directory() / "src/plugins/toolchain-ca65/wasm"
+cc65_sysroot_zip := justfile_directory() / "src/plugins/toolchain-ca65/nes-sysroot.zip"
+
+# Pinned upstream — bump deliberately, then rebuild + smoke + commit the wasm.
+cc65_repo       := "https://github.com/cc65/cc65.git"
+cc65_commit     := "cc3c40c54e51b2d9a22b63c85c418a2b11763377"
+wasi_sdk_ver    := "33"
+wasi_sdk_asset  := "wasi-sdk-33.0-x86_64-linux.tar.gz"
+
+# Full pipeline: fetch wasi-sdk, clone cc65, build the NES sysroot (native libs),
+# build the wasm tools, install + smoke. The NES sysroot step runs FIRST and
+# ends with `make clean` so the native + wasm builds don't share `wrk/` objects.
+build-cc65-wasm: fetch-wasi-sdk clone-cc65 build-nes-sysroot compile-cc65-wasm install-cc65-wasm verify-cc65-wasm
+
+# Build the NES C runtime (nes.lib + nes.cfg + headers) with NATIVE cc65, then
+# zip it as the in-browser WASI sysroot the toolchain plugin mounts. Native
+# build is fine — the libs are target (6502) artifacts, host-independent.
+build-nes-sysroot:
+    cd "{{cc65_src_dir}}" && make clean >/dev/null 2>&1 || true
+    cd "{{cc65_src_dir}}" && make -C src -j4
+    cd "{{cc65_src_dir}}" && mkdir -p lib && make -C libsrc nes -j4
+    rm -f "{{cc65_sysroot_zip}}"
+    mkdir -p "$(dirname "{{cc65_sysroot_zip}}")"
+    python3 "{{cc65_spike_dir}}/make-sysroot-zip.py" "{{cc65_src_dir}}" "{{cc65_sysroot_zip}}"
+    @echo "sysroot → {{cc65_sysroot_zip}}"; ls -lh "{{cc65_sysroot_zip}}"
+    cd "{{cc65_src_dir}}" && make clean >/dev/null 2>&1 || true
+
+# Download + extract wasi-sdk (clang + wasi-libc sysroot). Idempotent.
+fetch-wasi-sdk:
+    if [ ! -x "{{wasi_sdk_dir}}/bin/clang" ]; then \
+        mkdir -p "{{cc65_build_dir}}"; \
+        curl -fsSL -o "{{cc65_build_dir}}/wasi-sdk.tar.gz" \
+            "https://github.com/WebAssembly/wasi-sdk/releases/download/wasi-sdk-{{wasi_sdk_ver}}/{{wasi_sdk_asset}}"; \
+        tar -xzf "{{cc65_build_dir}}/wasi-sdk.tar.gz" -C "{{cc65_build_dir}}"; \
+        mv "{{cc65_build_dir}}/wasi-sdk-{{wasi_sdk_ver}}.0-x86_64-linux" "{{wasi_sdk_dir}}"; \
+        rm "{{cc65_build_dir}}/wasi-sdk.tar.gz"; \
+    fi
+
+# Clone (or update) cc65 at the pinned commit (shallow fetch of the exact SHA).
+clone-cc65:
+    if [ ! -d "{{cc65_src_dir}}/.git" ]; then \
+        git -C "{{cc65_build_dir}}" init cc65 && \
+        git -C "{{cc65_src_dir}}" remote add origin "{{cc65_repo}}"; \
+    fi
+    cd "{{cc65_src_dir}}" && git fetch --depth 1 origin "{{cc65_commit}}" && git checkout FETCH_HEAD
+
+# Build ca65 + ld65 + cc65 to wasm via wasi-sdk clang. ar65/co65 are skipped —
+# not needed in the browser (ld65 links loose .o; target libs are pre-built).
+compile-cc65-wasm:
+    cd "{{cc65_src_dir}}" && make -C src ca65 ld65 cc65 \
+        CC="{{wasi_sdk_dir}}/bin/clang" AR="{{wasi_sdk_dir}}/bin/llvm-ar"
+    @file "{{cc65_src_dir}}/bin/ca65" "{{cc65_src_dir}}/bin/ld65" "{{cc65_src_dir}}/bin/cc65"
+
+# Copy the built tools next to the (future) ca65 ToolchainPlugin loader, where
+# Vite hashes them as bundle assets (imported via ?url), same as mads.wasm.
+install-cc65-wasm:
+    mkdir -p "{{cc65_out_dir}}"
+    cp "{{cc65_src_dir}}/bin/ca65" "{{cc65_out_dir}}/ca65.wasm"
+    cp "{{cc65_src_dir}}/bin/ld65" "{{cc65_out_dir}}/ld65.wasm"
+    cp "{{cc65_src_dir}}/bin/cc65" "{{cc65_out_dir}}/cc65.wasm"
+    @echo "installed → {{cc65_out_dir}}"
+    @ls -lh "{{cc65_out_dir}}/"*.wasm
+
+# Smoke: assemble + link a tiny program with the freshly built wasm, check the
+# output bytes. Uses node's built-in WASI via the spike's wasi-run.mjs.
+verify-cc65-wasm:
+    rm -rf /tmp/cc65-verify && mkdir -p /tmp/cc65-verify
+    cp "{{cc65_spike_dir}}/hello.s" "{{cc65_spike_dir}}/none.cfg" /tmp/cc65-verify/
+    WASI_DIR=/tmp/cc65-verify node --no-warnings "{{cc65_spike_dir}}/wasi-run.mjs" "{{cc65_out_dir}}/ca65.wasm" -o /hello.o /hello.s
+    WASI_DIR=/tmp/cc65-verify node --no-warnings "{{cc65_spike_dir}}/wasi-run.mjs" "{{cc65_out_dir}}/ld65.wasm" -C /none.cfg -o /hello.bin /hello.o
+    @echo "hello.bin bytes (expect a9 42 8d 00 02 60):"
+    @xxd /tmp/cc65-verify/hello.bin | head -1
+
+# Wipe the cc65 build dir (forces re-download of wasi-sdk + re-clone).
+clean-cc65-build:
+    rm -rf "{{cc65_build_dir}}"
+
 # === altirra-core.wasm pipeline ===
 
 altirra_dir         := justfile_directory() / "_notes/altirra"

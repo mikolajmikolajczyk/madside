@@ -39,6 +39,7 @@ import { machineNes } from '@plugins/machine-nes'
 import { jsnesEmulator } from '@plugins/emulator-nes-jsnes'
 import { altirraEmulator } from '@adapters/emu'
 import { madsToolchain } from '@plugins/toolchain-mads'
+import { cc65Toolchain } from '@plugins/toolchain-ca65'
 import { atari6502DebugAdapter } from '@plugins/debug-atari-6502'
 import { registersPanel } from '@plugins/panel-registers'
 import { memoryPanel } from '@plugins/panel-memory'
@@ -166,6 +167,7 @@ export function createWorkbench(deps: WorkbenchDeps): Workbench {
   // data + registration).
   plugins.register({ plugin: machineNes, source: { origin: 'builtin' } })
   plugins.register({ plugin: madsToolchain, source: { origin: 'builtin' } })
+  plugins.register({ plugin: cc65Toolchain, source: { origin: 'builtin' } })
   plugins.register({ plugin: atari6502DebugAdapter, source: { origin: 'builtin' } })
   // Emulator backends register like every other plugin kind; machines name the
   // one they run on via `compatibleEmulators`, resolved below. Both plugins'

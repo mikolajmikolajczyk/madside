@@ -1,0 +1,8 @@
+{
+  "version": 2,
+  "name": "nes-c-hello",
+  "main": "src/main.c",
+  "machine": "nes",
+  "toolchain": "cc65",
+  "run": { "default": { "audio": false } }
+}

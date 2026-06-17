@@ -1,0 +1,6 @@
+{
+  "name": "NES — Hello (C, cc65)",
+  "description": "Write NES games in C. cc65 compiles main.c, ca65 assembles it, ld65 links against the bundled NES runtime into an iNES ROM — all in the browser. Uses conio to print text.",
+  "machine": "nes",
+  "order": 4
+}
