@@ -70,6 +70,10 @@ export interface ToolchainCSymbol {
   readonly detail?: string
   /** Longer hover/info text. */
   readonly info?: string
+  /** Header that declares the symbol, e.g. `conio.h`. Surfaced in the
+   *  completion/hover and auto-`#include`d when the completion is accepted (#48)
+   *  so the user learns where the symbol comes from. */
+  readonly header?: string
 }
 
 /** Editor-language metadata for a toolchain (epic 78b12bf). Declarative + lib-
