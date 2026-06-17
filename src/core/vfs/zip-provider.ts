@@ -1,5 +1,6 @@
 import { unzipSync } from 'fflate';
 import type { VfsProvider } from './types';
+import { cacheGet, cachePut } from './asset-cache';
 
 // Read-only provider backed by a zip asset (a toolchain sysroot). Fetches +
 // unzips once on first access; the unpacked map is cached for the provider's
@@ -21,12 +22,17 @@ export class ZipAssetProvider implements VfsProvider {
 
   private load(): Promise<Record<string, Uint8Array>> {
     if (!this.unpacked) {
-      this.unpacked = fetch(this.url)
-        .then((r) => {
-          if (!r.ok) throw new Error(`fetch ${this.url}: ${r.status}`);
-          return r.arrayBuffer();
-        })
-        .then((buf) => unzipSync(new Uint8Array(buf)));
+      this.unpacked = (async () => {
+        // Cross-session cache of the unpacked map, keyed by the hashed URL —
+        // skips the fetch + unzip on later loads (#54).
+        const cached = await cacheGet<Record<string, Uint8Array>>(`zip:${this.url}`);
+        if (cached) return cached;
+        const r = await fetch(this.url);
+        if (!r.ok) throw new Error(`fetch ${this.url}: ${r.status}`);
+        const map = unzipSync(new Uint8Array(await r.arrayBuffer()));
+        void cachePut(`zip:${this.url}`, map);
+        return map;
+      })();
     }
     return this.unpacked;
   }

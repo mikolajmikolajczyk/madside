@@ -9,7 +9,7 @@
 // the shared bridge. All built offline by `just build-cc65-wasm`.
 
 import { WASI, File, OpenFile, ConsoleStdout } from "@bjorn3/browser_wasi_shim";
-import { createVfs, MemoryProvider, ZipAssetProvider, vfsToPreopen, readFromPreopen } from "@core/vfs";
+import { createVfs, MemoryProvider, ZipAssetProvider, vfsToPreopen, readFromPreopen, loadWasmModule } from "@core/vfs";
 import type { PreopenDirectory } from "@bjorn3/browser_wasi_shim";
 import cc65WasmUrl from "./cc65.wasm?url";
 import ca65WasmUrl from "./ca65.wasm?url";
@@ -31,21 +31,6 @@ export interface Cc65BuildResult {
   stdout: string;
   stderr: string;
   exitCode: number;
-}
-
-// --- lazy asset loading (compiled once, reused across builds) ----------------
-
-const moduleCache = new Map<string, Promise<WebAssembly.Module>>();
-function loadModule(url: string): Promise<WebAssembly.Module> {
-  let p = moduleCache.get(url);
-  if (!p) {
-    p = fetch(url).then((r) => {
-      if (!r.ok) throw new Error(`fetch ${url}: ${r.status}`);
-      return WebAssembly.compileStreaming(r);
-    });
-    moduleCache.set(url, p);
-  }
-  return p;
 }
 
 // The sysroot zip is fetched + unzipped once and cached by the provider. Shared
@@ -99,9 +84,9 @@ const stem = (path: string) => path.replace(/\.[^./]+$/, "");
  *  against `nes.lib` using `nes.cfg`. */
 export async function buildCc65(main: string, files: Cc65File[]): Promise<Cc65BuildResult> {
   const [cc65Mod, ca65Mod, ld65Mod] = await Promise.all([
-    loadModule(cc65WasmUrl),
-    loadModule(ca65WasmUrl),
-    loadModule(ld65WasmUrl),
+    loadWasmModule(cc65WasmUrl),
+    loadWasmModule(ca65WasmUrl),
+    loadWasmModule(ld65WasmUrl),
   ]);
 
   const sources = files.map((f) => f.path).filter((p) => /\.(c|s|asm)$/i.test(p));

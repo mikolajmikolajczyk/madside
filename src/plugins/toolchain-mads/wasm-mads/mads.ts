@@ -1,5 +1,5 @@
 import { WASI, File, OpenFile, ConsoleStdout } from "@bjorn3/browser_wasi_shim";
-import { createVfs, MemoryProvider, vfsToPreopen, readFromPreopen } from "@core/vfs";
+import { createVfs, MemoryProvider, vfsToPreopen, readFromPreopen, loadWasmModule } from "@core/vfs";
 // Plugin-owned wasm asset — Vite content-hashes the URL (cache-busting) and
 // tracks it at build time, same as the Altirra core. Mirrors @adapters/emu's
 // `?url` import; this plugin just owns its binary instead of an adapter.
@@ -24,25 +24,12 @@ export interface SourceFile {
   content: string | Uint8Array;
 }
 
-let madsModulePromise: Promise<WebAssembly.Module> | null = null;
-
-function loadMadsModule(): Promise<WebAssembly.Module> {
-  if (!madsModulePromise) {
-    madsModulePromise = fetch(madsWasmUrl)
-      .then((r) => {
-        if (!r.ok) throw new Error(`fetch mads.wasm: ${r.status}`);
-        return WebAssembly.compileStreaming(r);
-      });
-  }
-  return madsModulePromise;
-}
-
 export async function assemble(
   mainPath: string,
   files: SourceFile[],
   extraArgs: string[] = []
 ): Promise<AssembleResult> {
-  const module = await loadMadsModule();
+  const module = await loadWasmModule(madsWasmUrl);
 
   const base = mainPath.replace(/\.(a65|asm)$/i, "");
   const outPath = `${base}.xex`;
