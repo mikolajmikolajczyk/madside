@@ -3,3 +3,8 @@
 allowBuilds:
   esbuild: true
   sharp: true
+
+# Force esbuild past the transitive 0.27.7 Astro/Vite pulls in — 0.27.x carries
+# GHSA-gv7w-rqvm-qjhr (HIGH), fixed in 0.28.1. Keeps the CI trivy gate green.
+overrides:
+  esbuild: '>=0.28.1'
