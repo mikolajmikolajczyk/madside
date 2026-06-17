@@ -678,6 +678,7 @@ export default function App() {
                 files={project.files}
                 manifest={project.manifest}
                 onUpdateManifest={project.updateManifest}
+                onUpdateFile={project.updateActive}
                 onForceBuild={() => { void runAssemble(); }}
               />
             </Suspense>

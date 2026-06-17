@@ -10,13 +10,41 @@ interface Props {
   files: { path: string; content: Uint8Array }[];
   manifest: Manifest;
   onUpdateManifest: (next: Manifest) => Promise<unknown> | unknown;
+  onUpdateFile: (bytes: Uint8Array) => Promise<unknown> | unknown; // write raw edits back
   onForceBuild: () => void;             // re-run assemble after recipe update
 }
 
 const utf8 = new TextDecoder();
+const utf8enc = new TextEncoder();
+
+// Assets we can sensibly edit as text. Everything else (png/wav/bin) is
+// binary — show the preview only, no textarea that would corrupt the bytes.
+const BINARY_EXTS = new Set(["png", "jpg", "jpeg", "gif", "bmp", "bin", "raw", "wav"]);
+const isTextAsset = (ext: string) => !BINARY_EXTS.has(ext);
+
+// Does the current form produce the exact recipe already saved? Used to hide
+// "Update recipe" when there's nothing to update.
+function recipeMatchesForm(
+  recipe: Recipe | undefined,
+  form: { converter: string; output: string; options: Record<string, unknown> },
+): boolean {
+  if (!recipe) return false;
+  if (recipe.converter !== form.converter) return false;
+  if (recipe.output !== form.output) return false;
+  const a = recipe.options ?? {};
+  const b = form.options;
+  const keys = new Set([...Object.keys(a), ...Object.keys(b)]);
+  for (const k of keys) {
+    if (a[k] !== b[k]) return false;
+  }
+  return true;
+}
 
 export function AssetPanel(p: Props) {
   const ext = (p.filename.split(".").pop() ?? "").toLowerCase();
+  const textEditable = isTextAsset(ext);
+
+  const [view, setView] = useState<"preview" | "raw">("preview");
 
   const [registry, setRegistry] = useState<Map<string, ConverterModule> | null>(null);
   useEffect(() => {
@@ -72,6 +100,15 @@ export function AssetPanel(p: Props) {
     setOutput(existingRecipe?.output ?? defaultOutput);
   }, [existingRecipe?.output, defaultOutput]);
 
+  const formRecipe = {
+    converter: selectedId,
+    output: output.trim() || defaultOutput,
+    options,
+  };
+  // "Update recipe" only does something when the form diverges from what's
+  // saved. When it matches (or there's no converter), there's nothing to apply.
+  const recipeDirty = !!selectedMeta && !recipeMatchesForm(existingRecipe, formRecipe);
+
   const apply = async () => {
     if (!selectedMeta) return;
     const newRecipe: Recipe = {
@@ -98,10 +135,34 @@ export function AssetPanel(p: Props) {
       <div className="asset__header">
         <span className="asset__name">{p.filename}</span>
         {existingRecipe && <span className="asset__badge">recipe → {existingRecipe.output}</span>}
+        {textEditable && (
+          <div className="asset__viewtoggle" role="tablist">
+            <button
+              role="tab"
+              aria-selected={view === "preview"}
+              className={`asset__tab${view === "preview" ? " asset__tab--active" : ""}`}
+              onClick={() => setView("preview")}
+            >
+              Preview
+            </button>
+            <button
+              role="tab"
+              aria-selected={view === "raw"}
+              className={`asset__tab${view === "raw" ? " asset__tab--active" : ""}`}
+              onClick={() => setView("raw")}
+            >
+              Raw
+            </button>
+          </div>
+        )}
       </div>
       <div className="asset__body">
         <div className="asset__preview">
-          <Preview filename={p.filename} bytes={p.bytes} ext={ext} />
+          {view === "raw" && textEditable ? (
+            <RawEditor bytes={p.bytes} onChange={(b) => void p.onUpdateFile(b)} />
+          ) : (
+            <Preview filename={p.filename} bytes={p.bytes} ext={ext} />
+          )}
         </div>
         <div className="asset__form">
           {applicableConverters.length === 0 ? (
@@ -140,13 +201,24 @@ export function AssetPanel(p: Props) {
               </Field>
 
               <div className="asset__actions">
-                <button className="asset__btn asset__btn--primary" onClick={() => void apply()}>
-                  {existingRecipe ? "Update recipe" : "Add recipe"}
-                </button>
-                {existingRecipe && (
-                  <button className="asset__btn asset__btn--danger" onClick={() => void remove()}>
-                    Remove recipe
+                {!existingRecipe ? (
+                  <button className="asset__btn asset__btn--primary" onClick={() => void apply()}>
+                    Add recipe
                   </button>
+                ) : (
+                  <>
+                    <button
+                      className="asset__btn asset__btn--primary"
+                      onClick={() => void apply()}
+                      disabled={!recipeDirty}
+                      title={recipeDirty ? "Save changes to this recipe" : "No changes to save"}
+                    >
+                      Update recipe
+                    </button>
+                    <button className="asset__btn asset__btn--danger" onClick={() => void remove()}>
+                      Remove recipe
+                    </button>
+                  </>
                 )}
               </div>
             </>
@@ -206,6 +278,18 @@ function OptionInput({ spec, value, onChange }: { spec: OptionSpec; value: unkno
       type="text"
       value={String(value ?? spec.default)}
       onChange={(e) => onChange(e.target.value)}
+    />
+  );
+}
+
+function RawEditor({ bytes, onChange }: { bytes: Uint8Array; onChange: (bytes: Uint8Array) => void }) {
+  const text = useMemo(() => utf8.decode(bytes), [bytes]);
+  return (
+    <textarea
+      className="asset__raw"
+      spellCheck={false}
+      value={text}
+      onChange={(e) => onChange(utf8enc.encode(e.target.value))}
     />
   );
 }
