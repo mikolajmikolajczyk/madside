@@ -15,7 +15,7 @@ interface Props {
  *  needs zero change here. */
 export function Debug({ panels, projectId, manifest, panelData }: Props) {
   return (
-    <div className="debug">
+    <div className="debug" data-focus-region="panel">
       {panels.map((panel) => (
         <PanelSlot
           key={panel.id}

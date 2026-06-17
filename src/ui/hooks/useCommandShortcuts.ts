@@ -28,10 +28,16 @@ export function useCommandShortcuts(
           ? PALETTE_COMMAND_ID
           : commands.list().find((c) => c.shortcut === combo)?.id;
       if (!id || !commands.has(id)) return;
+      // Capture phase + stopPropagation so a matched accelerator beats any
+      // descendant handler — notably CodeMirror, whose defaultKeymap binds
+      // Shift-Alt-Arrow (copy line) and Mod-Arrow (word nav). Only matched
+      // combos are swallowed; everything else (incl. emulator game keys, which
+      // carry no app accelerator) bubbles through untouched.
       e.preventDefault();
+      e.stopPropagation();
       void commands.run(id, getCtx());
     };
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
+    window.addEventListener("keydown", onKey, true);
+    return () => window.removeEventListener("keydown", onKey, true);
   }, [commands, getCtx]);
 }

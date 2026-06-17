@@ -5,6 +5,7 @@
 // churn (mirrors the fresh-callback pattern the old shortcut hook used).
 
 import type { Command } from '@ports'
+import { focusPaneInDirection } from './paneFocus'
 
 export interface AppCommandOps {
   runAssemble: () => Promise<unknown> | void
@@ -47,5 +48,13 @@ export function buildAppCommands(get: () => AppCommandEnv): Command[] {
     { id: 'debug.step', title: 'Step Instruction', shortcut: 'F10', when: () => !st().running && st().hasEmu, run: () => ops().onStep() },
     { id: 'debug.frame', title: 'Step Frame', shortcut: 'F11', when: () => !st().running && st().hasEmu, run: () => ops().onStepFrame() },
     { id: 'debug.toggleBreakpoint', title: 'Toggle Breakpoint at Cursor', shortcut: 'F9', run: () => ops().toggleBpAtCursor() },
+    // Directional pane focus (#27) — tiling-WM style. Alt+Shift dodges the
+    // CodeMirror word-nav (Mod+Arrow) and browser back/forward (Alt+Arrow)
+    // conflicts; the canvas key handler ignores Alt-modified keys so leaving the
+    // emulator works too.
+    { id: 'focus.paneLeft', title: 'Focus pane: left', shortcut: 'Alt+Shift+Left', run: () => focusPaneInDirection('left') },
+    { id: 'focus.paneRight', title: 'Focus pane: right', shortcut: 'Alt+Shift+Right', run: () => focusPaneInDirection('right') },
+    { id: 'focus.paneUp', title: 'Focus pane: up', shortcut: 'Alt+Shift+Up', run: () => focusPaneInDirection('up') },
+    { id: 'focus.paneDown', title: 'Focus pane: down', shortcut: 'Alt+Shift+Down', run: () => focusPaneInDirection('down') },
   ]
 }

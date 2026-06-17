@@ -715,7 +715,7 @@ export default function App() {
           );
         })()}
         <Splitter onResize={(dx) => setExplorerW((w) => clampExplorer(w + dx))} />
-        <main className="app__main">
+        <main className="app__main" data-focus-region="editor">
           {activeEditorModule ? (
             <Suspense fallback={<div className="app__loading">loading editor…</div>}>
               <PluginEditor

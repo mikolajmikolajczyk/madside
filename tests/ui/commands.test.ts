@@ -31,7 +31,14 @@ describe('eventToShortcut', () => {
 
   it('returns null for keys we never bind', () => {
     expect(eventToShortcut(ev('Tab'))).toBeNull()
-    expect(eventToShortcut(ev('ArrowUp'))).toBeNull()
+    expect(eventToShortcut(ev('Home'))).toBeNull()
+  })
+
+  it('tokenizes arrows for directional pane focus (#27)', () => {
+    expect(eventToShortcut(ev('ArrowLeft', { altKey: true, shiftKey: true }))).toBe('Alt+Shift+Left')
+    expect(eventToShortcut(ev('ArrowRight', { altKey: true, shiftKey: true }))).toBe('Alt+Shift+Right')
+    expect(eventToShortcut(ev('ArrowUp', { altKey: true, shiftKey: true }))).toBe('Alt+Shift+Up')
+    expect(eventToShortcut(ev('ArrowDown', { altKey: true, shiftKey: true }))).toBe('Alt+Shift+Down')
   })
 })
 

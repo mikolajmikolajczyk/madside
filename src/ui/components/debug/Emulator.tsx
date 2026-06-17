@@ -310,7 +310,24 @@ export function Emulator({ breakpoints, onState }: Props) {
   }, [running, status, breakpoints, onState, workbench]);
 
   return (
-    <div className="emulator">
+    <div
+      className="emulator"
+      data-focus-region="emulator"
+      tabIndex={-1}
+      onMouseDown={(e) => {
+        // Focus the region when clicking a non-focusable part (header /
+        // placeholder) so directional pane-focus (#27) has a starting point even
+        // before a program runs and the canvas exists. Clicks on the canvas
+        // focus it directly (its own handler), so don't steal that.
+        const t = e.target as HTMLElement;
+        // Don't steal focus from genuinely interactive children (the canvas
+        // self-focuses for game input). The region root's own tabindex must NOT
+        // count here, so match by tag/role, not a blanket [tabindex].
+        if (!t.closest("canvas, button, a, input, select, textarea")) {
+          e.currentTarget.focus();
+        }
+      }}
+    >
       <div className="emulator__header label">
         emulator {status === "loading" && "(boot…)"} {status === "error" && "(err)"}
       </div>

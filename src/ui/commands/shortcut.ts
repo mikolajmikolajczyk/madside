@@ -10,6 +10,10 @@ function codeToToken(code: string): string | null {
   if (/^Digit[0-9]$/.test(code)) return code.slice(5) // Digit1 -> 1
   if (/^F([1-9]|1[0-2])$/.test(code)) return code // F1..F12 verbatim
   switch (code) {
+    case 'ArrowLeft': return 'Left'
+    case 'ArrowRight': return 'Right'
+    case 'ArrowUp': return 'Up'
+    case 'ArrowDown': return 'Down'
     case 'Enter':
     case 'NumpadEnter':
       return 'Enter'

@@ -27,6 +27,23 @@
   border-left: 1px solid var(--border-default);
 }
 
+/* Directional pane focus (#27): a subtle inset ring marks the active region so
+   you can see where Alt+Shift+Arrow landed. :focus-within keeps it in sync with
+   wherever real focus is, mouse or keyboard. */
+[data-focus-region] {
+  position: relative;
+}
+[data-focus-region]:focus-within::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  outline: 2px solid var(--accent-mint);
+  outline-offset: -2px;
+  opacity: 0.5;
+  z-index: 5;
+}
+
 /* Left column in course mode: compact Files on top, lesson panel below. */
 .app__explorer-col {
   display: flex;

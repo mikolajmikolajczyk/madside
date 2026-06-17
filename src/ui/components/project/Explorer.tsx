@@ -110,6 +110,7 @@ export function Explorer(props: Props) {
   return (
     <aside
       className={`explorer${dragOver ? " explorer--dragover" : ""}`}
+      data-focus-region="explorer"
       onDragOver={(e) => { e.preventDefault(); if (!dragOver) setDragOver(true); }}
       onDragLeave={(e) => { if (e.currentTarget === e.target) setDragOver(false); }}
       onDrop={onDrop}
