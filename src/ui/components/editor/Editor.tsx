@@ -314,16 +314,22 @@ interface Props {
 export function Editor({ value, onChange, filename, pcLine, breakpointLines, lineAddrs, equateValues, diagnostics, projectLabels, cpuLanguage, toolchainLanguage, gotoTarget, onToggleBreakpoint, onSave, onViewReady, onJumpToLabel, onCursorLine }: Props) {
   const hostRef = useRef<HTMLDivElement>(null);
   const viewRef = useRef<EditorView | null>(null);
+  // Latest-callback refs so the CodeMirror handlers (built once on mount) always
+  // call the current props without rebuilding the editor. Updated in an effect,
+  // not during render, to stay Rules-of-React clean (#28) — CM events only fire
+  // after commit, so the refs are always current by the time they're read.
   const onChangeRef = useRef(onChange);
-  onChangeRef.current = onChange;
   const onToggleRef = useRef(onToggleBreakpoint);
-  onToggleRef.current = onToggleBreakpoint;
   const onSaveRef = useRef(onSave);
-  onSaveRef.current = onSave;
   const onJumpRef = useRef(onJumpToLabel);
-  onJumpRef.current = onJumpToLabel;
   const onCursorLineRef = useRef(onCursorLine);
-  onCursorLineRef.current = onCursorLine;
+  useEffect(() => {
+    onChangeRef.current = onChange;
+    onToggleRef.current = onToggleBreakpoint;
+    onSaveRef.current = onSave;
+    onJumpRef.current = onJumpToLabel;
+    onCursorLineRef.current = onCursorLine;
+  });
 
   useEffect(() => {
     if (!hostRef.current) return;

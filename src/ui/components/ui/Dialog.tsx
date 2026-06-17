@@ -2,7 +2,7 @@
 // Replaces window.prompt / confirm. State-driven so callers can wire form values.
 
 import * as RDialog from "@radix-ui/react-dialog";
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import "./ui.css";
 
 export const Dialog = RDialog.Root;
@@ -40,7 +40,16 @@ interface TextPromptProps {
 
 export function TextPromptDialog(p: TextPromptProps) {
   const [value, setValue] = useState(p.initial ?? "");
-  useEffect(() => { if (p.open) setValue(p.initial ?? ""); }, [p.open, p.initial]);
+  // Reset the field when the dialog opens (or its initial value changes while
+  // open). Adjust-during-render with previous-value markers — the React-
+  // recommended alternative to a sync setState in an effect (#28).
+  const [prevOpen, setPrevOpen] = useState(p.open);
+  const [prevInitial, setPrevInitial] = useState(p.initial);
+  if (p.open !== prevOpen || p.initial !== prevInitial) {
+    setPrevOpen(p.open);
+    setPrevInitial(p.initial);
+    if (p.open) setValue(p.initial ?? "");
+  }
 
   return (
     <RDialog.Root open={p.open} onOpenChange={(o) => { if (!o) p.onCancel(); }}>

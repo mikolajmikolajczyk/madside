@@ -1,4 +1,4 @@
-import { useMemo, useRef } from "react";
+import { useMemo } from "react";
 import { reservedWords, scanFile } from "@app/labels";
 import type { CpuLanguage, LabelInfo } from "@core";
 import type { SourceMap, ToolchainLanguage } from "@ports";
@@ -7,6 +7,25 @@ import { basename } from "@core/path";
 interface ProjectFile {
   path: string;
   content: Uint8Array;
+}
+
+// Per-file scan cache, keyed first by the reserved-word set (stable per
+// cpu/toolchain) then by file-content identity. Lives at module scope — not in a
+// ref — so it persists across renders without a render-time ref access
+// (Rules of React / React Compiler, #28). Both layers are WeakMaps, so an entry
+// GCs once its Set or byte array is dropped; swapping cpu/toolchain naturally
+// lands on a fresh inner map.
+const scanCache = new WeakMap<ReadonlySet<string>, WeakMap<Uint8Array, Map<string, LabelInfo>>>();
+
+function scanCached(content: Uint8Array, base: string, reserved: ReadonlySet<string>): Map<string, LabelInfo> {
+  let inner = scanCache.get(reserved);
+  if (!inner) { inner = new WeakMap(); scanCache.set(reserved, inner); }
+  let labels = inner.get(content);
+  if (!labels) {
+    labels = scanFile(new TextDecoder().decode(content), base, reserved);
+    inner.set(content, labels);
+  }
+  return labels;
 }
 
 /** Build the label index used by the editor's hover / goto-def. Merges
@@ -32,28 +51,17 @@ export function useProjectLabels(
     () => (cpu && toolchain ? reservedWords(cpu, toolchain) : new Set<string>()),
     [cpu, toolchain],
   );
-  // Per-file label scan cached by file *content* identity. Typing only changes
-  // the active file's Uint8Array reference (store.ts maps a fresh object for it
-  // and keeps the rest), so every other file hits the cache — the scan no longer
-  // re-runs the whole project on each keystroke (#20). Reset when reserved swaps.
-  const cacheRef = useRef<WeakMap<Uint8Array, Map<string, LabelInfo>>>(new WeakMap());
-  const reservedRef = useRef(reserved);
-  if (reservedRef.current !== reserved) {
-    reservedRef.current = reserved;
-    cacheRef.current = new WeakMap();
-  }
-
+  // Per-file label scan cached by file *content* identity (module-level
+  // `scanCached`). Typing only changes the active file's Uint8Array reference
+  // (store.ts maps a fresh object for it and keeps the rest), so every other file
+  // hits the cache — the scan no longer re-runs the whole project on each
+  // keystroke (#20).
   return useMemo<Map<string, LabelInfo>>(() => {
     const out = new Map<string, LabelInfo>();
     if (files) {
-      const dec = new TextDecoder();
       for (const f of files) {
         if (!/\.(a65|asm|inc|s|mac)$/i.test(f.path)) continue;
-        let fileLabels = cacheRef.current.get(f.content);
-        if (!fileLabels) {
-          fileLabels = scanFile(dec.decode(f.content), basename(f.path), reserved);
-          cacheRef.current.set(f.content, fileLabels);
-        }
+        const fileLabels = scanCached(f.content, basename(f.path), reserved);
         for (const [name, info] of fileLabels) if (!out.has(name)) out.set(name, info);
       }
     }

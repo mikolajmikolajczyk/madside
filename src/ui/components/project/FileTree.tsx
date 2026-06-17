@@ -30,14 +30,18 @@ export function FileTree(p: Props) {
   const tree = useMemo(() => buildTree(p.files), [p.files]);
   // Default-expand all folders (small projects).
   const [expanded, setExpanded] = useState<Set<string>>(() => collectFolderPaths(tree));
-  // When new folders appear in the project, expand them too.
-  useEffect(() => {
+  // When new folders appear in the project, expand them too. Adjust-during-render
+  // with a previous-tree marker — the React-recommended alternative to a sync
+  // setState in an effect (#28).
+  const [prevTree, setPrevTree] = useState(tree);
+  if (tree !== prevTree) {
+    setPrevTree(tree);
     setExpanded((prev) => {
       const next = new Set(prev);
       for (const f of collectFolderPaths(tree)) next.add(f);
       return next;
     });
-  }, [tree]);
+  }
 
   const [editing, setEditing] = useState<{ path: string; isFolder: boolean } | null>(null);
 

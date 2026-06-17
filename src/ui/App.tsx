@@ -97,11 +97,16 @@ export default function App() {
   const editorViewRef = useRef<EditorView | null>(null);
   const importFileInputRef = useRef<HTMLInputElement | null>(null);
 
-  useEffect(() => {
+  // Default the memory-view base to the assembled binary's load address, unless
+  // the user has manually set it. Adjust-during-render on a result change (#28).
+  const [prevResult, setPrevResult] = useState(result);
+  if (result !== prevResult) {
+    setPrevResult(result);
     const xex = result?.xex;
-    if (!xex || xex.length < 6 || memBaseTouched) return;
-    if (xex[0] === 0xff && xex[1] === 0xff) setMemBase(xex[2] | (xex[3] << 8));
-  }, [result, memBaseTouched]);
+    if (xex && xex.length >= 6 && !memBaseTouched && xex[0] === 0xff && xex[1] === 0xff) {
+      setMemBase(xex[2] | (xex[3] << 8));
+    }
+  }
 
 
   const onMemBaseChange = useCallback((addr: number) => {
@@ -124,6 +129,10 @@ export default function App() {
 
   const projectId = project.loaded ? project.projectId : null;
   useEffect(() => {
+    // Genuine reset side-effect on project switch — unloads the emulator
+    // (workbench.run.unload()) as well as clearing state, so it belongs in an
+    // effect, not an adjust-during-render (#28).
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     resetEmuState();
   }, [projectId, resetEmuState]);
 
@@ -187,9 +196,12 @@ export default function App() {
 
   // File switch re-engages auto-follow: when the user opens a different
   // source, they want the memory view to land on that file's emit window.
-  useEffect(() => {
+  // Adjust-during-render with a previous-path marker (#28).
+  const [prevActivePath, setPrevActivePath] = useState(activePath);
+  if (activePath !== prevActivePath) {
+    setPrevActivePath(activePath);
     if (activePath) setMemBaseTouched(false);
-  }, [activePath]);
+  }
 
   const cursorHighlight = useCursorMemory({
     sourceMap, activePath, cursorLine, memBaseTouched, setMemBase,
@@ -310,7 +322,7 @@ export default function App() {
   const equateValues = useEquateValues(equateAddrs);
 
   const toggleBpRef = useRef<((path: string, line: number) => void) | null>(null);
-  toggleBpRef.current = project.loaded ? project.toggleBreakpoint : null;
+  useEffect(() => { toggleBpRef.current = project.loaded ? project.toggleBreakpoint : null; });
   const onToggleBreakpoint = useCallback((line: number) => {
     toggleBpRef.current?.(activePath, line);
   }, [activePath]);
@@ -547,16 +559,21 @@ export default function App() {
   // `commands.run(id, ctx)`. Commands register once and read the latest ops /
   // state via this ref, so they never go stale (and the registry stays the
   // extension point for plugin-contributed commands).
+  // Kept current in an effect (not during render) so the command env stays
+  // Rules-of-React clean (#28); commands read it lazily via env() at invoke
+  // time, always after commit.
   const cmdEnvRef = useRef<AppCommandEnv | null>(null);
-  cmdEnvRef.current = {
-    ops: {
-      runAssemble, onRun, onPause, onStop, onStep, onStepFrame, onReset,
-      toggleBpAtCursor,
-      onSnapshot: () => { if (project.loaded) void project.createSnapshotNow("manual"); },
-      openPalette: () => setPaletteOpen(true),
-    },
-    state: { canRun, running, hasEmu },
-  };
+  useEffect(() => {
+    cmdEnvRef.current = {
+      ops: {
+        runAssemble, onRun, onPause, onStop, onStep, onStepFrame, onReset,
+        toggleBpAtCursor,
+        onSnapshot: () => { if (project.loaded) void project.createSnapshotNow("manual"); },
+        openPalette: () => setPaletteOpen(true),
+      },
+      state: { canRun, running, hasEmu },
+    };
+  });
   useEffect(() => {
     const env = (): AppCommandEnv => cmdEnvRef.current!;
     const disposers = buildAppCommands(env).map((c) => workbench.commands.register(c));
@@ -583,7 +600,7 @@ export default function App() {
   const activeProjectId = project.loaded ? project.projectId : undefined;
   const cmdCtx = useMemo<CommandContext>(() => ({ projectId: activeProjectId }), [activeProjectId]);
   const cmdCtxRef = useRef<CommandContext>(cmdCtx);
-  cmdCtxRef.current = cmdCtx;
+  useEffect(() => { cmdCtxRef.current = cmdCtx; });
   const getCmdCtx = useCallback(() => cmdCtxRef.current, []);
   useCommandShortcuts(workbench.commands, getCmdCtx);
 

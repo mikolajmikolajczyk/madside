@@ -6,7 +6,7 @@
 // free, since they register on the same registry.
 
 import * as RDialog from "@radix-ui/react-dialog";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import type { CommandContext, CommandRegistry } from "@ports";
 import { fuzzyFilter, visibleCommands } from "../../commands/filterCommands";
 import { PALETTE_COMMAND_ID } from "../../commands/appCommands";
@@ -36,8 +36,19 @@ export function CommandPalette({ open, onClose, commands, ctx, restoreFocus }: P
   );
   const results = useMemo(() => fuzzyFilter(base, query), [base, query]);
 
-  useEffect(() => { if (open) { setQuery(""); setSel(0); } }, [open]);
-  useEffect(() => { setSel(0); }, [query]);
+  // Reset query + selection when the palette opens, and the selection whenever
+  // the query changes. Adjust-during-render with previous-value markers — the
+  // React-recommended alternative to sync setState in an effect (#28).
+  const [prevOpen, setPrevOpen] = useState(open);
+  if (open !== prevOpen) {
+    setPrevOpen(open);
+    if (open) { setQuery(""); setSel(0); }
+  }
+  const [prevQuery, setPrevQuery] = useState(query);
+  if (query !== prevQuery) {
+    setPrevQuery(query);
+    setSel(0);
+  }
 
   // Defer the chosen command until the palette has closed AND Radix has restored
   // focus to the pre-open element (usually the editor). Running it in

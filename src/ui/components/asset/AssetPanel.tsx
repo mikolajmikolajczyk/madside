@@ -72,23 +72,35 @@ export function AssetPanel(p: Props) {
   const [selectedId, setSelectedId] = useState<string>(
     existingRecipe?.converter ?? applicableConverters[0]?.id ?? "",
   );
-  useEffect(() => {
+  // Reconcile the selected converter when the file, the loaded converter list,
+  // or the saved recipe's converter changes. Adjust-during-render keyed on those
+  // (#28), replacing the prior effect.
+  const reconcileKey = `${p.filename}|${applicableConverters.length}|${existingRecipe?.converter ?? ""}`;
+  const [prevReconcileKey, setPrevReconcileKey] = useState(reconcileKey);
+  if (reconcileKey !== prevReconcileKey) {
+    setPrevReconcileKey(reconcileKey);
     if (!selectedId && applicableConverters[0]) setSelectedId(applicableConverters[0].id);
     if (existingRecipe && selectedId !== existingRecipe.converter) setSelectedId(existingRecipe.converter);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [p.filename, applicableConverters.length, existingRecipe?.converter]);
+  }
 
   const selectedMeta = applicableConverters.find((m) => m.id === selectedId);
 
   const [options, setOptions] = useState<Record<string, unknown>>({});
-  useEffect(() => {
-    if (!selectedMeta) return;
-    const next: Record<string, unknown> = {};
-    for (const spec of selectedMeta.optionsSchema) {
-      next[spec.name] = existingRecipe?.options?.[spec.name] ?? spec.default;
+  // Rebuild the option values when the converter or saved recipe changes.
+  // Adjust-during-render keyed on both (#28).
+  const [prevOptDeps, setPrevOptDeps] = useState<{ meta: typeof selectedMeta; recipe: typeof existingRecipe }>(
+    { meta: selectedMeta, recipe: existingRecipe },
+  );
+  if (prevOptDeps.meta !== selectedMeta || prevOptDeps.recipe !== existingRecipe) {
+    setPrevOptDeps({ meta: selectedMeta, recipe: existingRecipe });
+    if (selectedMeta) {
+      const next: Record<string, unknown> = {};
+      for (const spec of selectedMeta.optionsSchema) {
+        next[spec.name] = existingRecipe?.options?.[spec.name] ?? spec.default;
+      }
+      setOptions(next);
     }
-    setOptions(next);
-  }, [selectedMeta, existingRecipe]);
+  }
 
   const defaultOutput = useMemo(() => {
     const stem = p.filename.replace(/^assets\//, "").replace(/\.[^./]+$/, "");
@@ -96,9 +108,14 @@ export function AssetPanel(p: Props) {
   }, [p.filename]);
 
   const [output, setOutput] = useState<string>(existingRecipe?.output ?? defaultOutput);
-  useEffect(() => {
+  // Reset the output path when the saved recipe's output or the default changes.
+  // Adjust-during-render with a previous-value marker (#28).
+  const outputKey = `${existingRecipe?.output ?? ""}|${defaultOutput}`;
+  const [prevOutputKey, setPrevOutputKey] = useState(outputKey);
+  if (outputKey !== prevOutputKey) {
+    setPrevOutputKey(outputKey);
     setOutput(existingRecipe?.output ?? defaultOutput);
-  }, [existingRecipe?.output, defaultOutput]);
+  }
 
   const formRecipe = {
     converter: selectedId,
@@ -321,6 +338,9 @@ function ImagePreview({ bytes, mime }: { bytes: Uint8Array; mime: string }) {
   useEffect(() => {
     const blob = new Blob([bytes as BlobPart], { type: mime });
     const objectUrl = URL.createObjectURL(blob);
+    // Object-URL lifecycle: created here, revoked in cleanup — the setState is
+    // part of a genuine resource effect, not derived state (#28).
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setUrl(objectUrl);
     return () => URL.revokeObjectURL(objectUrl);
   }, [bytes, mime]);

@@ -1,5 +1,6 @@
 import { defineConfig } from 'vite'
-import react from '@vitejs/plugin-react'
+import react, { reactCompilerPreset } from '@vitejs/plugin-react'
+import babel from '@rolldown/plugin-babel'
 import { fileURLToPath } from 'node:url'
 import { readFileSync } from 'node:fs'
 
@@ -13,7 +14,14 @@ export default defineConfig({
   define: {
     __APP_VERSION__: JSON.stringify(appVersion),
   },
-  plugins: [react()],
+  // React Compiler (#28): auto-memoizes components at build time so re-renders
+  // skip unchanged work without hand-written useMemo/useCallback/memo. plugin-
+  // react v6 runs on OXC, so the compiler is wired as a Babel preset through
+  // @rolldown/plugin-babel. React 19 ships the compiler runtime, so there's no
+  // extra runtime dep. Requires Rules-of-React compliance — enforced by the
+  // react-hooks compiler-readiness eslint rules (refs / set-state-in-effect /
+  // preserve-manual-memoization).
+  plugins: [react(), babel({ presets: [reactCompilerPreset()] })],
   // Pre-bundle the lazily-imported emulator dep up front. jsnes is reached only
   // through dynamic import() (createWorkbench's NES backend factory), so Vite's
   // scanner can miss it — the first NES boot would then trigger an on-the-fly

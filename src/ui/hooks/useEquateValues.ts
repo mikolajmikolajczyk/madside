@@ -19,10 +19,9 @@ export function useEquateValues(equates: Map<number, number>): Map<number, numbe
   const [values, setValues] = useState<Map<number, number>>(EMPTY);
 
   useEffect(() => {
-    if (equates.size === 0) {
-      setValues(EMPTY);
-      return;
-    }
+    // No equates → nothing to poll. Don't clear state here (sync setState in an
+    // effect, #28); the hook returns EMPTY for this case below instead.
+    if (equates.size === 0) return;
     const entries = [...equates].slice(0, MAX_EQUATES);
     let cancelled = false;
 
@@ -59,5 +58,5 @@ export function useEquateValues(equates: Map<number, number>): Map<number, numbe
     };
   }, [wb, equates]);
 
-  return values;
+  return equates.size === 0 ? EMPTY : values;
 }

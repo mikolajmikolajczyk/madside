@@ -113,28 +113,25 @@ export function useProject(storage: StorageBackend, events?: EventBus) {
   const reload = useCallback(() => setReloadKey((k) => k + 1), []);
 
   // Debounced file persistence, behind a testable saver (see ./file-saver).
-  // `events` is read through a ref so the saver can be created once.
-  const eventsRef = useRef(events);
-  eventsRef.current = events;
-  const saverRef = useRef<FileSaver | null>(null);
-  if (!saverRef.current) {
-    saverRef.current = createFileSaver({
-      write: (pid, path, content) => storage.projects.writeFile(pid, path, content),
-      onSaved: (path) => eventsRef.current?.emit('file:changed', { path }),
-      delayMs: SAVE_DEBOUNCE_MS,
-    });
-  }
+  // `storage` and `events` are the workbench's singletons (stable for the app's
+  // lifetime), so the lazy useState init captures them directly — a single,
+  // stable saver with no render-time ref write (#28).
+  const [saver] = useState<FileSaver>(() => createFileSaver({
+    write: (pid, path, content) => storage.projects.writeFile(pid, path, content),
+    onSaved: (path) => events?.emit('file:changed', { path }),
+    delayMs: SAVE_DEBOUNCE_MS,
+  }));
 
   // Schedule dirty-file writes; the saver's returned cleanup cancels exactly
   // this run's timers, so a file removed inside the debounce window can't
   // resurrect its old bytes.
   useEffect(() => {
     if (!state) return;
-    return saverRef.current!.sync(state.projectId, state.files);
-  }, [state]);
+    return saver.sync(state.projectId, state.files);
+  }, [state, saver]);
 
   // Cancel everything + forget save history on project switch / unmount.
-  useEffect(() => () => saverRef.current?.reset(), [state?.projectId]);
+  useEffect(() => () => saver.reset(), [state?.projectId, saver]);
 
   const updateActive = useCallback((content: string | Uint8Array) => {
     const bytes = typeof content === "string" ? enc.encode(content) : content;

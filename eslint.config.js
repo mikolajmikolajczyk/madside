@@ -74,16 +74,14 @@ export default defineConfig([
         { default: 'disallow', rules: dependencyRules },
       ],
 
-      // React-hooks v7 ships a batch of React-Compiler-readiness rules
-      // (set-state-in-effect, refs, preserve-manual-memoization). The codebase
-      // predates React Compiler and these flag correct-for-us patterns (caching
-      // refs, async-load setState in effects), not bugs. Keeping them as `warn`
-      // was theatrical — never enforced. Turn them OFF honestly and track the
-      // actual migration in issue #28 (React-Compiler readiness) rather than
-      // leave noise that defeats the `--max-warnings 0` gate.
-      'react-hooks/set-state-in-effect': 'off',
-      'react-hooks/refs': 'off',
-      'react-hooks/preserve-manual-memoization': 'off',
+      // React-hooks v7 React-Compiler-readiness rules, now enforced (#28): the
+      // app adopted React Compiler (vite.config.ts) and was restructured to
+      // satisfy them — latest-ref writes moved into effects, derived state moved
+      // to adjust-during-render, the label scan cache moved to module scope. A
+      // few genuine resource/error-path effects keep inline disables.
+      'react-hooks/set-state-in-effect': 'error',
+      'react-hooks/refs': 'error',
+      'react-hooks/preserve-manual-memoization': 'error',
       // exhaustive-deps stays enforced — it catches real stale-closure bugs.
       'react-hooks/exhaustive-deps': 'warn',
       'preserve-caught-error': 'off',

@@ -83,8 +83,16 @@ export function MemoryPanel({ ctx }: { ctx: PanelContext }) {
 }
 
 function BaseInput({ value, onChange }: { value: number; onChange?: (addr: number) => void }) {
-  const [text, setText] = useState(hex(value, 4))
-  useEffect(() => { setText(hex(value, 4)) }, [value])
+  const [text, setText] = useState(() => hex(value, 4))
+  // Reset the editable text when the base address changes externally (cursor
+  // follow). Adjust-during-render with a previous-value marker — the React-
+  // recommended alternative to a sync setState in an effect (#28); keeps input
+  // focus, which a `key` reset would drop.
+  const [prevValue, setPrevValue] = useState(value)
+  if (value !== prevValue) {
+    setPrevValue(value)
+    setText(hex(value, 4))
+  }
   const commit = (s: string) => {
     const n = parseInt(s, 16)
     if (!isNaN(n)) onChange?.(n & 0xffff)

@@ -32,7 +32,7 @@ export function PluginEditor({ module, path, value, onChange, assets }: Props) {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const handleRef = useRef<EditorHandle | null>(null);
   const onChangeRef = useRef(onChange);
-  onChangeRef.current = onChange;
+  useEffect(() => { onChangeRef.current = onChange; });
   const [error, setError] = useState<string | null>(null);
   // Bump to force a remount after the user clicks "Reload editor".
   const [reloadKey, setReloadKey] = useState(0);
@@ -71,6 +71,8 @@ export function PluginEditor({ module, path, value, onChange, assets }: Props) {
       });
       handleRef.current = handle;
     } catch (e) {
+      // Error path of a genuine mount side-effect — surface the crash (#28).
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       failWith(`mount threw: ${String(e)}`, e);
       handleRef.current = null;
     }
@@ -87,6 +89,7 @@ export function PluginEditor({ module, path, value, onChange, assets }: Props) {
     const handle = handleRef.current;
     if (!handle?.onValueChange) return;
     try { handle.onValueChange(value); }
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- error path of a genuine onValueChange side-effect (#28)
     catch (e) { failWith(`onValueChange threw: ${String(e)}`, e); }
   }, [value, failWith]);
 
