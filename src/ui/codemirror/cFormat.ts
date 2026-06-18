@@ -83,10 +83,16 @@ export async function formatCView(view: EditorView, filename: string, style: str
   const src = view.state.doc.toString();
   const out = await formatC(src, filename, style);
   if (out !== src) {
-    view.dispatch({
-      changes: { from: 0, to: view.state.doc.length, insert: out },
-      selection: { anchor: Math.min(view.state.selection.main.head, out.length) },
-    });
+    // Replace only the region that actually changed (common prefix/suffix
+    // trimmed), and let CodeMirror map the current selection through that one
+    // change. The cursor stays at its logical spot instead of being dumped at
+    // the end of the document (VS Code-style cursor preservation).
+    const max = Math.min(src.length, out.length);
+    let p = 0;
+    while (p < max && src.charCodeAt(p) === out.charCodeAt(p)) p++;
+    let s = 0;
+    while (s < max - p && src.charCodeAt(src.length - 1 - s) === out.charCodeAt(out.length - 1 - s)) s++;
+    view.dispatch({ changes: { from: p, to: src.length - s, insert: out.slice(p, out.length - s) } });
   }
   return true;
 }
