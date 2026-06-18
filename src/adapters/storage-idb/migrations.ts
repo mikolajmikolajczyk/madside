@@ -57,6 +57,13 @@ export const migrations: Migration[] = [
       db.createObjectStore("courses", { keyPath: "sourceId" });
     },
   },
+  {
+    v: 4,
+    description: "add builds store (last build per project, #62)",
+    run(db) {
+      db.createObjectStore("builds", { keyPath: "projectId" });
+    },
+  },
 ];
 
 /** Highest schema version the workbench supports. Derived so adding a

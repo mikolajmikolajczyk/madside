@@ -27,8 +27,8 @@ class FakeDb {
 }
 
 const v2Stores = ['projects', 'files', 'meta', 'snapshots', 'blobs', 'breakpoints']
-// After applyBaseline + every migration runs (v3 adds the courses store).
-const latestStores = [...v2Stores, 'courses']
+// After applyBaseline + every migration runs (v3 adds courses, v4 adds builds).
+const latestStores = [...v2Stores, 'courses', 'builds']
 
 describe('IDB migration runner', () => {
   it('applyBaseline creates every v2 store with the expected indexes', () => {

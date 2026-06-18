@@ -11,6 +11,8 @@
 // never reach into an adapter. The IDB adapter re-exports these for continuity.
 
 import type { ProjectManifestV2 } from './project-manifest'
+import type { SourceMap } from './source-map'
+import type { BuildDiagnostic } from './diagnostics'
 
 // === domain shapes ===
 
@@ -134,6 +136,28 @@ export interface BreakpointStore {
   clear(projectId: string): Promise<void>
 }
 
+/** The last build of a project, persisted so a page reload restores the OUTPUT
+ *  panel + inline error markers (and the binary, so Run works without a rebuild)
+ *  instead of starting blank (#62). Maps/Uint8Array survive IDB structured
+ *  clone, so the shape is stored as-is. Workflow state, not a project artifact —
+ *  excluded from ZIP export. */
+export interface StoredBuild {
+  ok: boolean
+  binary?: Uint8Array
+  sourceMap?: SourceMap
+  labels?: Map<string, number>
+  diagnostics?: BuildDiagnostic[]
+  stdout: string
+  stderr: string
+  exitCode: number
+}
+
+export interface BuildStore {
+  load(projectId: string): Promise<StoredBuild | undefined>
+  save(projectId: string, build: StoredBuild): Promise<void>
+  clear(projectId: string): Promise<void>
+}
+
 export interface CourseStore {
   install(row: InstalledCourseRow): Promise<void>
   list(): Promise<InstalledCourseRow[]>
@@ -152,6 +176,7 @@ export interface StorageBackend {
   projects: ProjectStore
   snapshots: SnapshotStore
   breakpoints: BreakpointStore
+  builds: BuildStore
   courses: CourseStore
   kv: KeyValueStore
 }

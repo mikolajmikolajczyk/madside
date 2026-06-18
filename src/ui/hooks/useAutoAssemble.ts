@@ -8,6 +8,8 @@ import type {
   BuildService,
   ProjectManifestV2,
   SourceMap,
+  StorageBackend,
+  StoredBuild,
 } from "@ports";
 
 interface ProjectFile {
@@ -20,7 +22,34 @@ interface Args {
   files: ProjectFile[] | null;
   manifest: ProjectManifestV2 | null;
   projectId: string | null;
+  /** Persists each build so a reload restores OUTPUT + markers + binary (#62). */
+  storage: StorageBackend;
 }
+
+/** AutoAssembleOutcome → the persisted shape (#62). `xex` is renamed `binary`;
+ *  Maps / Uint8Array survive IDB structured clone, so everything else is as-is. */
+const toStored = (o: AutoAssembleOutcome): StoredBuild => ({
+  ok: o.ok,
+  binary: o.xex,
+  sourceMap: o.sourceMap,
+  labels: o.labels,
+  diagnostics: o.diagnostics,
+  stdout: o.stdout,
+  stderr: o.stderr,
+  exitCode: o.exitCode,
+});
+
+/** StoredBuild → AutoAssembleOutcome, for hydrating `result` on project load. */
+export const outcomeFromStored = (b: StoredBuild): AutoAssembleOutcome => ({
+  ok: b.ok,
+  xex: b.binary,
+  sourceMap: b.sourceMap,
+  labels: b.labels,
+  diagnostics: b.diagnostics,
+  stdout: b.stdout,
+  stderr: b.stderr,
+  exitCode: b.exitCode,
+});
 
 /** Combined build outcome the editor surfaces. Sources of truth (sourceMap,
  *  labels) come parsed from BuildService so UI never touches toolchain-
@@ -72,6 +101,7 @@ export function useAutoAssemble({
   files,
   manifest,
   projectId,
+  storage,
 }: Args): UseAutoAssembleResult {
   const [result, setResult] = useState<AutoAssembleOutcome | null>(null);
   const [busy, setBusy] = useState(false);
@@ -81,6 +111,14 @@ export function useAutoAssemble({
     if (!files || !manifest || !projectId) return null;
     const seq = ++seqRef.current;
     setBusy(true);
+    // Commit a fresh outcome: drive React state + persist it under this project
+    // so a reload restores it (#62). Persist where the result is born — keyed by
+    // the build's own projectId, never a stale one.
+    const commit = (o: AutoAssembleOutcome): AutoAssembleOutcome => {
+      setResult(o);
+      void storage.builds.save(projectId, toStored(o));
+      return o;
+    };
     try {
       const input: BuildInput = {
         projectId,
@@ -94,33 +132,27 @@ export function useAutoAssemble({
       const built = await buildService.build(input);
       if (seq !== seqRef.current) return null;
       if (built.ok) {
-        const outcome = toOutcome(built.value);
-        setResult(outcome);
-        return outcome;
+        return commit(toOutcome(built.value));
       }
-      const outcome: AutoAssembleOutcome = {
+      return commit({
         ok: false,
         diagnostics: built.error.diagnostics,
-        stdout: "",
-        stderr: built.error.stderr ?? built.error.message,
+        stdout: built.error.stdout ?? "",
+        stderr: built.error.stderr || built.error.message,
         exitCode: 1,
-      };
-      setResult(outcome);
-      return outcome;
+      });
     } catch (e) {
       if (seq !== seqRef.current) return null;
-      const outcome: AutoAssembleOutcome = {
+      return commit({
         ok: false,
         stdout: "",
         stderr: `[runtime] ${errorMessage(e)}`,
         exitCode: 1,
-      };
-      setResult(outcome);
-      return outcome;
+      });
     } finally {
       if (seq === seqRef.current) setBusy(false);
     }
-  }, [buildService, files, manifest, projectId]);
+  }, [buildService, files, manifest, projectId, storage]);
 
   // Build trigger (#59, project.json `build.trigger`). Default 'manual' — build
   // only on Ctrl+S / Run (runAssemble), so large projects don't recompile on

@@ -19,6 +19,9 @@ export abstract class WorkbenchError extends Error {
 export class BuildError extends WorkbenchError {
   readonly kind = 'build' as const
   readonly stderr?: string
+  /** Toolchain stdout, kept apart from stderr so the Output panel can show both
+   *  streams and a reload can restore them (#62). */
+  readonly stdout?: string
   /** Parsed error/warning locations from the toolchain (#29). Carried so the
    *  editor can mark failing lines inline, not just print the exit code. */
   readonly diagnostics?: import('./diagnostics').BuildDiagnostic[]
@@ -28,10 +31,12 @@ export class BuildError extends WorkbenchError {
     stderr?: string,
     cause?: unknown,
     diagnostics?: import('./diagnostics').BuildDiagnostic[],
+    stdout?: string,
   ) {
     super(message, cause)
     this.stderr = stderr
     this.diagnostics = diagnostics
+    this.stdout = stdout
   }
 }
 

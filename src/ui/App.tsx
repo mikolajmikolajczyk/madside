@@ -35,7 +35,7 @@ import { useEquateValues } from "./hooks/useEquateValues";
 import { usePluginEditor } from "./hooks/usePluginEditor";
 import { useProjectLabels } from "./hooks/useProjectLabels";
 import { useProjectCSymbols } from "./hooks/useProjectCSymbols";
-import { useAutoAssemble } from "./hooks/useAutoAssemble";
+import { useAutoAssemble, outcomeFromStored } from "./hooks/useAutoAssemble";
 import { useRunStatus } from "./hooks/useRunStatus";
 import { useActiveMachine } from "./hooks/useActiveMachine";
 import { useWorkbench } from "@app";
@@ -98,6 +98,7 @@ export default function App() {
     files: project.loaded ? project.files : null,
     manifest: project.loaded ? project.manifest : null,
     projectId: project.loaded ? project.projectId : null,
+    storage: workbench.storage,
   });
 
   const editorViewRef = useRef<EditorView | null>(null);
@@ -142,6 +143,19 @@ export default function App() {
     // eslint-disable-next-line react-hooks/set-state-in-effect
     resetEmuState();
   }, [projectId, resetEmuState]);
+
+  // Restore the last build from storage on project load (#62) — OUTPUT panel +
+  // inline error markers + the binary (Run without a rebuild) come back instead
+  // of a blank slate after a reload. Async, so it lands after the reset above;
+  // cancelled if the project switches before the load resolves.
+  useEffect(() => {
+    if (!projectId) return;
+    let cancelled = false;
+    void workbench.storage.builds.load(projectId).then((b) => {
+      if (!cancelled && b) setResult(outcomeFromStored(b));
+    });
+    return () => { cancelled = true; };
+  }, [projectId, workbench, setResult]);
 
   const bpLinesByFile = useMemo(
     () => (project.loaded ? project.breakpoints : new Map<string, Set<number>>()),
@@ -293,6 +307,15 @@ export default function App() {
   // Live cpu + memory bytes flow through ctx.events now (panels self-fetch
   // via DebugService on debug:step-done / debug:bp-hit / run:state). App
   // still owns UI-side state — base addr + highlight + initial output.
+  // Output seed for the Output panel. Keyed on `result` alone so its identity
+  // changes only on a build / reload-hydration (#62) — the panel re-syncs from
+  // it on identity change, so restored output shows without an extra build:done.
+  const outputData = useMemo(() => ({
+    stdout: result?.stdout ?? '',
+    stderr: result?.stderr ?? '',
+    ok: result ? result.ok : null,
+  }), [result]);
+
   const panelData = useMemo(() => ({
     memory: {
       base: memBase,
@@ -302,12 +325,8 @@ export default function App() {
       following: !memBaseTouched,
       onResumeFollow,
     },
-    output: {
-      stdout: result?.stdout ?? '',
-      stderr: result?.stderr ?? '',
-      ok: result ? result.ok : null,
-    },
-  }), [memBase, onMemBaseChange, cursorHighlight, result, memBaseTouched, onResumeFollow]);
+    output: outputData,
+  }), [memBase, onMemBaseChange, cursorHighlight, outputData, memBaseTouched, onResumeFollow]);
 
   const pcLine = useMemo(() => {
     // During run the PC moves too fast to track in the editor — hide

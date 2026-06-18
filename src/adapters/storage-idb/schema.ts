@@ -3,7 +3,7 @@
 // these two avoids a madge circular even though the cross-import is type-only.
 
 import type { DBSchema } from "idb";
-import type { BreakpointsRow, FileRow, InstalledCourseRow, MetaRow, ProjectRow } from "./types";
+import type { BreakpointsRow, BuildRow, FileRow, InstalledCourseRow, MetaRow, ProjectRow } from "./types";
 
 export interface MadsideDB extends DBSchema {
   projects: {
@@ -32,6 +32,10 @@ export interface MadsideDB extends DBSchema {
   breakpoints: {
     key: string;                         // projectId
     value: BreakpointsRow;
+  };
+  builds: {
+    key: string;                         // projectId
+    value: BuildRow;
   };
   courses: {
     key: string;                         // InstalledCourseRow.sourceId

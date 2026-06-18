@@ -14,6 +14,7 @@ import type {
   SnapshotInput,
   SnapshotMeta,
   StorageBackend,
+  StoredBuild,
 } from "@ports";
 import { sha256Hex } from "@core/hash";
 import {
@@ -39,6 +40,7 @@ export function createMemoryStorage(): StorageBackend {
   const blobs = new Map<string, Uint8Array>();
   const courses = new Map<string, InstalledCourseRow>();
   const bpStore = new Map<string, Record<string, number[]>>(); // projectId → record
+  const buildStore = new Map<string, StoredBuild>(); // projectId → last build (#62)
   const meta: { activeProjectId?: string } = {};
 
   const filesOf = (projectId: string): FileRow[] =>
@@ -271,6 +273,20 @@ export function createMemoryStorage(): StorageBackend {
       },
       clear(projectId) {
         bpStore.delete(projectId);
+        return Promise.resolve();
+      },
+    },
+
+    builds: {
+      load(projectId) {
+        return Promise.resolve(buildStore.get(projectId));
+      },
+      save(projectId, build) {
+        buildStore.set(projectId, build);
+        return Promise.resolve();
+      },
+      clear(projectId) {
+        buildStore.delete(projectId);
         return Promise.resolve();
       },
     },

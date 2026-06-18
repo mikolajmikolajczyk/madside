@@ -106,6 +106,7 @@ export type {
   BreakpointsMap,
   BreakpointsRecord,
   BreakpointStore,
+  BuildStore,
   CourseStore,
   FileRow,
   InstalledCourseRow,
@@ -120,6 +121,7 @@ export type {
   SnapshotMeta,
   SnapshotStore,
   StorageBackend,
+  StoredBuild,
 } from './storage'
 
 // Service interfaces (implementations land in @services during M3)

@@ -32,6 +32,7 @@ import {
   restoreSnapshot,
 } from "./snapshots";
 import { clearBreakpoints, loadBreakpoints, saveBreakpoints } from "./breakpoints";
+import { clearBuild, loadBuild, saveBuild } from "./builds";
 import {
   getInstalledCourse,
   installRemoteCourse,
@@ -70,6 +71,11 @@ export function createIdbStorage(): StorageBackend {
       load: loadBreakpoints,
       save: saveBreakpoints,
       clear: clearBreakpoints,
+    },
+    builds: {
+      load: loadBuild,
+      save: saveBuild,
+      clear: clearBuild,
     },
     courses: {
       install: installRemoteCourse,

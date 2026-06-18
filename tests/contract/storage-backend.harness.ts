@@ -171,6 +171,26 @@ export function assertStorageBackend(fresh: () => StorageBackend): void {
     expect((await s.breakpoints.load('proj')).size).toBe(0)
   })
 
+  it('builds save → load round-trips binary + labels, clear empties (#62)', async () => {
+    const s = fresh()
+    const build = {
+      ok: true,
+      binary: new Uint8Array([0xff, 0xff, 0x00, 0x20, 0x42]),
+      labels: new Map([['main', 0x2000]]),
+      diagnostics: [{ file: 'src/main.c', line: 3, severity: 'warning' as const, message: 'x' }],
+      stdout: 'ok',
+      stderr: '',
+      exitCode: 0,
+    }
+    await s.builds.save('proj', build)
+    const loaded = await s.builds.load('proj')
+    expect(loaded?.binary).toEqual(build.binary)         // Uint8Array survives clone
+    expect(loaded?.labels?.get('main')).toBe(0x2000)     // Map survives clone
+    expect(loaded?.diagnostics).toEqual(build.diagnostics)
+    await s.builds.clear('proj')
+    expect(await s.builds.load('proj')).toBeUndefined()
+  })
+
   it('snapshots.delete removes one from the list', async () => {
     const s = fresh()
     const row = await s.projects.create('snap-del', seedFiles('; v1\n'), manifest('snap-del'))

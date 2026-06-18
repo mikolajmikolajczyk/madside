@@ -142,9 +142,10 @@ export function createBuildService(deps: BuildServiceDeps): BuildService {
         const message = `assemble exit ${assembleResult.exitCode}`
         const e = new BuildError(
           message,
-          assembleResult.stderr || assembleResult.stdout,
+          assembleResult.stderr,
           undefined,
           assembleResult.diagnostics,
+          assembleResult.stdout,
         )
         // Carry the assembler's output so the Output panel shows *where* it
         // failed, not just the exit code (#4). MADS prints diagnostics
