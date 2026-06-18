@@ -1,46 +1,46 @@
 ; minimal NES APU example — a steady square-wave tone on pulse channel 1.
 ; No PPU setup: the whole program just configures the APU and spins.
-        icl 'nes.a65'           ; PPU/APU equates
-        opt h-                  ; headerless raw output (iNES, not XEX)
+    icl 'nes.a65'           ; PPU/APU equates
+    opt h-                  ; headerless raw output (iNES, not XEX)
 
 ; --- iNES header (16B), contiguous before PRG ---
-        org $bff0
-        dta c"NES",$1a
-        dta $01                 ; PRG 16KB
-        dta $00                 ; CHR 0 -> CHR-RAM (no CHR-ROM in the file)
-        dta $00,$00             ; mapper 0 NROM
-        dta $00,$00,$00,$00,$00,$00,$00,$00
+    org $bff0
+    dta c"NES",$1a
+    dta $01                 ; PRG 16KB
+    dta $00                 ; CHR 0 -> CHR-RAM (no CHR-ROM in the file)
+    dta $00,$00             ; mapper 0 NROM
+    dta $00,$00,$00,$00,$00,$00,$00,$00
 
 ; --- PRG-ROM 16KB ---
-        org $c000
+    org $c000
 reset
-        sei
-        cld
-        ldx #$ff
-        txs                     ; init stack
+    sei
+    cld
+    ldx #$ff
+    txs                     ; init stack
 
-        lda #$40
-        sta FRAMECNT            ; 4-step frame counter, frame IRQ off
+    lda #$40
+    sta FRAMECNT            ; 4-step frame counter, frame IRQ off
 
-        ; --- play a tone on pulse 1 ---
-        lda #$01
-        sta APUSTATUS           ; enable pulse channel 1
+    ; --- play a tone on pulse 1 ---
+    lda #$01
+    sta APUSTATUS           ; enable pulse channel 1
 
-        lda #%10111111          ; duty 50%, length halted, constant volume 15
-        sta SQ1_VOL
-        lda #$08                ; sweep disabled (E=0)
-        sta SQ1_SWEEP
-        lda #$fd                ; timer low  — ~440 Hz (A4)
-        sta SQ1_LO
-        lda #$08                ; timer high 0 + non-zero length load -> channel on
-        sta SQ1_HI
+    lda #%10111111          ; duty 50%, length halted, constant volume 15
+    sta SQ1_VOL
+    lda #$08                ; sweep disabled (E=0)
+    sta SQ1_SWEEP
+    lda #$fd                ; timer low  — ~440 Hz (A4)
+    sta SQ1_LO
+    lda #$08                ; timer high 0 + non-zero length load -> channel on
+    sta SQ1_HI
 
 forever jmp forever             ; tone plays for as long as it runs
 
 nmi     rti
 irq     rti
-        :$fffa-* dta $ff        ; pad PRG up to the vectors ($fffa)
-        dta a(nmi)
-        dta a(reset)
-        dta a(irq)
+    :$fffa-* dta $ff        ; pad PRG up to the vectors ($fffa)
+    dta a(nmi)
+    dta a(reset)
+    dta a(irq)
 ; CHR-RAM (CHR banks=0) — no CHR-ROM in the file
