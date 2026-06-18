@@ -236,3 +236,61 @@ docs-dev:
 # Build the static docs site into docs/dist/.
 docs-build:
     cd "{{docs_dir}}" && pnpm install && pnpm build
+
+# === release ===
+
+# Full release flow: gates → bump → changelog → commit → sign tag → push → gh
+# release. Usage: `just release 0.12.0` (bare X.Y.Z, no `v`).
+#
+# The previous release MUST be tagged (it's git-cliff's changelog boundary) —
+# every release this recipe cuts leaves the right tag for the next one.
+# Deploy is SEPARATE: docker build + push registry.mikolajczyk.org/madside:latest;
+# the VPS webapps-update timer pulls `latest` every 5 min (version tags don't
+# drive deploy).
+
+# Cut a release end-to-end (gates, bump, changelog, signed tag, push, gh release).
+release version:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    ver="{{version}}"
+    tag="v$ver"
+
+    # --- preflight: fail before mutating anything ---
+    if ! [[ "$ver" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+        echo "✗ version must be X.Y.Z (got '$ver')"; exit 1
+    fi
+    if git rev-parse -q --verify "refs/tags/$tag" >/dev/null; then
+        echo "✗ tag $tag already exists"; exit 1
+    fi
+    if grep -q "^## \[$ver\]" CHANGELOG.md; then
+        echo "✗ CHANGELOG.md already has a [$ver] section — reset it before re-running"; exit 1
+    fi
+    branch="$(git rev-parse --abbrev-ref HEAD)"
+    if [ "$branch" != "main" ]; then echo "✗ not on main (on '$branch')"; exit 1; fi
+    if [ -z "$(git tag)" ]; then
+        echo "✗ no prior tag — git-cliff has no boundary. Tag the last release first."; exit 1
+    fi
+
+    # --- quality gates (build runs tsc -b + vite build) ---
+    echo "▸ lint…";  npm run lint
+    echo "▸ test…";  npx vitest run
+    echo "▸ build…"; npm run build
+
+    # Warm the gpg agent now so the commit + tag below don't hit the first-use
+    # pinentry timeout mid-release (the documented gotcha).
+    echo "▸ warming gpg…"; echo release | gpg --clearsign >/dev/null 2>&1 || true
+
+    # --- mutate: bump, changelog, commit, tag ---
+    echo "▸ bump → $ver"; npm pkg set version="$ver"
+    echo "▸ changelog…"; npx -y git-cliff@latest --unreleased --tag "$tag" --prepend CHANGELOG.md
+    git add package.json CHANGELOG.md
+    git commit -S -m "chore(release): $tag"
+    git tag -s "$tag" -m "$tag"
+
+    # --- publish ---
+    echo "▸ push…"; git push origin main; git push origin "$tag"
+    notes="$(mktemp)"
+    awk -v v="$ver" '$0 ~ "^## \\[" v "\\]" {f=1; next} /^## \[/ {f=0} f' CHANGELOG.md > "$notes"
+    gh release create "$tag" --title "$tag" --notes-file "$notes" --verify-tag
+    rm -f "$notes"
+    echo "✓ released $tag — https://github.com/mikolajmikolajczyk/madside/releases/tag/$tag"
