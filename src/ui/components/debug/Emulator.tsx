@@ -17,6 +17,9 @@ export interface CpuRegs {
 interface Props {
   breakpoints?: Set<number>; // PC addresses to break on
   onState?: (s: CpuRegs) => void;
+  /** Shown as an overlay over the screen when a Run is blocked — e.g. the build
+   *  failed, so there's no binary to load ("Compilation error. Check output"). */
+  blockedMsg?: string | null;
   // Step + Frame go through DebugService.step / stepFrame (1e38ae3 — the
   // canonical event path). DebugService emits debug:step-done; Emulator
   // listens + blits the canvas. The frame loop is driven by RunService's
@@ -27,7 +30,7 @@ interface Props {
   // ctx.debug.readMemory polling, not through here.
 }
 
-export function Emulator({ breakpoints, onState }: Props) {
+export function Emulator({ breakpoints, onState, blockedMsg }: Props) {
   const workbench = useWorkbench();
   const machine = useActiveMachine();
   const runStatus = useRunStatus();
@@ -335,12 +338,15 @@ export function Emulator({ breakpoints, onState }: Props) {
         {status === "error" ? (
           <div className="emulator__placeholder">kernel load failed: {error}</div>
         ) : (
-          <canvas
-            ref={canvasRef}
-            className="emulator__screen"
-            tabIndex={0}
-            onMouseDown={() => canvasRef.current?.focus()}
-          />
+          <>
+            <canvas
+              ref={canvasRef}
+              className="emulator__screen"
+              tabIndex={0}
+              onMouseDown={() => canvasRef.current?.focus()}
+            />
+            {blockedMsg && <div className="emulator__overlay">{blockedMsg}</div>}
+          </>
         )}
       </div>
     </div>

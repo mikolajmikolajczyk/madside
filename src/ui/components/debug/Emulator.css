@@ -13,11 +13,26 @@
 }
 
 .emulator__canvas {
+  position: relative;
   display: flex;
   align-items: flex-start;
   justify-content: center;
   background: #000;
   min-height: 0;
+}
+
+.emulator__overlay {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  padding: 16px;
+  background: rgba(0, 0, 0, 0.74);
+  color: #f87171;
+  font-size: 13px;
+  font-weight: 600;
 }
 
 .emulator__placeholder {

@@ -88,6 +88,9 @@ export default function App() {
   const [memBase, setMemBase] = useState(0x2000);
   const [memBaseTouched, setMemBaseTouched] = useState(false);
   const [brokeOn, setBrokeOn] = useState<number | null>(null);
+  // Set when a Run can't proceed (build failed / binary load failed) — shown as
+  // an overlay in the emulator window. Cleared on the next successful Run.
+  const [runBlockedMsg, setRunBlockedMsg] = useState<string | null>(null);
   const [cursorLine, setCursorLine] = useState<number | null>(null);
 
   const { result, setResult, busy, runAssemble } = useAutoAssemble({
@@ -128,6 +131,7 @@ export default function App() {
     setCpu(null);
     if (!opts?.keepMemTouched) setMemBaseTouched(false);
     setBrokeOn(null);
+    setRunBlockedMsg(null);
   }, [setResult, workbench]);
 
   const projectId = project.loaded ? project.projectId : null;
@@ -381,15 +385,24 @@ export default function App() {
     const status = workbench.run.status;
     if (status === 'paused' || status === 'loaded') {
       setBrokeOn(null);
+      setRunBlockedMsg(null);
       workbench.run.run();
       return;
     }
     let r = result;
     if (!r) r = await runAssemble();
-    if (!r?.ok || !r.xex) return;
+    if (!r?.ok || !r.xex) {
+      // Nothing to load — tell the user where to look, in the emulator window.
+      setRunBlockedMsg("Compilation error. Check output.");
+      return;
+    }
     const loadResult = await workbench.run.load(r.xex);
-    if (!loadResult.ok) return;
+    if (!loadResult.ok) {
+      setRunBlockedMsg("Failed to load binary. Check output.");
+      return;
+    }
     setBrokeOn(null);
+    setRunBlockedMsg(null);
     workbench.run.run();
   }, [result, runAssemble, workbench]);
 
@@ -865,6 +878,7 @@ export default function App() {
           <Emulator
             breakpoints={breakpoints}
             onState={setCpu}
+            blockedMsg={runBlockedMsg}
           />
           {project.loaded && (
             <Debug
