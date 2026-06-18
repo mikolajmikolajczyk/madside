@@ -11,7 +11,7 @@ The debug column (the right-hand side panel, below the emulator) is a stack of *
 
 - **Registers** — CPU registers and condition flags, descriptor-driven so they render correctly per machine. See [Debugging](/docs/using/debugging/#registers-and-flags).
 - **Memory** — a hex + ASCII dump with a base-address input, cursor following, and named memory regions. See [the memory viewer](/docs/using/debugging/#the-memory-viewer).
-- **Output** — the assembler's stdout/stderr with an OK / ERR tag. This panel is shown below the editor rather than in the debug column. See [Building](/docs/using/building/#the-output-panel).
+- **Output** — the toolchain's stdout/stderr with an OK / ERR tag. This panel is shown below the editor rather than in the debug column. The last build's output is persisted, so it restores after a page reload rather than going blank. See [Building](/docs/using/building/#the-output-panel).
 
 All three refresh on their own from build and debug events — there's nothing to wire up.
 

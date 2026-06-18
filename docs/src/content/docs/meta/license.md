@@ -13,7 +13,7 @@ You can use, study, modify, and share madside freely. But if you distribute a mo
 
 ## Why AGPL
 
-The choice is recorded in [ADR-0006](https://radicle.xyz). The short version:
+The choice is recorded in [ADR-0006](https://github.com/mikolajmikolajczyk/madside). The short version:
 
 - **Anti-SaaS-fork.** Plain GPL lets someone host a modified fork as a web service without ever releasing the changes (no binary is distributed). AGPL's network clause closes that gap — a hosted fork must publish its modifications too.
 - **Anti-distributed-fork.** A fork shipped as a desktop app or rebranded web build must likewise release its changes. That's the ordinary GPL part.
@@ -23,7 +23,7 @@ The choice is recorded in [ADR-0006](https://radicle.xyz). The short version:
 ## Plugins and bundled components
 
 - **Plugins** may carry any AGPL-3.0-compatible license. The plugin manifest's `license` field is informational; the workbench does not enforce a check.
-- The **MADS** assembler and the **Altirra** core are bundled under their own upstream licenses (Altirra is GPL-3; MADS is permissive). The NES core, **jsnes**, is Apache-2.0 — one-way compatible with AGPL-3.0.
+- madside bundles several third-party tools and libraries under their own upstream licenses. The **cc65** toolchain (C compiler + ca65 + ld65) is Zlib; the **MADS** assembler is freeware; the **Altirra** emulator core is GPL-2.0-or-later. Bundled npm libraries include **jsnes** (Apache-2.0), **clang-format** (MIT wrapper / Apache-2.0-WITH-LLVM-exception), **fflate** (MIT), and **idb** (ISC) — all AGPL-3.0-compatible. The full, version-pinned list is in [Third-party software](/docs/reference/third-party/).
 
 ## Copyright
 

@@ -9,9 +9,20 @@ An **emulator** plugin provides the running machine: it loads media, advances fr
 
 Emulator plugins are **built-in only**.
 
-:::caution
-The dedicated `EmulatorPlugin` *contract* (a registry-kind wrapper, manifest-driven selection) is an **M4 follow-up — not yet landed**. Today the run backend is supplied directly as a `RunBackend` factory wired into `createWorkbench` per machine, and the emulator backend implementation lives at `@adapters/emu` (Altirra) / `@plugins/emulator-nes-jsnes` (jsnes). The interface below — `RunBackend` — is the de-facto contract you implement now; when `EmulatorPlugin` lands it will wrap a `RunBackend`. Read the source (`@ports/services/run-service.ts`) before relying on details here.
-:::
+An emulator ships in two parts: the thin **`EmulatorPlugin`** wrapper (registry-facing, source `@ports/plugin-emulator.ts`) and the **`RunBackend`** it builds (the real work, source `@ports/services/run-service.ts`). The plugin is tiny:
+
+```ts
+interface EmulatorPlugin {
+  readonly id: string          // 'altirra-wasm', 'jsnes'
+  readonly kind: 'emulator'
+  readonly name: string
+  createBackend(): Promise<RunBackend>   // async: the heavy core loads only on boot
+}
+```
+
+`createBackend` is deliberately lazy — typically a `() => (await import('./core')).create()` — so the wasm/JS core stays out of the main bundle and is fetched only when an emulator is actually selected. The plugin is registered through the `PluginRegistry` like every other kind; a machine names the one it runs on via `MachinePlugin.compatibleEmulators`, and the workbench resolves `compatibleEmulators[0]` from the registry. The shipped emulators are Altirra (`@adapters/emu`, id `altirra-wasm`) and jsnes (`@plugins/emulator-nes-jsnes`, id `jsnes`).
+
+The rest of this page documents `RunBackend` — the interface your `createBackend` returns.
 
 ## The run backend
 
@@ -71,6 +82,10 @@ On a breakpoint hit, `RunService` pauses and emits `debug:bp-hit`; a completed s
 
 `readMem(addr, len, space?)` reads a named memory space; `space` defaults to the CPU bus. If the paired machine declares extra spaces in `MachinePlugin.memorySpaces` (NES `ppu`/`oam`, …), serve them here and throw on an unknown space id. See [Machine plugins](/docs/extending/machine/#memory-spaces).
 
-## Wiring
+## Registering + wiring
 
-Until `EmulatorPlugin` lands, a backend is paired with its machine in `createWorkbench`'s machine-selection table — a `backendFactory: () => Promise<RunBackend>` (typically a lazy `import()` so the emulator's wasm/JS core stays out of the main bundle) alongside the `MachinePlugin` and `DebugAdapter`. Switching the project's `machine` swaps all three via `RunService.reconfigure`.
+```ts
+plugins.register({ plugin: { ...myEmulator, kind: 'emulator' }, source: { origin: 'builtin' } })
+```
+
+A machine names its emulator in `compatibleEmulators`; `createWorkbench` resolves `compatibleEmulators[0]` from the registry and uses its `createBackend` as the `backendFactory` in the machine-selection table, alongside the `MachinePlugin` and the resolved `DebugAdapter`. Switching the project's `machine` swaps all three via `RunService.reconfigure`. See `src/app/createWorkbench.ts` (`resolveEmulatorBackend`) for the wiring.

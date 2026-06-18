@@ -36,14 +36,14 @@ Every project has a `project.json` at its root. It selects the machine, toolchai
 ```
 
 - `machine` — which machine plugin to run on (`atari-xl`, `nes`).
-- `toolchain` — which assembler builds it (`mads`).
-- `main` — the file the assembler is pointed at; shown as `MAIN` in the file tree.
+- `toolchain` — which toolchain builds it: `mads` (Atari assembly) or `cc65` (C + ca65 assembly, for NES and Atari).
+- `main` — the entry-point file the toolchain is pointed at; shown as `MAIN` in the file tree.
 
-Changing `machine` switches the active emulator + debug view the next time the project loads. (Full manifest field reference lives in [Reference](/docs/reference/).)
+Optional sections tune the build and editor — `build.trigger` (`manual` by default, or `auto` to rebuild on every edit), `build.args`, and `editor` (`tabWidth`, clang-format `format`). Changing `machine` switches the active emulator + debug view the next time the project loads. Full field reference: [`project.json`](/docs/reference/manifest/).
 
 ## Files
 
-Add files and folders from the **Files** panel. Source files use `.a65` / `.asm` / `.inc`; the assembler resolves includes (`icl`) relative to the project root. Binary assets (images, CSV) feed the [asset pipeline](/docs/using/).
+Add files and folders from the **Files** panel. Assembly sources use `.a65` / `.asm` / `.inc` (the assembler resolves `icl` includes relative to the project root); C sources for cc65 use `.c` / `.h`. Binary assets (images, CSV) feed the [asset pipeline](/docs/using/). When the toolchain ships a sysroot (cc65's headers + runtime), it appears as a read-only **system** tree.
 
 ## Storage, export, and snapshots
 

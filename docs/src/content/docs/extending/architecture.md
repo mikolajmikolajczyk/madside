@@ -12,7 +12,7 @@ You don't need the whole architecture to write a plugin — but two things shape
 madside is layered with a strict dependency direction (ADR-0002, enforced by ESLint):
 
 ```
-core      → pure utilities, zero side effects
+core      → pure utilities + the VFS mount layer, zero side effects
 ports     → interfaces only (the plugin contracts live here)
 adapters  → port implementations (storage, plugin loader, emulator backend)
 services  → workbench-core services (Build, Run, Debug, AssetPipeline)
@@ -49,11 +49,34 @@ const off = ctx.events.on('debug:step-done', (p) => { /* p.pc, … */ })
 
 Three services own the lifecycles a plugin observes:
 
-- **BuildService** — resolves `manifest.toolchain` → your `ToolchainPlugin.build()`, emits `build:done` / `build:error`.
+- **BuildService** — resolves `manifest.toolchain` → your `ToolchainPlugin.build()`, emits `build:done` / `build:error`. Two toolchains ship today (`mads` and `cc65`); resolution is by id through the registry, so neither is hardcoded. The last successful build is persisted per project (see [the VFS + persistence note](#the-build-filesystem-vfs-mount-layer)) so a reload restores OUTPUT + the binary without rebuilding.
 - **RunService** — emulator lifecycle (load / run / pause / reset) over the `RunBackend`, owns `status`, emits `run:state`.
 - **DebugService** — wraps the active `DebugAdapter`; `debug.target()` returns the live `DebugTarget` once a backend is booted. Emits `debug:step-done` / `debug:bp-hit`.
 
 Panels receive these on `ctx` (events, commands, debug, project, machine) — see the [panel guide](/docs/extending/panel/).
+
+## The build filesystem (VFS mount layer)
+
+Files in madside come from more than one place — user sources in IndexedDB, a toolchain's read-only sysroot, generated output — so a thin **virtual filesystem** composes them into one view (ADR-0008, `@core/vfs`). It is a *read-first composition layer, not a persistence store and not an OS*: no permissions, no processes, no devices.
+
+The shape is small:
+
+- **`Vfs`** — an ordered list of `Mount`s with `read(path)` / `list(prefix)` / `write(path, data)`. A read returns bytes from the first mount that owns the path; a write goes to the first *writable* mount that owns it (read-only mounts reject writes).
+- **`Mount`** — `{ prefix, provider, ro }`. Mounts may share a prefix and merge, earlier mounts shadowing later ones.
+- **`VfsProvider`** — a single lazily-enumerable file source: `list()`, `read()`, optional `write()`.
+
+The providers a plugin author meets:
+
+- **`MemoryProvider`** — an in-memory RW tree for generated output / scratch.
+- **`ZipAssetProvider`** — a read-only toolchain sysroot, unpacked lazily from a hashed `?url` zip asset.
+- the **project mount** is RW, backed by the `StorageBackend` port (writes delegate there).
+
+Two consumers matter for plugins:
+
+- **Toolchains compose their build filesystem through the VFS.** A `ToolchainPlugin` may expose an optional `sysroot(machine?)` returning a `VfsProvider`; the build mounts project files + that sysroot, and a single **WASI bridge** (`vfsToPreopen` / `readFromPreopen`) materialises the VFS into a `@bjorn3/browser_wasi_shim` preopen the wasm tools run over. This replaces the per-toolchain `placeFile` / `mkdirP` plumbing — `cc65` ships a sysroot (its `include/`, `lib/<target>.lib`, linker cfg), MADS ships none.
+- **The file tree renders a sysroot mount read-only** as a "system" tree, so a user can see what they may `#include` / link against.
+
+Sysroot zips and compiled wasm modules are content-addressed and cached in a dedicated IndexedDB database (`madside-assets`), separate from project storage, so they survive across sessions; the cache fails soft (a miss just recomputes). The last build per project lives in the project IndexedDB (`builds` store, schema v4) — see `@adapters/storage-idb/builds.ts` and the `BuildStore` / `StoredBuild` shapes in `@ports/storage.ts`.
 
 ## The service↔UI sync rule (ADR-0007)
 

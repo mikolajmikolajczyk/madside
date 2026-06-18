@@ -17,7 +17,7 @@ When you're in a course, a **Lesson** panel sits below the file tree.
 
 ## Editor (centre)
 
-A CodeMirror editor with assembly highlighting, autocomplete (opcodes, directives, your labels), hover docs (hover an opcode for what it does, a label for its definition), and go-to-definition (Ctrl-click a label). The gutter on the left shows line numbers + the emit address of each line; click it to toggle a breakpoint.
+A CodeMirror editor. For **assembly**: highlighting, autocomplete (opcodes, directives, your labels), hover docs (hover an opcode for what it does, a label for its definition), and go-to-definition (Ctrl-click a label). For **C** (cc65 projects): highlighting, autocomplete of the cc65 standard library and your own functions across files (auto-`#include`d when accepted), and [clang-format](/docs/using/editor/) on save (Ctrl+S) or with Shift+Alt+F. Brackets auto-close as you type. The gutter on the left shows line numbers + the emit address of each line; click it to toggle a breakpoint.
 
 ## Emulator & debug (right)
 

@@ -1,20 +1,25 @@
 ---
 title: madside
-description: In-browser IDE for retro hardware — write, assemble, run, and debug Atari 8-bit and NES programs, entirely in the browser.
+description: In-browser IDE for retro hardware — write, build, run, and debug Atari 8-bit and NES programs in assembly or C, entirely in the browser.
 ---
 
-**madside** is an in-browser IDE for retro hardware. Write 6502 assembly, assemble it, run it on a cycle-accurate emulator, and debug it with breakpoints, a register view, and a memory inspector — all in the browser, with nothing to install.
+**madside** is an in-browser IDE for retro hardware. Write 6502 assembly or C, build it, run it on an emulator, and debug it with breakpoints, a register view, and a memory inspector — all in the browser, with nothing to install.
 
 It currently targets two machines:
 
-- **Atari 8-bit** (800XL / 130XE) — the MADS assembler running on the Altirra core.
-- **NES** — MADS again (it assembles NROM iNES directly), running on the jsnes core.
+- **Atari 8-bit** (800XL / 130XE) — builds to `.xex`, running on the Altirra core.
+- **NES** — builds to an `.nes` iNES ROM, running on the jsnes core.
+
+Two toolchains ship, both compiled to WebAssembly:
+
+- **MADS** — the Mad-Assembler, a 6502 macro assembler for Atari 8-bit.
+- **cc65** — the cc65 C compiler with its ca65 assembler and ld65 linker, targeting **both** NES and Atari. Write C (or ca65 assembly) and it links against the bundled cc65 runtime for the active machine.
 
 Everything beyond the editor is a **plugin**: machines, toolchains, emulators, debug adapters, panels, file converters, and editors. Adding a new retro platform doesn't touch the workbench — it ships as a set of plugins.
 
 ## What you can do
 
-- Start from a **template** or pick a guided **course**, then edit, assemble, and run.
+- Start from a **template** or pick a guided **course**, then edit, build, and run.
 - Set source-level **breakpoints**, step by instruction or by frame, and watch registers, flags, and memory update.
 - Inspect machine-specific state — the NES build ships a **PPU viewer** (pattern tables + palette).
 - Convert assets (images, CSV, binaries) into assembler data with the **asset pipeline**.
@@ -22,7 +27,7 @@ Everything beyond the editor is a **plugin**: machines, toolchains, emulators, d
 
 ## Who these docs are for
 
-- **Users** — people writing retro assembly in madside. Start with [Getting Started](/docs/getting-started/open/).
+- **Users** — people writing retro assembly or C in madside. Start with [Getting Started](/docs/getting-started/open/).
 - **Plugin authors** — people adding machines, toolchains, panels, converters, or editors. See [Extending madside](/docs/extending/).
 
 :::note

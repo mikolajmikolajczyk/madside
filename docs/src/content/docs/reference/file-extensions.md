@@ -7,16 +7,37 @@ sidebar:
 
 ## Source extensions
 
-The MADS toolchain accepts these as input:
+madside ships two toolchains: `mads` (Atari assembly) and `cc65` (C + ca65 +
+ld65). Each declares the extensions it accepts as input.
+
+### Assembly (MADS)
+
+The `mads` toolchain accepts these as input:
 
 | Extension | Handled by |
 |-----------|-----------|
-| `.a65` | MADS toolchain (source) |
-| `.asm` | MADS toolchain (source) |
-| `.inc` | MADS toolchain (include) |
+| `.a65` | `mads` toolchain (source) |
+| `.asm` | `mads` toolchain (source) |
+| `.inc` | `mads` toolchain (include) |
 
 The machine boot-equates file ships as `src/<machine>.a65` (e.g. `src/atari.a65`,
 `src/nes.a65`).
+
+### C and ca65 (cc65)
+
+The `cc65` toolchain (C compiler + ca65 assembler + ld65 linker) accepts these
+as input:
+
+| Extension | Handled by |
+|-----------|-----------|
+| `.c` | `cc65` toolchain (C source) |
+| `.h` | `cc65` toolchain (C header) |
+| `.s` | `cc65` toolchain (ca65 assembly source) |
+| `.asm` | `cc65` toolchain (assembly source) |
+| `.inc` | `cc65` toolchain (include) |
+
+The editor additionally treats `.cc` / `.cpp` / `.hpp` (and `.cxx` / `.hh` for
+formatting) as C/C++ sources for syntax highlighting and clang-format.
 
 ## Output extensions
 
@@ -25,8 +46,11 @@ media table.
 
 | Extension | Machine | Notes |
 |-----------|---------|-------|
-| `.xex` | Atari (`atari-xl`) | MADS `outputExt`; Atari default media format. |
-| `.nes` | NES (`nes`) | iNES image; NES default media format. |
+| `.xex` | Atari (`atari-xl`) | Atari default media format. `mads` `outputExt`; also produced by `cc65` targeting `atari`. |
+| `.nes` | NES (`nes`) | iNES image; NES default media format. `cc65` `outputExt`; also produced by `mads` (NROM iNES). |
+
+The `cc65` toolchain's declared `outputExt` is `nes`, but the real extension is
+picked from the active machine's target: `nes` for the NES, `xex` for the Atari.
 
 The Atari machine can also load these media formats: `.atr` (disk image),
 `.car` / `.rom` / `.bin` (cartridge), `.cas` (cassette). The Atari extension

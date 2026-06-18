@@ -69,4 +69,13 @@ Everything in the template directory other than `template.json` and `project.jso
 
 ## Bundled examples
 
-The repo ships `atari-hello` (Atari-XL + MADS + Altirra), `nes-hello` (NES + MADS → iNES, running on jsnes), and `empty` (a blank project for the Form view). Use them as references for the directory shape.
+The repo ships, among others:
+
+- `atari-hello` — Atari-XL + MADS + Altirra.
+- `nes-hello` — NES + MADS → iNES, running on jsnes.
+- `nes-apu-hello` — NES + MADS, a square-wave tone via the APU (no PPU).
+- `atari-c-hello` — Atari 8-bit in **C** (cc65 → ca65 → ld65 → `.xex`, conio).
+- `nes-c-hello` — NES in **C** (cc65 → iNES ROM, conio).
+- `empty` — a blank project for the Form view.
+
+The `*-c-*` templates are the same mechanism — a `template.json` + `project.json` (with `"toolchain": "cc65"`) + `src/main.c`. Use any of them as references for the directory shape.

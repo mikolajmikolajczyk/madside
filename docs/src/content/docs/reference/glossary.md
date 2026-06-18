@@ -27,9 +27,14 @@ sidebar:
 
 ## Toolchain
 
-- **MADS** — Mad-Assembler (Tomasz Biela), a fast 6502 cross-assembler shipped as a wasm core. Also assembles NES iNES images.
+- **MADS** — Mad-Assembler (Tomasz Biela), a fast 6502 cross-assembler shipped as a wasm core. Also assembles NES iNES images. Toolchain id `mads`.
 - **`.a65`** — MADS source file extension used in this project.
 - **`.asm` / `.inc`** — additional source / include extensions MADS accepts.
+- **cc65** — the second toolchain (id `cc65`): the cc65 C compiler plus the **ca65** assembler and **ld65** linker for the 6502, shipped as WASI wasm. A `.c` / `.s` project links against a bundled C runtime to a `.nes` (NES) or `.xex` (Atari) image.
+- **ca65** — the cc65 macro assembler. Its `.s` sources use `.`-prefixed directives (`.segment`, `.proc`, …).
+- **ld65** — the cc65 linker; combines object files against a target config + library into the final ROM.
+- **sysroot** — the bundled read-only C runtime + headers for a cc65 target (NES or Atari), mounted into the build VFS so a project sees exactly what links. Selected from the active machine id.
+- **clang-format** — the LLVM C/C++ formatter, compiled to wasm and loaded lazily, used to format C sources on save (a project `.clang-format` file wins; otherwise an inline preset).
 
 ## Plugin architecture
 
@@ -48,6 +53,7 @@ sidebar:
 - **Recipe** — a `{ input, output, converter, options }` entry in `project.json`; the asset pipeline runs it.
 - **Snapshot** — a content-addressable copy of the project tree: a `{ path → hash }` tree plus deduplicated blobs. Taken on save and on idle.
 - **Source map** — `addrToLoc` + `locToAddr`, parsed from the MADS listing; resolves a source line to an address and back. Keys are full POSIX project paths.
+- **VFS** — the virtual file system the build reads through: an ordered list of mounts, each backed by a provider (the project tree, a toolchain sysroot, …). Mounts sharing a prefix merge; earlier mounts shadow later ones on read, and a mount can be read-only.
 
 ## Forge
 

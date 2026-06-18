@@ -42,9 +42,9 @@ hello_world
 
 ## 2. Assemble
 
-madside assembles automatically as you type (debounced). The **Output** panel below the editor shows the result; when it succeeds you'll see an `ok` badge and the byte count. An **address gutter** appears next to each line that emits code — handy when setting breakpoints.
+By default madside builds when you **save** or **Run** — not on every keystroke — so large projects stay snappy. Press **Ctrl+S** (which also formats C sources and takes a snapshot) or **Ctrl+B** to build now; **Run** builds first if needed. The **Output** panel below the editor shows the result; when it succeeds you'll see an `ok` badge and the byte count. An **address gutter** appears next to each line that emits code — handy when setting breakpoints.
 
-You can also force a build with **Ctrl+B**, or **Ctrl+S** (which also takes a snapshot).
+Prefer rebuild-as-you-type? Set `build.trigger: "auto"` in the project manifest (see [`project.json`](/docs/reference/manifest/)) to rebuild on every (debounced) edit.
 
 ## 3. Run
 

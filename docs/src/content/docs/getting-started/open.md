@@ -7,7 +7,7 @@ madside runs entirely in your browser — there is nothing to install. Open the 
 
 ## Browser requirements
 
-The emulators run as WebAssembly with a shared-memory audio worklet, so the page is served with cross-origin isolation headers (`COOP` / `COEP`). Any current Chromium-based browser or Firefox works. A few things to know:
+The emulators run as WebAssembly and audio plays through an AudioWorklet. madside does **not** use `SharedArrayBuffer`, so it needs no special cross-origin-isolation headers (`COOP` / `COEP`) and runs on any static host — any current Chromium-based browser or Firefox works. (See the [FAQ](/docs/meta/faq/) for why.) A few things to know:
 
 - **First load** compiles the emulator core lazily — the very first Run for a machine takes a moment while its core loads. Subsequent runs are instant.
 - **Audio** only starts after a user gesture (clicking Run counts) — browsers block autoplay.

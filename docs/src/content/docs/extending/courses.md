@@ -120,7 +120,7 @@ Operands are written as hex (`$94`, `$02C6`) or decimal — the way assembly aut
 :::note[`afterFrames` counts from when your code starts, not from load]
 The runner first lets the machine boot — it advances until the CPU is executing inside your program's loaded address range, *then* counts `afterFrames`. So a small, intuitive value works: `afterFrames: 2` means "two frames after my code begins running", not "two frames after a cold start" (which used to read **pre-boot** `$00`). A few frames is plenty for a program that writes a value and loops.
 
-This boot allowance is automatic for Atari XEX programs. If you ever need to read the very first frame of your program, use `afterFrames: 0` or `1`. `build` and `label` checks never run the program, so they're still the strongest, flake-free gates when a runtime read isn't essential.
+This boot allowance is automatic — the active machine reports its program's load range (Atari parses the XEX; NES seeds the PC from the reset vector and runs from load), and the runner advances up to a generous cap until the PC lands in that range. If you ever need to read the very first frame of your program, use `afterFrames: 0` or `1`. `build` and `label` checks never run the program, so they're still the strongest, flake-free gates when a runtime read isn't essential.
 :::
 
 ### Examples

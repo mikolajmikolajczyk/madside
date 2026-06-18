@@ -19,8 +19,10 @@ type PanelPlugin =
   | (PanelPluginBase & { readonly mount: PanelMount; readonly Component?: undefined })
 
 interface PanelPluginBase {
+  readonly kind: 'panel'
   readonly id: string
   readonly title: string
+  slot?: 'debug' | 'output'                    // placement: 'debug' (default, movable column) | 'output' (fixed slot above editor)
   supports?(machine: MachinePlugin): boolean   // false ⇒ hide for the active machine
   fileExt?: readonly string[]                  // present ⇒ this panel is a file editor for these exts
 }
@@ -77,6 +79,8 @@ plugins.register({ plugin: { ...ticksPanel, kind: 'panel' }, source: { origin: '
 
 Panels are resolved via `manifest.panels` → the machine's `defaultPanels` → a fallback set. Adding one is a module + a manifest entry; the debugger host iterates the list and renders a slot per id with zero panel-specific code.
 
+Placement is driven by `slot`. Omit it (or set `'debug'`) and the panel lands in the movable debug column; set `'output'` and it goes into the fixed full-width slot above the editor — that's how the built-in **Output** panel (`src/plugins/panel-output/`) is placed. No panel id is special-cased; the host places each panel purely by its slot.
+
 ## Hello-world — vanilla mount
 
 ```ts
@@ -130,7 +134,7 @@ See `@ports/event-bus.ts` for the complete typed map, and the architecture guide
 
 ## Memory spaces
 
-A generic memory viewer reads named address spaces through `ctx.debug.target().readMemory(addr, len, space)`. The CPU bus (`'cpu'`) is implicit; machines declare extra spaces (NES `ppu` / `oam`, C64 `vic`, …) in their `MachinePlugin.memorySpaces`. A panel reads a space by passing its id — the backend serves it. This is how a PPU/sprite/tile viewer works without the core knowing anything about the device. See [Machine plugins](/docs/extending/machine/#memory-spaces) and the [Reference](/docs/reference/) memory-space table.
+A generic memory viewer reads named address spaces through `ctx.debug.target().readMemory(addr, len, space)`. The CPU bus (`'cpu'`) is implicit; machines declare extra spaces (e.g. NES `ppu` / `oam`) in their `MachinePlugin.memorySpaces`. A panel reads a space by passing its id — the backend serves it. This is how a PPU/sprite/tile viewer works without the core knowing anything about the device. See [Machine plugins](/docs/extending/machine/#memory-spaces) and the [Reference](/docs/reference/) memory-space table.
 
 ## File-editor mode
 

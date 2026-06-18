@@ -5,9 +5,9 @@ sidebar:
   order: 7
 ---
 
-A **toolchain plugin** wraps an assembler or compiler so `BuildService` stays machine-agnostic. The build is dispatched by the project's `manifest.toolchain` id. MADS is the reference impl (`src/plugins/toolchain-mads/`); ca65 and KickAssembler follow the same shape.
+A **toolchain plugin** wraps an assembler or compiler so `BuildService` stays machine-agnostic. The build is dispatched by the project's `manifest.toolchain` id. MADS (`src/plugins/toolchain-mads/`, Atari assembly) and cc65 (`src/plugins/toolchain-ca65/`, C + ca65 + ld65 for NES and Atari) are the two reference impls.
 
-Toolchain plugins are **built-in only**, and they run in a **dedicated worker per build** — keep `build` pure and serialisable (no DOM).
+Toolchain plugins are **built-in only**. The wasm tools run over WASI on the page (no worker — main-thread per ADR-0003), so keep `build` pure (no DOM access).
 
 ## The contract
 
@@ -15,7 +15,7 @@ Source: `@ports/plugin-toolchain.ts`.
 
 ```ts
 interface ToolchainPlugin {
-  readonly id: string                  // 'mads', 'ca65', 'kickass'
+  readonly id: string                  // 'mads', 'cc65'
   readonly name: string
   readonly inputExt: readonly string[] // source extensions, no dot: ['a65', 'asm', 'inc']
   readonly outputExt: string           // binary extension, no dot: 'xex' | 'nes' | 'prg'

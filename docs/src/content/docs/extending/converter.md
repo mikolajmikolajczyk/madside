@@ -124,4 +124,4 @@ Selecting a project file in the Asset panel lists the converters whose `inputExt
 
 ## Validate it
 
-Converters don't yet have a dedicated `assert*Plugin` harness — write a plain Vitest test that feeds known bytes through `convert` and checks the output. See [Validating your plugin](/docs/extending/validating/) for the harnesses that do exist (toolchain) and the general pattern.
+A `assertConverterPlugin(mod)` harness validates the static shape (`meta.id` slug, `inputExt`, `optionsSchema`, a `convert` function). For behaviour, write a plain Vitest test that feeds known bytes through `convert` and checks the output. See [Validating your plugin](/docs/extending/validating/) for the harnesses and the general pattern.

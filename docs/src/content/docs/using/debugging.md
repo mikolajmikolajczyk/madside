@@ -5,7 +5,11 @@ sidebar:
   order: 5
 ---
 
-madside debugs at the source level. Breakpoints are set on source lines, the editor highlights the current instruction, and the [registers and memory panels](/docs/using/panels/) update whenever the emulator stops.
+madside debugs at the source level for **MADS assembly** projects: breakpoints are set on source lines, the editor highlights the current instruction, and the [registers and memory panels](/docs/using/panels/) update whenever the emulator stops.
+
+:::note
+Source-level debugging relies on the [source map](/docs/using/building/#the-source-map-and-labels), which only the **mads** toolchain emits. **C (cc65)** projects don't ship C↔6502 debug info yet, so there's no line-mapping back to your `.c` source. The emulator, registers, memory, and stepping all still work at the machine level.
+:::
 
 ## Breakpoints
 

@@ -5,7 +5,9 @@ sidebar:
   order: 11
 ---
 
-Each plugin contract is small enough to test directly. Where a shared harness exists, drop in a one-liner; where it doesn't yet, a plain Vitest test against the interface does the job. The harnesses live under `@ports/test/`, and built-in plugins use the same ones — so your test fails on the exact drift a built-in's would.
+Each plugin contract is small enough to test directly. Every plugin kind now ships an `assert<Kind>Plugin` harness — drop in a one-liner for the shape check, then add a behaviour test where it matters. The harnesses live under `@ports/test/`, and built-in plugins use the same ones — so your test fails on the exact drift a built-in's would.
+
+The full set exported from `@ports/test`: `assertToolchainPlugin`, `assertEmulatorPlugin`, `assertDebugAdapterPlugin`, `assertMachinePlugin`, `assertPanelPlugin`, `assertConverterPlugin`, `assertEditorPlugin`, plus the ADR-0007 event helpers (`assertExactlyOneEvent`, `assertNoEvent`, `captureEvents`).
 
 ## Toolchain — `assertToolchainPlugin`
 
@@ -58,14 +60,35 @@ await assertNoEvent(
 
 `captureEvents(subscribe, action)` returns every payload observed during `action`, so you can match the shape yourself. This is the harness that catches the "silent missed emit" bug class ADR-0007 exists to prevent.
 
-## Kinds without a dedicated harness yet
+## The other harnesses
 
-Converter, editor, panel, machine, debug-adapter, and emulator don't ship a full `assert*Plugin` harness today (machine has a focused drift contract test for `bootEquates`). Test them directly against the interface:
+Beyond toolchain, every kind has a static-shape `assert<Kind>Plugin` — call it with the plugin (some take a fixture). Use it for the shape check, then add behaviour tests for the parts the harness can't reach.
 
-- **Converter** — feed known bytes through `convert(input, opts)` and assert on `output.bytes` (and `summary` if you rely on it). Pure function — trivial to test.
-- **Panel / editor** — mount into a JSDOM container, fire the events you subscribe to, assert on the rendered output; call `destroy()` and assert cleanup.
-- **Machine** — assert the descriptor shapes (memory map ranges don't overlap, `media.detect` returns expected ids for sample magic bytes, `bootEquates` matches your seed copy).
-- **Debug adapter** — `attach` a stub `RunBackend` and assert the `DebugTarget` forwards `step` / `getPC` / `readMemory` correctly and exposes the right descriptors.
-- **Emulator (`RunBackend`)** — load a tiny known binary, `advanceFrame`, assert the framebuffer and PC; round-trip `saveState` / `loadState`.
+```ts
+import {
+  assertConverterPlugin,
+  assertEditorPlugin,
+  assertPanelPlugin,
+  assertMachinePlugin,
+  assertDebugAdapterPlugin,
+  assertEmulatorPlugin,
+} from '@ports/test'
 
-External authors get the harnesses for free as they land. Put built-in plugin contract tests under `tests/plugins/<plugin>/`; co-locate project-local plugin tests with the plugin source.
+it('converter shape', () => assertConverterPlugin(myConverter))
+it('editor shape', () => assertEditorPlugin(myEditor))
+it('panel shape', () => assertPanelPlugin(myPanel))
+it('machine shape', () => assertMachinePlugin(myMachine))
+it('debug adapter', async () =>
+  assertDebugAdapterPlugin(myAdapter, await jsnesEmulator.createBackend()))
+it('emulator', async () => assertEmulatorPlugin(myEmulator)) // { boots: false } for wasm cores
+```
+
+What each checks, and what to add on top:
+
+- **`assertConverterPlugin(mod)`** — validates `meta.id` slug, non-empty `inputExt`, `optionsSchema` is an array, `convert` is a function. Add: feed known bytes through `convert(input, opts)` and assert on `output.bytes` (and `summary` if you rely on it) — it's a pure function, trivial to test.
+- **`assertPanelPlugin(panel)`** / **`assertEditorPlugin(mod)`** — validate the static shape (slug id, title/label, exactly one of `Component`/`mount` for panels, `fileExt` shape). Add: mount into a JSDOM container, fire the events you subscribe to, assert on the rendered output; call the `destroy` callback and assert cleanup.
+- **`assertMachinePlugin(machine)`** — validates descriptor shapes (id slug, `memoryMap` regions well-formed with `start ≤ end`, display/audio/input, plugin-id reference arrays, `memorySpaces`). Add: `media.detect` returns expected ids for sample magic bytes, `bootEquates` matches your seed copy.
+- **`assertDebugAdapterPlugin(plugin, backend)`** — pass a headless-bootable backend (e.g. `await jsnesEmulator.createBackend()`); it `attach`es and asserts the `DebugTarget` exposes the right descriptors + methods (`step` / `getPC` / `readMemory` / …).
+- **`assertEmulatorPlugin(plugin, opts?)`** — static shape, then (unless `{ boots: false }`) a `RunBackend` round-trip: `createBackend`, framebuffer dimensions, and the full method set. Add: load a tiny known binary, `advanceFrame`, assert the framebuffer and PC; round-trip `saveState` / `loadState`. Wasm cores that can't instantiate headless pass `{ boots: false }` for shape-only.
+
+Put built-in plugin contract tests under `tests/plugins/<plugin>/`; co-locate project-local plugin tests with the plugin source.

@@ -8,7 +8,7 @@ sidebar:
 An **editor** plugin owns the UI for a file type — a hex editor, a bitmap editor, a custom level editor. Like [converters](/docs/extending/converter/), editors can ship **inside a project** (`editors/*.js`), loaded at runtime via Blob URL.
 
 :::note
-As of v0.7.0 the editor contract is folded into [`PanelPlugin`](/docs/extending/panel/) via a `mount(container, ctx)` + `fileExt` shape. Existing `editors/*.js` modules keep working unchanged through an `editorToPanel` bridge. This page documents the standalone `EditorModule` contract that the project-local `editors/*.js` ecosystem uses; if you're writing a new built-in panel-style editor, read the panel guide instead.
+A [`PanelPlugin`](/docs/extending/panel/) can also act as a file editor — set `fileExt` and read `ctx.file` (the workbench routes matching opens through it). The two contracts coexist: this page documents the standalone `EditorModule` that the project-local `editors/*.js` ecosystem uses; if you're writing a new built-in panel-style editor, read the panel guide instead. (There is no longer an `editorToPanel` bridge — built-in editors are no longer registered as panels.)
 :::
 
 ## The contract
@@ -84,16 +84,11 @@ Opening a `.txt` file now mounts your editor instead of the default text editor.
 
 Editor crashes don't take down the workbench. The host wraps mount in a three-layer trap — synchronous `try/catch`, a React error boundary, and window-level `error` / `unhandledrejection` listeners scoped to the editor lifetime. On a crash the slot shows a fallback that names the offending plugin and offers a "Reload editor" button.
 
-## Migrating to a panel
+## Editor vs. panel file-editor mode
 
-A bridge exists if you want to surface an existing `EditorModule` as a `PanelPlugin`:
+Two ways to own a file type exist side by side:
 
-```ts
-import { editorToPanel } from '@plugins/editors'
-import myEditor from './my-editor'
+- **`EditorModule`** (this page) — the project-local `editors/*.js` ecosystem, loaded at runtime via Blob URL and bound through `manifest.editors`. The built-in bitmap editor (`src/plugins/editors/builtins/bitmap`) is also an `EditorModule`, resolved by extension through `buildEditorRegistry`.
+- **`PanelPlugin` with `fileExt`** — a built-in panel that doubles as a file editor; the workbench routes matching opens through it and populates `ctx.file`. See the [panel guide](/docs/extending/panel/).
 
-const myPanel = editorToPanel(myEditor)
-// register under kind 'panel'; fileExt comes from meta.fileExt
-```
-
-The built-in bitmap editor already routes through this. See the [panel guide](/docs/extending/panel/) for the file-editor mode of `PanelPlugin` (`fileExt` + `ctx.file`).
+There is no automatic bridge between the two — pick the contract that fits (project-shippable editor → `EditorModule`; built-in panel-style editor → `PanelPlugin`).

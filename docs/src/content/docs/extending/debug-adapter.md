@@ -16,6 +16,7 @@ Source: `@ports/plugin-debug.ts`.
 ```ts
 interface DebugAdapterPlugin {
   readonly id: string          // 'atari-6502-debug', …
+  readonly kind: 'debug-adapter'
   readonly name: string
   attach(backend: RunBackend): DebugTarget
 }
@@ -102,4 +103,4 @@ plugins.register({ plugin: { ...nes6502DebugAdapter, kind: 'debug-adapter' }, so
 { "version": 2, "debugAdapter": "nes-6502-debug" }
 ```
 
-The active adapter is paired with its machine and backend in `createWorkbench`; `DebugService` exposes the live `DebugTarget` via `debug.target()` once a backend is booted. (Fully manifest-driven runtime adapter swap lands with the `EmulatorPlugin` follow-up, since both need the same project↔backend coupling.)
+The active adapter is paired with its machine and backend in `createWorkbench`'s machine-selection table — resolved from the registry via the machine's `compatibleDebugAdapters[0]`. `DebugService` exposes the live `DebugTarget` via `debug.target()` once a backend is booted, and `setActiveMachine` swaps machine + emulator backend + adapter together via `debug.setAdapter`.

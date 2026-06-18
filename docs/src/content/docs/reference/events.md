@@ -15,7 +15,7 @@ new layers can augment `WorkbenchEvents` by declaration merging.
 |-------|---------|--------------|
 | `build:start` | `{ projectId }` | A build begins. |
 | `build:done` | `{ projectId, result: BuildResult }` | A build finishes successfully. |
-| `build:error` | `{ projectId, message }` | A build fails. |
+| `build:error` | `{ projectId, message, stdout?, stderr?, diagnostics? }` | A build fails. `message` is the summary (e.g. `assemble exit 1`); `stdout` and `stderr` carry both toolchain streams separately so a failed build keeps full output; `diagnostics` are the parsed error/warning locations that drive inline editor markers. |
 | `run:state` | `{ status, prev }` | The run FSM transitions. Both fields are one of `idle`, `loaded`, `running`, `paused`, `crashed`. |
 | `debug:bp-hit` | `{ pc }` | Execution hits a breakpoint. |
 | `debug:step-done` | `{ pc }` | A step (instruction or frame) completes. |

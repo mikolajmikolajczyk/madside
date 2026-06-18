@@ -15,7 +15,7 @@ Source: `@ports/plugin-machine.ts`.
 
 ```ts
 interface MachinePlugin {
-  readonly id: string            // 'atari-xl', 'nes', 'c64', …
+  readonly id: string            // 'atari-xl', 'nes', …
   readonly name: string
   readonly cpu: CpuId            // 'mos6502' | 'mos6510' | 'ricoh-2a03' | string
   readonly memoryMap: MemoryRegion[]
@@ -24,12 +24,14 @@ interface MachinePlugin {
   readonly display: MachineDisplay
   readonly audio: MachineAudio
   readonly input: InputLayout
-  readonly defaultPanels: string[]        // panel ids shown by default
-  readonly compatibleToolchains: string[]
+  readonly defaultPanels: string[]              // panel ids shown by default
+  readonly compatibleToolchains: string[]       // e.g. ['mads', 'cc65']
   readonly compatibleEmulators: string[]
+  readonly compatibleDebugAdapters: string[]    // adapter ids that can debug this CPU
   readonly bootEquates?: BootEquates
   readonly hardwareConfig?: MachineHardwareConfig
   readonly media?: MachineMedia
+  readonly programLoadRange?: (binary: Uint8Array) => ProgramLoadRange | null
 }
 ```
 
@@ -57,7 +59,7 @@ Each `MemoryRegion` has `start`/`end` (inclusive addresses), a short `name`, a `
 
 ## Memory spaces
 
-The CPU bus is the implicit `'cpu'` space. Machines that expose *extra* address spaces for inspection — NES `ppu` VRAM + `oam`, C64 `vic` — declare them here:
+The CPU bus is the implicit `'cpu'` space. Machines that expose *extra* address spaces for inspection — NES `ppu` VRAM + `oam` — declare them here:
 
 ```ts
 memorySpaces: [
@@ -121,8 +123,12 @@ bootEquates: { path: 'src/atari.a65', content: 'SAVMSC = $58\nCOLOR0 = $02C4\n' 
 
 ## Compatibility + default panels
 
-- `compatibleToolchains` / `compatibleEmulators` — ids known to target/host this machine; used for selection and validation.
+- `compatibleToolchains` / `compatibleEmulators` / `compatibleDebugAdapters` — plugin ids known to target/host/debug this machine; resolved through the registry and used for selection and validation. The workbench takes the first entry of each as the active pairing. Both shipped machines list `compatibleToolchains: ['mads', 'cc65']`; Atari hosts on `altirra-wasm`, NES on `jsnes`; both reuse the generic `atari-6502-debug` adapter.
 - `defaultPanels` — panel ids the machine recommends when a project doesn't list its own.
+
+## Program load range (optional)
+
+`programLoadRange?(binary)` parses the loaded program's executable address span from a built binary, so the headless check-runner can wait out OS cold-boot before counting frames — the PC entering the returned `[lo, hi]` means "the user's program has started". Atari parses it from the XEX header; machines whose program runs straight from the reset vector (NES) omit it. Return `null` when the bytes aren't a recognizable executable.
 
 ## Registering + selecting
 
