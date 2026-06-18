@@ -1,5 +1,6 @@
 import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { EditorView } from "@codemirror/view";
+import { resolveCStyle, formatCView } from "@ui/codemirror";
 import { MenuBar } from "./components/layout/MenuBar";
 import { DebugBar } from "./components/layout/DebugBar";
 import { StatusBar } from "./components/layout/StatusBar";
@@ -193,6 +194,18 @@ export default function App() {
 
   // Project-wide C symbol index (#58) — drives cross-file C completion.
   const projectCSymbols = useProjectCSymbols(project.loaded ? project.files : null);
+
+  // clang-format style for C sources (#60): a project `.clang-format` wins;
+  // else the `editor.format` preset; else LLVM. Indent follows `editor.tabWidth`.
+  const cFormatStyle = useMemo(() => {
+    const tw = project.loaded ? project.manifest.editor?.tabWidth ?? 4 : 4;
+    const preset = project.loaded ? project.manifest.editor?.format : undefined;
+    const cf = project.loaded
+      ? project.files.find((f) => f.path === ".clang-format" || f.path.endsWith("/.clang-format"))
+      : undefined;
+    const cfText = cf ? new TextDecoder().decode(cf.content) : undefined;
+    return resolveCStyle(cfText, preset, tw);
+  }, [project]);
 
   const { activeModule: activeEditorModule, assets: pluginAssets } = usePluginEditor({
     files: project.loaded ? project.files : null,
@@ -587,6 +600,14 @@ export default function App() {
     onToggleBreakpoint(line);
   }, [onToggleBreakpoint]);
 
+  // Format the active C/C++ file in place with clang-format (#60). Drives the
+  // Save command's format step and is a no-op for non-C files.
+  const onFormatActive = useCallback(async () => {
+    const v = editorViewRef.current;
+    if (!v || !project.loaded) return;
+    await formatCView(v, project.active.path, cFormatStyle);
+  }, [project, cFormatStyle]);
+
   // The CommandRegistry is the single dispatch path for every user action:
   // toolbar buttons, keyboard shortcuts, and the command palette all go through
   // `commands.run(id, ctx)`. Commands register once and read the latest ops /
@@ -600,7 +621,7 @@ export default function App() {
     cmdEnvRef.current = {
       ops: {
         runAssemble, onRun, onPause, onStop, onStep, onStepFrame, onReset,
-        toggleBpAtCursor,
+        toggleBpAtCursor, formatActive: onFormatActive,
         onSnapshot: () => { if (project.loaded) void project.createSnapshotNow("manual"); },
         openPalette: () => setPaletteOpen(true),
       },
@@ -819,11 +840,11 @@ export default function App() {
                 projectLabels={projectLabels}
                 projectCSymbols={projectCSymbols}
                 tabWidth={project.manifest.editor?.tabWidth ?? 4}
+                cFormatStyle={cFormatStyle}
                 cpuLanguage={cpuLanguage}
                 toolchainLanguage={toolchainLanguage}
                 gotoTarget={gotoTarget}
                 onToggleBreakpoint={onToggleBreakpoint}
-                onSave={runAssemble}
                 onViewReady={(v) => { editorViewRef.current = v; }}
                 onJumpToLabel={onJumpToLabel}
                 onCursorLine={setCursorLine}

@@ -115,4 +115,18 @@ describe('parseProjectManifest — v2 schema validator', () => {
       if (!r.ok) expect(r.error.message).toMatch(/tabWidth/)
     }
   })
+
+  it('accepts editor.format (clang-format preset/style) alongside tabWidth', () => {
+    const r = parseProjectManifest({ ...minimal, editor: { tabWidth: 2, format: 'Google' } })
+    expect(r.ok).toBe(true)
+    if (r.ok) expect(r.value.editor).toEqual({ tabWidth: 2, format: 'Google' })
+  })
+
+  it('rejects a non-string / empty editor.format', () => {
+    for (const format of [42, '']) {
+      const r = parseProjectManifest({ ...minimal, editor: { format } })
+      expect(r.ok).toBe(false)
+      if (!r.ok) expect(r.error.message).toMatch(/editor\.format/)
+    }
+  })
 })

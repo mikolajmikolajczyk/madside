@@ -42,8 +42,10 @@ export interface ProjectManifestV2 {
    *  large projects snappy by not recompiling on every keystroke. */
   build?: { args?: string[]; trigger?: 'auto' | 'manual' }
   /** Editor preferences. `tabWidth` = spaces per indent level + literal-tab
-   *  render width (default 4). */
-  editor?: { tabWidth?: number }
+   *  render width (default 4). `format` = clang-format style for C sources: a
+   *  preset name (`LLVM`, `Google`, `WebKit`, …) or inline `.clang-format` YAML.
+   *  A `.clang-format` file in the project overrides this; absent ⇒ `LLVM`. */
+  editor?: { tabWidth?: number; format?: string }
   /** Set when the project was instantiated from a course lesson — drives
    *  course mode (the lesson panel). Carries which lesson the project is. */
   course?: { id: string; lesson: string }
@@ -142,7 +144,14 @@ export function parseProjectManifest(raw: unknown): Result<ProjectManifestV2, Ma
       if (typeof tabWidth !== 'number' || !Number.isInteger(tabWidth) || tabWidth < 1 || tabWidth > 16) {
         return err(new ManifestError('project.json: editor.tabWidth must be an integer 1–16'))
       }
-      out.editor = { tabWidth }
+      out.editor = { ...out.editor, tabWidth }
+    }
+    const format = editor['format']
+    if (format !== undefined) {
+      if (typeof format !== 'string' || format.length === 0) {
+        return err(new ManifestError('project.json: editor.format must be a non-empty string'))
+      }
+      out.editor = { ...out.editor, format }
     }
   }
 

@@ -1,4 +1,4 @@
-import { useEffect, useRef } from "react";
+import { useCallback, useEffect, useRef } from "react";
 import { Compartment, EditorState, StateEffect, StateField, RangeSet, type Extension, type Range } from "@codemirror/state";
 import { EditorView, keymap, lineNumbers, highlightActiveLine, Decoration, gutter, GutterMarker, type DecorationSet } from "@codemirror/view";
 import { defaultKeymap, history, historyKeymap, indentWithTab } from "@codemirror/commands";
@@ -6,7 +6,7 @@ import { bracketMatching, syntaxHighlighting, HighlightStyle, indentUnit, indent
 import { tags as t } from "@lezer/highlight";
 import { autocompletion, completionKeymap } from "@codemirror/autocomplete";
 import { lintGutter, setDiagnostics, type Diagnostic } from "@codemirror/lint";
-import { buildAssemblyLanguage, projectLabelsField, setProjectLabels, projectCSymbolsField, setProjectCSymbols } from "@ui/codemirror";
+import { buildAssemblyLanguage, projectLabelsField, setProjectLabels, projectCSymbolsField, setProjectCSymbols, formatCView, isCFile, warmFormatter, resolveCStyle } from "@ui/codemirror";
 import type { CSymbol } from "@app/cSymbols";
 import type { CpuLanguage, LabelInfo } from "@core";
 import type { BuildDiagnostic, ToolchainLanguage } from "@ports";
@@ -335,6 +335,9 @@ interface Props {
   /** Spaces per indent level + literal-tab render width (project.json
    *  `editor.tabWidth`, #59). Defaults to 4. */
   tabWidth?: number;
+  /** Resolved clang-format style for C sources — preset name or `.clang-format`
+   *  YAML (App resolves project `.clang-format` / `editor.format` / default). */
+  cFormatStyle?: string;
   /** Active machine CPU vocabulary + project toolchain language — drive the
    *  assembly highlight / hover / autocomplete. */
   cpuLanguage?: CpuLanguage;
@@ -342,13 +345,12 @@ interface Props {
   // Bundle line + tick so jumping to the same line twice still retriggers the effect.
   gotoTarget?: { line: number; tick: number } | null;
   onToggleBreakpoint?: (line: number) => void;
-  onSave?: () => void;
   onViewReady?: (view: EditorView | null) => void;
   onJumpToLabel?: (name: string) => void;
   onCursorLine?: (line: number) => void;
 }
 
-export function Editor({ value, onChange, filename, pcLine, breakpointLines, lineAddrs, equateValues, diagnostics, projectLabels, projectCSymbols, tabWidth, cpuLanguage, toolchainLanguage, gotoTarget, onToggleBreakpoint, onSave, onViewReady, onJumpToLabel, onCursorLine }: Props) {
+export function Editor({ value, onChange, filename, pcLine, breakpointLines, lineAddrs, equateValues, diagnostics, projectLabels, projectCSymbols, tabWidth, cFormatStyle, cpuLanguage, toolchainLanguage, gotoTarget, onToggleBreakpoint, onViewReady, onJumpToLabel, onCursorLine }: Props) {
   const hostRef = useRef<HTMLDivElement>(null);
   const viewRef = useRef<EditorView | null>(null);
   // Latest-callback refs so the CodeMirror handlers (built once on mount) always
@@ -357,16 +359,31 @@ export function Editor({ value, onChange, filename, pcLine, breakpointLines, lin
   // after commit, so the refs are always current by the time they're read.
   const onChangeRef = useRef(onChange);
   const onToggleRef = useRef(onToggleBreakpoint);
-  const onSaveRef = useRef(onSave);
   const onJumpRef = useRef(onJumpToLabel);
   const onCursorLineRef = useRef(onCursorLine);
+  // Same latest-value refs for the data the format-on-save handler needs — the
+  // keymap is built once on mount but must format the *current* file/style.
+  const filenameRef = useRef(filename);
+  const cFormatStyleRef = useRef(cFormatStyle);
+  const tabWidthRef = useRef(tabWidth);
   useEffect(() => {
     onChangeRef.current = onChange;
     onToggleRef.current = onToggleBreakpoint;
-    onSaveRef.current = onSave;
     onJumpRef.current = onJumpToLabel;
     onCursorLineRef.current = onCursorLine;
+    filenameRef.current = filename;
+    cFormatStyleRef.current = cFormatStyle;
+    tabWidthRef.current = tabWidth;
   });
+
+  // Format the active document: C/C++ → clang-format (wasm, VS Code parity);
+  // anything else → the cheap CM indent service (asm = no-op). Fail-soft inside
+  // formatC. Selection is clamped since a reformat rewrites the whole doc.
+  const formatActiveDoc = useCallback(async (view: EditorView) => {
+    const style = cFormatStyleRef.current ?? resolveCStyle(undefined, undefined, tabWidthRef.current ?? 4);
+    const handled = await formatCView(view, filenameRef.current, style);
+    if (!handled) reindentDoc(view);
+  }, []);
 
   useEffect(() => {
     if (!hostRef.current) return;
@@ -456,7 +473,11 @@ export function Editor({ value, onChange, filename, pcLine, breakpointLines, lin
           },
         }),
         keymap.of([
-          { key: "Mod-s", preventDefault: true, run: (view) => { reindentDoc(view); onSaveRef.current?.(); return true; } },
+          // Ctrl+S (Save = format + build + snapshot) is owned by the app-level
+          // `file.save` command — it intercepts in capture phase before CM, so a
+          // Mod-s binding here would be dead. Format-on-save lives there.
+          // Format Document — VS Code parity. Formats without saving/building.
+          { key: "Shift-Alt-f", preventDefault: true, run: (view) => { void formatActiveDoc(view); return true; } },
           // Consume the Run / Restart accelerators so the browser doesn't insert
           // a newline into the contenteditable (CM only preventDefaults keys it
           // binds). The window-level shortcut handler still fires the command —
@@ -515,6 +536,9 @@ export function Editor({ value, onChange, filename, pcLine, breakpointLines, lin
         setPcLine.of(null),
       ],
     });
+    // Prefetch the clang-format wasm when a C file opens so the first Ctrl+S
+    // doesn't pay the 2.3 MB download/compile latency. Best-effort, IDB-cached.
+    if (isCFile(filename)) warmFormatter();
     // Load and swap the language pack asynchronously (lazy chunk). Re-runs when
     // the file OR the active CPU / toolchain language changes (machine switch).
     let cancelled = false;

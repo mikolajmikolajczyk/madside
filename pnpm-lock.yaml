@@ -56,6 +56,9 @@ importers:
       '@radix-ui/react-tooltip':
         specifier: ^1.2.8
         version: 1.2.9(@types/react-dom@19.2.3(@types/react@19.2.17))(@types/react@19.2.17)(react-dom@19.2.7(react@19.2.7))(react@19.2.7)
+      '@wasm-fmt/clang-format':
+        specifier: 22.1.7
+        version: 22.1.7
       fflate:
         specifier: ^0.8.3
         version: 0.8.3
@@ -1227,6 +1230,11 @@ packages:
 
   '@vue/shared@3.5.35':
     resolution: {integrity: sha512-zSbjL7gRXwks2ZQLRGCajBtBXEOXW9Ddhn/HvSdrGkE2dqGnumzW8XtusRrxrE9LvqtiqDXQ+A60Hp6mvdYxfA==}
+
+  '@wasm-fmt/clang-format@22.1.7':
+    resolution: {integrity: sha512-nq3v7UcZnANCXmrxInOfQxySoSfbalcrMiG9VHxa6OMW5AR1ZHggm9jWRlCJOpLrmt5R1l+IxyHzRU7+NeU6QA==}
+    engines: {node: '>=16.17.0'}
+    hasBin: true
 
   acorn-jsx@5.3.2:
     resolution: {integrity: sha512-rq9s+JNhf0IChjtDXxllJ7g41oZk5SlXtp0LHwyA5cejwn7vKmKp4pPri6YEePv2PU65sAsegbXtIinmDFDXgQ==}
@@ -4358,6 +4366,8 @@ snapshots:
       '@vue/shared': 3.5.35
 
   '@vue/shared@3.5.35': {}
+
+  '@wasm-fmt/clang-format@22.1.7': {}
 
   acorn-jsx@5.3.2(acorn@8.16.0):
     dependencies:
