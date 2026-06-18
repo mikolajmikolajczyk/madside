@@ -4,7 +4,7 @@ import { EditorView, keymap, lineNumbers, highlightActiveLine, Decoration, gutte
 import { defaultKeymap, history, historyKeymap, indentWithTab } from "@codemirror/commands";
 import { bracketMatching, syntaxHighlighting, HighlightStyle, indentUnit, indentRange } from "@codemirror/language";
 import { tags as t } from "@lezer/highlight";
-import { autocompletion, completionKeymap } from "@codemirror/autocomplete";
+import { autocompletion, completionKeymap, closeBrackets, closeBracketsKeymap } from "@codemirror/autocomplete";
 import { lintGutter, setDiagnostics, type Diagnostic } from "@codemirror/lint";
 import { buildAssemblyLanguage, projectLabelsField, setProjectLabels, projectCSymbolsField, setProjectCSymbols, formatCView, isCFile, warmFormatter, resolveCStyle } from "@ui/codemirror";
 import type { CSymbol } from "@app/cSymbols";
@@ -458,6 +458,10 @@ export function Editor({ value, onChange, filename, pcLine, breakpointLines, lin
         projectCSymbolsField,
         lintGutter(),
         autocompletion(),
+        // Auto-close brackets/quotes while typing — type `{`/`(`/`"` and the
+        // matching close is inserted; typing over it or backspacing the pair is
+        // handled by closeBracketsKeymap. Language-aware (skips inside strings).
+        closeBrackets(),
         EditorView.domEventHandlers({
           mousedown(e, view) {
             if (!(e.ctrlKey || e.metaKey)) return false;
@@ -485,6 +489,7 @@ export function Editor({ value, onChange, filename, pcLine, breakpointLines, lin
           { key: "Mod-Enter", preventDefault: true, run: () => true },
           { key: "Shift-Mod-Enter", preventDefault: true, run: () => true },
           indentWithTab,
+          ...closeBracketsKeymap,
           ...completionKeymap,
           ...defaultKeymap,
           ...historyKeymap,

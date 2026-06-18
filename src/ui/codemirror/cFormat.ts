@@ -62,7 +62,9 @@ export function resolveCStyle(
 ): string {
   if (clangFormatFile && clangFormatFile.trim()) return clangFormatFile;
   const base = preset?.trim() || "LLVM";
-  return `{BasedOnStyle: ${base}, IndentWidth: ${tabWidth}, TabWidth: ${tabWidth}, UseTab: Never}`;
+  // InsertBraces wraps single-statement control-flow bodies (`if (x) y;` →
+  // `if (x) { y; }`) — closes the "missing braces" gap on format.
+  return `{BasedOnStyle: ${base}, IndentWidth: ${tabWidth}, TabWidth: ${tabWidth}, UseTab: Never, InsertBraces: true}`;
 }
 
 const C_FILE_RE = /\.(c|h|cc|cpp|hpp|cxx|hh)$/i;
