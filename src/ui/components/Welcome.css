@@ -319,3 +319,142 @@
   opacity: 0.55;
   cursor: default;
 }
+
+/* Template / course search + per-machine filter (QoL — the lists grow). */
+.welcome__filter {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+
+.welcome__search {
+  flex: 1 1 160px;
+  min-width: 0;
+  padding: 7px 10px;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-default);
+  border-radius: 6px;
+  color: var(--text-primary);
+  font: inherit;
+  font-size: 12px;
+}
+
+.welcome__search:focus {
+  outline: none;
+  border-color: var(--accent-mint);
+}
+
+.welcome__chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.welcome__chip {
+  padding: 5px 11px;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-default);
+  border-radius: 999px;
+  color: var(--text-secondary);
+  font: inherit;
+  font-size: 11px;
+  cursor: pointer;
+}
+
+.welcome__chip:hover {
+  border-color: var(--accent-mint);
+}
+
+.welcome__chip--on {
+  background: var(--accent-mint);
+  border-color: var(--accent-mint);
+  color: var(--bg-primary);
+  font-weight: 600;
+}
+
+.welcome__empty-hint {
+  color: var(--text-tertiary);
+  font-size: 12px;
+  padding: 4px 2px;
+}
+
+/* Footer — where to find help. */
+.welcome__footer {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 18px;
+  margin-top: 26px;
+  padding-top: 16px;
+  border-top: 1px solid var(--border-default);
+}
+
+.welcome__footer-link {
+  color: var(--text-secondary);
+  font-size: 12px;
+  text-decoration: none;
+}
+
+.welcome__footer-link:hover {
+  color: var(--accent-mint);
+  text-decoration: underline;
+}
+
+/* Machine filter dropdown — used when there are too many machines for chips. */
+.welcome__machine-select {
+  flex: 0 0 auto;
+  padding: 6px 10px;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-default);
+  border-radius: 6px;
+  color: var(--text-primary);
+  font: inherit;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.welcome__machine-select:focus {
+  outline: none;
+  border-color: var(--accent-mint);
+}
+
+/* Per-project actions (export / delete) on the welcome cards. */
+.welcome__card-actions {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  display: flex;
+  gap: 4px;
+}
+
+.welcome__card-action {
+  width: 20px;
+  height: 20px;
+  display: grid;
+  place-items: center;
+  padding: 0;
+  background: var(--bg-tertiary);
+  border: 1px solid var(--border-default);
+  border-radius: 4px;
+  color: var(--text-tertiary);
+  font: inherit;
+  font-size: 13px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.welcome__card-action:hover:not(:disabled) {
+  border-color: var(--accent-mint);
+  color: var(--accent-mint);
+}
+
+.welcome__card-action--danger:hover:not(:disabled) {
+  border-color: var(--accent-coral);
+  color: var(--accent-coral);
+}
+
+.welcome__card-action:disabled {
+  opacity: 0.5;
+  cursor: default;
+}

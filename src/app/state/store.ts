@@ -112,6 +112,12 @@ export function useProject(storage: StorageBackend, events?: EventBus) {
 
   const reload = useCallback(() => setReloadKey((k) => k + 1), []);
 
+  // Re-read the project list from storage — for callers that mutate it outside
+  // the active project (e.g. deleting another project from the welcome screen).
+  const refreshProjects = useCallback(async () => {
+    setProjects(await storage.projects.list());
+  }, [storage]);
+
   // Debounced file persistence, behind a testable saver (see ./file-saver).
   // `storage` and `events` are the workbench's singletons (stable for the app's
   // lifetime), so the lazy useState init captures them directly — a single,
@@ -419,7 +425,7 @@ export function useProject(storage: StorageBackend, events?: EventBus) {
     // No active project. The picker uses `projects` (empty on first run) +
     // `switchProject` to open a freshly instantiated template. `booted`
     // distinguishes "still loading" from "resolved, nothing to open".
-    return { loaded: false as const, error, booted, projects, switchProject };
+    return { loaded: false as const, error, booted, projects, switchProject, refreshProjects };
   }
 
   const active = state.files.find((f) => f.path === state.activePath) ?? state.files[0];
@@ -435,6 +441,7 @@ export function useProject(storage: StorageBackend, events?: EventBus) {
     updateActive,
     projects,
     switchProject,
+    refreshProjects,
     closeProject,
     renameProject: renameProjectAction,
     duplicateProject: duplicateProjectAction,

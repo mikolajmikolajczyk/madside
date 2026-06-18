@@ -35,6 +35,7 @@ import { useEquateValues } from "./hooks/useEquateValues";
 import { usePluginEditor } from "./hooks/usePluginEditor";
 import { useProjectLabels } from "./hooks/useProjectLabels";
 import { useProjectCSymbols } from "./hooks/useProjectCSymbols";
+import { useProjectsWithCourse } from "./hooks/useProjectsWithCourse";
 import { useAutoAssemble, outcomeFromStored } from "./hooks/useAutoAssemble";
 import { useRunStatus } from "./hooks/useRunStatus";
 import { useActiveMachine } from "./hooks/useActiveMachine";
@@ -212,6 +213,10 @@ export default function App() {
 
   // Project-wide C symbol index (#58) — drives cross-file C completion.
   const projectCSymbols = useProjectCSymbols(project.loaded ? project.files : null);
+
+  // Welcome screen needs each project's course stamp to split "Your projects"
+  // from "Started courses" — annotate the rows with their manifest.course.
+  const annotatedProjects = useProjectsWithCourse(workbench.storage, project.projects);
 
   // clang-format style for C sources (#60): a project `.clang-format` wins;
   // else the `editor.format` preset; else LLVM. Indent follows `editor.tabWidth`.
@@ -710,10 +715,12 @@ export default function App() {
     return (
       <Suspense fallback={<div className="app app--loading"><div className="app__loading">loading…</div></div>}>
         <Welcome
-          projects={[...project.projects]
-            .sort((a, b) => b.updatedAt - a.updatedAt)
-            .map((p) => ({ id: p.id, name: p.name }))}
+          projects={[...annotatedProjects].sort((a, b) => b.updatedAt - a.updatedAt)}
           onOpen={(id) => { void project.switchProject(id); }}
+          onDeleteProject={async (id) => {
+            await workbench.storage.projects.delete(id);
+            await project.refreshProjects();
+          }}
         />
       </Suspense>
     );
