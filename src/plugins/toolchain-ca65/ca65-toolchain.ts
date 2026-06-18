@@ -17,22 +17,30 @@ const targetFor = (machine?: string) => CC65_TARGET[machine ?? ''] ?? 'nes'
 // MADS (#1). Targets the NES: a project of `.c` / `.s` builds to an iNES ROM,
 // linked against the bundled cc65 NES runtime (nes.lib + nes.cfg).
 
-// cc65, ca65 and ld65 all report `<file>(<line>): Error: <msg>` /
-// `Warning: <msg>`. Parse them into structured diagnostics (#29) so the editor
-// can mark the offending lines, same as MADS.
-const DIAG_RE = /^\[(?:cc65|ca65|ld65)\]\s*(.+?)\((\d+)\):\s*(Error|Warning):\s*(.*)$/i
+// The three tools report two different location formats:
+//   - cc65 (the C compiler): gcc-style `<file>:<line>[:<col>]: Error: <msg>`
+//   - ca65 / ld65:           `<file>(<line>): Error: <msg>`
+// Accept both, with an optional leading `[tool]` prefix (added by the runner,
+// only on the first line of a multi-line block). Parsed into structured
+// diagnostics (#29) so the editor marks the offending lines, same as MADS.
+const DIAG_RE =
+  /^(?:\[(?:cc65|ca65|ld65)\]\s*)?(.+?)(?:\((\d+)\)|:(\d+))(?::\d+)?:\s*(Error|Warning):\s*(.*)$/i
+// CSI SGR colour codes (ld65 emits raw ANSI) — strip before parsing/display.
+// eslint-disable-next-line no-control-regex -- ESC is the literal we must match
+const ANSI_RE = /\x1b\[[0-9;]*m/g
+export const stripAnsi = (s: string): string => s.replace(ANSI_RE, '')
 
 export function parseDiagnostics(stdout: string, stderr: string): BuildDiagnostic[] {
   const out: BuildDiagnostic[] = []
   const seen = new Set<string>()
   for (const raw of `${stdout}\n${stderr}`.split(/\r?\n/)) {
-    const m = DIAG_RE.exec(raw.trim())
+    const m = DIAG_RE.exec(stripAnsi(raw).trim())
     if (!m) continue
     const file = m[1].trim()
-    const line = Number(m[2])
+    const line = Number(m[2] ?? m[3])
     if (!Number.isFinite(line) || line < 1) continue
-    const severity = m[3].toLowerCase() === 'error' ? 'error' : 'warning'
-    const message = m[4].trim()
+    const severity = m[4].toLowerCase() === 'error' ? 'error' : 'warning'
+    const message = m[5].trim()
     const key = `${file}:${line}:${severity}:${message}`
     if (seen.has(key)) continue
     seen.add(key)

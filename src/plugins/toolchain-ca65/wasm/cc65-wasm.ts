@@ -130,9 +130,13 @@ export async function buildCc65(main: string, files: Cc65File[], target = "nes")
 
   let stdout = "";
   let stderr = "";
+  // ld65 wraps its messages in raw ANSI colour codes — strip so the OUTPUT panel
+  // stays readable and the diagnostic parser sees clean text.
+  // eslint-disable-next-line no-control-regex -- ESC is the literal we must match
+  const stripAnsi = (s: string) => s.replace(/\x1b\[[0-9;]*m/g, "");
   const collect = (tool: string, r: RunResult) => {
-    if (r.stdout.trim()) stdout += `[${tool}] ${r.stdout}`;
-    if (r.stderr.trim()) stderr += `[${tool}] ${r.stderr}`;
+    if (r.stdout.trim()) stdout += `[${tool}] ${stripAnsi(r.stdout)}`;
+    if (r.stderr.trim()) stderr += `[${tool}] ${stripAnsi(r.stderr)}`;
     return r.exitCode;
   };
 
