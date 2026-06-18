@@ -24,6 +24,15 @@ The controls live on the toolbar and in the **Run** menu:
 
 Step and Frame are part of debugging — see [Debugging](/docs/using/debugging/) for how they interact with breakpoints and the panels.
 
+## When Run can't start
+
+Run needs a successfully-built binary. If you press Run when the [build](/docs/using/building/) has failed — or there's no binary to load — the emulator screen shows an overlay instead of booting:
+
+- **"Compilation error. Check output."** — the build didn't produce a binary. Open the [Output panel](/docs/using/building/#the-output-panel) and fix the errors (they're also marked [inline in the editor](/docs/using/building/#inline-error-markers)).
+- **"Failed to load binary. Check output."** — the build succeeded but the emulator couldn't load the result.
+
+The overlay clears automatically on the next successful **Run** or when you press **Stop**.
+
 ## Keyboard shortcuts
 
 The common controls have shortcuts:

@@ -18,7 +18,8 @@ never disagree.
 | Action | Shortcut |
 |--------|----------|
 | Command palette | `Ctrl+K` (or `Ctrl+Shift+P`) |
-| Save + assemble + snapshot | `Ctrl+S` |
+| Format + save + assemble + snapshot | `Ctrl+S` |
+| Format Document (no build) | `Shift+Alt+F` |
 | Assemble (no save) | `Ctrl+B` |
 | Run | `Ctrl+Enter` |
 | Restart (reset, then run if it was running) | `Ctrl+Shift+Enter` |
@@ -31,6 +32,12 @@ never disagree.
 `F10` (step) and `F11` (frame) only act when the emulator is loaded and not
 running. `Run` only fires when the project can run and is not already running.
 
+`Ctrl+S` formats the active C/C++ source with clang-format **before** it
+assembles and snapshots — so Save is format → build → snapshot in one step.
+`Shift+Alt+F` ("Format Document", VS Code parity) formats the active C/C++
+source with clang-format **without** building. For non-C files it re-indents
+via the language indent service; for assembly it is a no-op.
+
 Undo / redo (`Ctrl+Z`, `Ctrl+Shift+Z`) are handled by the code editor while it
 has focus, not the global command dispatcher.
 
@@ -41,7 +48,8 @@ listed in the Edit menu but are currently disabled placeholders.
 
 | Menu item | Shortcut |
 |-----------|----------|
-| File → Save | `Ctrl+S` |
+| File → Save (format + build + snapshot) | `Ctrl+S` |
+| Edit → Format Document | `Shift+Alt+F` |
 | Edit → Undo | `Ctrl+Z` |
 | Edit → Redo | `Ctrl+Shift+Z` |
 | Run → Build | `Ctrl+B` |

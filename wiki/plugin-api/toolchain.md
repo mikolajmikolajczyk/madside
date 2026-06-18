@@ -14,6 +14,7 @@ interface ToolchainPlugin {
   language?: ToolchainLanguage // optional editor-language metadata (see below)
   outputExt: string           // 'xex', 'nes', 'prg'
   build(input: ToolchainBuildInput): Promise<ToolchainBuildOutput>
+  sysroot?(machine?: string): VfsProvider | undefined // RO bundled runtime (see below)
 }
 
 interface ToolchainBuildInput {
@@ -21,6 +22,7 @@ interface ToolchainBuildInput {
   main: string                // entry-point file
   files: { path: string; content: Uint8Array }[]
   options?: Record<string, unknown> // manifest build.args forwarded here
+  machine?: string            // active machine id (manifest.machine); multi-target → compiler target + sysroot
 }
 
 interface ToolchainBuildOutput {
@@ -48,6 +50,7 @@ interface ToolchainLanguage {
   directives: readonly string[]                  // uppercase, no prefix — highlighted as directives + skipped by the label scanner
   lineComment: string | readonly string[]        // e.g. ';' or [';', '//']
   snippets?: readonly ToolchainSnippet[]          // autocomplete snippets (optional)
+  cSymbols?: readonly ToolchainCSymbol[]          // C lib symbols for .c/.h autocomplete + hover (cc65; #48)
 }
 
 interface ToolchainSnippet {
@@ -55,7 +58,24 @@ interface ToolchainSnippet {
   detail: string
   template: string                                // CodeMirror ${n:placeholder} syntax
 }
+
+interface ToolchainCSymbol {
+  label: string     // identifier as typed, e.g. 'cputs'
+  detail?: string   // one-line signature, e.g. 'void cputs(const char*)'
+  info?: string     // longer hover text
+  header?: string   // declaring header, e.g. 'conio.h' — auto-#include'd on accept
+}
 ```
+
+`cSymbols` drives the C editor (cc65's curated `conio` + stdlib surface, `cc65-symbols.ts`) — declarative, no CodeMirror dependency, not full clangd analysis. Accepting a completion auto-`#include`s its `header`.
+
+## Sysroot (optional)
+
+`sysroot?(machine?): VfsProvider | undefined` — a read-only bundled runtime the toolchain mounts at build time. MADS has none; cc65 ships `include/` + `asminc/`, `lib/<target>.lib`, and the linker cfg. Returns a `VfsProvider` from the VFS layer (ADR-0008, `@core/vfs`) — a lazily-yielded `read` / `list` / `stat` tree. The **same** provider drives both the build and the file tree's read-only "system" view (#50), so a C author browses exactly what they may `#include` / link.
+
+`machine` selects the target's sysroot for a multi-target toolchain — cc65 maps the active machine id to its `-t` target *and* the matching bundled runtime (`nes`→`nes`, `atari-xl`→`atari`); keep build and sysroot on the same `targetFor(machine)`. Return `undefined` / omit when nothing is bundled.
+
+Toolchains assemble the build filesystem by composing project sources + the sysroot through the VFS; one bridge materialises that into the WASI preopen — replaces the per-toolchain `placeFile` / `mkdirP` plumbing (ADR-0008).
 
 ## Hello-world
 

@@ -21,6 +21,7 @@ interface ToolchainPlugin {
   readonly outputExt: string           // binary extension, no dot: 'xex' | 'nes' | 'prg'
   readonly language?: ToolchainLanguage // optional editor-language metadata
   build(input: ToolchainBuildInput): Promise<ToolchainBuildOutput>
+  sysroot?(machine?: string): VfsProvider | undefined // optional read-only bundled runtime
 }
 ```
 
@@ -32,6 +33,7 @@ interface ToolchainBuildInput {
   main: string                 // entry-point file path
   files: { path: string; content: Uint8Array }[]  // every file the build might need
   options?: Record<string, unknown>               // forwarded from the manifest
+  machine?: string             // active machine id (manifest.machine) — multi-target maps it to its target + sysroot
 }
 
 interface ToolchainBuildOutput {
@@ -102,9 +104,63 @@ language: {
 
 The 6502 *opcodes* come from the machine's CPU; `language` carries only what's assembler-specific. A toolchain without `language` falls back to plain text. `snippets` use CodeMirror's `${n:placeholder}` template syntax but the contract itself doesn't depend on CodeMirror.
 
+### C library symbols (`cSymbols`)
+
+A toolchain that compiles C (cc65) can also offer its standard-library surface for autocomplete + hover in `.c` / `.h` sources via `language.cSymbols`:
+
+```ts
+interface ToolchainCSymbol {
+  label: string     // identifier as typed, e.g. 'cputs'
+  detail?: string   // one-line signature shown beside the completion, e.g. 'void cputs(const char*)'
+  info?: string     // longer hover/info text
+  header?: string   // declaring header, e.g. 'conio.h' — auto-`#include`d when the completion is accepted
+}
+
+language: {
+  // ...directives / lineComment / snippets as above...
+  cSymbols: [
+    { label: 'cputs', header: 'conio.h', detail: 'void cputs(const char* s)', info: 'Output a string at the cursor.' },
+    { label: 'memcpy', header: 'string.h', detail: 'void* memcpy(void* dst, const void* src, size_t n)' },
+  ],
+}
+```
+
+`cSymbols` is declarative — like the rest of `language`, no CodeMirror dependency. When the user accepts a completion, the editor auto-`#include`s the symbol's `header` so they learn where it comes from. It's a curated surface (the common console + stdlib calls), not full clangd-style analysis. cc65 ships its set in `cc65-symbols.ts`.
+
 ## `build.args` / options forwarding
 
 `manifest`-level build options are forwarded into `build` as `input.options` (free-form `Record<string, unknown>`). Document your toolchain's accepted option keys in your plugin's own docs — the workbench passes them through unchanged and never interprets them. (`BuildService` calls your `build` with `projectId`, `main`, `files`, and these `options`.)
+
+## Sysroot and the build filesystem
+
+Most assemblers (MADS) build from project files alone. A compiler with a bundled runtime — cc65 ships `include/` + `asminc/` headers, `lib/<target>.lib`, and a linker config — needs those files present in the build filesystem too. Declare them as a **sysroot**:
+
+```ts
+sysroot?(machine?: string): VfsProvider | undefined
+```
+
+It returns a read-only [`VfsProvider`](/docs/) from the VFS layer ([ADR-0008](https://github.com/mikolajmikolajczyk/madside), `@core/vfs`) — a lazily-yielded file tree (`read` / `list` / `stat`). The same provider drives **both** sides:
+
+- **The build** — the toolchain assembles its build filesystem by composing the project sources with the sysroot through the VFS, and a single bridge materialises that into the WASI preopen the wasm tools see. You don't hand-roll `placeFile` / `mkdirP` anymore.
+- **The file tree** — the workbench renders the same provider as a read-only "system" view, so a user writing C can browse exactly the headers and libs they may `#include` / link against.
+
+For a **multi-target** toolchain, the optional `machine` argument selects the right sysroot — cc65 maps the active machine id to its compiler target *and* the matching bundled runtime (e.g. `nes` → `nes`, `atari-xl` → `atari`). Return `undefined` (or omit `sysroot` entirely) when the toolchain bundles nothing, as MADS does.
+
+```ts
+// cc65: machine id → cc65 target (-t); the same id selects the bundled sysroot.
+const targetFor = (machine?: string) => ({ nes: 'nes', 'atari-xl': 'atari' }[machine ?? ''] ?? 'nes')
+
+export const cc65Toolchain: ToolchainPlugin = {
+  // ...
+  sysroot(machine) {
+    return sysrootFor(targetFor(machine))   // RO ZipAssetProvider for the target
+  },
+  async build(input) {
+    // same targetFor(input.machine) keeps the compiler target and sysroot in lock-step
+    return buildCc65(input.main, input.files, targetFor(input.machine))
+  },
+}
+```
 
 ## Failure contract
 

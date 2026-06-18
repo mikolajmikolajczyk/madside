@@ -24,6 +24,7 @@
 | project.json v2 schema + validator (`parseProjectManifest`) | ✅ (v0.5.0 443eaed) |
 | MachinePlugin port + Atari-XL first impl | ✅ (v0.4.0 a6c310d) |
 | ToolchainPlugin port + MADS first impl + manifest-driven dispatch | ✅ (v0.5.0 87f03ad + 443eaed) |
+| Second ToolchainPlugin — cc65/ca65/ld65 wasm (`src/plugins/toolchain-ca65`) — C + ca65 asm → NES `.nes` / Atari `.xex` | ✅ (GH #1, #52) |
 | DebugAdapterPlugin port + atari-6502 first impl | ✅ (v0.6.0 2810a62) |
 | PanelPlugin port + 4 built-in panels (registers/memory/output + ppu) | ✅ (v0.7.0 5ddf99e; ppu v0.8.0 93c218b) |
 | Event-driven panel refresh via ctx.events / ctx.debug | ✅ (v0.7.0 ba1a27b) |
@@ -38,6 +39,8 @@
 | Bundled templates — `templates/<id>/` via Vite glob, `src/app/templates.ts`, Welcome picker | ✅ (v0.8.5 71acac1, 505492d) |
 | Visual `project.json` manifest editor (`src/ui/components/manifest/ManifestEditor.tsx`, form + raw dual-mode) | ✅ (v0.9.0 f6c22ae) — `build.args` → toolchain options wiring (04bdb5a) |
 | Courses — format + glob loader + CourseService (`src/app/courses.ts`), lesson→project instantiation (`src/app/course-project.ts`), CoursePanel, declarative check runner (`src/app/check-runner.ts`) | ✅ (v0.9.5 epic 2e9c7cc — 3ed11be, 500f11c, 29540fd, 2921c6c) |
+| VFS / virtual filesystem mount layer (`@core/vfs` — Vfs/Mount/VfsProvider, MemoryProvider, ZipAssetProvider, WASI bridge) — toolchains assemble their build FS through it; bundled sysroot mounted read-only in the file tree | ✅ (ADR-0008, GH #55/#56/#57/#50) |
+| Persistent IDB asset cache for large wasm modules + sysroots (`src/plugins/.../asset-cache.ts`) | ✅ (GH #54) |
 | EmulatorPlugin contract | ⏳ M4 follow-up |
 
 ## Emulator (Altirra wasm)
@@ -61,6 +64,7 @@
 | Multi-format loader: XEX / ATR / CAR / CAS | ✅ (v0.4.0 3b73e5d) |
 | Pixel format from MachinePlugin.display + RGBA fast path | ✅ (v0.4.0 4bd1338) |
 | Dynamic canvas dims + sample rate | ✅ (v0.4.0 7353947, c2dc46b) |
+| "Compilation error" overlay when Run is attempted on a failed/blocked build | ✅ (c6fe7a1) |
 | Per-step display refresh | ⏳ Frame button workaround — backlog c309619 |
 | Hosting | ⏳ Infra epic 70269cc — efc75d1 |
 
@@ -74,6 +78,15 @@
 - Autocomplete: opcodes/directives + doc-local labels + project-wide labels (from `.lab`)
 - JS autocomplete in converter files via `@codemirror/lang-javascript`
 
+### C / cc65 editor support (GH #1 ecosystem)
+
+- Syntax highlighting for cc65 C + ca65 assembly via `@codemirror/lang-cpp` (GH #47)
+- Autocomplete + hover for cc65 C stdlib / ca65 directives (GH #48), plus cross-file project symbols — the user's own functions/macros, not just stdlib (GH #58, #48)
+- Auto-`#include` the matching header when accepting a cc65 completion (GH #48)
+- clang-format C formatting via `@wasm-fmt/clang-format` wasm — on Ctrl+S and Format Document (Shift+Alt+F); auto-close brackets + InsertBraces (GH #60)
+- Inline C compile errors — cc65 gcc-style `file:line:` diagnostics parse + mark the editor; ld65 ANSI stripped (GH #61)
+- Configurable indent (`editor.tabWidth`), manual build trigger (`build.trigger`, manual default), format style (`editor.format`) — all via manifest (GH #59)
+
 ## Storage + plugins + history
 
 - Path-based files (binary + text unified)
@@ -82,6 +95,7 @@
 - Content-addressable snapshots, auto-snap 30 s + Ctrl+S, restore/delete dialog
 - Snapshot GC + prune (keep last 100 auto-snapshots, manual immune)
 - Snapshot diff preview
+- Persisted last build per project — OUTPUT + error markers + binary survive a page reload, restored on open (`builds` IDB store, schema v4, GH #62)
 - AssetPipelineService: recipes, built-in converters, runAffected skip-aware (49d594d), AssetPanel form + previews
 - Plugin editors (Phase 11): contract + registry + Blob-URL loader + reference `bitmap` built-in; three-layer error containment (sync try/catch + React boundary + window error listener)
 
@@ -98,13 +112,14 @@
 
 `gh issue list`. Current milestones use `milestone:v<X.Y.Z>` labels:
 
-- `milestone:v0.8.0` — ✅ **done.** M9 NES validation (epic 8cf0a3b): jsnes emulator backend (b41098c), machine-nes plugin (481d76b), manifest-driven machine selection (1972a36), NES sample in MADS (50e22d1), PPU panel + named memory spaces (93c218b). NES validated via **MADS** (assembles NROM iNES directly); ca65 (6bed971) deferred to backlog as a future second toolchain for the C/neslib ecosystem.
+- `milestone:v0.8.0` — ✅ **done.** M9 NES validation (epic 8cf0a3b): jsnes emulator backend (b41098c), machine-nes plugin (481d76b), manifest-driven machine selection (1972a36), NES sample in MADS (50e22d1), PPU panel + named memory spaces (93c218b). NES validated via **MADS** (assembles NROM iNES directly); the C/neslib ecosystem later shipped as the cc65/ca65/ld65 toolchain (GH #1 — see C / cc65 ecosystem below).
 - `milestone:v0.8.5` — ✅ **done.** Bundled templates (`templates/<id>/` via Vite glob, `src/app/templates.ts`) + welcome picker / File→Templates (71acac1, 505492d).
 - `milestone:v0.8.7` — ✅ **done.** Editor language generalization — toolchain+CPU-driven (`@core/cpu/mos6502`, `ToolchainPlugin.language`; 1f08b2c, 6ba97ca, 5ee1a42).
 - `milestone:v0.9.0` — ✅ **done.** Visual `project.json` manifest editor (form + raw, f6c22ae) + `build.args`→toolchain wiring (04bdb5a); Astro Starlight docs site under `docs/` (1116ee3) — content for using/extending/reference/meta now written.
 - `milestone:v0.9.5` — Courses (epic 2e9c7cc) — **essentially complete**: course format + glob loader + CourseService (3ed11be), lesson→project instantiation (500f11c, 30ba629), declarative check runner (29540fd), entry points + Check wiring (2921c6c) all shipped. Only the course-authoring **docs** child (17bd00e) remains open.
+- **C / cc65 ecosystem (GH #1)** — ✅ **shipped.** Second ToolchainPlugin (cc65/ca65/ld65 wasm, `src/plugins/toolchain-ca65`) builds C + ca65 asm for NES (`.nes`) and Atari (`.xex`, GH #52); rides on the VFS mount layer (ADR-0008, GH #55/#56/#57). Full C editor experience: highlight (#47), autocomplete + cross-file completion + auto-`#include` (#48/#58), clang-format formatting (#60), inline compile errors (#61), configurable indent / manual build / format style (#59), persisted last build (#62). Still open: source-level breakpoints C↔6502 (#49), custom build options / linker config (#51), C64 plugin to run cc65 `.prg` (#53).
 - `milestone:v1.0.0` — first post-docs major release; TBD
-- `milestone:backlog` — Altirra bindings.cpp split (cd90f9d), per-step display refresh research (c309619), ca65/ld65 wasm toolchain for C/neslib ecosystem (GH #1). IDB schema migration framework shipped (`migrations.ts`, v3 courses store); BP Map/Record drift test shipped.
+- `milestone:backlog` — Altirra bindings.cpp split (cd90f9d), per-step display refresh research (c309619). IDB schema migration framework shipped (`migrations.ts`): v3 courses store, v4 builds store (#62); BP Map/Record drift test shipped.
 - **Infra epic 70269cc** (no milestone, separate clock) — GitHub mirror (edbc165), VPS hosting (efc75d1)
 
 Cancelled: M8 monorepo split (c2f4590) — see [`../decisions/2026-06-12-monorepo-split-cancelled.md`](../decisions/2026-06-12-monorepo-split-cancelled.md).
