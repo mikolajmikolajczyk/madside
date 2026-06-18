@@ -1,3 +1,13 @@
+## [0.13.0] - 2026-06-18
+
+### 🚀 Features
+
+- *(toolchain)* Cc65 source-level debugging — C breakpoints + step over (#49)
+
+### 🐛 Bug Fixes
+
+- *(editor)* Preserve cursor position on format (minimal diff, not full replace)
+- *(templates)* 4-space indent in asm templates (match editor default)
 ## [0.12.0] - 2026-06-18
 
 ### 🚀 Features
