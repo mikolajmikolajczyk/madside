@@ -1,6 +1,6 @@
 # Rebuilding `mads.wasm`
 
-The MADS assembler ships as a wasm32-wasip1 binary in `src/plugins/toolchain-mads/wasm-mads/mads.wasm`. Pipeline lives in this repo: `_notes/wasm-spike/` + `justfile`.
+The MADS assembler ships as a wasm32-wasip1 binary in `src/plugins/toolchain-mads/wasm-mads/mads.wasm`. Pipeline: `justfile` + the committed build inputs in `build-support/mads/` (pins in `third-party.toml`); scratch builds in `_notes/wasm-spike/build/` (git-ignored).
 
 ## One command
 
@@ -23,9 +23,9 @@ Assumed on `PATH`: `fpc` 3.2.2+, `gnumake`, `git`, `wasmtime` (for smoke test). 
 
 ## Files we own
 
-- `_notes/wasm-spike/crt.pas` — 30-line stub. MADS imports `crt` only for `TextColor` / `NormVideo`; wasip1 RTL has no `crt`.
-- `_notes/wasm-spike/smoke.a65` — minimal program used to verify byte-exact xex output.
-- `_notes/wasm-spike/REPORT.md` — historical spike notes (sizes, perf, rationale).
+- `build-support/mads/crt.pas` — 43-line stub. MADS imports `crt` only for `TextColor` / `NormVideo`; wasip1 RTL has no `crt`.
+- `build-support/mads/smoke.a65` — minimal program used to verify byte-exact xex output.
+- `build-support/mads/REPORT.md` — historical spike notes (sizes, perf, rationale).
 
 ## Output
 

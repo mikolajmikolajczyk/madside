@@ -1,0 +1,94 @@
+# Third-party software registry — the single source of truth for every bundled
+# upstream + build-time toolchain. The justfile reads pins from here
+# (`python3 scripts/third-party.py get <dotted.key>`), and the docs licence
+# table is generated from here (`just third-party-docs`). Adding a platform or
+# compiler = add one entry here + its (necessarily tool-specific) build recipe.
+
+# === bundled artifacts built from source (just build-*) — shown in the table ===
+# `ref` is the pinned upstream commit the justfile checks out.
+
+# `upstream` = the canonical project (attribution + licence). `source` = the repo
+# we actually build from (our fork when we carry patches; equal to `upstream`
+# when we build it unmodified). `ref` is the pinned commit on `source`.
+
+[source.mads]
+name       = "Mad-Assembler (MADS)"
+role       = "Atari 8-bit 6502 macro assembler"
+upstream   = "https://github.com/tebe6502/Mad-Assembler"
+source     = "https://github.com/tebe6502/Mad-Assembler"
+ref        = "11c15fdf65d1694ca9bb5f3f2b33bf616e586a77"
+version    = "2.1.6"
+license    = "Freeware (custom — see upstream)"
+artifact   = "src/plugins/toolchain-mads/wasm-mads/mads.wasm"
+built_with = "Free Pascal (cross wasm32-wasip1); our crt.pas shim from _notes/wasm-spike"
+
+[source.cc65]
+name       = "cc65 (cc65 / ca65 / ld65)"
+role       = "C compiler + 6502 assembler & linker"
+upstream   = "https://github.com/cc65/cc65"
+source     = "https://github.com/cc65/cc65"
+ref        = "cc3c40c54e51b2d9a22b63c85c418a2b11763377"
+version    = "snapshot (git)"
+license    = "Zlib"
+artifact   = "src/plugins/toolchain-ca65/wasm/"
+built_with = "wasi-sdk clang (wasm32-wasip1); unmodified"
+
+[source.altirra]
+name       = "Altirra (core)"
+role       = "Atari 8-bit emulator core"
+upstream   = "https://github.com/ilmenit/AltirraSDL"
+source     = "https://github.com/mikolajmikolajczyk/AltirraSDL/tree/madside-embed"
+repo       = "https://github.com/mikolajmikolajczyk/AltirraSDL.git"
+branch     = "madside-embed"
+ref        = "46ed1438e85f9920cae47d7b323ee3eb4b2dc9b8"
+version    = "wasm embed core"
+license    = "GPL-2.0-or-later"
+artifact   = "src/adapters/emu/wasm/altirra-core.wasm"
+built_with = "Emscripten (SDL3 embed); our AltirraEmbed fork of ilmenit/AltirraSDL (orig. Altirra by Avery Lee)"
+
+# === build-time toolchains — the justfile reads these; NOT shipped, NOT in the
+#     table (they compile the artifacts above, they aren't part of the product) ===
+
+[builddep.fpc]
+upstream = "https://gitlab.com/freepascal.org/fpc/source.git"
+ref      = "17c002e6460417e6980fcae2affe6e5bbb00bd6a"
+
+[builddep.wasi_sdk]
+upstream = "https://github.com/WebAssembly/wasi-sdk"
+version  = "33"
+asset    = "wasi-sdk-33.0-x86_64-linux.tar.gz"
+
+# === bundled npm runtime libraries (ship inside the app) — shown in the table.
+#     version + license are read live from node_modules so they can't drift from
+#     package.json; `license_note` augments where the SPDX field hides nuance. ===
+
+[bundled.clang-format]
+name         = "clang-format (wasm)"
+role         = "C/C++ code formatter"
+npm          = "@wasm-fmt/clang-format"
+upstream     = "https://github.com/llvm/llvm-project"
+license_note = "MIT wrapper; clang-format itself is Apache-2.0 WITH LLVM-exception"
+
+[bundled.jsnes]
+name     = "jsnes"
+role     = "NES emulator core"
+npm      = "jsnes"
+upstream = "https://github.com/bfirsh/jsnes"
+
+[bundled.browser_wasi_shim]
+name     = "browser_wasi_shim"
+role     = "WASI runtime hosting the wasm toolchains in the browser"
+npm      = "@bjorn3/browser_wasi_shim"
+upstream = "https://github.com/bjorn3/browser_wasi_shim"
+
+[bundled.fflate]
+name     = "fflate"
+role     = "zip / unzip of the cc65 sysroot assets"
+npm      = "fflate"
+upstream = "https://github.com/101arrowz/fflate"
+
+[bundled.idb]
+name     = "idb"
+role     = "IndexedDB wrapper (project storage + asset cache)"
+npm      = "idb"
+upstream = "https://github.com/jakearchibald/idb"

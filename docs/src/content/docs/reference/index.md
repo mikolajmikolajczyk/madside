@@ -15,4 +15,5 @@ source in the codebase so the docs don't drift.
 - [Machines](/docs/reference/machines/) — machine × toolchain × emulator × debug-adapter matrix.
 - [Storage](/docs/reference/storage/) — the IndexedDB schema.
 - [Events](/docs/reference/events/) — the typed workbench event map.
+- [Third-party software](/docs/reference/third-party/) — bundled tools and libraries, versions, and licences.
 - [Glossary](/docs/reference/glossary/) — Atari, NES, and plugin terminology.

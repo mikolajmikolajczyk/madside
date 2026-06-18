@@ -4,18 +4,22 @@
 
 set shell := ["bash", "-cu"]
 
-# Repo paths
-spike_dir       := justfile_directory() / "_notes/wasm-spike"
-build_dir       := spike_dir / "build"
+# Repo paths. Build-input assets (our crt.pas shim, smoke tests, helper scripts)
+# are committed under build-support/; scratch (cloned upstream sources +
+# intermediate wasm) lives in _notes/ — git-ignored, a local build cache the
+# `build-*` recipes recreate on demand.
+mads_assets     := justfile_directory() / "build-support/mads"
+build_dir       := justfile_directory() / "_notes/wasm-spike/build"
 fpc_dir         := build_dir / "fpc-src"
 mads_dir        := build_dir / "Mad-Assembler"
 wasm_out        := justfile_directory() / "src/plugins/toolchain-mads/wasm-mads/mads.wasm"
 
-# Pinned upstream commits — bump deliberately, then rebuild.
-fpc_repo        := "https://gitlab.com/freepascal.org/fpc/source.git"
-fpc_commit      := "17c002e6460417e6980fcae2affe6e5bbb00bd6a"
-mads_repo       := "https://github.com/tebe6502/Mad-Assembler.git"
-mads_commit     := "11c15fdf65d1694ca9bb5f3f2b33bf616e586a77"
+# Pinned upstream — single source of truth in third-party.toml; bump there, then
+# rebuild. The justfile reads pins via scripts/third-party.py (no duplication).
+fpc_repo        := `python3 scripts/third-party.py get builddep.fpc.upstream`
+fpc_commit      := `python3 scripts/third-party.py get builddep.fpc.ref`
+mads_repo       := `python3 scripts/third-party.py get source.mads.upstream`
+mads_commit     := `python3 scripts/third-party.py get source.mads.ref`
 
 # Show available recipes.
 default:
@@ -71,7 +75,7 @@ bootstrap-fpc-wasm:
 
 # Drop the crt shim into Mad-Assembler, compile mads.pas → mads.wasm.
 compile-mads:
-    cp "{{spike_dir}}/crt.pas" "{{mads_dir}}/crt.pas"
+    cp "{{mads_assets}}/crt.pas" "{{mads_dir}}/crt.pas"
     cd "{{mads_dir}}" && "{{fpc_dir}}/compiler/ppcrosswasm32" \
         -Twasip1 -Pwasm32 -Mdelphi -vh -O3 \
         -Fu"{{fpc_dir}}/rtl/units/wasm32-wasip1" \
@@ -87,7 +91,7 @@ install-mads-wasm:
 
 # Smoke test: assemble smoke.a65 with the freshly built wasm, diff against native mads if available.
 verify-mads-wasm:
-    cp "{{spike_dir}}/smoke.a65" "{{mads_dir}}/smoke.a65"
+    cp "{{mads_assets}}/smoke.a65" "{{mads_dir}}/smoke.a65"
     cd "{{mads_dir}}" && wasmtime --dir=. mads.wasm smoke.a65
     @echo "smoke.obx bytes:"
     @xxd "{{mads_dir}}/smoke.obx" | head -3
@@ -102,8 +106,8 @@ clean-mads-build:
 # (gitignored). Requires (host tooling): curl, gnumake, git, node 18+ (for the
 # WASI smoke). No nix shell needed — wasi-sdk ships its own clang.
 
-cc65_spike_dir  := justfile_directory() / "_notes/ca65-wasm-spike"
-cc65_build_dir  := cc65_spike_dir / "build"
+cc65_assets     := justfile_directory() / "build-support/cc65"
+cc65_build_dir  := justfile_directory() / "_notes/ca65-wasm-spike/build"
 wasi_sdk_dir    := cc65_build_dir / "wasi-sdk"
 cc65_src_dir    := cc65_build_dir / "cc65"
 cc65_out_dir    := justfile_directory() / "src/plugins/toolchain-ca65/wasm"
@@ -112,11 +116,11 @@ cc65_plugin_dir := justfile_directory() / "src/plugins/toolchain-ca65"
 # in the plugin's CC65_TARGET / SYSROOT_URL maps to support another platform.
 cc65_targets    := "nes atari"
 
-# Pinned upstream — bump deliberately, then rebuild + smoke + commit the wasm.
-cc65_repo       := "https://github.com/cc65/cc65.git"
-cc65_commit     := "cc3c40c54e51b2d9a22b63c85c418a2b11763377"
-wasi_sdk_ver    := "33"
-wasi_sdk_asset  := "wasi-sdk-33.0-x86_64-linux.tar.gz"
+# Pinned upstream — bump in third-party.toml, then rebuild + smoke + commit wasm.
+cc65_repo       := `python3 scripts/third-party.py get source.cc65.upstream`
+cc65_commit     := `python3 scripts/third-party.py get source.cc65.ref`
+wasi_sdk_ver    := `python3 scripts/third-party.py get builddep.wasi_sdk.version`
+wasi_sdk_asset  := `python3 scripts/third-party.py get builddep.wasi_sdk.asset`
 
 # Full pipeline: fetch wasi-sdk, clone cc65, build the NES sysroot (native libs),
 # build the wasm tools, install + smoke. The NES sysroot step runs FIRST and
@@ -135,7 +139,7 @@ build-sysroots:
     for t in {{cc65_targets}}; do \
         out="{{cc65_plugin_dir}}/$t-sysroot.zip"; \
         rm -f "$out"; \
-        python3 "{{cc65_spike_dir}}/make-sysroot-zip.py" "{{cc65_src_dir}}" "$t" "$out"; \
+        python3 "{{cc65_assets}}/make-sysroot-zip.py" "{{cc65_src_dir}}" "$t" "$out"; \
     done
     @ls -lh "{{cc65_plugin_dir}}/"*-sysroot.zip
     cd "{{cc65_src_dir}}" && make clean >/dev/null 2>&1 || true
@@ -180,9 +184,9 @@ install-cc65-wasm:
 # output bytes. Uses node's built-in WASI via the spike's wasi-run.mjs.
 verify-cc65-wasm:
     rm -rf /tmp/cc65-verify && mkdir -p /tmp/cc65-verify
-    cp "{{cc65_spike_dir}}/hello.s" "{{cc65_spike_dir}}/none.cfg" /tmp/cc65-verify/
-    WASI_DIR=/tmp/cc65-verify node --no-warnings "{{cc65_spike_dir}}/wasi-run.mjs" "{{cc65_out_dir}}/ca65.wasm" -o /hello.o /hello.s
-    WASI_DIR=/tmp/cc65-verify node --no-warnings "{{cc65_spike_dir}}/wasi-run.mjs" "{{cc65_out_dir}}/ld65.wasm" -C /none.cfg -o /hello.bin /hello.o
+    cp "{{cc65_assets}}/hello.s" "{{cc65_assets}}/none.cfg" /tmp/cc65-verify/
+    WASI_DIR=/tmp/cc65-verify node --no-warnings "{{cc65_assets}}/wasi-run.mjs" "{{cc65_out_dir}}/ca65.wasm" -o /hello.o /hello.s
+    WASI_DIR=/tmp/cc65-verify node --no-warnings "{{cc65_assets}}/wasi-run.mjs" "{{cc65_out_dir}}/ld65.wasm" -C /none.cfg -o /hello.bin /hello.o
     @echo "hello.bin bytes (expect a9 42 8d 00 02 60):"
     @xxd /tmp/cc65-verify/hello.bin | head -1
 
@@ -195,10 +199,23 @@ clean-cc65-build:
 altirra_dir         := justfile_directory() / "_notes/altirra"
 altirra_build_dir   := altirra_dir / "build/wasm-embed"
 altirra_out_dir     := justfile_directory() / "src/adapters/emu/wasm"
+# We build Altirra from our AltirraEmbed fork (the SDL3/wasm embed patches +
+# flake live there) — pinned in third-party.toml, same as the other toolchains.
+altirra_repo        := `python3 scripts/third-party.py get source.altirra.repo`
+altirra_branch      := `python3 scripts/third-party.py get source.altirra.branch`
+altirra_commit      := `python3 scripts/third-party.py get source.altirra.ref`
 
-# Full pipeline: configure (if needed), build wasm embed core, install to public/altirra/.
-# Requires the nix dev shell from _notes/altirra/flake.nix.
-build-altirra-wasm: altirra-configure altirra-compile install-altirra-wasm
+# Full pipeline: clone the fork at the pinned commit, configure (if needed),
+# build the wasm embed core, install to src/adapters/emu/wasm/.
+# Requires the nix dev shell from the fork's flake.nix.
+build-altirra-wasm: clone-altirra altirra-configure altirra-compile install-altirra-wasm
+
+# Clone (or update) the madside AltirraEmbed fork at the pinned commit.
+clone-altirra:
+    if [ ! -d "{{altirra_dir}}/.git" ]; then \
+        git clone --branch "{{altirra_branch}}" "{{altirra_repo}}" "{{altirra_dir}}"; \
+    fi
+    cd "{{altirra_dir}}" && git fetch origin "{{altirra_commit}}" && git checkout "{{altirra_commit}}"
 
 # Configure with embed mode + wasm. Idempotent — only writes config if absent.
 altirra-configure:
@@ -236,6 +253,10 @@ docs-dev:
 # Build the static docs site into docs/dist/.
 docs-build:
     cd "{{docs_dir}}" && pnpm install && pnpm build
+
+# Regenerate the third-party licence table from third-party.toml (run after bumping a pin).
+third-party-docs:
+    python3 scripts/third-party.py docs
 
 # === release ===
 
@@ -280,10 +301,11 @@ release version:
     # pinentry timeout mid-release (the documented gotcha).
     echo "▸ warming gpg…"; echo release | gpg --clearsign >/dev/null 2>&1 || true
 
-    # --- mutate: bump, changelog, commit, tag ---
+    # --- mutate: bump, changelog, third-party table, commit, tag ---
     echo "▸ bump → $ver"; npm pkg set version="$ver"
     echo "▸ changelog…"; npx -y git-cliff@latest --unreleased --tag "$tag" --prepend CHANGELOG.md
-    git add package.json CHANGELOG.md
+    echo "▸ third-party table…"; python3 scripts/third-party.py docs
+    git add package.json CHANGELOG.md docs/src/content/docs/reference/third-party.md
     git commit -S -m "chore(release): $tag"
     git tag -s "$tag" -m "$tag"
 

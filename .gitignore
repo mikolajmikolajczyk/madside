@@ -23,18 +23,15 @@ dist-ssr
 *.sln
 *.sw?
 
-# mads.wasm build pipeline — cloned upstream sources + intermediate artifacts.
-# See justfile (`just build-mads-wasm`).
-_notes/wasm-spike/build/
-
-# Altirra wasm core fork — own git repo, tracked separately at
-# github.com/mikolajmikolajczyk/AltirraSDL on branch `madside-embed`.
-# See justfile (`just build-altirra-wasm`).
-_notes/altirra/
-_notes
+# Local build cache: cloned upstream sources + intermediate wasm artifacts (mads
+# / cc65 pipelines) and the AltirraSDL fork checkout. Recreated on demand by the
+# `just build-*` recipes — committed build INPUTS live in build-support/ instead.
+# Stays on disk locally; never tracked.
+_notes/
 
 # Nix flake — direnv cache + emscripten cache + build outputs
 .direnv/
 .emcache/
 result
 result-*
+.repoctx
