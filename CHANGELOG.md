@@ -1,3 +1,8 @@
+## [0.14.0] - 2026-06-18
+
+### 🚀 Features
+
+- *(toolchain)* Cc65 custom build options — linker config, per-tool args, mixed C/asm (#51)
 ## [0.13.0] - 2026-06-18
 
 ### 🚀 Features
