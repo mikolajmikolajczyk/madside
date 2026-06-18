@@ -34,13 +34,17 @@ export interface ProjectManifestV2 {
   recipes?: Recipe[]
   /** Map of file-extension (no dot, lowercase) → editor module path. */
   editors?: Record<string, string>
-  /** Build configuration forwarded to the toolchain. `args` are raw,
-   *  toolchain-specific assembler flags (e.g. MADS `-d:SYM=1`, extra `-i:`
-   *  include paths); the toolchain appends them to its own invocation.
-   *  `trigger` controls when the build runs: `'manual'` (default) builds only
-   *  on Ctrl+S / Run; `'auto'` rebuilds on every (debounced) edit. Manual keeps
-   *  large projects snappy by not recompiling on every keystroke. */
-  build?: { args?: string[]; trigger?: 'auto' | 'manual' }
+  /** Build configuration. `trigger` (generic) controls when the build runs:
+   *  `'manual'` (default) builds only on Ctrl+S / Run; `'auto'` rebuilds on
+   *  every (debounced) edit — manual keeps large projects snappy.
+   *
+   *  `options` is a toolchain-specific bag forwarded verbatim to the active
+   *  ToolchainPlugin as `ToolchainBuildInput.options`; the plugin owns its
+   *  schema (kept out of the generic manifest so any toolchain fits). MADS reads
+   *  `options.args` (raw flags); cc65 reads `options.config` (a custom ld65
+   *  `.cfg`) + `options.cc65Args` / `ca65Args` / `ld65Args` (per-tool flags),
+   *  #51. A legacy top-level `build.args` folds into `options.args`. */
+  build?: { trigger?: 'auto' | 'manual'; options?: Record<string, unknown> }
   /** Editor preferences. `tabWidth` = spaces per indent level + literal-tab
    *  render width (default 4). `format` = clang-format style for C sources: a
    *  preset name (`LLVM`, `Google`, `WebKit`, …) or inline `.clang-format` YAML.
@@ -121,19 +125,31 @@ export function parseProjectManifest(raw: unknown): Result<ProjectManifestV2, Ma
   const build = raw['build']
   if (isObject(build)) {
     out.build = {}
-    const args = build['args']
-    if (args !== undefined) {
-      if (!Array.isArray(args) || !args.every((a) => typeof a === 'string')) {
-        return err(new ManifestError('project.json: build.args must be an array of strings'))
-      }
-      out.build.args = args as string[]
-    }
     const trigger = build['trigger']
     if (trigger !== undefined) {
       if (trigger !== 'auto' && trigger !== 'manual') {
         return err(new ManifestError("project.json: build.trigger must be 'auto' or 'manual'"))
       }
       out.build.trigger = trigger
+    }
+    // Toolchain-specific options — passed through verbatim; the active toolchain
+    // plugin validates its own keys (keeps the manifest toolchain-agnostic).
+    const options = build['options']
+    if (options !== undefined) {
+      if (!isObject(options)) {
+        return err(new ManifestError('project.json: build.options must be an object'))
+      }
+      out.build.options = { ...options }
+    }
+    // Back-compat: a top-level `build.args` (the pre-#51 single-tool escape
+    // hatch) folds into options.args unless options already sets it.
+    const args = build['args']
+    if (args !== undefined) {
+      if (!Array.isArray(args) || !args.every((a) => typeof a === 'string')) {
+        return err(new ManifestError('project.json: build.args must be an array of strings'))
+      }
+      out.build.options = out.build.options ?? {}
+      if (out.build.options['args'] === undefined) out.build.options['args'] = args
     }
   }
 

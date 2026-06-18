@@ -132,7 +132,7 @@ export function createBuildService(deps: BuildServiceDeps): BuildService {
         content,
       }))
 
-      const assembleResult = await assemble(main, assembleInput, manifest.build, manifest.machine)
+      const assembleResult = await assemble(main, assembleInput, manifest.build?.options, manifest.machine)
 
       if (mySeq !== seq) {
         return err(new BuildError(`build superseded (seq ${mySeq} → ${seq})`))

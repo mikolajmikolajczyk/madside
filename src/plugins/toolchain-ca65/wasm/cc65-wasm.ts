@@ -25,6 +25,17 @@ export interface Cc65File {
   content: string | Uint8Array;
 }
 
+/** Per-project cc65 build options (#51), from `manifest.build.options`. */
+export interface Cc65Options {
+  /** Project-relative path to a custom ld65 linker config used instead of the
+   *  bundled `<target>.cfg` (custom memory layout / segments). */
+  config?: string;
+  /** Extra flags appended to the cc65 / ca65 / ld65 invocations respectively. */
+  cc65Args?: string[];
+  ca65Args?: string[];
+  ld65Args?: string[];
+}
+
 export interface Cc65BuildResult {
   ok: boolean;
   /** Linked iNES ROM (absent on failure). */
@@ -100,7 +111,7 @@ const OUT_EXT: Record<string, string> = { nes: "nes", atari: "xex" };
  *  `main`'s stem names the output; every `.c` is compiled with cc65, every
  *  `.c`/`.s`/`.asm` is assembled with ca65, then ld65 links the objects against
  *  `<target>.lib` using `<target>.cfg` from the bundled sysroot. */
-export async function buildCc65(main: string, files: Cc65File[], target = "nes"): Promise<Cc65BuildResult> {
+export async function buildCc65(main: string, files: Cc65File[], target = "nes", opts: Cc65Options = {}): Promise<Cc65BuildResult> {
   const sysroot = sysrootFor(target);
   if (!sysroot) {
     return { ok: false, stdout: "", stderr: `cc65: no bundled sysroot for target '${target}'`, exitCode: 1 };
@@ -150,20 +161,22 @@ export async function buildCc65(main: string, files: Cc65File[], target = "nes")
   // 1. cc65: every .c → .s
   for (const src of cFiles) {
     const code = collect("cc65", await runTool(cc65Mod, root,
-      ["cc65", "-g", "-O", "-t", target, "-I", "include", "-o", `${stem(src)}.s`, src]));
+      ["cc65", "-g", "-O", "-t", target, "-I", "include", ...(opts.cc65Args ?? []), "-o", `${stem(src)}.s`, src]));
     if (code !== 0) return { ok: false, stdout, stderr, exitCode: code };
   }
 
   // 2. ca65: every .s (project + cc65-generated) → .o
   for (const src of asmSources) {
     const code = collect("ca65", await runTool(ca65Mod, root,
-      ["ca65", "-g", "-t", target, "-I", "asminc", "-o", `${stem(src)}.o`, src]));
+      ["ca65", "-g", "-t", target, "-I", "asminc", ...(opts.ca65Args ?? []), "-o", `${stem(src)}.o`, src]));
     if (code !== 0) return { ok: false, stdout, stderr, exitCode: code };
   }
 
-  // 3. ld65: link objects + <target>.lib → output (+ debug-info file)
+  // 3. ld65: link objects + <target>.lib → output (+ debug-info file). A custom
+  //    linker config from the project replaces the bundled one (#51).
+  const config = opts.config ?? `${target}.cfg`;
   const linkCode = collect("ld65", await runTool(ld65Mod, root,
-    ["ld65", "-C", `${target}.cfg`, "--dbgfile", dbgPath, "-o", outPath, ...objects, `lib/${target}.lib`]));
+    ["ld65", "-C", config, "--dbgfile", dbgPath, ...(opts.ld65Args ?? []), "-o", outPath, ...objects, `lib/${target}.lib`]));
   if (linkCode !== 0) return { ok: false, stdout, stderr, exitCode: linkCode };
 
   const binary = readFromPreopen(root, outPath);

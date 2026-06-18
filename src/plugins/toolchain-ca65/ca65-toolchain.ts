@@ -1,22 +1,50 @@
 import type { BuildDiagnostic, ToolchainBuildOutput, ToolchainPlugin } from '@ports'
 import type { VfsProvider } from '@core/vfs'
-import { buildCc65, sysrootFor, type Cc65File } from './wasm/cc65-wasm'
+import { buildCc65, sysrootFor, type Cc65File, type Cc65Options } from './wasm/cc65-wasm'
 import { parseDbg } from './cc65-dbg'
 import { CC65_C_SYMBOLS } from './cc65-symbols'
+
+/** Validate the cc65 slice of `manifest.build.options` (#51). The manifest
+ *  passes the bag through untyped — the toolchain owns its schema. */
+export function coerceCc65Options(
+  options: Record<string, unknown> | undefined,
+): { ok: true; value: Cc65Options } | { ok: false; error: string } {
+  if (!options) return { ok: true, value: {} }
+  const value: Cc65Options = {}
+  if (options.config !== undefined) {
+    if (typeof options.config !== 'string') {
+      return { ok: false, error: 'build.options.config must be a string (path to a .cfg)' }
+    }
+    value.config = options.config
+  }
+  for (const key of ['cc65Args', 'ca65Args', 'ld65Args'] as const) {
+    const v = options[key]
+    if (v === undefined) continue
+    if (!Array.isArray(v) || !v.every((x) => typeof x === 'string')) {
+      return { ok: false, error: `build.options.${key} must be an array of strings` }
+    }
+    value[key] = v as string[]
+  }
+  return { ok: true, value }
+}
 
 // madside machine id → cc65 compiler target (`-t`). The same id selects the
 // bundled sysroot. Add a row here + bundle that target's sysroot zip to support
 // another platform (#52).
+// Machine id → cc65 target. Add a row (plus a sysroot zip in SYSROOT_URL) to
+// support a new machine — there is deliberately NO default target, so an
+// unmapped machine fails loudly instead of silently building as NES.
 const CC65_TARGET: Record<string, string> = {
   nes: 'nes',
   'atari-xl': 'atari',
 }
-const targetFor = (machine?: string) => CC65_TARGET[machine ?? ''] ?? 'nes'
+const targetFor = (machine?: string): string | undefined => CC65_TARGET[machine ?? '']
 
 // cc65 toolchain — the C compiler + ca65 assembler + ld65 linker for the 6502,
 // shipped as WASI wasm (see wasm/cc65-wasm.ts). Second ToolchainPlugin after
-// MADS (#1). Targets the NES: a project of `.c` / `.s` builds to an iNES ROM,
-// linked against the bundled cc65 NES runtime (nes.lib + nes.cfg).
+// MADS (#1). Multi-target: a project of `.c` / `.s` links against the bundled
+// cc65 runtime for the active machine's target — NES (iNES ROM, nes.lib/nes.cfg)
+// or Atari (`.xex`, atari.lib/atari.cfg).
 
 // The three tools report two different location formats:
 //   - cc65 (the C compiler): gcc-style `<file>:<line>[:<col>]: Error: <msg>`
@@ -90,12 +118,27 @@ export const cc65Toolchain: ToolchainPlugin = {
   // Same provider the build mounts, so the file tree's system view (#50) shows
   // exactly what links.
   sysroot(machine?: string): VfsProvider | undefined {
-    return sysrootFor(targetFor(machine))
+    const target = targetFor(machine)
+    return target ? sysrootFor(target) : undefined
   },
 
   async build(input): Promise<ToolchainBuildOutput> {
     const files: Cc65File[] = input.files.map((f) => ({ path: f.path, content: f.content }))
-    const r = await buildCc65(input.main, files, targetFor(input.machine))
+    const optsResult = coerceCc65Options(input.options)
+    if (!optsResult.ok) {
+      return { ok: false, stdout: '', stderr: `project.json: ${optsResult.error}`, exitCode: 1 }
+    }
+    const target = targetFor(input.machine)
+    if (!target) {
+      const supported = Object.keys(CC65_TARGET).join(', ')
+      return {
+        ok: false,
+        stdout: '',
+        stderr: `cc65: no target for machine '${input.machine ?? '(none)'}' — cc65 supports: ${supported}`,
+        exitCode: 1,
+      }
+    }
+    const r = await buildCc65(input.main, files, target, optsResult.value)
     const diagnostics = parseDiagnostics(r.stdout, r.stderr)
     if (!r.ok || !r.binary) {
       return {

@@ -25,15 +25,35 @@ exactly what `parseProjectManifest` enforces.
 | `run` | `{ default?: { audio?: boolean } }` | no | Run defaults. Stored verbatim when an object. |
 | `recipes` | `Recipe[]` | no | Asset-pipeline entries (see below). Stored when an array. |
 | `editors` | `Record<string, string>` | no | Map of file extension (no dot, lowercase) → editor module path. Only applied when all values are strings. |
-| `build` | `{ args?: string[]; trigger?: 'auto' \| 'manual' }` | no | Build configuration forwarded to the toolchain. |
-| `build.args` | `string[]` | no | Raw, toolchain-specific assembler flags (e.g. MADS `-d:SYM=1`, extra `-i:` include paths). Appended to the toolchain's own invocation. If present, **must** be an array of strings or the manifest is rejected. |
+| `build` | `{ trigger?: 'auto' \| 'manual'; options?: object }` | no | Build configuration. `trigger` is generic; `options` is a toolchain-specific bag (below). |
 | `build.trigger` | `'auto' \| 'manual'` | no | When the build runs. Defaults to `manual`: the build runs only on Ctrl+S / Run, not on every keystroke, which keeps large projects snappy. `auto` rebuilds on every (debounced) edit. Any other value rejects the manifest. |
+| `build.options` | `object` | no | Toolchain-specific build options, forwarded verbatim to the active toolchain plugin — the manifest stays toolchain-agnostic, so each plugin owns its own keys (validated at build time). Must be an object. See below. |
 | `editor` | `{ tabWidth?: number; format?: string }` | no | Code-editor preferences. |
 | `editor.tabWidth` | `number` | no | Spaces per indent level and the render width of a literal tab in the code editor. Must be an **integer 1–16**; any other value (non-number, fractional, out of range) rejects the manifest. Defaults to `4`. |
 | `editor.format` | `string` | no | clang-format style used to format C/C++ sources: either a preset name (`LLVM`, `Google`, `Chromium`, `Mozilla`, `WebKit`, `Microsoft`, `GNU`) or inline `.clang-format` YAML. A `.clang-format` file in the project overrides this; when absent the style defaults to `LLVM`. `IndentWidth` follows `editor.tabWidth`. Must be a non-empty string, else the manifest is rejected. |
 | `course` | `{ id: string; lesson: string }` | no | Set when the project was instantiated from a course lesson; drives course mode (the lesson panel). Both `id` and `lesson` must be non-empty strings, else the field is dropped. |
 
-A `build` object with no `args` is kept as an empty `{}`.
+### `build.options` — per toolchain
+
+The manifest doesn't know any toolchain's flags; `build.options` is passed through to the active toolchain plugin, which validates its own keys at build time.
+
+**MADS** (`mads`):
+
+- `args` — `string[]`, raw assembler flags (e.g. `-d:SYM=1`, extra `-i:` include paths).
+
+**cc65** (`cc65`):
+
+- `config` — `string`, a project-relative path to a custom ld65 linker config (`*.cfg`) used instead of the bundled `<target>.cfg` (custom memory layout / mappers).
+- `cc65Args` / `ca65Args` / `ld65Args` — `string[]`, extra flags forwarded to the cc65 compiler / ca65 assembler / ld65 linker respectively (e.g. `cc65Args: ["-Osir"]`).
+
+A legacy top-level `build.args` is still accepted and folds into `options.args`. A `build` object with no options is kept as an empty `{}`.
+
+```json
+"build": {
+  "trigger": "manual",
+  "options": { "config": "src/custom.cfg", "ld65Args": ["-D", "__FOO__=1"] }
+}
+```
 
 ### Recipe shape
 
@@ -70,7 +90,7 @@ interface Recipe {
     }
   ],
   "editors": { "1bpp": "editors/bitmap" },
-  "build": { "args": ["-d:DEBUG=1", "-i:lib"], "trigger": "manual" },
+  "build": { "trigger": "manual", "options": { "args": ["-d:DEBUG=1", "-i:lib"] } },
   "editor": { "tabWidth": 4, "format": "LLVM" },
   "course": { "id": "atari-basics", "lesson": "01-hello" }
 }

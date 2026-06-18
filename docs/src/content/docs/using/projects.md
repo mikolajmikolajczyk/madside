@@ -39,7 +39,7 @@ Every project has a `project.json` at its root. It selects the machine, toolchai
 - `toolchain` — which toolchain builds it: `mads` (Atari assembly) or `cc65` (C + ca65 assembly, for NES and Atari).
 - `main` — the entry-point file the toolchain is pointed at; shown as `MAIN` in the file tree.
 
-Optional sections tune the build and editor — `build.trigger` (`manual` by default, or `auto` to rebuild on every edit), `build.args`, and `editor` (`tabWidth`, clang-format `format`). Changing `machine` switches the active emulator + debug view the next time the project loads. Full field reference: [`project.json`](/docs/reference/manifest/).
+Optional sections tune the build and editor — `build.trigger` (`manual` by default, or `auto` to rebuild on every edit), `build.options` (toolchain-specific flags — e.g. cc65's custom linker config and per-tool args), and `editor` (`tabWidth`, clang-format `format`). Changing `machine` switches the active emulator + debug view the next time the project loads. Full field reference: [`project.json`](/docs/reference/manifest/).
 
 ## Files
 

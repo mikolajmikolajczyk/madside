@@ -32,6 +32,14 @@ Pressing **Run** also builds first if there's no current result. See the [keyboa
 Building and running are separate. A successful build does **not** load anything into the emulator — the binary is committed to the emulator only when you press **Run**. See [Running](/docs/using/running/).
 :::
 
+## cc65 build options
+
+cc65 is configurable through `build.options` in `project.json` (see the [manifest reference](/docs/reference/manifest/#buildoptions--per-toolchain)):
+
+- **Custom linker config** — set `options.config` to a project-relative path to your own ld65 `*.cfg` (custom memory layout, mappers, segments); it's used instead of the bundled `<target>.cfg`.
+- **Per-tool flags** — `options.cc65Args` / `ca65Args` / `ld65Args` forward extra flags to each tool (e.g. `"cc65Args": ["-Osir"]`, `"ld65Args": ["-D", "__FOO__=1"]`).
+- **Mixed C + assembly** — a project can contain both `.c` and hand-written `.s` files; cc65 compiles the C, ca65 assembles every `.s` (yours and the cc65-generated ones), and ld65 links them all into one binary. Reference an asm function from C by `extern`-declaring it and exporting it from the `.s` (cc65 prefixes C symbols with `_`, so a C `asmval()` is `.export _asmval`).
+
 ## The Output panel
 
 The **Output** panel sits below the editor. It shows the toolchain's stdout and stderr — for cc65, each line is prefixed with the tool (`[cc65]`, `[ca65]`, `[ld65]`) that produced it — plus a status tag:

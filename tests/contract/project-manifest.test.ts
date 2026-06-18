@@ -70,10 +70,23 @@ describe('parseProjectManifest — v2 schema validator', () => {
     if (r.ok) expect(r.value.panels).toBeUndefined()
   })
 
-  it('accepts build.args as an array of strings', () => {
+  it('folds a legacy top-level build.args into options.args', () => {
     const r = parseProjectManifest({ ...minimal, build: { args: ['-d:DEBUG=1', '-i:lib'] } })
     expect(r.ok).toBe(true)
-    if (r.ok) expect(r.value.build).toEqual({ args: ['-d:DEBUG=1', '-i:lib'] })
+    if (r.ok) expect(r.value.build).toEqual({ options: { args: ['-d:DEBUG=1', '-i:lib'] } })
+  })
+
+  it('passes build.options through verbatim (toolchain-specific bag)', () => {
+    const opts = { config: 'src/custom.cfg', ld65Args: ['-D', '__FOO__=1'] }
+    const r = parseProjectManifest({ ...minimal, build: { options: opts } })
+    expect(r.ok).toBe(true)
+    if (r.ok) expect(r.value.build).toEqual({ options: opts })
+  })
+
+  it('explicit options.args wins over the legacy build.args alias', () => {
+    const r = parseProjectManifest({ ...minimal, build: { args: ['legacy'], options: { args: ['new'] } } })
+    expect(r.ok).toBe(true)
+    if (r.ok) expect(r.value.build?.options).toEqual({ args: ['new'] })
   })
 
   it('accepts an empty build object', () => {
@@ -86,6 +99,12 @@ describe('parseProjectManifest — v2 schema validator', () => {
     const r = parseProjectManifest({ ...minimal, build: { args: ['-d:X', 42] } })
     expect(r.ok).toBe(false)
     if (!r.ok) expect(r.error.message).toMatch(/build\.args/)
+  })
+
+  it('rejects build.options that is not an object', () => {
+    const r = parseProjectManifest({ ...minimal, build: { options: ['x'] } })
+    expect(r.ok).toBe(false)
+    if (!r.ok) expect(r.error.message).toMatch(/build\.options/)
   })
 
   it("accepts build.trigger 'auto' | 'manual'", () => {

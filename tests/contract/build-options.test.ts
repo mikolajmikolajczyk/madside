@@ -2,8 +2,9 @@ import { describe, expect, it } from 'vitest'
 import { createBuildService, createEventBus, type ToolchainAssembleFn } from '@services'
 import { MANIFEST_VERSION, type ProjectManifestV2 } from '@ports'
 
-// Manifest build options reach the toolchain (issue 04bdb5a). BuildService
-// forwards manifest.build to the assemble fn's options arg.
+// Manifest build options reach the toolchain (issue 04bdb5a, #51). BuildService
+// forwards manifest.build.options (the toolchain-specific bag) to the assemble
+// fn's options arg — the generic `build` wrapper (trigger) stays behind.
 
 function manifest(build?: ProjectManifestV2['build']): ProjectManifestV2 {
   return {
@@ -17,7 +18,7 @@ function manifest(build?: ProjectManifestV2['build']): ProjectManifestV2 {
 }
 
 describe('manifest build options → toolchain', () => {
-  it('passes manifest.build to the assemble fn as options', async () => {
+  it('passes manifest.build.options to the assemble fn as options', async () => {
     let captured: Record<string, unknown> | undefined
     const assemble: ToolchainAssembleFn = async (_main, _files, options) => {
       captured = options
@@ -32,7 +33,7 @@ describe('manifest build options → toolchain', () => {
     await svc.build({
       projectId: 'p',
       files: [{ path: 'src/main.a65', content: new Uint8Array(), updatedAt: 0 }],
-      manifest: manifest({ args: ['-d:DEBUG=1'] }),
+      manifest: manifest({ options: { args: ['-d:DEBUG=1'] } }),
     })
     expect(captured).toEqual({ args: ['-d:DEBUG=1'] })
   })

@@ -127,9 +127,9 @@ language: {
 
 `cSymbols` is declarative — like the rest of `language`, no CodeMirror dependency. When the user accepts a completion, the editor auto-`#include`s the symbol's `header` so they learn where it comes from. It's a curated surface (the common console + stdlib calls), not full clangd-style analysis. cc65 ships its set in `cc65-symbols.ts`.
 
-## `build.args` / options forwarding
+## Build options forwarding
 
-`manifest`-level build options are forwarded into `build` as `input.options` (free-form `Record<string, unknown>`). Document your toolchain's accepted option keys in your plugin's own docs — the workbench passes them through unchanged and never interprets them. (`BuildService` calls your `build` with `projectId`, `main`, `files`, and these `options`.)
+A project's `manifest.build.options` (a free-form `Record<string, unknown>`) is forwarded verbatim into `build` as `input.options`. The manifest stays toolchain-agnostic — it never interprets the bag — so **your plugin owns and validates its own keys** at build time, and documents them in its own docs. (MADS reads `options.args`; cc65 reads `options.config` + `options.cc65Args` / `ca65Args` / `ld65Args`. A legacy top-level `manifest.build.args` folds into `options.args` for back-compat.) `BuildService` calls your `build` with `projectId`, `main`, `files`, `machine`, and these `options`.
 
 ## Sysroot and the build filesystem
 
