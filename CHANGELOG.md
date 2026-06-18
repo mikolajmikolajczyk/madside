@@ -1,3 +1,101 @@
+## [0.11.0] - 2026-06-18
+
+### 🚀 Features
+
+- *(nes)* Wire jsnes audio, frame parity, and controller input
+- *(commands)* Command palette + route shortcuts through the registry
+- *(ui)* Add ADR-0004 root + panel error boundaries
+- *(infra)* Add CSP + security headers + caching to static-web-server
+- *(ts)* Enable strict mode + noImplicitOverride
+- *(ui)* Surface the command palette + fix the shortcut docs
+- *(ui)* Replace alert() error paths with a non-blocking toast surface
+- *(courses)* Show official courses on the welcome screen by default (#default-display)
+- *(asset)* Editable raw view + smarter recipe buttons (#33)
+- *(editor)* Inline build diagnostics on the editor lines (#29)
+- *(courses)* Boot allowance for check-runner via MachinePlugin (#30)
+- *(editor)* Live memory values next to address equates (#34)
+- *(explorer)* Import external files into the project (#31)
+- *(ui)* Directional keyboard pane focus, tiling-WM style (#27)
+- *(build)* Adopt React Compiler, re-enable readiness lint rules (#28)
+- *(toolchain)* Cc65 — write NES games in C, built in-browser (#1)
+- *(vfs)* Core port + providers + WASI bridge (#56)
+- *(toolchain)* Show the toolchain sysroot read-only in the file tree (#50)
+- *(vfs)* Persistent asset cache for wasm modules + sysroots (#54)
+- *(toolchain)* Cc65 multi-target — write C for Atari too (#52)
+- *(editor)* Syntax highlighting for cc65 C + ca65 assembly (#47)
+- *(editor)* Autocomplete + hover for cc65 C stdlib / ca65 (#48)
+- *(editor)* Auto-#include the header when accepting a cc65 completion (#48)
+- *(editor)* Complete the user's own C functions + macros, not just the stdlib (#48)
+- *(editor)* Cross-file C completion + configurable indent, manual build, format-on-save (#58, #59)
+- *(editor)* Clang-format C formatting on save + Format Document (#60)
+- *(editor)* Auto-close brackets + clang-format InsertBraces (#60)
+- *(emulator)* Show "Compilation error" overlay when a blocked Run is attempted
+- *(storage)* Persist last build per project, restore on reload (#62)
+
+### 🐛 Bug Fixes
+
+- *(courses)* Reject/strip course-supplied plugin code (data-not-code)
+- *(storage)* Snapshot ids use randomUUID, not a 1000-bucket RNG
+- *(store)* Extract debounced file saver + fix stale-write resurrection
+- *(a11y)* Make the file tree keyboard-accessible
+- *(boundaries)* Invert plugin-loader injection; classify root-level layer files (#25)
+- *(a11y)* Palette focus-restore + combobox roles; bump tertiary text contrast (#24, #16)
+- *(errors)* Wrap course-fetch network failures in NetworkError (#12)
+- *(errors)* IDB adapter throws StorageError + quarantines corrupt rows (#12)
+- *(palette)* Explicitly refocus the editor on close (#24)
+- *(run)* Keep audio alive when editing during a run; stop Ctrl+Enter inserting a newline
+- *(errors)* Stop flattening typed errors at UI catch sites (#12)
+- *(editor,build)* Refresh editor on content change; show build error location
+- *(store)* Surface generated/ recipe outputs in the file tree after build (#32)
+- *(ui)* Rename File → New project to Close project; actually close the project
+- *(infra)* CSP must allow 'unsafe-eval' for the Altirra emulator
+- *(docs)* Bump esbuild to >=0.28.1 (GHSA-gv7w-rqvm-qjhr)
+- *(toolchain)* Parse cc65 C compile errors + strip ld65 ANSI (#61)
+
+### 🚜 Refactor
+
+- *(plugins)* Formalize EmulatorPlugin port; co-locate mads.wasm
+- *(workbench)* Resolve debug adapters through the registry
+- *(emulator)* Put audio on the RunBackend port
+- *(types)* Shared Cpu6502State + validate manifest in the edit path
+- *(storage)* Extract shared persistence semantics, kill adapter twins (#19)
+- *(audio)* Extract shared AudioPushPump + worklet source (#10)
+- *(cleanups)* Share debounce constant, reuse @core/hex in check-runner (#23)
+- *(emu)* AltirraBackend implements RunBackend, drop EmuBackend (#16)
+- *(plugins)* Plugin contracts extend PluginBase; drop list() double-casts (#23)
+- *(app)* Inject StorageBackend instead of the hidden singleton (#16)
+- *(zip)* Express project ZIP I/O over the StorageBackend port (#16)
+- *(panels)* Place panels by a declared slot, de-special-case output (#16)
+- *(plugins)* Drop dead editor-as-panel scaffolding; two lifecycles by design (#23)
+- Name the PPU/emulator refresh-interval magic numbers (#23)
+- *(toolchain)* Migrate MADS + cc65 runners onto the VFS bridge (#57)
+
+### 📚 Documentation
+
+- Fix staleness after the storage/emulator refactors
+- *(emu)* Document the Altirra-adapter / jsnes-plugin layer split (#16)
+- *(courses)* Warn that afterFrames includes boot; clarify branch CDN caching
+- *(adr)* ADR-0008 app-wide virtual filesystem (mount layer)
+- Document cc65/C, clang-format, VFS, build trigger, and build persistence
+
+### ⚡ Performance
+
+- *(build)* Split heavy vendors into separate chunks (manualChunks)
+- *(labels)* Cache per-file label scans by content identity
+
+### 🧪 Testing
+
+- *(ports)* Contract harnesses for the remaining 5 plugin kinds
+- Cover DebugService, snapshot GC/prune, converters+engine, plugin-loader (#22)
+- Cover build:error stderr, official-courses fetch, errorMessage
+- Project ZIP round-trip over the StorageBackend port (#16)
+
+### ⚙️ Miscellaneous Tasks
+
+- *(lint)* Make the lint gate bite — ratchet warnings + no-console guardrail (#26)
+- *(lint)* Drive warnings to 0 — enforce the --max-warnings 0 gate (#26)
+- *(infra)* Production/supply-chain hardening (#21)
+- Fix security job — pin trivy/gitleaks actions to valid SHAs
 ## [0.10.0] - 2026-06-15
 
 ### 🚀 Features
