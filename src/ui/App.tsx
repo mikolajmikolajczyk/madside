@@ -440,6 +440,31 @@ export default function App() {
   const onStep = useCallback(() => { void workbench.debug.step(); }, [workbench]);
   const onStepFrame = useCallback(() => { void workbench.debug.stepFrame(); }, [workbench]);
 
+  // Step Over: advance to the next source line, running through no-source code
+  // (cc65 library calls like clrscr) transparently instead of stepping into
+  // them instruction-by-instruction (#49). Falls back to a single instruction
+  // step when there's no source map (e.g. a raw binary).
+  const onStepOver = useCallback(() => {
+    if (!sourceMap) { void workbench.debug.step(); return; }
+    const startPc = cpu?.regs.pc;
+    const start = startPc != null ? sourceMap.addrToLoc.get(startPc & 0xffff) : undefined;
+    const startKey = start ? `${start.file}:${start.line}` : null;
+    // Track addresses we've executed *on the start line*: if one repeats, the
+    // line loops back on itself (e.g. `while (1) {}`) and there is no "next
+    // line" — stop there instead of spinning to the cap. No-source library code
+    // (clrscr) isn't tracked, so a library loop still runs through transparently.
+    const seenOnStartLine = new Set<number>();
+    void workbench.debug.stepLine((pc) => {
+      const a = pc & 0xffff;
+      const loc = sourceMap.addrToLoc.get(a);
+      if (loc == null) return false; // no source — keep running (library)
+      if (`${loc.file}:${loc.line}` !== startKey) return true; // reached a new line
+      if (seenOnStartLine.has(a)) return true; // looped back on the same line
+      seenOnStartLine.add(a);
+      return false;
+    });
+  }, [workbench, sourceMap, cpu]);
+
   // Subscribe to 'debug:bp-hit' from the workbench bus — Emulator.tsx emits
   // it on every BP trap inside the frame loop. Pause via the FSM
   // (ADR-0007); brokeOn is set from the event payload.
@@ -657,7 +682,7 @@ export default function App() {
   useEffect(() => {
     cmdEnvRef.current = {
       ops: {
-        runAssemble, onRun, onPause, onStop, onStep, onStepFrame, onReset,
+        runAssemble, onRun, onPause, onStop, onStep, onStepOver, onStepFrame, onReset,
         toggleBpAtCursor, formatActive: onFormatActive,
         onSnapshot: () => { if (project.loaded) void project.createSnapshotNow("manual"); },
         openPalette: () => setPaletteOpen(true),
@@ -746,6 +771,7 @@ export default function App() {
         onRun={onRun}
         onPause={onPause}
         onStop={onStop}
+        onStepOver={onStepOver}
         onStep={onStep}
         onFrame={onStepFrame}
         onReset={onReset}
@@ -778,6 +804,7 @@ export default function App() {
         onRun={onRun}
         onPause={onPause}
         onStop={onStop}
+        onStepOver={onStepOver}
         onStep={onStep}
         onFrame={onStepFrame}
         onReset={onReset}

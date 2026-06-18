@@ -1,6 +1,7 @@
 import type { BuildDiagnostic, ToolchainBuildOutput, ToolchainPlugin } from '@ports'
 import type { VfsProvider } from '@core/vfs'
 import { buildCc65, sysrootFor, type Cc65File } from './wasm/cc65-wasm'
+import { parseDbg } from './cc65-dbg'
 import { CC65_C_SYMBOLS } from './cc65-symbols'
 
 // madside machine id → cc65 compiler target (`-t`). The same id selects the
@@ -105,9 +106,15 @@ export const cc65Toolchain: ToolchainPlugin = {
         exitCode: r.exitCode !== 0 ? r.exitCode : 1,
       }
     }
+    // Parse the cc65 debug-info file into a SourceMap + labels so the editor
+    // gets PC-line highlight, gutter addresses, and line breakpoints — on C
+    // lines too (#49). Keyed by the project's own source paths.
+    const parsed = r.dbg ? parseDbg(r.dbg, files.map((f) => f.path)) : undefined
     return {
       ok: true,
       binary: r.binary,
+      sourceMap: parsed?.sourceMap,
+      labels: parsed?.labels,
       stdout: r.stdout,
       stderr: r.stderr,
       diagnostics,

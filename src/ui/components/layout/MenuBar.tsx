@@ -33,6 +33,7 @@ export interface MenuBarProps {
   onRun: () => void;
   onPause: () => void;
   onStop: () => void;
+  onStepOver: () => void;
   onStep: () => void;
   onFrame: () => void;
   onReset: () => void;
@@ -124,7 +125,8 @@ export function MenuBar(p: MenuBarProps) {
           <MenuItem data-testid="menu.run.pause" onSelect={p.onPause} shortcut="Ctrl+." disabled={!p.running}>Pause</MenuItem>
           <MenuItem data-testid="menu.run.stop" onSelect={p.onStop} shortcut="Ctrl+Shift+.">Stop</MenuItem>
           <MenuSeparator />
-          <MenuItem data-testid="menu.run.step" onSelect={p.onStep} shortcut="F10" disabled={p.running || !p.hasEmu}>Step</MenuItem>
+          <MenuItem data-testid="menu.run.step-over" onSelect={p.onStepOver} shortcut="F10" disabled={p.running || !p.hasEmu}>Step Over</MenuItem>
+          <MenuItem data-testid="menu.run.step" onSelect={p.onStep} shortcut="Shift+F10" disabled={p.running || !p.hasEmu}>Step Instruction</MenuItem>
           <MenuItem data-testid="menu.run.frame" onSelect={p.onFrame} shortcut="F11" disabled={p.running || !p.hasEmu}>Frame</MenuItem>
           {p.onToggleBp && (
             <MenuItem data-testid="menu.run.bp-toggle" onSelect={p.onToggleBp} shortcut="F9">Toggle breakpoint</MenuItem>

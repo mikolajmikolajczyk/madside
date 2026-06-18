@@ -29,6 +29,9 @@ export interface Cc65BuildResult {
   ok: boolean;
   /** Linked iNES ROM (absent on failure). */
   binary?: Uint8Array;
+  /** cc65 debug-info file (`ld65 --dbgfile`) for source-level debugging (#49).
+   *  Parsed by the toolchain plugin into a SourceMap + labels. Absent on failure. */
+  dbg?: string;
   stdout: string;
   stderr: string;
   exitCode: number;
@@ -114,6 +117,7 @@ export async function buildCc65(main: string, files: Cc65File[], target = "nes")
   for (const c of cFiles) asmSources.add(`${stem(c)}.s`);
   const objects = [...asmSources].map((s) => `${stem(s)}.o`);
   const outPath = `${stem(main)}.${OUT_EXT[target] ?? "bin"}`;
+  const dbgPath = `${stem(main)}.dbg`;
 
   // Mount project sources (RW) over the read-only target sysroot, materialise
   // into the WASI preopen with the tool outputs pre-created so tools can open them.
@@ -125,7 +129,7 @@ export async function buildCc65(main: string, files: Cc65File[], target = "nes")
     { prefix: "", provider: sysroot, ro: true },
   ]);
   const root = await vfsToPreopen(vfs, {
-    outputs: [...cFiles.map((c) => `${stem(c)}.s`), ...objects, outPath],
+    outputs: [...cFiles.map((c) => `${stem(c)}.s`), ...objects, outPath, dbgPath],
   });
 
   let stdout = "";
@@ -140,25 +144,30 @@ export async function buildCc65(main: string, files: Cc65File[], target = "nes")
     return r.exitCode;
   };
 
+  // `-g` on cc65 + ca65 + `--dbgfile` on ld65 emit the debug info that drives
+  // source-level debugging (#49): the .dbg carries C and asm line→address info.
+
   // 1. cc65: every .c → .s
   for (const src of cFiles) {
     const code = collect("cc65", await runTool(cc65Mod, root,
-      ["cc65", "-O", "-t", target, "-I", "include", "-o", `${stem(src)}.s`, src]));
+      ["cc65", "-g", "-O", "-t", target, "-I", "include", "-o", `${stem(src)}.s`, src]));
     if (code !== 0) return { ok: false, stdout, stderr, exitCode: code };
   }
 
   // 2. ca65: every .s (project + cc65-generated) → .o
   for (const src of asmSources) {
     const code = collect("ca65", await runTool(ca65Mod, root,
-      ["ca65", "-t", target, "-I", "asminc", "-o", `${stem(src)}.o`, src]));
+      ["ca65", "-g", "-t", target, "-I", "asminc", "-o", `${stem(src)}.o`, src]));
     if (code !== 0) return { ok: false, stdout, stderr, exitCode: code };
   }
 
-  // 3. ld65: link objects + <target>.lib → output
+  // 3. ld65: link objects + <target>.lib → output (+ debug-info file)
   const linkCode = collect("ld65", await runTool(ld65Mod, root,
-    ["ld65", "-C", `${target}.cfg`, "-o", outPath, ...objects, `lib/${target}.lib`]));
+    ["ld65", "-C", `${target}.cfg`, "--dbgfile", dbgPath, "-o", outPath, ...objects, `lib/${target}.lib`]));
   if (linkCode !== 0) return { ok: false, stdout, stderr, exitCode: linkCode };
 
   const binary = readFromPreopen(root, outPath);
-  return { ok: !!binary, binary, stdout, stderr, exitCode: binary ? 0 : 1 };
+  const dbgBytes = readFromPreopen(root, dbgPath);
+  const dbg = dbgBytes ? new TextDecoder().decode(dbgBytes) : undefined;
+  return { ok: !!binary, binary, dbg, stdout, stderr, exitCode: binary ? 0 : 1 };
 }

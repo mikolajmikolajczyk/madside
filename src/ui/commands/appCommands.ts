@@ -13,6 +13,7 @@ export interface AppCommandOps {
   onPause: () => void
   onStop: () => void
   onStep: () => void
+  onStepOver: () => void
   onStepFrame: () => void
   onReset: () => Promise<unknown> | void
   toggleBpAtCursor: () => void
@@ -48,7 +49,8 @@ export function buildAppCommands(get: () => AppCommandEnv): Command[] {
     { id: 'run.restart', title: 'Restart', shortcut: 'Ctrl+Shift+Enter', when: () => st().canRun, run: () => { void ops().onReset() } },
     { id: 'run.pause', title: 'Pause', shortcut: 'Ctrl+.', when: () => st().running, run: () => ops().onPause() },
     { id: 'run.stop', title: 'Stop', shortcut: 'Ctrl+Shift+.', when: () => st().hasEmu, run: () => ops().onStop() },
-    { id: 'debug.step', title: 'Step Instruction', shortcut: 'F10', when: () => !st().running && st().hasEmu, run: () => ops().onStep() },
+    { id: 'debug.stepOver', title: 'Step Over (next line)', shortcut: 'F10', when: () => !st().running && st().hasEmu, run: () => ops().onStepOver() },
+    { id: 'debug.step', title: 'Step Instruction', shortcut: 'Shift+F10', when: () => !st().running && st().hasEmu, run: () => ops().onStep() },
     { id: 'debug.frame', title: 'Step Frame', shortcut: 'F11', when: () => !st().running && st().hasEmu, run: () => ops().onStepFrame() },
     { id: 'debug.toggleBreakpoint', title: 'Toggle Breakpoint at Cursor', shortcut: 'F9', run: () => ops().toggleBpAtCursor() },
     // Directional pane focus (#27) — tiling-WM style. Alt+Shift dodges the

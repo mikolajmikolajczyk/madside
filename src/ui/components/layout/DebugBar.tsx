@@ -9,6 +9,7 @@ interface Props {
   onRun: () => void;
   onPause: () => void;
   onStop: () => void;
+  onStepOver: () => void;
   onStep: () => void;
   onFrame: () => void;
   onReset: () => void;
@@ -32,7 +33,14 @@ export function DebugBar(p: Props) {
       <IconBtn testid="dbg.stop" label="Stop (Ctrl+Shift+.)" onClick={p.onStop} disabled={!p.hasEmu}>
         <svg viewBox="0 0 16 16" width={14} height={14}><rect x="4" y="4" width="8" height="8" fill="currentColor"/></svg>
       </IconBtn>
-      <IconBtn testid="dbg.step" label="Step (F10)" onClick={p.onStep} disabled={p.running || !p.hasEmu}>
+      <IconBtn testid="dbg.step-over" label="Step Over (F10)" onClick={p.onStepOver} disabled={p.running || !p.hasEmu}>
+        <svg viewBox="0 0 16 16" width={14} height={14}>
+          <path d="M3 11 Q8 1 13 11" stroke="currentColor" strokeWidth="1.6" fill="none" strokeLinecap="round"/>
+          <path d="M10.5 8.5 L13.2 11 L13.2 7.8" stroke="currentColor" strokeWidth="1.6" fill="none" strokeLinecap="round" strokeLinejoin="round"/>
+          <circle cx="3" cy="13" r="1.3" fill="currentColor"/>
+        </svg>
+      </IconBtn>
+      <IconBtn testid="dbg.step" label="Step Instruction (Shift+F10)" onClick={p.onStep} disabled={p.running || !p.hasEmu}>
         <svg viewBox="0 0 16 16" width={14} height={14}>
           <path d="M2 8 L11 8 M8 5 L11 8 L8 11" stroke="currentColor" strokeWidth="1.6" fill="none" strokeLinecap="round" strokeLinejoin="round"/>
           <circle cx="13.5" cy="8" r="1.4" fill="currentColor"/>

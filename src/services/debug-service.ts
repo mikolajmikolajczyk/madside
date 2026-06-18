@@ -61,6 +61,20 @@ export function createDebugService(deps: DebugServiceDeps): DebugService {
       deps.events.emit('debug:step-done', { pc })
     },
 
+    async stepLine(shouldStop, max = 100_000) {
+      const t = requireTarget()
+      // Single-instruction steps don't trap on breakpoints, so the loop runs
+      // straight through library code; we stop when the caller's predicate says
+      // we've reached the next source line (or the cap, a hang guard). One
+      // step-done at the end keeps the canvas / panels from thrashing per step.
+      let pc = 0
+      for (let i = 0; i < max; i++) {
+        pc = await t.step()
+        if (shouldStop(pc)) break
+      }
+      deps.events.emit('debug:step-done', { pc })
+    },
+
     async stepFrame() {
       const t = requireTarget()
       // Mirror the temporary-disable pattern the JS-side Frame button used

@@ -14,6 +14,12 @@ export type FlagState = Record<string, boolean>
 export interface DebugService {
   step(): Promise<void>
   stepFrame(): Promise<void>
+  /** Single-step instructions until `shouldStop(pc)` returns true (or `max`
+   *  instructions elapse), emitting one `debug:step-done` at the end. Powers
+   *  source-level "step over": the caller stops at the next address mapped to a
+   *  different source line, so no-source library code (cc65 `clrscr` etc) runs
+   *  through transparently instead of trapping the user inside it (#49). */
+  stepLine(shouldStop: (pc: number) => boolean, max?: number): Promise<void>
   setBreakpoint(addr: number): void
   clearBreakpoint(addr: number): void
   breakpoints(): ReadonlySet<number>
