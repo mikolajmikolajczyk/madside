@@ -8,3 +8,7 @@ docs/.astro
 .rtk
 result
 **/*.log
+# Local build cache (multi-GB AltirraSDL clone + wasm scratch) — never part of
+# the image; the committed wasm artifacts under src/ are what the SPA needs.
+_notes/
+.repoctx
