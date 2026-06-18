@@ -1,3 +1,18 @@
+## [0.12.0] - 2026-06-18
+
+### 🚀 Features
+
+- *(welcome)* Help links, template/course filters, project actions, started-courses
+
+### 💼 Other
+
+- *(just)* Add `just release X.Y.Z` — gates, bump, git-cliff, signed tag, gh release
+- Third-party registry + build-support/ for the bundled wasm toolchains
+- *(docker)* Exclude _notes/ (2GB build cache) + .repoctx from the image context
+
+### 📚 Documentation
+
+- Full accuracy sweep — cc65/C, VFS, build trigger, and stale-claim fixes
 ## [0.11.0] - 2026-06-18
 
 ### 🚀 Features
