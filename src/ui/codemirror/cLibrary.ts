@@ -1,50 +1,41 @@
 import type { Extension } from "@codemirror/state";
 import type { EditorState } from "@codemirror/state";
+import { StateEffect, StateField } from "@codemirror/state";
 import type { LanguageSupport } from "@codemirror/language";
 import { hoverTooltip } from "@codemirror/view";
 import type { EditorView } from "@codemirror/view";
 import type { Completion, CompletionContext, CompletionResult } from "@codemirror/autocomplete";
 import type { ToolchainCSymbol } from "@ports";
+import { scanCSymbols, type CSymbol } from "@app/cSymbols";
 
-// Autocomplete + hover for a toolchain's C library symbols (cc65 conio/stdlib,
-// #48). Each symbol carries the header that declares it, so the completion shows
-// it and — crucially — auto-`#include`s it when accepted: the user gets the
-// function AND learns where it comes from. Declarative input keeps the toolchain
-// plugin free of any CodeMirror dependency.
+// Autocomplete + hover for C sources. Three symbol sources, in priority order:
+//   1. The toolchain's C library (cc65 conio/stdlib, #48) — curated, carries the
+//      header that declares it and auto-`#include`s it on accept.
+//   2. Project-wide symbols (#58) — every `.c`/`.h` in the project, scanned by
+//      the host and injected via `setProjectCSymbols`, so a function in
+//      `helper.c` completes in `main.c`.
+//   3. The active buffer's own (possibly unsaved) definitions.
+// Declarative input keeps the toolchain plugin free of any CodeMirror dependency.
 
 const escapeRe = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 
-// C keywords that look like identifiers in the scan but aren't completable defs.
-const C_KEYWORDS = new Set([
-  "if", "else", "for", "while", "do", "switch", "case", "return", "sizeof",
-  "void", "char", "int", "long", "short", "unsigned", "signed", "const",
-  "static", "struct", "union", "enum", "typedef", "extern", "register",
-]);
+// Project-wide C symbol index, injected per-edit by the host (#58). Mirrors the
+// assembly `projectLabelsField` / `setProjectLabels` shape.
+export const setProjectCSymbols = StateEffect.define<Map<string, CSymbol>>();
+export const projectCSymbolsField = StateField.define<Map<string, CSymbol>>({
+  create() { return new Map(); },
+  update(value, tr) {
+    for (const e of tr.effects) if (e.is(setProjectCSymbols)) return e.value;
+    return value;
+  },
+});
 
-/** Scan a C buffer for the user's own completable symbols — function/global
- *  definitions (`type name(` / `type name =` / `type name;`) and `#define`s.
- *  Regex, not a full parse, but dynamic + good enough; excludes library symbols
- *  (offered separately) and keywords. */
-function scanBufferSymbols(
-  text: string,
-  libSymbols: Map<string, unknown>,
-): { label: string; type: string; detail: string }[] {
-  const out = new Map<string, string>(); // name → kind
-  // function definitions / prototypes: `... name(`
-  for (const m of text.matchAll(/\b([A-Za-z_]\w*)\s*\(/g)) {
-    const name = m[1]!;
-    if (!C_KEYWORDS.has(name) && !libSymbols.has(name)) out.set(name, "function");
-  }
-  // #define NAME
-  for (const m of text.matchAll(/^[ \t]*#\s*define\s+([A-Za-z_]\w*)/gm)) {
-    out.set(m[1]!, "constant");
-  }
-  return [...out].map(([label, type]) => ({
-    label,
-    type,
-    detail: type === "function" ? "in this file" : "macro",
-  }));
-}
+const KIND_TYPE: Record<CSymbol["kind"], string> = {
+  function: "function",
+  macro: "constant",
+  type: "type",
+  global: "variable",
+};
 
 /** A change that adds `#include <header>` if the doc doesn't already include it,
  *  placed after the last existing #include (else at the top). */
@@ -82,24 +73,40 @@ export function cLibraryExtensions(
   const completeC = (ctx: CompletionContext): CompletionResult | null => {
     const word = ctx.matchBefore(/[A-Za-z_][A-Za-z0-9_]*/);
     if (!word || (word.from === word.to && !ctx.explicit)) return null;
-    // Library symbols (with auto-#include) plus the buffer's own definitions, so
-    // a user's functions / macros complete alongside the cc65 stdlib (#48).
-    const buffer = scanBufferSymbols(ctx.state.doc.toString(), byLabel);
-    return {
-      from: word.from,
-      options: [
-        ...symbols.map((s) => ({
-          label: s.label,
-          type: "function",
-          // Header shown at a glance; the signature + doc go in the info popup.
-          detail: s.header,
-          info: [s.detail, s.info].filter(Boolean).join(" — ") || undefined,
-          apply: apply(s),
-        })),
-        ...buffer,
-      ],
-      validFor: /^[A-Za-z_][A-Za-z0-9_]*$/,
-    };
+
+    const seen = new Set<string>(byLabel.keys());
+    const options: Completion[] = symbols.map((s) => ({
+      label: s.label,
+      type: "function",
+      // Header shown at a glance; the signature + doc go in the info popup.
+      detail: s.header,
+      info: [s.detail, s.info].filter(Boolean).join(" — ") || undefined,
+      apply: apply(s),
+    }));
+
+    // Project-wide symbols (#58) — every other project file's top-level defs.
+    const project = ctx.state.field(projectCSymbolsField, false);
+    if (project) {
+      for (const sym of project.values()) {
+        if (seen.has(sym.label)) continue;
+        seen.add(sym.label);
+        options.push({ label: sym.label, type: KIND_TYPE[sym.kind], detail: sym.file });
+      }
+    }
+
+    // The active buffer's own (unsaved) definitions, last so saved project
+    // entries with the same name win their richer `detail`.
+    for (const sym of scanCSymbols(ctx.state.doc.toString(), "")) {
+      if (seen.has(sym.label)) continue;
+      seen.add(sym.label);
+      options.push({
+        label: sym.label,
+        type: KIND_TYPE[sym.kind],
+        detail: sym.kind === "macro" ? "macro" : "in this file",
+      });
+    }
+
+    return { from: word.from, options, validFor: /^[A-Za-z_][A-Za-z0-9_]*$/ };
   };
 
   const hover = hoverTooltip((view, pos) => {
@@ -109,33 +116,47 @@ export function cLibraryExtensions(
     while (s > 0 && /[A-Za-z0-9_]/.test(text[s - 1]!)) s--;
     let e = off;
     while (e < text.length && /[A-Za-z0-9_]/.test(text[e]!)) e++;
-    const sym = byLabel.get(text.slice(s, e));
-    if (!sym) return null;
+    const name = text.slice(s, e);
+    const sym = byLabel.get(name);
+    const proj = sym ? undefined : view.state.field(projectCSymbolsField, false)?.get(name);
+    if (!sym && !proj) return null;
     return {
       pos: from + s,
       end: from + e,
       create() {
         const dom = document.createElement("div");
         dom.className = "cm-mads-hover";
-        if (sym.detail) {
+        if (sym) {
+          if (sym.detail) {
+            const code = document.createElement("strong");
+            code.textContent = sym.detail;
+            dom.appendChild(code);
+          }
+          if (sym.header) {
+            const h = document.createElement("div");
+            h.textContent = `#include <${sym.header}>`;
+            dom.appendChild(h);
+          }
+          if (sym.info) {
+            const p = document.createElement("div");
+            p.textContent = sym.info;
+            dom.appendChild(p);
+          }
+        } else if (proj) {
           const code = document.createElement("strong");
-          code.textContent = sym.detail;
+          code.textContent = `${proj.kind} ${proj.label}`;
           dom.appendChild(code);
-        }
-        if (sym.header) {
           const h = document.createElement("div");
-          h.textContent = `#include <${sym.header}>`;
+          h.textContent = `defined in ${proj.file}`;
           dom.appendChild(h);
-        }
-        if (sym.info) {
-          const p = document.createElement("div");
-          p.textContent = sym.info;
-          dom.appendChild(p);
         }
         return { dom };
       },
     };
   });
 
+  // NOTE: `projectCSymbolsField` is registered in the editor's *base* config (not
+  // here) so it survives the language-pack compartment swap on a file switch —
+  // mirroring `projectLabelsField`. These extensions only read it.
   return [support.language.data.of({ autocomplete: completeC }), hover];
 }

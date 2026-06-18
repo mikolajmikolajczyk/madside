@@ -122,7 +122,12 @@ export function useAutoAssemble({
     }
   }, [buildService, files, manifest, projectId]);
 
+  // Build trigger (#59, project.json `build.trigger`). Default 'manual' — build
+  // only on Ctrl+S / Run (runAssemble), so large projects don't recompile on
+  // every keystroke. 'auto' restores the debounced rebuild-on-edit.
+  const auto = manifest?.build?.trigger === "auto";
   useEffect(() => {
+    if (!auto) return;
     // Same debounce window as BuildService.buildDebounced — shared constant so
     // the two can't drift (#23). The hook debounces build() (not buildDebounced)
     // because it needs the returned result to drive React state.
@@ -130,7 +135,7 @@ export function useAutoAssemble({
       void runAssemble();
     }, DEFAULT_DEBOUNCE_MS);
     return () => clearTimeout(id);
-  }, [runAssemble]);
+  }, [auto, runAssemble]);
 
   return { result, setResult, busy, runAssemble };
 }

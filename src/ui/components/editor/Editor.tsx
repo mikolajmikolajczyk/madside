@@ -2,11 +2,12 @@ import { useEffect, useRef } from "react";
 import { Compartment, EditorState, StateEffect, StateField, RangeSet, type Extension, type Range } from "@codemirror/state";
 import { EditorView, keymap, lineNumbers, highlightActiveLine, Decoration, gutter, GutterMarker, type DecorationSet } from "@codemirror/view";
 import { defaultKeymap, history, historyKeymap, indentWithTab } from "@codemirror/commands";
-import { bracketMatching, syntaxHighlighting, HighlightStyle, indentUnit } from "@codemirror/language";
+import { bracketMatching, syntaxHighlighting, HighlightStyle, indentUnit, indentRange } from "@codemirror/language";
 import { tags as t } from "@lezer/highlight";
 import { autocompletion, completionKeymap } from "@codemirror/autocomplete";
 import { lintGutter, setDiagnostics, type Diagnostic } from "@codemirror/lint";
-import { buildAssemblyLanguage, projectLabelsField, setProjectLabels } from "@ui/codemirror";
+import { buildAssemblyLanguage, projectLabelsField, setProjectLabels, projectCSymbolsField, setProjectCSymbols } from "@ui/codemirror";
+import type { CSymbol } from "@app/cSymbols";
 import type { CpuLanguage, LabelInfo } from "@core";
 import type { BuildDiagnostic, ToolchainLanguage } from "@ports";
 import "./Editor.css";
@@ -256,6 +257,25 @@ async function loadLanguagePack(
 }
 const languageCompartment = new Compartment();
 
+// Indent width is project-configurable (project.json `editor.tabWidth`, #59) so
+// it lives in its own compartment and is reconfigured live when the prop
+// changes. Drives both the inserted indent and the literal-tab render width.
+const indentCompartment = new Compartment();
+const indentExtsFor = (w: number): Extension[] => [
+  indentUnit.of(" ".repeat(w)),
+  EditorState.tabSize.of(w),
+];
+
+/** Re-indent the whole document via the active language's indent service, then
+ *  no-op if nothing changed. CodeMirror's lang-cpp supplies an indent service
+ *  (C is reformatted); the asm StreamLanguage has none, so this is a safe no-op
+ *  there — column-0 asm labels are never disturbed. Format-on-save (#59). */
+function reindentDoc(view: EditorView): void {
+  const changes = indentRange(view.state, 0, view.state.doc.length);
+  if (changes.empty) return;
+  view.dispatch({ changes });
+}
+
 class BpMarker extends GutterMarker {
   override toDOM() {
     const el = document.createElement("span");
@@ -309,6 +329,12 @@ interface Props {
    *  hover message (#29). Cleared when the next build passes (empty array). */
   diagnostics?: BuildDiagnostic[];
   projectLabels?: Map<string, LabelInfo>;
+  /** Project-wide C symbol index (#58) — top-level defs from every `.c`/`.h`
+   *  file, so a function in `helper.c` completes while editing `main.c`. */
+  projectCSymbols?: Map<string, CSymbol>;
+  /** Spaces per indent level + literal-tab render width (project.json
+   *  `editor.tabWidth`, #59). Defaults to 4. */
+  tabWidth?: number;
   /** Active machine CPU vocabulary + project toolchain language — drive the
    *  assembly highlight / hover / autocomplete. */
   cpuLanguage?: CpuLanguage;
@@ -322,7 +348,7 @@ interface Props {
   onCursorLine?: (line: number) => void;
 }
 
-export function Editor({ value, onChange, filename, pcLine, breakpointLines, lineAddrs, equateValues, diagnostics, projectLabels, cpuLanguage, toolchainLanguage, gotoTarget, onToggleBreakpoint, onSave, onViewReady, onJumpToLabel, onCursorLine }: Props) {
+export function Editor({ value, onChange, filename, pcLine, breakpointLines, lineAddrs, equateValues, diagnostics, projectLabels, projectCSymbols, tabWidth, cpuLanguage, toolchainLanguage, gotoTarget, onToggleBreakpoint, onSave, onViewReady, onJumpToLabel, onCursorLine }: Props) {
   const hostRef = useRef<HTMLDivElement>(null);
   const viewRef = useRef<EditorView | null>(null);
   // Latest-callback refs so the CodeMirror handlers (built once on mount) always
@@ -405,14 +431,14 @@ export function Editor({ value, onChange, filename, pcLine, breakpointLines, lin
             ? buildAssemblyLanguage(cpuLanguage, toolchainLanguage)
             : [],
         ),
-        indentUnit.of("        "),
-        EditorState.tabSize.of(8),
+        indentCompartment.of(indentExtsFor(tabWidth ?? 4)),
         syntaxHighlighting(highlight),
         bpField,
         lineAddrsField,
         equateValuesField,
         pcLineField,
         projectLabelsField,
+        projectCSymbolsField,
         lintGutter(),
         autocompletion(),
         EditorView.domEventHandlers({
@@ -430,7 +456,7 @@ export function Editor({ value, onChange, filename, pcLine, breakpointLines, lin
           },
         }),
         keymap.of([
-          { key: "Mod-s", preventDefault: true, run: () => { onSaveRef.current?.(); return true; } },
+          { key: "Mod-s", preventDefault: true, run: (view) => { reindentDoc(view); onSaveRef.current?.(); return true; } },
           // Consume the Run / Restart accelerators so the browser doesn't insert
           // a newline into the contenteditable (CM only preventDefaults keys it
           // binds). The window-level shortcut handler still fires the command —
@@ -528,6 +554,18 @@ export function Editor({ value, onChange, filename, pcLine, breakpointLines, lin
     if (!view) return;
     view.dispatch({ effects: setProjectLabels.of(projectLabels ?? new Map()) });
   }, [projectLabels]);
+
+  useEffect(() => {
+    const view = viewRef.current;
+    if (!view) return;
+    view.dispatch({ effects: setProjectCSymbols.of(projectCSymbols ?? new Map()) });
+  }, [projectCSymbols]);
+
+  useEffect(() => {
+    const view = viewRef.current;
+    if (!view) return;
+    view.dispatch({ effects: indentCompartment.reconfigure(indentExtsFor(tabWidth ?? 4)) });
+  }, [tabWidth]);
 
   // Inline build diagnostics (#29). Map each toolchain diagnostic (1-based line,
   // optional column) onto a document range and hand them to @codemirror/lint —

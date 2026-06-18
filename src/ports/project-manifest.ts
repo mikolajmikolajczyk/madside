@@ -36,8 +36,14 @@ export interface ProjectManifestV2 {
   editors?: Record<string, string>
   /** Build configuration forwarded to the toolchain. `args` are raw,
    *  toolchain-specific assembler flags (e.g. MADS `-d:SYM=1`, extra `-i:`
-   *  include paths); the toolchain appends them to its own invocation. */
-  build?: { args?: string[] }
+   *  include paths); the toolchain appends them to its own invocation.
+   *  `trigger` controls when the build runs: `'manual'` (default) builds only
+   *  on Ctrl+S / Run; `'auto'` rebuilds on every (debounced) edit. Manual keeps
+   *  large projects snappy by not recompiling on every keystroke. */
+  build?: { args?: string[]; trigger?: 'auto' | 'manual' }
+  /** Editor preferences. `tabWidth` = spaces per indent level + literal-tab
+   *  render width (default 4). */
+  editor?: { tabWidth?: number }
   /** Set when the project was instantiated from a course lesson — drives
    *  course mode (the lesson panel). Carries which lesson the project is. */
   course?: { id: string; lesson: string }
@@ -112,14 +118,31 @@ export function parseProjectManifest(raw: unknown): Result<ProjectManifestV2, Ma
 
   const build = raw['build']
   if (isObject(build)) {
+    out.build = {}
     const args = build['args']
     if (args !== undefined) {
       if (!Array.isArray(args) || !args.every((a) => typeof a === 'string')) {
         return err(new ManifestError('project.json: build.args must be an array of strings'))
       }
-      out.build = { args: args as string[] }
-    } else {
-      out.build = {}
+      out.build.args = args as string[]
+    }
+    const trigger = build['trigger']
+    if (trigger !== undefined) {
+      if (trigger !== 'auto' && trigger !== 'manual') {
+        return err(new ManifestError("project.json: build.trigger must be 'auto' or 'manual'"))
+      }
+      out.build.trigger = trigger
+    }
+  }
+
+  const editor = raw['editor']
+  if (isObject(editor)) {
+    const tabWidth = editor['tabWidth']
+    if (tabWidth !== undefined) {
+      if (typeof tabWidth !== 'number' || !Number.isInteger(tabWidth) || tabWidth < 1 || tabWidth > 16) {
+        return err(new ManifestError('project.json: editor.tabWidth must be an integer 1–16'))
+      }
+      out.editor = { tabWidth }
     }
   }
 

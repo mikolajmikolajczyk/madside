@@ -87,4 +87,32 @@ describe('parseProjectManifest — v2 schema validator', () => {
     expect(r.ok).toBe(false)
     if (!r.ok) expect(r.error.message).toMatch(/build\.args/)
   })
+
+  it("accepts build.trigger 'auto' | 'manual'", () => {
+    for (const trigger of ['auto', 'manual'] as const) {
+      const r = parseProjectManifest({ ...minimal, build: { trigger } })
+      expect(r.ok).toBe(true)
+      if (r.ok) expect(r.value.build).toEqual({ trigger })
+    }
+  })
+
+  it('rejects an unknown build.trigger', () => {
+    const r = parseProjectManifest({ ...minimal, build: { trigger: 'onSave' } })
+    expect(r.ok).toBe(false)
+    if (!r.ok) expect(r.error.message).toMatch(/build\.trigger/)
+  })
+
+  it('accepts editor.tabWidth as an integer 1–16', () => {
+    const r = parseProjectManifest({ ...minimal, editor: { tabWidth: 2 } })
+    expect(r.ok).toBe(true)
+    if (r.ok) expect(r.value.editor).toEqual({ tabWidth: 2 })
+  })
+
+  it('rejects a non-integer / out-of-range editor.tabWidth', () => {
+    for (const tabWidth of [0, 17, 3.5, '4']) {
+      const r = parseProjectManifest({ ...minimal, editor: { tabWidth } })
+      expect(r.ok).toBe(false)
+      if (!r.ok) expect(r.error.message).toMatch(/tabWidth/)
+    }
+  })
 })

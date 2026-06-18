@@ -33,6 +33,7 @@ import { useCursorMemory } from "./hooks/useCursorMemory";
 import { useEquateValues } from "./hooks/useEquateValues";
 import { usePluginEditor } from "./hooks/usePluginEditor";
 import { useProjectLabels } from "./hooks/useProjectLabels";
+import { useProjectCSymbols } from "./hooks/useProjectCSymbols";
 import { useAutoAssemble } from "./hooks/useAutoAssemble";
 import { useRunStatus } from "./hooks/useRunStatus";
 import { useActiveMachine } from "./hooks/useActiveMachine";
@@ -189,6 +190,9 @@ export default function App() {
     cpuLanguage,
     toolchainLanguage,
   );
+
+  // Project-wide C symbol index (#58) — drives cross-file C completion.
+  const projectCSymbols = useProjectCSymbols(project.loaded ? project.files : null);
 
   const { activeModule: activeEditorModule, assets: pluginAssets } = usePluginEditor({
     files: project.loaded ? project.files : null,
@@ -813,6 +817,8 @@ export default function App() {
                 equateValues={equateValues}
                 diagnostics={editorDiagnostics}
                 projectLabels={projectLabels}
+                projectCSymbols={projectCSymbols}
+                tabWidth={project.manifest.editor?.tabWidth ?? 4}
                 cpuLanguage={cpuLanguage}
                 toolchainLanguage={toolchainLanguage}
                 gotoTarget={gotoTarget}
