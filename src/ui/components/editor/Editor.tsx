@@ -246,6 +246,20 @@ async function loadLanguagePack(
   if (/\.(c|h|cc|cpp|hpp)$/.test(lower)) {
     const { cpp } = await import("@codemirror/lang-cpp");
     const support = cpp();
+    // Opt-in (#63): serve completion from the cc65-intel LSP (running in a Web
+    // Worker) instead of the in-process cLibrary flat completion. Off by
+    // default — production unaffected.
+    const cc65Lsp =
+      typeof import.meta !== "undefined" && import.meta.env
+        ? import.meta.env.VITE_MADSIDE_CC65_LSP === "1"
+        : false;
+    if (cc65Lsp) {
+      const [{ autocompletion }, { cc65LspComplete }] = await Promise.all([
+        import("@codemirror/autocomplete"),
+        import("../../codemirror/lsp/client"),
+      ]);
+      return [support, autocompletion({ override: [cc65LspComplete] })];
+    }
     if (toolchain?.cSymbols?.length) {
       const { cLibraryExtensions } = await import("@ui/codemirror");
       return [support, ...cLibraryExtensions(support, toolchain.cSymbols)];

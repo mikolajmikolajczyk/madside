@@ -4,3 +4,6 @@
 # don't fail with ERR_PNPM_IGNORED_BUILDS.
 allowBuilds:
   unrs-resolver: true
+minimumReleaseAgeExclude:
+  - '@cc65-intel/core@0.1.0'
+  - '@cc65-intel/lsp@0.1.0'

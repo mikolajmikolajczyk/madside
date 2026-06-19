@@ -11,6 +11,12 @@ importers:
       '@bjorn3/browser_wasi_shim':
         specifier: ^0.4.2
         version: 0.4.2
+      '@cc65-intel/core':
+        specifier: ^0.1.0
+        version: 0.1.0
+      '@cc65-intel/lsp':
+        specifier: ^0.1.0
+        version: 0.1.0
       '@codemirror/autocomplete':
         specifier: ^6.20.2
         version: 6.20.3
@@ -77,6 +83,9 @@ importers:
       react-markdown:
         specifier: ^10.1.0
         version: 10.1.0(@types/react@19.2.17)(react@19.2.7)
+      vscode-jsonrpc:
+        specifier: ^8.2.1
+        version: 8.2.1
     devDependencies:
       '@babel/core':
         specifier: ^8.0.0
@@ -295,6 +304,12 @@ packages:
   '@boundaries/elements@2.0.1':
     resolution: {integrity: sha512-sAWO3D8PFP6pBXdxxW93SQi/KQqqhE2AAHo3AgWfdtJXwO6bfK6/wUN81XnOZk0qRC6vHzUEKhjwVD9dtDWvxg==}
     engines: {node: '>=18.18'}
+
+  '@cc65-intel/core@0.1.0':
+    resolution: {integrity: sha512-FiJCjA/TreLaIST3xGcqFHAUkiVP1/yu4XCciLdJZGK/DuksF21qll+xin8XAP6RHzRlib+mlVXkgJgU5VjcWA==}
+
+  '@cc65-intel/lsp@0.1.0':
+    resolution: {integrity: sha512-epTeLyXWrFhPnHDfe+Slg31i6vq5H0VvxVffvFODSx8YlmbZUrsqHzttm4CBTy9jLORh7tZMZasbDpwiYKUi/g==}
 
   '@codemirror/autocomplete@6.20.3':
     resolution: {integrity: sha512-tlosUqb+3BbxCxZdu4tKeRghPFC+QM7q4X5YhKV2eCmPG+1r2F3f4AaSz5sCrFqUtX4Jh20VFTKecl16MgiV9g==}
@@ -3153,6 +3168,27 @@ packages:
       jsdom:
         optional: true
 
+  vscode-jsonrpc@8.2.0:
+    resolution: {integrity: sha512-C+r0eKJUIfiDIfwJhria30+TYWPtuHJXHtI7J0YlOmKAo7ogxP20T0zxB7HZQIFhIyvoBPwWskjxrvAtfjyZfA==}
+    engines: {node: '>=14.0.0'}
+
+  vscode-jsonrpc@8.2.1:
+    resolution: {integrity: sha512-kdjOSJ2lLIn7r1rtrMbbNCHjyMPfRnowdKjBQ+mGq6NAW5QY2bEZC/khaC5OR8svbbjvLEaIXkOq45e2X9BIbQ==}
+    engines: {node: '>=14.0.0'}
+
+  vscode-languageserver-protocol@3.17.5:
+    resolution: {integrity: sha512-mb1bvRJN8SVznADSGWM9u/b07H7Ecg0I3OgXDuLdn307rl/J3A9YD6/eYOssqhecL27hK1IPZAsaqh00i/Jljg==}
+
+  vscode-languageserver-textdocument@1.0.12:
+    resolution: {integrity: sha512-cxWNPesCnQCcMPeenjKKsOCKQZ/L6Tv19DTRIGuLWe32lyzWhihGVJ/rcckZXJxfdKCFvRLS3fpBIsV/ZGX4zA==}
+
+  vscode-languageserver-types@3.17.5:
+    resolution: {integrity: sha512-Ld1VelNuX9pdF39h2Hgaeb5hEZM2Z3jUrrMgWQAu82jMtZp7p3vJT3BzToKtZI7NgQssZje5o0zryOrhQvzQAg==}
+
+  vscode-languageserver@9.0.1:
+    resolution: {integrity: sha512-woByF3PDpkHFUreUa7Hos7+pUWdeWMXRd26+ZX2A8cFx6v/JPTtd4/uN0/jB6XQHYaOlHbio03NTHCqrgG5n7g==}
+    hasBin: true
+
   w3c-keyname@2.2.8:
     resolution: {integrity: sha512-dpojBhNsCNN7T82Tm7k26A6G9ML3NkhDsnw9n/eoxSRlVBB4CEtIQ/KTCLI2Fwf3ataSXRhYFkQi3SlnFwPvPQ==}
 
@@ -3418,6 +3454,17 @@ snapshots:
       - eslint-import-resolver-typescript
       - eslint-import-resolver-webpack
       - supports-color
+
+  '@cc65-intel/core@0.1.0':
+    dependencies:
+      '@lezer/common': 1.5.2
+      '@lezer/cpp': 1.1.6
+
+  '@cc65-intel/lsp@0.1.0':
+    dependencies:
+      '@cc65-intel/core': 0.1.0
+      vscode-languageserver: 9.0.1
+      vscode-languageserver-textdocument: 1.0.12
 
   '@codemirror/autocomplete@6.20.3':
     dependencies:
@@ -6631,6 +6678,23 @@ snapshots:
       '@types/node': 24.13.1
     transitivePeerDependencies:
       - msw
+
+  vscode-jsonrpc@8.2.0: {}
+
+  vscode-jsonrpc@8.2.1: {}
+
+  vscode-languageserver-protocol@3.17.5:
+    dependencies:
+      vscode-jsonrpc: 8.2.0
+      vscode-languageserver-types: 3.17.5
+
+  vscode-languageserver-textdocument@1.0.12: {}
+
+  vscode-languageserver-types@3.17.5: {}
+
+  vscode-languageserver@9.0.1:
+    dependencies:
+      vscode-languageserver-protocol: 3.17.5
 
   w3c-keyname@2.2.8: {}
 
