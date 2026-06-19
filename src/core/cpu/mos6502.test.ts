@@ -16,6 +16,7 @@ describe('MOS6502 cpu language', () => {
   it('resolves both 6502 machine cpus to the shared vocabulary', () => {
     expect(getCpuLanguage('mos6502')).toBe(MOS6502)
     expect(getCpuLanguage('ricoh-2a03')).toBe(MOS6502)
+    expect(getCpuLanguage('mos6510')).toBe(MOS6502) // C64
     expect(getCpuLanguage('z80')).toBeUndefined()
   })
 })
