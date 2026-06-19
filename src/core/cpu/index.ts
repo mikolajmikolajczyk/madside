@@ -4,15 +4,18 @@
 // CpuLanguage here; toolchains contribute directives/syntax separately.
 
 import { MOS6502 } from "./mos6502";
+import { Z80 } from "./z80";
 import type { CpuLanguage } from "./mos6502";
 
 export type { CpuLanguage, OpcodeDoc } from "./mos6502";
 export { MOS6502 } from "./mos6502";
+export { Z80 } from "./z80";
 
 const REGISTRY: Record<string, CpuLanguage> = {
   "mos6502": MOS6502,
   "ricoh-2a03": MOS6502, // NES 2A03 = official 6502 instruction set
   "mos6510": MOS6502, // C64 6510 = 6502 instruction set + an on-chip I/O port
+  "z80": Z80, // ZX Spectrum (and Z80 family)
 };
 
 /** Resolve the instruction vocabulary for a CPU id, or undefined if unknown. */
