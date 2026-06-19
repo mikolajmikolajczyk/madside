@@ -55,8 +55,9 @@ export function useEmuStateReset({
   useEffect(() => {
     // Genuine reset side-effect on project switch — unloads the emulator
     // (workbench.run.unload()) as well as clearing state, so it belongs in an
-    // effect, not an adjust-during-render (#28).
-    // eslint-disable-next-line react-hooks/set-state-in-effect
+    // effect, not an adjust-during-render (#28). (No set-state-in-effect
+    // disable needed here: resetEmuState's setters arrive as params, so the
+    // rule can't trace them as setState — unlike the in-App original.)
     resetEmuState();
   }, [projectId, resetEmuState]);
 
