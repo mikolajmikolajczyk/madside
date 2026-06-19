@@ -8,6 +8,7 @@ import {
 } from '@ports/test'
 import { atariXl } from '@plugins/machine-atari-xl'
 import { machineNes } from '@plugins/machine-nes'
+import { machineC64 } from '@plugins/machine-c64'
 import { registersPanel } from '@plugins/panel-registers'
 import { memoryPanel } from '@plugins/panel-memory'
 import { outputPanel } from '@plugins/panel-output'
@@ -23,6 +24,7 @@ import { listBuiltinEditors } from '@plugins/editors'
 describe('MachinePlugin contract', () => {
   it('atari-xl', () => assertMachinePlugin(atariXl))
   it('nes', () => assertMachinePlugin(machineNes))
+  it('c64', () => assertMachinePlugin(machineC64))
 })
 
 describe('PanelPlugin contract', () => {

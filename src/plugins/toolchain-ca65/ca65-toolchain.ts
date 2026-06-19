@@ -37,6 +37,7 @@ export function coerceCc65Options(
 const CC65_TARGET: Record<string, string> = {
   nes: 'nes',
   'atari-xl': 'atari',
+  c64: 'c64',
 }
 const targetFor = (machine?: string): string | undefined => CC65_TARGET[machine ?? '']
 

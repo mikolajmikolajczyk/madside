@@ -2,6 +2,7 @@ import { readFileSync } from 'node:fs'
 import { describe, expect, it } from 'vitest'
 import { atariXl } from '@plugins/machine-atari-xl'
 import { machineNes } from '@plugins/machine-nes'
+import { machineC64 } from '@plugins/machine-c64'
 
 // The bootEquates string lives canonically on the MachinePlugin. The bundled
 // templates ship a parallel copy as the equates file each template `icl`s.
@@ -29,5 +30,17 @@ describe('NES boot equates', () => {
   it('nes-hello template copy matches the MachinePlugin source', () => {
     const fromTemplate = readFileSync('templates/nes-hello/src/nes.a65', 'utf8')
     expect(fromTemplate).toBe(machineNes.bootEquates?.content)
+  })
+})
+
+describe('C64 boot equates', () => {
+  it('canonical source is wired on the MachinePlugin', () => {
+    expect(machineC64.bootEquates?.path).toBe('src/c64.a65')
+    expect(machineC64.bootEquates?.content).toMatch(/CHROUT\s*=\s*\$FFD2/)
+  })
+
+  it('c64-hello template copy matches the MachinePlugin source', () => {
+    const fromTemplate = readFileSync('templates/c64-hello/src/c64.a65', 'utf8')
+    expect(fromTemplate).toBe(machineC64.bootEquates?.content)
   })
 })

@@ -1,0 +1,6 @@
+{
+  "name": "C64 — Hello World (MADS)",
+  "description": "Write Commodore 64 programs in 6502 assembly. MADS assembles a .prg directly — a BASIC SYS stub plus machine code that clears the screen and prints via the KERNAL. Runs on the chips C64 core (booting the GPL Open ROMs).",
+  "machine": "c64",
+  "order": 7
+}

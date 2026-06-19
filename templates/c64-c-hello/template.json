@@ -1,0 +1,6 @@
+{
+  "name": "C64 — Hello (C, cc65)",
+  "description": "Write Commodore 64 programs in C. cc65 compiles main.c, ca65 assembles it, ld65 links against the bundled C64 runtime into a .prg — all in the browser. Runs on the chips C64 core (booting the GPL Open ROMs). Uses conio to print text.",
+  "machine": "c64",
+  "order": 6
+}

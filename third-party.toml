@@ -46,6 +46,33 @@ license    = "GPL-2.0-or-later"
 artifact   = "src/adapters/emu/wasm/altirra-core.wasm"
 built_with = "Emscripten (SDL3 embed); our AltirraEmbed fork of ilmenit/AltirraSDL (orig. Altirra by Avery Lee)"
 
+[source.chips]
+name       = "chips (C64 system core)"
+role       = "Commodore 64 emulator core — 6502 CPU + VIC-II + SID + 2× CIA"
+upstream   = "https://github.com/floooh/chips"
+source     = "https://github.com/floooh/chips"
+ref        = "9371bfcb8478aec05ad10a1293206363373c1489"
+version    = "single-header C99 (systems/c64.h)"
+license    = "Zlib"
+artifact   = "src/plugins/emulator-c64-chips/wasm/c64-core.wasm"
+built_with = "Emscripten (wasm32); our thin C wrapper over chips/systems/c64.h. ROMs supplied at init, never bundled into the core."
+
+# Commodore's own KERNAL/BASIC/CHARGEN ROMs are Cloanto-copyright and are NOT
+# shipped. We bundle the MEGA65 Open ROMs — clean-room GPL-3 replacements — as a
+# runtime data asset (mere aggregation; does not relicense the app). The chips
+# core takes the ROM pointers at init, so emulator code and ROM data stay
+# decoupled.
+[source.open_roms]
+name       = "Open ROMs (C64 KERNAL/BASIC + charset)"
+role       = "Free replacement for the Cloanto-copyright C64 KERNAL/BASIC/CHARGEN — Commodore ROMs not shipped"
+upstream   = "https://github.com/MEGA65/open-roms"
+source     = "https://github.com/MEGA65/open-roms"
+ref        = "ad178dbe4d48cd6a317737a8e0e7e662f7e33d32"
+version    = "prebuilt images (upstream /bin)"
+license    = "GPL-3.0-or-later"
+artifact   = "src/plugins/emulator-c64-chips/roms/"
+built_with = "Prebuilt images from upstream /bin (not compiled here); bundled as a runtime data asset"
+
 # === build-time toolchains — the justfile reads these; NOT shipped, NOT in the
 #     table (they compile the artifacts above, they aren't part of the product) ===
 

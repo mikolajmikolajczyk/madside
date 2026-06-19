@@ -16,6 +16,7 @@ import ca65WasmUrl from "./ca65.wasm?url";
 import ld65WasmUrl from "./ld65.wasm?url";
 import nesSysrootZipUrl from "../nes-sysroot.zip?url";
 import atariSysrootZipUrl from "../atari-sysroot.zip?url";
+import c64SysrootZipUrl from "../c64-sysroot.zip?url";
 
 const encoder = new TextEncoder();
 
@@ -54,6 +55,7 @@ export interface Cc65BuildResult {
 const SYSROOT_URL: Record<string, string> = {
   nes: nesSysrootZipUrl,
   atari: atariSysrootZipUrl,
+  c64: c64SysrootZipUrl,
 };
 const sysrootProviders = new Map<string, ZipAssetProvider>();
 

@@ -16,6 +16,8 @@ Compiled to WebAssembly by `just build-*` and committed as bundle assets. **Sour
 | [Mad-Assembler (MADS)](https://github.com/tebe6502/Mad-Assembler) | 2.1.6 | Freeware (custom — see upstream) | [upstream](https://github.com/tebe6502/Mad-Assembler) | Atari 8-bit 6502 macro assembler |
 | [cc65 (cc65 / ca65 / ld65)](https://github.com/cc65/cc65) | snapshot (git) | Zlib | [upstream](https://github.com/cc65/cc65) | C compiler + 6502 assembler & linker |
 | [Altirra (core)](https://github.com/ilmenit/AltirraSDL) | wasm embed core | GPL-2.0-or-later | [fork @ madside-embed](https://github.com/mikolajmikolajczyk/AltirraSDL/tree/madside-embed) | Atari 8-bit emulator core |
+| [chips (C64 system core)](https://github.com/floooh/chips) | single-header C99 (systems/c64.h) | Zlib | [upstream](https://github.com/floooh/chips) | Commodore 64 emulator core — 6502 CPU + VIC-II + SID + 2× CIA |
+| [Open ROMs (C64 KERNAL/BASIC + charset)](https://github.com/MEGA65/open-roms) | prebuilt images (upstream /bin) | GPL-3.0-or-later | [upstream](https://github.com/MEGA65/open-roms) | Free replacement for the Cloanto-copyright C64 KERNAL/BASIC/CHARGEN — Commodore ROMs not shipped |
 
 ## Bundled libraries
 

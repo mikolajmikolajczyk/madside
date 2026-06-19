@@ -1,0 +1,8 @@
+{
+  "version": 2,
+  "name": "c64-c-hello",
+  "main": "src/main.c",
+  "machine": "c64",
+  "toolchain": "cc65",
+  "run": { "default": { "audio": false } }
+}

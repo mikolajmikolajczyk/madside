@@ -36,7 +36,9 @@ import { createPluginLoader } from '@adapters'
 // + decision note below).
 import { atariXl } from '@plugins/machine-atari-xl'
 import { machineNes } from '@plugins/machine-nes'
+import { machineC64 } from '@plugins/machine-c64'
 import { jsnesEmulator } from '@plugins/emulator-nes-jsnes'
+import { chipsC64Emulator } from '@plugins/emulator-c64-chips'
 import { altirraEmulator } from '@adapters/emu'
 import { madsToolchain } from '@plugins/toolchain-mads'
 import { cc65Toolchain } from '@plugins/toolchain-ca65'
@@ -167,13 +169,14 @@ export function createWorkbench(deps: WorkbenchDeps): Workbench {
   // selection lands (the end-to-end NES path — separate from this plugin's
   // data + registration).
   plugins.register({ plugin: machineNes, source: { origin: 'builtin' } })
+  plugins.register({ plugin: machineC64, source: { origin: 'builtin' } })
   plugins.register({ plugin: madsToolchain, source: { origin: 'builtin' } })
   plugins.register({ plugin: cc65Toolchain, source: { origin: 'builtin' } })
   plugins.register({ plugin: atari6502DebugAdapter, source: { origin: 'builtin' } })
   // Emulator backends register like every other plugin kind; machines name the
   // one they run on via `compatibleEmulators`, resolved below. Both plugins'
   // createBackend lazy-imports its core, so registration stays cheap.
-  for (const emulator of [altirraEmulator, jsnesEmulator]) {
+  for (const emulator of [altirraEmulator, jsnesEmulator, chipsC64Emulator]) {
     plugins.register({ plugin: emulator, source: { origin: 'builtin' } })
   }
   for (const panel of [registersPanel, memoryPanel, outputPanel, ppuPanel]) {
@@ -230,6 +233,11 @@ export function createWorkbench(deps: WorkbenchDeps): Workbench {
       machine: machineNes,
       backendFactory: resolveEmulatorBackend(machineNes),
       debugAdapter: deps.debugAdapter ?? resolveDebugAdapter(machineNes),
+    },
+    c64: {
+      machine: machineC64,
+      backendFactory: resolveEmulatorBackend(machineC64),
+      debugAdapter: deps.debugAdapter ?? resolveDebugAdapter(machineC64),
     },
   }
   let activeMachine: MachinePlugin = atariXl

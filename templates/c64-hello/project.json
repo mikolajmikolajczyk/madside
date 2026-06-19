@@ -1,0 +1,8 @@
+{
+  "version": 2,
+  "name": "c64-hello",
+  "main": "src/c64-hello.a65",
+  "machine": "c64",
+  "toolchain": "mads",
+  "run": { "default": { "audio": false } }
+}

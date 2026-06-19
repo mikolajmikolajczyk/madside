@@ -114,7 +114,7 @@ cc65_out_dir    := justfile_directory() / "src/plugins/toolchain-ca65/wasm"
 cc65_plugin_dir := justfile_directory() / "src/plugins/toolchain-ca65"
 # cc65 targets to build a sysroot for (one zip each). Add a target here + a row
 # in the plugin's CC65_TARGET / SYSROOT_URL maps to support another platform.
-cc65_targets    := "nes atari"
+cc65_targets    := "nes atari c64"
 
 # Pinned upstream — bump in third-party.toml, then rebuild + smoke + commit wasm.
 cc65_repo       := `python3 scripts/third-party.py get source.cc65.upstream`
@@ -241,6 +241,41 @@ install-altirra-wasm:
 # Wipe altirra build dir (forces full reconfigure).
 clean-altirra-build:
     rm -rf "{{altirra_build_dir}}"
+
+# === c64-core.wasm pipeline (chips systems/c64.h) ===
+
+chips_dir       := justfile_directory() / "_notes/chips-build/chips"
+chips_out_dir   := justfile_directory() / "src/plugins/emulator-c64-chips/wasm"
+chips_repo      := `python3 scripts/third-party.py get source.chips.upstream`
+chips_commit    := `python3 scripts/third-party.py get source.chips.ref`
+
+# Full pipeline: clone chips at the pinned commit, compile the Embind wrapper
+# (src/plugins/emulator-c64-chips/wasm/c64-core.cpp) to a wasm ES module, and
+# install c64-core.{js,wasm}. Requires the wasm shell: `nix develop .#wasm`.
+# The C64 ROMs are NOT built here — the GPL-3 Open ROMs are vendored under
+# emulator-c64-chips/roms/ and handed to the core at init.
+build-chips-wasm: clone-chips compile-chips-wasm
+
+# Clone (or update) floooh/chips at the pinned commit.
+clone-chips:
+    if [ ! -d "{{chips_dir}}/.git" ]; then \
+        git clone "{{chips_repo}}" "{{chips_dir}}"; \
+    fi
+    cd "{{chips_dir}}" && git fetch origin "{{chips_commit}}" && git checkout "{{chips_commit}}"
+
+# Compile the Embind wrapper + chips core (single translation unit) to an ES6
+# module. -Oz keeps the wasm small; MODULARIZE/EXPORT_ES6 + a URL-located .wasm
+# match the Altirra loader pattern (src/adapters/emu/altirra.ts).
+compile-chips-wasm:
+    cd "{{justfile_directory()}}" && nix --experimental-features 'nix-command flakes' develop .#wasm --command bash -c \
+        'set -e; \
+         emcc -Oz -std=gnu11 -I "{{chips_dir}}" -c "{{chips_out_dir}}/c64-impl.c" -o /tmp/c64-impl.o; \
+         em++ -Oz -std=c++17 -I "{{chips_dir}}" "{{chips_out_dir}}/c64-core.cpp" /tmp/c64-impl.o \
+            -o "{{chips_out_dir}}/c64-core.js" \
+            -lembind -sMODULARIZE=1 -sEXPORT_ES6=1 -sENVIRONMENT=web -sALLOW_MEMORY_GROWTH=1 \
+            -sEXPORT_NAME=createC64Core -sFILESYSTEM=0'
+    @echo "installed → {{chips_out_dir}}"
+    @ls -lh "{{chips_out_dir}}/c64-core."*
 
 # === docs site (Astro Starlight) ===
 

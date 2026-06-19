@@ -1,0 +1,10 @@
+; common C64 VIC-II / KERNAL equates
+VICBASE = $D000
+BORDER  = $D020
+BGCOL0  = $D021
+SID     = $D400
+CIA1    = $DC00
+CIA2    = $DD00
+CHROUT  = $FFD2
+GETIN   = $FFE4
+CHRIN   = $FFCF

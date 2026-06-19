@@ -1,0 +1,43 @@
+; minimal C64 example — clears the screen and prints via the KERNAL.
+; cc65 isn't involved: MADS assembles a .prg directly (a BASIC SYS stub + the
+; machine code), the same way the NES MADS template emits a raw iNES image.
+; `opt h-` drops the Atari .xex header; the .prg's own 2-byte load address is
+; emitted as the first bytes of the file.
+    icl 'c64.a65'           ; VIC / KERNAL equates
+    opt h-                  ; headerless raw output (.prg, not Atari .xex)
+
+; --- .prg load address: the first two file bytes (little-endian $0801) ---
+    org $0801-2
+    dta a($0801)
+
+; --- BASIC stub: 10 SYS 2061 (RUN drops straight into our code) ---
+    org $0801
+    dta a(stub_end)         ; link to the next BASIC line
+    dta a(10)               ; line number 10
+    dta $9e                 ; SYS token
+    dta c'2061'             ; argument → $080d, where `start` lands
+    dta $00                 ; end of this BASIC line
+stub_end
+    dta a($0000)            ; end of BASIC program
+
+; --- machine code ($080d) ---
+start
+    lda #$00
+    sta BORDER              ; black border
+    lda #$06
+    sta BGCOL0              ; blue background
+    lda #$93                ; PETSCII clear-screen
+    jsr CHROUT
+    ldx #0
+print
+    lda text,x
+    beq done
+    jsr CHROUT              ; KERNAL character out
+    inx
+    bne print
+done
+    jmp done
+
+text
+    dta c'HELLO C64 FROM MADS!'
+    dta $00
