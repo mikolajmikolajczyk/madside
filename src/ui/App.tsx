@@ -35,9 +35,13 @@ import { useEquateValues } from "./hooks/useEquateValues";
 import { usePluginEditor } from "./hooks/usePluginEditor";
 import { useProjectLabels } from "./hooks/useProjectLabels";
 import { useProjectCDocuments } from "./hooks/useProjectCDocuments";
+import { useManifestMachineSync } from "./hooks/useManifestMachineSync";
+import { useEmuStateReset } from "./hooks/useEmuStateReset";
+import { useRunControls } from "./hooks/useRunControls";
+import { useDebugEventMonitor } from "./hooks/useDebugEventMonitor";
 import type { DefinitionTarget } from "./codemirror/lsp/client";
 import { useProjectsWithCourse } from "./hooks/useProjectsWithCourse";
-import { useAutoAssemble, outcomeFromStored } from "./hooks/useAutoAssemble";
+import { useAutoAssemble } from "./hooks/useAutoAssemble";
 import { useRunStatus } from "./hooks/useRunStatus";
 import { useActiveMachine } from "./hooks/useActiveMachine";
 import { useWorkbench } from "@app";
@@ -78,14 +82,9 @@ export default function App() {
   const running = runStatus === 'running';
   const hasEmu = runStatus !== 'idle' && runStatus !== 'crashed';
 
-  // Manifest-driven machine selection (1972a36). When the active project's
-  // declared machine changes (load / switch), swap the workbench's active
-  // machine — reconfigures the RunService backend + DebugService adapter and
-  // re-renders every useActiveMachine() consumer. No-op when unchanged.
-  const manifestMachine = project.loaded ? project.manifest.machine : null;
-  useEffect(() => {
-    if (manifestMachine) workbench.setActiveMachine(manifestMachine);
-  }, [manifestMachine, workbench]);
+  // Manifest-driven machine selection (1972a36): manifest `machine` change →
+  // workbench.setActiveMachine. Extracted to a hook (#65).
+  useManifestMachineSync(workbench, project.loaded ? project.manifest.machine : null);
   const [cpu, setCpu] = useState<CpuRegs | null>(null);
   const [memBase, setMemBase] = useState(0x2000);
   const [memBaseTouched, setMemBaseTouched] = useState(false);
@@ -123,41 +122,18 @@ export default function App() {
     setMemBase(addr);
   }, []);
 
-  // Full emulator-state wipe. Three call sites all want the same blast:
-  // project change, Stop, Reset. Don't try to be clever about a subset.
-  // FSM-side: workbench.run.unload() drops media + transitions to 'idle'
-  // so the next Run boots from scratch (matches the pre-FSM Stop UX —
-  // blank canvas, no last-frame residue).
-  const resetEmuState = useCallback((opts?: { keepResult?: boolean; keepMemTouched?: boolean }) => {
-    if (workbench.run.status !== 'idle') workbench.run.unload();
-    if (!opts?.keepResult) setResult(null);
-    setCpu(null);
-    if (!opts?.keepMemTouched) setMemBaseTouched(false);
-    setBrokeOn(null);
-    setRunBlockedMsg(null);
-  }, [setResult, workbench]);
-
-  const projectId = project.loaded ? project.projectId : null;
-  useEffect(() => {
-    // Genuine reset side-effect on project switch — unloads the emulator
-    // (workbench.run.unload()) as well as clearing state, so it belongs in an
-    // effect, not an adjust-during-render (#28).
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    resetEmuState();
-  }, [projectId, resetEmuState]);
-
-  // Restore the last build from storage on project load (#62) — OUTPUT panel +
-  // inline error markers + the binary (Run without a rebuild) come back instead
-  // of a blank slate after a reload. Async, so it lands after the reset above;
-  // cancelled if the project switches before the load resolves.
-  useEffect(() => {
-    if (!projectId) return;
-    let cancelled = false;
-    void workbench.storage.builds.load(projectId).then((b) => {
-      if (!cancelled && b) setResult(outcomeFromStored(b));
-    });
-    return () => { cancelled = true; };
-  }, [projectId, workbench, setResult]);
+  // Emulator-state lifecycle (#65): the reset blast (project change / Stop /
+  // Reset) + the two load-bearing project-load effects (reset-then-restore
+  // order) live in the hook. resetEmuState comes back for the Run controls.
+  const { resetEmuState } = useEmuStateReset({
+    workbench,
+    projectId: project.loaded ? project.projectId : null,
+    setResult,
+    setCpu,
+    setMemBaseTouched,
+    setBrokeOn,
+    setRunBlockedMsg,
+  });
 
   const bpLinesByFile = useMemo(
     () => (project.loaded ? project.breakpoints : new Map<string, Set<number>>()),
@@ -421,96 +397,22 @@ export default function App() {
   }, [activePath]);
 
 
-  const onRun = useCallback(async () => {
-    // Smart Play. After a BP hit / Pause the emu is at 'paused' with the
-    // binary still resident — Play resumes from the same PC. Only Stop
-    // (which unload()s to 'idle') or a fresh boot forces a re-load.
-    const status = workbench.run.status;
-    if (status === 'paused' || status === 'loaded') {
-      setBrokeOn(null);
-      setRunBlockedMsg(null);
-      workbench.run.run();
-      return;
-    }
-    let r = result;
-    if (!r) r = await runAssemble();
-    if (!r?.ok || !r.xex) {
-      // Nothing to load — tell the user where to look, in the emulator window.
-      setRunBlockedMsg("Compilation error. Check output.");
-      return;
-    }
-    const loadResult = await workbench.run.load(r.xex);
-    if (!loadResult.ok) {
-      setRunBlockedMsg("Failed to load binary. Check output.");
-      return;
-    }
-    setBrokeOn(null);
-    setRunBlockedMsg(null);
-    workbench.run.run();
-  }, [result, runAssemble, workbench]);
+  // Run/debug transport controls (#65): onRun/onPause/onStep/onStepFrame/
+  // onStepOver/onStop/onReset. onStepOver carries the documented sourceMap/cpu
+  // stale-closure footgun (see the hook).
+  const { onRun, onPause, onStep, onStepFrame, onStepOver, onStop, onReset } = useRunControls({
+    workbench,
+    result,
+    runAssemble,
+    resetEmuState,
+    sourceMap,
+    cpu,
+    setBrokeOn,
+    setRunBlockedMsg,
+  });
 
-  const onPause = useCallback(() => {
-    if (workbench.run.status === 'running') workbench.run.pause();
-  }, [workbench]);
-  // 1e38ae3: Step + Frame go through DebugService (canonical event path).
-  // DebugService.step/stepFrame call the active DebugTarget + emit
-  // debug:step-done; Emulator listens + blits the canvas (no more
-  // stepTick/frameTick prop drilling).
-  const onStep = useCallback(() => { void workbench.debug.step(); }, [workbench]);
-  const onStepFrame = useCallback(() => { void workbench.debug.stepFrame(); }, [workbench]);
-
-  // Step Over: advance to the next source line, running through no-source code
-  // (cc65 library calls like clrscr) transparently instead of stepping into
-  // them instruction-by-instruction (#49). Falls back to a single instruction
-  // step when there's no source map (e.g. a raw binary).
-  const onStepOver = useCallback(() => {
-    if (!sourceMap) { void workbench.debug.step(); return; }
-    const startPc = cpu?.regs.pc;
-    const start = startPc != null ? sourceMap.addrToLoc.get(startPc & 0xffff) : undefined;
-    const startKey = start ? `${start.file}:${start.line}` : null;
-    // Track addresses we've executed *on the start line*: if one repeats, the
-    // line loops back on itself (e.g. `while (1) {}`) and there is no "next
-    // line" — stop there instead of spinning to the cap. No-source library code
-    // (clrscr) isn't tracked, so a library loop still runs through transparently.
-    const seenOnStartLine = new Set<number>();
-    void workbench.debug.stepLine((pc) => {
-      const a = pc & 0xffff;
-      const loc = sourceMap.addrToLoc.get(a);
-      if (loc == null) return false; // no source — keep running (library)
-      if (`${loc.file}:${loc.line}` !== startKey) return true; // reached a new line
-      if (seenOnStartLine.has(a)) return true; // looped back on the same line
-      seenOnStartLine.add(a);
-      return false;
-    });
-  }, [workbench, sourceMap, cpu]);
-
-  // Subscribe to 'debug:bp-hit' from the workbench bus — Emulator.tsx emits
-  // it on every BP trap inside the frame loop. Pause via the FSM
-  // (ADR-0007); brokeOn is set from the event payload.
-  useEffect(() => {
-    return workbench.events.on('debug:bp-hit', ({ pc }) => {
-      if (workbench.run.status === 'running') workbench.run.pause();
-      setBrokeOn(pc);
-    });
-  }, [workbench]);
-
-  const onStop = useCallback(() => {
-    // Unload the emulator: drop xex from the running side so the next Run
-    // boots fresh. result + addr gutter + sourceMap stay (those reflect
-    // the build, not the emu).
-    resetEmuState({ keepResult: true, keepMemTouched: true });
-  }, [resetEmuState]);
-
-  const onReset = useCallback(async () => {
-    const wasRunning = workbench.run.status === 'running';
-    resetEmuState();
-    const r = await runAssemble();
-    // If emu was active, restart from the top so Reset acts like "restart".
-    if (wasRunning && r?.ok && r.xex) {
-      const loadResult = await workbench.run.load(r.xex);
-      if (loadResult.ok) workbench.run.run();
-    }
-  }, [runAssemble, resetEmuState, workbench]);
+  // BP-trap monitor: pause the FSM + record the trap PC on debug:bp-hit (#65).
+  useDebugEventMonitor(workbench, setBrokeOn);
 
 
   // Modal-based dialogs (Radix Dialog) replace native prompt/confirm.
