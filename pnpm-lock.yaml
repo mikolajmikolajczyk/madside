@@ -12,11 +12,11 @@ importers:
         specifier: ^0.4.2
         version: 0.4.2
       '@cc65-intel/core':
-        specifier: ^0.4.0
-        version: 0.4.0
+        specifier: ^0.5.0
+        version: 0.5.0
       '@cc65-intel/lsp':
-        specifier: ^0.4.0
-        version: 0.4.0
+        specifier: ^0.5.0
+        version: 0.5.0
       '@codemirror/autocomplete':
         specifier: ^6.20.2
         version: 6.20.3
@@ -302,11 +302,11 @@ packages:
     resolution: {integrity: sha512-sAWO3D8PFP6pBXdxxW93SQi/KQqqhE2AAHo3AgWfdtJXwO6bfK6/wUN81XnOZk0qRC6vHzUEKhjwVD9dtDWvxg==}
     engines: {node: '>=18.18'}
 
-  '@cc65-intel/core@0.4.0':
-    resolution: {integrity: sha512-lo3C+xfbW/eU/htpPWXyA8XlWkXNHm/EJkk7Ts82LNZZbDKV2gPPrpoDX1E1tegEtspQoqz2nanLduh4nuPxUA==}
+  '@cc65-intel/core@0.5.0':
+    resolution: {integrity: sha512-8VhyTsPzd0pPUFjYlpnLDpM1HMkHqJjT1feSvMp03GegSlMRnD1o5JYhnXL5Xb04Jdx25rzQKGJ6dEaWRBZKSA==}
 
-  '@cc65-intel/lsp@0.4.0':
-    resolution: {integrity: sha512-Ut6redi9Hj+jzFQfRpnG2ma2ZINmVTyp0ef/Omgt0dM5JswpQoHcpRx0DVi8qInGBJS2BPbA0rDdqBoeA6VViw==}
+  '@cc65-intel/lsp@0.5.0':
+    resolution: {integrity: sha512-ZdJqSIWgddRuYUOuu5bI0784dNoVT5tsi8AzapO4CTQYCDWGhVK//MdZ5P111Q80BuNgpzf8JSiuarQQMAc4Gw==}
 
   '@codemirror/autocomplete@6.20.3':
     resolution: {integrity: sha512-tlosUqb+3BbxCxZdu4tKeRghPFC+QM7q4X5YhKV2eCmPG+1r2F3f4AaSz5sCrFqUtX4Jh20VFTKecl16MgiV9g==}
@@ -3449,14 +3449,14 @@ snapshots:
       - eslint-import-resolver-webpack
       - supports-color
 
-  '@cc65-intel/core@0.4.0':
+  '@cc65-intel/core@0.5.0':
     dependencies:
       '@lezer/common': 1.5.2
       '@lezer/cpp': 1.1.6
 
-  '@cc65-intel/lsp@0.4.0':
+  '@cc65-intel/lsp@0.5.0':
     dependencies:
-      '@cc65-intel/core': 0.4.0
+      '@cc65-intel/core': 0.5.0
       vscode-languageserver: 9.0.1
       vscode-languageserver-textdocument: 1.0.12
 
