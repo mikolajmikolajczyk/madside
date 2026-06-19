@@ -125,52 +125,81 @@ function applyWithEdits(label: string, edits: LspTextEdit[]) {
   }
 }
 
-/** CodeMirror completion source backed by the cc65-intel LSP. */
+/** CodeMirror completion source backed by the cc65-intel LSP. Any transport
+ *  failure (worker crash, init error) degrades to "no completions" rather than
+ *  surfacing an error in the editor. */
 export async function cc65LspComplete(ctx: CompletionContext): Promise<CompletionResult | null> {
-  const { conn, ready: handshake } = connect()
-  await handshake
-  syncDocument(conn, ctx.state.doc.toString())
+  try {
+    const { conn, ready: handshake } = connect()
+    await handshake
+    syncDocument(conn, ctx.state.doc.toString())
 
-  const result = await conn.sendRequest<
-    LspCompletionItem[] | { items: LspCompletionItem[] } | null
-  >('textDocument/completion', {
-    textDocument: { uri: DOC_URI },
-    position: positionOf(ctx.state.doc, ctx.pos),
-  })
-  const items = Array.isArray(result) ? result : (result?.items ?? [])
-  if (items.length === 0) return null
+    const result = await conn.sendRequest<
+      LspCompletionItem[] | { items: LspCompletionItem[] } | null
+    >('textDocument/completion', {
+      textDocument: { uri: DOC_URI },
+      position: positionOf(ctx.state.doc, ctx.pos),
+    })
+    const items = Array.isArray(result) ? result : (result?.items ?? [])
+    if (items.length === 0) return null
 
-  const word = ctx.matchBefore(/\w*$/)
-  const options: Completion[] = items.map((it) => ({
-    label: it.label,
-    detail: it.detail,
-    type: it.kind !== undefined ? CM_TYPE[it.kind] : undefined,
-    ...(it.additionalTextEdits?.length
-      ? { apply: applyWithEdits(it.label, it.additionalTextEdits) }
-      : {}),
-  }))
-  return { from: word ? word.from : ctx.pos, options, validFor: /^\w*$/ }
+    const word = ctx.matchBefore(/\w*$/)
+    const options: Completion[] = items.map((it) => ({
+      label: it.label,
+      detail: it.detail,
+      type: it.kind !== undefined ? CM_TYPE[it.kind] : undefined,
+      ...(it.additionalTextEdits?.length
+        ? { apply: applyWithEdits(it.label, it.additionalTextEdits) }
+        : {}),
+    }))
+    return { from: word ? word.from : ctx.pos, options, validFor: /^\w*$/ }
+  } catch {
+    return null
+  }
 }
 
-/** CodeMirror hover source backed by the cc65-intel LSP. */
-export const cc65LspHover = hoverTooltip(async (view, pos): Promise<Tooltip | null> => {
-  const { conn, ready: handshake } = connect()
-  await handshake
-  syncDocument(conn, view.state.doc.toString())
+/** Render the engine's hover markdown (a ```c …``` code block + a meta line)
+ *  into a tooltip DOM: the signature monospaced, the rest dimmed. Keeps it
+ *  dependency-free — no markdown renderer in a CodeMirror tooltip. */
+function renderHover(markdown: string): HTMLElement {
+  const dom = document.createElement('div')
+  dom.className = 'cm-cc65-hover'
+  const code = /```c?\n([\s\S]*?)\n```/.exec(markdown)
+  if (code) {
+    const pre = document.createElement('pre')
+    pre.style.margin = '0'
+    pre.textContent = code[1] ?? ''
+    dom.appendChild(pre)
+    const meta = markdown.replace(code[0], '').replace(/[*`<>]/g, '').trim()
+    if (meta) {
+      const el = document.createElement('div')
+      el.style.opacity = '0.7'
+      el.style.marginTop = '2px'
+      el.textContent = meta
+      dom.appendChild(el)
+    }
+  } else {
+    dom.textContent = markdown.replace(/[*`]/g, '')
+  }
+  return dom
+}
 
-  const res = await conn.sendRequest<LspHover | null>('textDocument/hover', {
-    textDocument: { uri: DOC_URI },
-    position: positionOf(view.state.doc, pos),
-  })
-  const value = typeof res?.contents === 'string' ? res.contents : res?.contents?.value
-  if (!value) return null
-  return {
-    pos,
-    create: () => {
-      const dom = document.createElement('div')
-      dom.className = 'cm-cc65-hover'
-      dom.textContent = value
-      return { dom }
-    },
+/** CodeMirror hover source backed by the cc65-intel LSP. Transport failures
+ *  degrade to "no tooltip". */
+export const cc65LspHover = hoverTooltip(async (view, pos): Promise<Tooltip | null> => {
+  try {
+    const { conn, ready: handshake } = connect()
+    await handshake
+    syncDocument(conn, view.state.doc.toString())
+
+    const res = await conn.sendRequest<LspHover | null>('textDocument/hover', {
+      textDocument: { uri: DOC_URI },
+      position: positionOf(view.state.doc, pos),
+    })
+    const value = typeof res?.contents === 'string' ? res.contents : res?.contents?.value
+    if (!value) return null
+    return { pos, create: () => ({ dom: renderHover(value) }) }
+  } catch {
+    return null
   }
 })
