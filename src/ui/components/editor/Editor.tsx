@@ -2,173 +2,14 @@ import { useCallback, useEffect, useRef } from "react";
 import { Compartment, EditorState, StateEffect, StateField, RangeSet, type Extension, type Range } from "@codemirror/state";
 import { EditorView, keymap, lineNumbers, highlightActiveLine, Decoration, gutter, GutterMarker, type DecorationSet } from "@codemirror/view";
 import { defaultKeymap, history, historyKeymap, indentWithTab } from "@codemirror/commands";
-import { bracketMatching, syntaxHighlighting, HighlightStyle, indentUnit, indentRange } from "@codemirror/language";
-import { tags as t } from "@lezer/highlight";
+import { bracketMatching, syntaxHighlighting, indentUnit, indentRange } from "@codemirror/language";
 import { autocompletion, completionKeymap, closeBrackets, closeBracketsKeymap } from "@codemirror/autocomplete";
 import { lintGutter, setDiagnostics, type Diagnostic } from "@codemirror/lint";
-import { buildAssemblyLanguage, projectLabelsField, setProjectLabels, formatCView, isCFile, warmFormatter, resolveCStyle } from "@ui/codemirror";
+import { buildAssemblyLanguage, projectLabelsField, setProjectLabels, formatCView, isCFile, warmFormatter, resolveCStyle, editorTheme, editorHighlight } from "@ui/codemirror";
 import type { CpuLanguage, LabelInfo } from "@core";
 import type { BuildDiagnostic, ToolchainLanguage } from "@ports";
 import type { DefinitionTarget } from "../../codemirror/lsp/client";
 import "./Editor.css";
-
-const theme = EditorView.theme(
-  {
-    "&": {
-      height: "100%",
-      backgroundColor: "var(--bg-primary)",
-      color: "var(--text-primary)",
-    },
-    ".cm-content": { fontFamily: "var(--font-mono)", caretColor: "var(--accent-mint)" },
-    ".cm-cursor": { borderLeftColor: "var(--accent-mint)" },
-    ".cm-activeLine": { backgroundColor: "var(--bg-secondary)" },
-    ".cm-activeLineGutter": { backgroundColor: "var(--bg-secondary)" },
-    ".cm-gutters": {
-      backgroundColor: "var(--bg-primary)",
-      color: "var(--text-quaternary)",
-      border: "none",
-      borderRight: "1px solid var(--border-default)",
-    },
-    ".cm-selectionBackground, .cm-content ::selection, ::selection": { backgroundColor: "rgba(74, 222, 128, 0.25) !important" },
-    "&.cm-focused .cm-selectionBackground": { backgroundColor: "rgba(74, 222, 128, 0.35) !important" },
-    ".cm-pcLine": { backgroundColor: "rgba(0, 200, 150, 0.18)" },
-    ".cm-bpGutter": {
-      width: "16px",
-      cursor: "pointer",
-      backgroundColor: "var(--bg-primary)",
-      borderRight: "1px solid var(--border-default)",
-    },
-    ".cm-bpGutter .cm-gutterElement": {
-      textAlign: "center",
-      color: "var(--accent-coral)",
-      lineHeight: "1",
-      paddingTop: "2px",
-    },
-    ".cm-bpGutter .cm-gutterElement:hover": {
-      backgroundColor: "var(--bg-tertiary)",
-    },
-    ".cm-bpGutter .cm-gutterElement:hover:empty::before": {
-      content: "'○'", opacity: 0.4, color: "var(--text-tertiary)",
-    },
-    ".cm-addrGutter": {
-      backgroundColor: "var(--bg-primary)",
-      borderRight: "1px solid var(--border-default)",
-      color: "var(--text-quaternary)",
-      fontFamily: "var(--font-mono)",
-      fontSize: "11px",
-    },
-    ".cm-addrGutter .cm-gutterElement": {
-      padding: "0 6px",
-      textAlign: "right",
-    },
-    ".cm-addrGutter .cm-equateValue": {
-      color: "var(--accent-amber)",
-    },
-    ".cm-tooltip.cm-tooltip-autocomplete": {
-      background: "var(--bg-secondary)",
-      border: "1px solid var(--border-default)",
-      boxShadow: "0 6px 18px rgba(0,0,0,0.6)",
-      fontFamily: "var(--font-mono)",
-      fontSize: "12px",
-    },
-    ".cm-tooltip.cm-tooltip-autocomplete > ul": {
-      fontFamily: "var(--font-mono)",
-      maxHeight: "260px",
-    },
-    ".cm-tooltip-autocomplete ul li": {
-      color: "var(--text-secondary)",
-      padding: "3px 8px",
-    },
-    ".cm-tooltip-autocomplete ul li[aria-selected]": {
-      background: "var(--bg-tertiary)",
-      color: "var(--accent-mint)",
-    },
-    ".cm-completionLabel": { color: "inherit" },
-    ".cm-completionDetail": {
-      color: "var(--text-quaternary)",
-      fontStyle: "normal",
-      marginLeft: "12px",
-    },
-    ".cm-completionIcon": {
-      color: "var(--text-quaternary)",
-      opacity: 0.8,
-    },
-    ".cm-mads-hover": {
-      fontFamily: "var(--font-mono)",
-      fontSize: "12px",
-      color: "var(--text-primary)",
-      padding: "4px 8px",
-      maxWidth: "560px",
-    },
-    ".cm-mads-hover strong": { color: "var(--accent-mint)" },
-    ".cm-tooltip.cm-tooltip-hover": {
-      background: "var(--bg-secondary)",
-      border: "1px solid var(--border-default)",
-      boxShadow: "0 4px 12px rgba(0,0,0,0.6)",
-    },
-    // Build diagnostics (#29). Lint tooltip + gutter markers, themed to match.
-    ".cm-tooltip.cm-tooltip-lint": {
-      background: "var(--bg-secondary)",
-      border: "1px solid var(--border-default)",
-      boxShadow: "0 4px 12px rgba(0,0,0,0.6)",
-    },
-    ".cm-diagnostic": {
-      fontFamily: "var(--font-mono)",
-      fontSize: "12px",
-      padding: "4px 8px",
-      borderLeftWidth: "4px",
-    },
-    ".cm-diagnostic-error": { borderLeftColor: "var(--accent-coral)" },
-    ".cm-diagnostic-warning": { borderLeftColor: "var(--accent-amber)" },
-    ".cm-lintRange-error": { backgroundPosition: "left bottom" },
-    ".cm-lint-marker-error": { color: "var(--accent-coral)" },
-    ".cm-lint-marker-warning": { color: "var(--accent-amber)" },
-    ".cm-mads-preview": {
-      display: "flex",
-      flexDirection: "column",
-      gap: "4px",
-      maxWidth: "560px",
-    },
-    ".cm-mads-preview-head": {
-      fontSize: "10px",
-      letterSpacing: "0.06em",
-      textTransform: "uppercase",
-      color: "var(--text-quaternary)",
-    },
-    ".cm-mads-preview-doc": {
-      color: "var(--text-primary)",
-      fontSize: "11px",
-      lineHeight: "1.45",
-      whiteSpace: "pre-wrap",
-      borderLeft: "2px solid var(--accent-mint)",
-      paddingLeft: "8px",
-    },
-    ".cm-mads-preview-body": {
-      margin: 0,
-      padding: "6px 8px",
-      background: "var(--bg-primary)",
-      border: "1px solid var(--border-default)",
-      color: "var(--text-primary)",
-      fontFamily: "var(--font-mono)",
-      fontSize: "11px",
-      lineHeight: "1.4",
-      whiteSpace: "pre",
-      overflow: "auto",
-      maxHeight: "200px",
-    },
-  },
-  { dark: true }
-);
-
-const highlight = HighlightStyle.define([
-  { tag: t.comment, color: "var(--text-tertiary)", fontStyle: "italic" },
-  { tag: t.keyword, color: "var(--accent-mint)" },
-  { tag: t.atom, color: "var(--accent-mint)", fontStyle: "italic" },
-  { tag: t.number, color: "var(--accent-amber)" },
-  { tag: t.string, color: "var(--accent-coral)" },
-  { tag: t.operatorKeyword, color: "var(--text-secondary)" },
-  { tag: t.variableName, color: "var(--text-primary)" },
-]);
 
 const setBreakpoints = StateEffect.define<Set<number>>();
 
@@ -462,7 +303,7 @@ export function Editor({ value, onChange, filename, pcLine, breakpointLines, lin
             : [],
         ),
         indentCompartment.of(indentExtsFor(tabWidth ?? 4)),
-        syntaxHighlighting(highlight),
+        syntaxHighlighting(editorHighlight),
         bpField,
         lineAddrsField,
         equateValuesField,
@@ -518,7 +359,7 @@ export function Editor({ value, onChange, filename, pcLine, breakpointLines, lin
           ...defaultKeymap,
           ...historyKeymap,
         ]),
-        theme,
+        editorTheme,
         EditorView.updateListener.of((u) => {
           if (u.docChanged) onChangeRef.current(u.state.doc.toString());
           if (u.selectionSet || u.docChanged) {

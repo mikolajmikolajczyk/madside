@@ -36,14 +36,9 @@
 }
 .sysview__close:hover { color: var(--accent-coral); }
 
-.sysview__body {
-  margin: 0;
-  padding: 12px 14px;
-  overflow: auto;
-  color: var(--text-secondary);
-  font-family: var(--font-mono);
-  font-size: 12px;
-  line-height: 1.5;
-  white-space: pre;
-  tab-size: 8;
+/* CodeMirror host (#78) — fills the grid's 1fr row; the editor owns scrolling. */
+.sysview__cm {
+  min-height: 0;
+  min-width: 0;
+  overflow: hidden;
 }

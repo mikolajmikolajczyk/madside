@@ -250,6 +250,9 @@ export default function App() {
     }
     const file = project.files.find((f) => f.path === target.path);
     if (!file) return;
+    // Navigating to a project symbol — leave any open sysroot header viewer so
+    // the editor shows (chained nav from a header to a project file, #78).
+    setViewSystemFile(null);
     if (file.path !== project.activePath) project.setActivePath(file.path);
     setGotoTarget((prev) => ({ line: target.line, tick: (prev?.tick ?? 0) + 1 }));
   }, [project, openSystemFile]);
@@ -782,6 +785,7 @@ export default function App() {
               path={viewSystemFile.path}
               text={viewSystemFile.text}
               onClose={() => setViewSystemFile(null)}
+              onGoToDefinition={onGoToDefinition}
             />
           ) : activeEditorModule ? (
             <Suspense fallback={<div className="app__loading">loading editor…</div>}>
