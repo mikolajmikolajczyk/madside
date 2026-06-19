@@ -1,3 +1,8 @@
+## [0.15.0] - 2026-06-19
+
+### 🚀 Features
+
+- *(c64)* Commodore 64 machine, chips emulator, cc65/MADS toolchains + templates (#53)
 ## [0.14.0] - 2026-06-18
 
 ### 🚀 Features
