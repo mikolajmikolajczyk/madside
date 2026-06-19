@@ -254,6 +254,9 @@ async function loadLanguagePack(
     // Feed the cc65 sysroot headers so the LSP offers stdlib completion +
     // register structs + auto-#include. Set before the first request.
     lsp.setSysrootHeaders(await cc65SysrootHeaders(machine));
+    // Mark this file as the focused doc so completion/hover address its URI in
+    // the multi-document worker (#70).
+    lsp.setActiveDoc(path);
     return [cpp(), autocompletion({ override: [lsp.cc65LspComplete] }), lsp.cc65LspHover];
   }
   // Assembly: built from the active machine CPU + project toolchain language.

@@ -16,9 +16,11 @@ import { hoverTooltip, type EditorView, type Tooltip } from '@codemirror/view'
 import type { Text } from '@codemirror/state'
 import type { SourceFile } from '@cc65-intel/core'
 
-// One virtual document for the active C editor. Single-editor scope for now;
-// multi-document routing is a follow-up.
-const DOC_URI = 'file:///active.c'
+// Project files open with the server under real `file://` URIs (#70) so the
+// engine sees the whole translation unit set, not just the focused buffer —
+// the prerequisite for cross-file navigation. `file:///<project-path>`; the
+// server treats the URI opaquely, we only need it stable + unique per path.
+const uriFor = (path: string): string => 'file:///' + path.replace(/^\/+/, '')
 
 // LSP CompletionItemKind → CodeMirror completion `type`. (Field 5, Function 3,
 // Constant 21, Variable 6, Struct 22.)
@@ -59,8 +61,23 @@ export function setSysrootHeaders(headers: SourceFile[]): void {
 
 let connection: MessageConnection | null = null
 let ready: Promise<void> | null = null
-let opened = false
-let version = 0
+
+// Open-document registry: project path → { uri, version, last-synced text }.
+// One entry per open `.c`/`.h`, kept in sync via didOpen/didChange/didClose.
+// `text` lets us skip a no-op didChange when the bytes are unchanged.
+interface DocEntry {
+  uri: string
+  version: number
+  text: string
+}
+const docs = new Map<string, DocEntry>()
+
+// The focused editor's path — completion/hover target this doc's URI. Set by
+// the editor (loadLanguagePack) when a C file becomes active.
+let activePath: string | null = null
+export function setActiveDoc(path: string): void {
+  activePath = path
+}
 
 function connect(): { conn: MessageConnection; ready: Promise<void> } {
   if (connection && ready) return { conn: connection, ready }
@@ -92,18 +109,44 @@ function offsetOf(doc: Text, pos: Position): number {
   return doc.line(pos.line + 1).from + pos.character
 }
 
-function syncDocument(conn: MessageConnection, text: string): void {
-  if (opened) {
-    conn.sendNotification('textDocument/didChange', {
-      textDocument: { uri: DOC_URI, version: ++version },
-      contentChanges: [{ text }],
-    })
-  } else {
-    conn.sendNotification('textDocument/didOpen', {
-      textDocument: { uri: DOC_URI, languageId: 'c', version: ++version, text },
-    })
-    opened = true
+/** Open `path` if unseen, else didChange when its text moved. Returns the URI
+ *  so callers (completion/hover) can address the request at the live doc. */
+function openOrChange(conn: MessageConnection, path: string, text: string): string {
+  const existing = docs.get(path)
+  if (existing) {
+    if (existing.text !== text) {
+      existing.version++
+      existing.text = text
+      conn.sendNotification('textDocument/didChange', {
+        textDocument: { uri: existing.uri, version: existing.version },
+        contentChanges: [{ text }],
+      })
+    }
+    return existing.uri
   }
+  const uri = uriFor(path)
+  docs.set(path, { uri, version: 1, text })
+  conn.sendNotification('textDocument/didOpen', {
+    textDocument: { uri, languageId: 'c', version: 1, text },
+  })
+  return uri
+}
+
+/** Sync the project's full `.c`/`.h` set with the server: open new files,
+ *  didChange edited ones, didClose removed ones. Driven from the app (which
+ *  holds every file) so cross-file resolution sees the whole project, not just
+ *  the focused buffer. Idempotent — unchanged files send nothing. */
+export async function syncProjectDocs(files: { path: string; text: string }[]): Promise<void> {
+  const { conn, ready: handshake } = connect()
+  await handshake
+  const incoming = new Set(files.map((f) => f.path))
+  for (const [path, entry] of docs) {
+    if (!incoming.has(path)) {
+      conn.sendNotification('textDocument/didClose', { textDocument: { uri: entry.uri } })
+      docs.delete(path)
+    }
+  }
+  for (const f of files) openOrChange(conn, f.path, f.text)
 }
 
 /** Apply the completion's label plus any LSP `additionalTextEdits` (auto-
@@ -130,14 +173,17 @@ function applyWithEdits(label: string, edits: LspTextEdit[]) {
  *  surfacing an error in the editor. */
 export async function cc65LspComplete(ctx: CompletionContext): Promise<CompletionResult | null> {
   try {
+    if (!activePath) return null
     const { conn, ready: handshake } = connect()
     await handshake
-    syncDocument(conn, ctx.state.doc.toString())
+    // Push the focused buffer's freshest text (may be ahead of the project
+    // sync, which lands a render later) and address the request at its URI.
+    const uri = openOrChange(conn, activePath, ctx.state.doc.toString())
 
     const result = await conn.sendRequest<
       LspCompletionItem[] | { items: LspCompletionItem[] } | null
     >('textDocument/completion', {
-      textDocument: { uri: DOC_URI },
+      textDocument: { uri },
       position: positionOf(ctx.state.doc, ctx.pos),
     })
     const items = Array.isArray(result) ? result : (result?.items ?? [])
@@ -188,12 +234,13 @@ function renderHover(markdown: string): HTMLElement {
  *  degrade to "no tooltip". */
 export const cc65LspHover = hoverTooltip(async (view, pos): Promise<Tooltip | null> => {
   try {
+    if (!activePath) return null
     const { conn, ready: handshake } = connect()
     await handshake
-    syncDocument(conn, view.state.doc.toString())
+    const uri = openOrChange(conn, activePath, view.state.doc.toString())
 
     const res = await conn.sendRequest<LspHover | null>('textDocument/hover', {
-      textDocument: { uri: DOC_URI },
+      textDocument: { uri },
       position: positionOf(view.state.doc, pos),
     })
     const value = typeof res?.contents === 'string' ? res.contents : res?.contents?.value

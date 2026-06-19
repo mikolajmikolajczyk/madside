@@ -34,6 +34,7 @@ import { useCursorMemory } from "./hooks/useCursorMemory";
 import { useEquateValues } from "./hooks/useEquateValues";
 import { usePluginEditor } from "./hooks/usePluginEditor";
 import { useProjectLabels } from "./hooks/useProjectLabels";
+import { useProjectCDocuments } from "./hooks/useProjectCDocuments";
 import { useProjectsWithCourse } from "./hooks/useProjectsWithCourse";
 import { useAutoAssemble, outcomeFromStored } from "./hooks/useAutoAssemble";
 import { useRunStatus } from "./hooks/useRunStatus";
@@ -208,6 +209,13 @@ export default function App() {
     sourceMap,
     cpuLanguage,
     toolchainLanguage,
+  );
+
+  // Keep the cc65-intel LSP worker's open `.c`/`.h` set in sync with the whole
+  // project so cross-file C resolution sees every translation unit (#70).
+  useProjectCDocuments(
+    project.loaded ? project.files : null,
+    project.loaded ? project.manifest.machine : undefined,
   );
 
   // Welcome screen needs each project's course stamp to split "Your projects"
