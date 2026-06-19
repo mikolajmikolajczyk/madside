@@ -54,7 +54,6 @@ export type {
 export type {
   ToolchainBuildInput,
   ToolchainBuildOutput,
-  ToolchainCSymbol,
   ToolchainFile,
   ToolchainLanguage,
   ToolchainPlugin,

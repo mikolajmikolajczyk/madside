@@ -6,8 +6,7 @@ import { bracketMatching, syntaxHighlighting, HighlightStyle, indentUnit, indent
 import { tags as t } from "@lezer/highlight";
 import { autocompletion, completionKeymap, closeBrackets, closeBracketsKeymap } from "@codemirror/autocomplete";
 import { lintGutter, setDiagnostics, type Diagnostic } from "@codemirror/lint";
-import { buildAssemblyLanguage, projectLabelsField, setProjectLabels, projectCSymbolsField, setProjectCSymbols, formatCView, isCFile, warmFormatter, resolveCStyle } from "@ui/codemirror";
-import type { CSymbol } from "@app/cSymbols";
+import { buildAssemblyLanguage, projectLabelsField, setProjectLabels, formatCView, isCFile, warmFormatter, resolveCStyle } from "@ui/codemirror";
 import type { CpuLanguage, LabelInfo } from "@core";
 import type { BuildDiagnostic, ToolchainLanguage } from "@ports";
 import "./Editor.css";
@@ -242,34 +241,20 @@ async function loadLanguagePack(
     const { json } = await import("@codemirror/lang-json");
     return [json()];
   }
-  // C / C++ sources (cc65 projects, #47). Add the toolchain's C library
-  // completions + hover (cc65 conio/stdlib) when it provides them (#48).
+  // C / C++ sources (cc65 projects). Completion + hover come from the cc65-intel
+  // LSP running in a Web Worker (#63): member completion, cc65 stdlib + register
+  // structs (from the sysroot headers we feed it), and auto-#include.
   if (/\.(c|h|cc|cpp|hpp)$/.test(lower)) {
-    const { cpp } = await import("@codemirror/lang-cpp");
-    const support = cpp();
-    // Opt-in (#63): serve completion from the cc65-intel LSP (running in a Web
-    // Worker) instead of the in-process cLibrary flat completion. Off by
-    // default — production unaffected.
-    const cc65Lsp =
-      typeof import.meta !== "undefined" && import.meta.env
-        ? import.meta.env.VITE_MADSIDE_CC65_LSP === "1"
-        : false;
-    if (cc65Lsp) {
-      const [{ autocompletion }, lsp, { cc65SysrootHeaders }] = await Promise.all([
-        import("@codemirror/autocomplete"),
-        import("../../codemirror/lsp/client"),
-        import("@app/cSysroot"),
-      ]);
-      // Feed the cc65 sysroot headers so the LSP offers stdlib completion +
-      // register structs + auto-#include. Set before the first request.
-      lsp.setSysrootHeaders(await cc65SysrootHeaders(machine));
-      return [support, autocompletion({ override: [lsp.cc65LspComplete] }), lsp.cc65LspHover];
-    }
-    if (toolchain?.cSymbols?.length) {
-      const { cLibraryExtensions } = await import("@ui/codemirror");
-      return [support, ...cLibraryExtensions(support, toolchain.cSymbols)];
-    }
-    return [support];
+    const [{ cpp }, { autocompletion }, lsp, { cc65SysrootHeaders }] = await Promise.all([
+      import("@codemirror/lang-cpp"),
+      import("@codemirror/autocomplete"),
+      import("../../codemirror/lsp/client"),
+      import("@app/cSysroot"),
+    ]);
+    // Feed the cc65 sysroot headers so the LSP offers stdlib completion +
+    // register structs + auto-#include. Set before the first request.
+    lsp.setSysrootHeaders(await cc65SysrootHeaders(machine));
+    return [cpp(), autocompletion({ override: [lsp.cc65LspComplete] }), lsp.cc65LspHover];
   }
   // Assembly: built from the active machine CPU + project toolchain language.
   return cpu && toolchain ? [buildAssemblyLanguage(cpu, toolchain)] : [];
@@ -348,9 +333,6 @@ interface Props {
    *  hover message (#29). Cleared when the next build passes (empty array). */
   diagnostics?: BuildDiagnostic[];
   projectLabels?: Map<string, LabelInfo>;
-  /** Project-wide C symbol index (#58) — top-level defs from every `.c`/`.h`
-   *  file, so a function in `helper.c` completes while editing `main.c`. */
-  projectCSymbols?: Map<string, CSymbol>;
   /** Spaces per indent level + literal-tab render width (project.json
    *  `editor.tabWidth`, #59). Defaults to 4. */
   tabWidth?: number;
@@ -372,7 +354,7 @@ interface Props {
   onCursorLine?: (line: number) => void;
 }
 
-export function Editor({ value, onChange, filename, pcLine, breakpointLines, lineAddrs, equateValues, diagnostics, projectLabels, projectCSymbols, tabWidth, cFormatStyle, cpuLanguage, toolchainLanguage, machine, gotoTarget, onToggleBreakpoint, onViewReady, onJumpToLabel, onCursorLine }: Props) {
+export function Editor({ value, onChange, filename, pcLine, breakpointLines, lineAddrs, equateValues, diagnostics, projectLabels, tabWidth, cFormatStyle, cpuLanguage, toolchainLanguage, machine, gotoTarget, onToggleBreakpoint, onViewReady, onJumpToLabel, onCursorLine }: Props) {
   const hostRef = useRef<HTMLDivElement>(null);
   const viewRef = useRef<EditorView | null>(null);
   // Latest-callback refs so the CodeMirror handlers (built once on mount) always
@@ -477,7 +459,6 @@ export function Editor({ value, onChange, filename, pcLine, breakpointLines, lin
         equateValuesField,
         pcLineField,
         projectLabelsField,
-        projectCSymbolsField,
         lintGutter(),
         autocompletion(),
         // Auto-close brackets/quotes while typing — type `{`/`(`/`"` and the
@@ -605,12 +586,6 @@ export function Editor({ value, onChange, filename, pcLine, breakpointLines, lin
     if (!view) return;
     view.dispatch({ effects: setProjectLabels.of(projectLabels ?? new Map()) });
   }, [projectLabels]);
-
-  useEffect(() => {
-    const view = viewRef.current;
-    if (!view) return;
-    view.dispatch({ effects: setProjectCSymbols.of(projectCSymbols ?? new Map()) });
-  }, [projectCSymbols]);
 
   useEffect(() => {
     const view = viewRef.current;

@@ -2,7 +2,6 @@ import type { BuildDiagnostic, ToolchainBuildOutput, ToolchainPlugin } from '@po
 import type { VfsProvider } from '@core/vfs'
 import { buildCc65, sysrootFor, type Cc65File, type Cc65Options } from './wasm/cc65-wasm'
 import { parseDbg } from './cc65-dbg'
-import { CC65_C_SYMBOLS } from './cc65-symbols'
 
 /** Validate the cc65 slice of `manifest.build.options` (#51). The manifest
  *  passes the bag through untyped — the toolchain owns its schema. */
@@ -112,7 +111,6 @@ export const cc65Toolchain: ToolchainPlugin = {
       { label: 'segment', detail: 'segment directive', template: '.segment "${1:CODE}"\n' },
       { label: 'macro', detail: 'ca65 macro', template: '.macro ${1:name}${2:, arg}\n        ${3:; body}\n.endmacro\n' },
     ],
-    cSymbols: CC65_C_SYMBOLS,
   },
 
   // The bundled C runtime + headers (read-only) for the active machine's target.

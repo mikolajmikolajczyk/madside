@@ -34,7 +34,6 @@ import { useCursorMemory } from "./hooks/useCursorMemory";
 import { useEquateValues } from "./hooks/useEquateValues";
 import { usePluginEditor } from "./hooks/usePluginEditor";
 import { useProjectLabels } from "./hooks/useProjectLabels";
-import { useProjectCSymbols } from "./hooks/useProjectCSymbols";
 import { useProjectsWithCourse } from "./hooks/useProjectsWithCourse";
 import { useAutoAssemble, outcomeFromStored } from "./hooks/useAutoAssemble";
 import { useRunStatus } from "./hooks/useRunStatus";
@@ -210,9 +209,6 @@ export default function App() {
     cpuLanguage,
     toolchainLanguage,
   );
-
-  // Project-wide C symbol index (#58) — drives cross-file C completion.
-  const projectCSymbols = useProjectCSymbols(project.loaded ? project.files : null);
 
   // Welcome screen needs each project's course stamp to split "Your projects"
   // from "Started courses" — annotate the rows with their manifest.course.
@@ -904,7 +900,6 @@ export default function App() {
                 equateValues={equateValues}
                 diagnostics={editorDiagnostics}
                 projectLabels={projectLabels}
-                projectCSymbols={projectCSymbols}
                 tabWidth={project.manifest.editor?.tabWidth ?? 4}
                 cFormatStyle={cFormatStyle}
                 cpuLanguage={cpuLanguage}
