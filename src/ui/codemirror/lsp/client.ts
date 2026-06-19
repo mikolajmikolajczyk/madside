@@ -1,9 +1,9 @@
 // Thin LSP client: drives the cc65-intel server running in a Web Worker and
-// exposes it as a CodeMirror completion source. Worker-native transport
+// exposes it as CodeMirror completion + hover sources. Worker-native transport
 // (vscode-jsonrpc over the worker message port) — no WebSocket, no heavy LSP
 // client library. The engine/protocol live in @cc65-intel/*; this is just the
-// host adapter (CodeMirror ↔ LSP), so the editor-specific concern (the trigger,
-// the completion shape) stays here, out of the engine.
+// host adapter (CodeMirror ↔ LSP), so the editor-specific concerns (trigger,
+// completion shape, applying auto-`#include` edits) stay here, out of the engine.
 
 import {
   BrowserMessageReader,
@@ -12,7 +12,9 @@ import {
   type MessageConnection,
 } from 'vscode-jsonrpc/browser'
 import type { Completion, CompletionContext, CompletionResult } from '@codemirror/autocomplete'
+import { hoverTooltip, type EditorView, type Tooltip } from '@codemirror/view'
 import type { Text } from '@codemirror/state'
+import type { SourceFile } from '@cc65-intel/core'
 
 // One virtual document for the active C editor. Single-editor scope for now;
 // multi-document routing is a follow-up.
@@ -28,15 +30,31 @@ const CM_TYPE: Record<number, string> = {
   22: 'type',
 }
 
+interface Position {
+  line: number
+  character: number
+}
+interface LspTextEdit {
+  range: { start: Position; end: Position }
+  newText: string
+}
 interface LspCompletionItem {
   label: string
   kind?: number
   detail?: string
+  additionalTextEdits?: LspTextEdit[]
+}
+interface LspHover {
+  contents?: string | { value?: string }
 }
 
-interface Position {
-  line: number
-  character: number
+// cc65 sysroot headers the server indexes for stdlib completion + register
+// structs + auto-`#include`. Set by the editor (from the active machine's
+// target) before the first request, so the lazy `connect()` sends them at
+// `initialize`.
+let sysrootHeaders: SourceFile[] = []
+export function setSysrootHeaders(headers: SourceFile[]): void {
+  sysrootHeaders = headers
 }
 
 let connection: MessageConnection | null = null
@@ -58,7 +76,7 @@ function connect(): { conn: MessageConnection; ready: Promise<void> } {
       processId: null,
       rootUri: null,
       capabilities: {},
-      initializationOptions: {},
+      initializationOptions: { sysrootHeaders },
     })
     conn.sendNotification('initialized', {})
   })()
@@ -68,6 +86,10 @@ function connect(): { conn: MessageConnection; ready: Promise<void> } {
 function positionOf(doc: Text, offset: number): Position {
   const line = doc.lineAt(offset)
   return { line: line.number - 1, character: offset - line.from }
+}
+
+function offsetOf(doc: Text, pos: Position): number {
+  return doc.line(pos.line + 1).from + pos.character
 }
 
 function syncDocument(conn: MessageConnection, text: string): void {
@@ -84,11 +106,29 @@ function syncDocument(conn: MessageConnection, text: string): void {
   }
 }
 
+/** Apply the completion's label plus any LSP `additionalTextEdits` (auto-
+ *  `#include`) in one dispatch. All edits are in original-document coordinates;
+ *  CodeMirror composes them. */
+function applyWithEdits(label: string, edits: LspTextEdit[]) {
+  return (view: EditorView, _completion: Completion, from: number, to: number): void => {
+    const doc = view.state.doc
+    view.dispatch({
+      changes: [
+        { from, to, insert: label },
+        ...edits.map((e) => ({
+          from: offsetOf(doc, e.range.start),
+          to: offsetOf(doc, e.range.end),
+          insert: e.newText,
+        })),
+      ],
+    })
+  }
+}
+
 /** CodeMirror completion source backed by the cc65-intel LSP. */
 export async function cc65LspComplete(ctx: CompletionContext): Promise<CompletionResult | null> {
   const { conn, ready: handshake } = connect()
   await handshake
-
   syncDocument(conn, ctx.state.doc.toString())
 
   const result = await conn.sendRequest<
@@ -105,6 +145,32 @@ export async function cc65LspComplete(ctx: CompletionContext): Promise<Completio
     label: it.label,
     detail: it.detail,
     type: it.kind !== undefined ? CM_TYPE[it.kind] : undefined,
+    ...(it.additionalTextEdits?.length
+      ? { apply: applyWithEdits(it.label, it.additionalTextEdits) }
+      : {}),
   }))
   return { from: word ? word.from : ctx.pos, options, validFor: /^\w*$/ }
 }
+
+/** CodeMirror hover source backed by the cc65-intel LSP. */
+export const cc65LspHover = hoverTooltip(async (view, pos): Promise<Tooltip | null> => {
+  const { conn, ready: handshake } = connect()
+  await handshake
+  syncDocument(conn, view.state.doc.toString())
+
+  const res = await conn.sendRequest<LspHover | null>('textDocument/hover', {
+    textDocument: { uri: DOC_URI },
+    position: positionOf(view.state.doc, pos),
+  })
+  const value = typeof res?.contents === 'string' ? res.contents : res?.contents?.value
+  if (!value) return null
+  return {
+    pos,
+    create: () => {
+      const dom = document.createElement('div')
+      dom.className = 'cm-cc65-hover'
+      dom.textContent = value
+      return { dom }
+    },
+  }
+})

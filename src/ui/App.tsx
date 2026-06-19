@@ -909,6 +909,7 @@ export default function App() {
                 cFormatStyle={cFormatStyle}
                 cpuLanguage={cpuLanguage}
                 toolchainLanguage={toolchainLanguage}
+                machine={project.manifest.machine}
                 gotoTarget={gotoTarget}
                 onToggleBreakpoint={onToggleBreakpoint}
                 onViewReady={(v) => { editorViewRef.current = v; }}

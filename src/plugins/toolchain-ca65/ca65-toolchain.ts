@@ -39,7 +39,7 @@ const CC65_TARGET: Record<string, string> = {
   'atari-xl': 'atari',
   c64: 'c64',
 }
-const targetFor = (machine?: string): string | undefined => CC65_TARGET[machine ?? '']
+export const targetFor = (machine?: string): string | undefined => CC65_TARGET[machine ?? '']
 
 // cc65 toolchain — the C compiler + ca65 assembler + ld65 linker for the 6502,
 // shipped as WASI wasm (see wasm/cc65-wasm.ts). Second ToolchainPlugin after

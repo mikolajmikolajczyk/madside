@@ -4,6 +4,8 @@
 # don't fail with ERR_PNPM_IGNORED_BUILDS.
 allowBuilds:
   unrs-resolver: true
+# Our own first-party packages — trusted, exempt from the release-age gate so a
+# fresh cc65-intel publish can be consumed immediately.
 minimumReleaseAgeExclude:
-  - '@cc65-intel/core@0.1.0'
-  - '@cc65-intel/lsp@0.1.0'
+  - '@cc65-intel/core'
+  - '@cc65-intel/lsp'

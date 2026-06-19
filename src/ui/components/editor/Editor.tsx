@@ -227,6 +227,7 @@ async function loadLanguagePack(
   path: string,
   cpu: CpuLanguage | undefined,
   toolchain: ToolchainLanguage | undefined,
+  machine?: string,
 ): Promise<Extension[]> {
   const lower = path.toLowerCase();
   if (/\.(js|mjs|cjs|ts|tsx)$/.test(lower)) {
@@ -254,11 +255,15 @@ async function loadLanguagePack(
         ? import.meta.env.VITE_MADSIDE_CC65_LSP === "1"
         : false;
     if (cc65Lsp) {
-      const [{ autocompletion }, { cc65LspComplete }] = await Promise.all([
+      const [{ autocompletion }, lsp, { cc65SysrootHeaders }] = await Promise.all([
         import("@codemirror/autocomplete"),
         import("../../codemirror/lsp/client"),
+        import("@app/cSysroot"),
       ]);
-      return [support, autocompletion({ override: [cc65LspComplete] })];
+      // Feed the cc65 sysroot headers so the LSP offers stdlib completion +
+      // register structs + auto-#include. Set before the first request.
+      lsp.setSysrootHeaders(await cc65SysrootHeaders(machine));
+      return [support, autocompletion({ override: [lsp.cc65LspComplete] }), lsp.cc65LspHover];
     }
     if (toolchain?.cSymbols?.length) {
       const { cLibraryExtensions } = await import("@ui/codemirror");
@@ -356,6 +361,9 @@ interface Props {
    *  assembly highlight / hover / autocomplete. */
   cpuLanguage?: CpuLanguage;
   toolchainLanguage?: ToolchainLanguage;
+  /** Active machine id (`manifest.machine`) — resolves the cc65 sysroot for the
+   *  C LSP (stdlib completion + register structs). */
+  machine?: string;
   // Bundle line + tick so jumping to the same line twice still retriggers the effect.
   gotoTarget?: { line: number; tick: number } | null;
   onToggleBreakpoint?: (line: number) => void;
@@ -364,7 +372,7 @@ interface Props {
   onCursorLine?: (line: number) => void;
 }
 
-export function Editor({ value, onChange, filename, pcLine, breakpointLines, lineAddrs, equateValues, diagnostics, projectLabels, projectCSymbols, tabWidth, cFormatStyle, cpuLanguage, toolchainLanguage, gotoTarget, onToggleBreakpoint, onViewReady, onJumpToLabel, onCursorLine }: Props) {
+export function Editor({ value, onChange, filename, pcLine, breakpointLines, lineAddrs, equateValues, diagnostics, projectLabels, projectCSymbols, tabWidth, cFormatStyle, cpuLanguage, toolchainLanguage, machine, gotoTarget, onToggleBreakpoint, onViewReady, onJumpToLabel, onCursorLine }: Props) {
   const hostRef = useRef<HTMLDivElement>(null);
   const viewRef = useRef<EditorView | null>(null);
   // Latest-callback refs so the CodeMirror handlers (built once on mount) always
@@ -561,12 +569,12 @@ export function Editor({ value, onChange, filename, pcLine, breakpointLines, lin
     // Load and swap the language pack asynchronously (lazy chunk). Re-runs when
     // the file OR the active CPU / toolchain language changes (machine switch).
     let cancelled = false;
-    void loadLanguagePack(filename, cpuLanguage, toolchainLanguage).then((exts) => {
+    void loadLanguagePack(filename, cpuLanguage, toolchainLanguage, machine).then((exts) => {
       if (cancelled || viewRef.current !== view) return;
       view.dispatch({ effects: languageCompartment.reconfigure(exts) });
     });
     return () => { cancelled = true; };
-  }, [filename, cpuLanguage, toolchainLanguage]);
+  }, [filename, cpuLanguage, toolchainLanguage, machine]);
 
   useEffect(() => {
     const view = viewRef.current;
