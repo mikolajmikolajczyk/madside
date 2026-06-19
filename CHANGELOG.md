@@ -1,3 +1,8 @@
+## [0.15.1] - 2026-06-19
+
+### 🐛 Bug Fixes
+
+- *(c64)* Register mos6510 CPU so MADS syntax highlighting works
 ## [0.15.0] - 2026-06-19
 
 ### 🚀 Features
