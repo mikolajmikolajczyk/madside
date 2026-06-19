@@ -9,6 +9,7 @@ import { lintGutter, setDiagnostics, type Diagnostic } from "@codemirror/lint";
 import { buildAssemblyLanguage, projectLabelsField, setProjectLabels, formatCView, isCFile, warmFormatter, resolveCStyle } from "@ui/codemirror";
 import type { CpuLanguage, LabelInfo } from "@core";
 import type { BuildDiagnostic, ToolchainLanguage } from "@ports";
+import type { DefinitionTarget } from "../../codemirror/lsp/client";
 import "./Editor.css";
 
 const theme = EditorView.theme(
@@ -354,10 +355,13 @@ interface Props {
   onToggleBreakpoint?: (line: number) => void;
   onViewReady?: (view: EditorView | null) => void;
   onJumpToLabel?: (name: string) => void;
+  /** Resolved C go-to-definition target (Ctrl/Cmd+click on a C identifier, #73).
+   *  App navigates: project file → editor jump, sysroot header → system viewer. */
+  onGoToDefinition?: (target: DefinitionTarget) => void;
   onCursorLine?: (line: number) => void;
 }
 
-export function Editor({ value, onChange, filename, pcLine, breakpointLines, lineAddrs, equateValues, diagnostics, projectLabels, tabWidth, cFormatStyle, cpuLanguage, toolchainLanguage, machine, gotoTarget, onToggleBreakpoint, onViewReady, onJumpToLabel, onCursorLine }: Props) {
+export function Editor({ value, onChange, filename, pcLine, breakpointLines, lineAddrs, equateValues, diagnostics, projectLabels, tabWidth, cFormatStyle, cpuLanguage, toolchainLanguage, machine, gotoTarget, onToggleBreakpoint, onViewReady, onJumpToLabel, onGoToDefinition, onCursorLine }: Props) {
   const hostRef = useRef<HTMLDivElement>(null);
   const viewRef = useRef<EditorView | null>(null);
   // Latest-callback refs so the CodeMirror handlers (built once on mount) always
@@ -367,6 +371,7 @@ export function Editor({ value, onChange, filename, pcLine, breakpointLines, lin
   const onChangeRef = useRef(onChange);
   const onToggleRef = useRef(onToggleBreakpoint);
   const onJumpRef = useRef(onJumpToLabel);
+  const onGoToDefRef = useRef(onGoToDefinition);
   const onCursorLineRef = useRef(onCursorLine);
   // Same latest-value refs for the data the format-on-save handler needs — the
   // keymap is built once on mount but must format the *current* file/style.
@@ -377,6 +382,7 @@ export function Editor({ value, onChange, filename, pcLine, breakpointLines, lin
     onChangeRef.current = onChange;
     onToggleRef.current = onToggleBreakpoint;
     onJumpRef.current = onJumpToLabel;
+    onGoToDefRef.current = onGoToDefinition;
     onCursorLineRef.current = onCursorLine;
     filenameRef.current = filename;
     cFormatStyleRef.current = cFormatStyle;
@@ -473,6 +479,18 @@ export function Editor({ value, onChange, filename, pcLine, breakpointLines, lin
             if (!(e.ctrlKey || e.metaKey)) return false;
             const pos = view.posAtCoords({ x: e.clientX, y: e.clientY });
             if (pos == null) return false;
+            // C sources resolve via the LSP (position-based go-to-definition,
+            // cross-file, #73); asm keeps the name-based label jump.
+            if (isCFile(filenameRef.current)) {
+              e.preventDefault();
+              const doc = view.state.doc;
+              void import("../../codemirror/lsp/client").then(({ cc65LspDefinition }) =>
+                cc65LspDefinition(doc, pos).then((target) => {
+                  if (target) onGoToDefRef.current?.(target);
+                }),
+              );
+              return true;
+            }
             const word = view.state.wordAt(pos);
             if (!word) return false;
             const text = view.state.doc.sliceString(word.from, word.to);

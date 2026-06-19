@@ -250,3 +250,46 @@ export const cc65LspHover = hoverTooltip(async (view, pos): Promise<Tooltip | nu
     return null
   }
 })
+
+interface LspLocation {
+  uri: string
+  range: { start: Position; end: Position }
+}
+
+/** Where a go-to-definition lands, mapped back to host terms (#73). A project
+ *  file (`sysroot: false`) opens in the editor; a sysroot header opens in the
+ *  read-only system viewer. `line` is 1-based to match the editor's goto. */
+export interface DefinitionTarget {
+  path: string
+  line: number
+  sysroot: boolean
+}
+
+// Reverse of `uriFor`: a project doc URI carries the `file:///` prefix; a
+// sysroot header comes back as its bare header path (`include/c64.h`).
+const FILE_URI_PREFIX = 'file:///'
+
+/** Resolve the definition for the symbol at `pos` in the focused buffer, mapped
+ *  to a host navigation target. Cross-file: the server resolves against every
+ *  open project doc (#70) plus the sysroot headers. Null on miss or transport
+ *  failure (degrades to "no navigation"). */
+export async function cc65LspDefinition(doc: Text, pos: number): Promise<DefinitionTarget | null> {
+  try {
+    if (!activePath) return null
+    const { conn, ready: handshake } = connect()
+    await handshake
+    const uri = openOrChange(conn, activePath, doc.toString())
+
+    const res = await conn.sendRequest<LspLocation | LspLocation[] | null>(
+      'textDocument/definition',
+      { textDocument: { uri }, position: positionOf(doc, pos) },
+    )
+    const loc = Array.isArray(res) ? res[0] : res
+    if (!loc) return null
+    const sysroot = !loc.uri.startsWith(FILE_URI_PREFIX)
+    const path = sysroot ? loc.uri : loc.uri.slice(FILE_URI_PREFIX.length)
+    return { path, line: loc.range.start.line + 1, sysroot }
+  } catch {
+    return null
+  }
+}

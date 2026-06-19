@@ -35,6 +35,7 @@ import { useEquateValues } from "./hooks/useEquateValues";
 import { usePluginEditor } from "./hooks/usePluginEditor";
 import { useProjectLabels } from "./hooks/useProjectLabels";
 import { useProjectCDocuments } from "./hooks/useProjectCDocuments";
+import type { DefinitionTarget } from "./codemirror/lsp/client";
 import { useProjectsWithCourse } from "./hooks/useProjectsWithCourse";
 import { useAutoAssemble, outcomeFromStored } from "./hooks/useAutoAssemble";
 import { useRunStatus } from "./hooks/useRunStatus";
@@ -262,6 +263,20 @@ export default function App() {
     }
     setGotoTarget((prev) => ({ line: targetLine, tick: (prev?.tick ?? 0) + 1 }));
   }, [sourceMap, projectLabels, project]);
+
+  // C go-to-definition (#73): the LSP resolved a target — a project file opens
+  // in the editor and jumps to the line; a sysroot header opens read-only.
+  const onGoToDefinition = useCallback((target: DefinitionTarget) => {
+    if (!project.loaded) return;
+    if (target.sysroot) {
+      openSystemFile(target.path);
+      return;
+    }
+    const file = project.files.find((f) => f.path === target.path);
+    if (!file) return;
+    if (file.path !== project.activePath) project.setActivePath(file.path);
+    setGotoTarget((prev) => ({ line: target.line, tick: (prev?.tick ?? 0) + 1 }));
+  }, [project, openSystemFile]);
 
   const breakpoints = useBreakpointAddrs(sourceMap, bpLinesByFile);
 
@@ -917,6 +932,7 @@ export default function App() {
                 onToggleBreakpoint={onToggleBreakpoint}
                 onViewReady={(v) => { editorViewRef.current = v; }}
                 onJumpToLabel={onJumpToLabel}
+                onGoToDefinition={onGoToDefinition}
                 onCursorLine={setCursorLine}
               />
             </Suspense>
