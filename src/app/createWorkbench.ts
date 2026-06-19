@@ -34,19 +34,15 @@ import { createPluginLoader } from '@adapters'
 // NOTE: editorToPanel/listBuiltinEditors intentionally NOT imported — built-in
 // editors are no longer registered as panels (see the deleted dead scaffolding
 // + decision note below).
+import { builtinPlugins } from './builtin-plugins'
+// Composition-time references: these specific plugins are wired into the
+// machine-selection table / RunService init / introspection fields below, on
+// top of being registered via the builtin manifest. Every other built-in is
+// register-then-resolve-by-id only, so it lives only in builtin-plugins.ts.
 import { atariXl } from '@plugins/machine-atari-xl'
 import { machineNes } from '@plugins/machine-nes'
 import { machineC64 } from '@plugins/machine-c64'
-import { jsnesEmulator } from '@plugins/emulator-nes-jsnes'
-import { chipsC64Emulator } from '@plugins/emulator-c64-chips'
-import { altirraEmulator } from '@adapters/emu'
 import { madsToolchain } from '@plugins/toolchain-mads'
-import { cc65Toolchain } from '@plugins/toolchain-ca65'
-import { atari6502DebugAdapter } from '@plugins/debug-atari-6502'
-import { registersPanel } from '@plugins/panel-registers'
-import { memoryPanel } from '@plugins/panel-memory'
-import { outputPanel } from '@plugins/panel-output'
-import { ppuPanel } from '@plugins/panel-ppu'
 
 // Workbench Core — the headless workbench instance the rest of the app talks
 // to. UI consumes it via React context; tests instantiate it directly with
@@ -160,27 +156,14 @@ export function createWorkbench(deps: WorkbenchDeps): Workbench {
   const commands = createCommandRegistry()
   const plugins = createPluginRegistry()
 
-  // Register the bundled Atari-XL MachinePlugin + MADS ToolchainPlugin.
-  // BuildService now dispatches via manifest.toolchain → PluginRegistry,
-  // so adding a second toolchain (M9: ca65) is a register() call away.
-  plugins.register({ plugin: atariXl, source: { origin: 'builtin' } })
-  // machine-nes resolves via the registry (plugins.get('machine','nes')); the
-  // active `machine` field below stays atari-xl until manifest-driven machine
-  // selection lands (the end-to-end NES path — separate from this plugin's
-  // data + registration).
-  plugins.register({ plugin: machineNes, source: { origin: 'builtin' } })
-  plugins.register({ plugin: machineC64, source: { origin: 'builtin' } })
-  plugins.register({ plugin: madsToolchain, source: { origin: 'builtin' } })
-  plugins.register({ plugin: cc65Toolchain, source: { origin: 'builtin' } })
-  plugins.register({ plugin: atari6502DebugAdapter, source: { origin: 'builtin' } })
-  // Emulator backends register like every other plugin kind; machines name the
-  // one they run on via `compatibleEmulators`, resolved below. Both plugins'
-  // createBackend lazy-imports its core, so registration stays cheap.
-  for (const emulator of [altirraEmulator, jsnesEmulator, chipsC64Emulator]) {
-    plugins.register({ plugin: emulator, source: { origin: 'builtin' } })
-  }
-  for (const panel of [registersPanel, memoryPanel, outputPanel, ppuPanel]) {
-    plugins.register({ plugin: panel, source: { origin: 'builtin' } })
+  // Register every bundled plugin from the built-in manifest (#67). The
+  // registry keys by kind+id, so order is irrelevant; machines resolve their
+  // emulator / debug adapter by id below via `compatibleEmulators` /
+  // `compatibleDebugAdapters`, and BuildService dispatches toolchains via
+  // manifest.toolchain → PluginRegistry. Adding a capability = one line in
+  // builtin-plugins.ts.
+  for (const plugin of builtinPlugins) {
+    plugins.register({ plugin, source: { origin: 'builtin' } })
   }
   // NOTE: converters + editors are deliberately NOT in the PluginRegistry —
   // they have a different lifecycle (project-local, per-file, content-addressed
