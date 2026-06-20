@@ -5,6 +5,7 @@ import { machineC64 } from '@plugins/machine-c64'
 import { machineZx } from '@plugins/machine-zx'
 import { madsToolchain } from '@plugins/toolchain-mads'
 import { cc65Toolchain } from '@plugins/toolchain-ca65'
+import { z88dkToolchain } from '@plugins/toolchain-z88dk'
 import { jsnesEmulator } from '@plugins/emulator-nes-jsnes'
 import { chipsC64Emulator } from '@plugins/emulator-c64-chips'
 import { chipsZxEmulator } from '@plugins/emulator-zx-chips'
@@ -34,6 +35,7 @@ export const builtinPlugins: readonly PluginBase[] = [
   // toolchains
   madsToolchain,
   cc65Toolchain,
+  z88dkToolchain,
   // emulator backends — createBackend lazy-imports its core, so registration
   // stays cheap; machines name the one they run on via `compatibleEmulators`.
   altirraEmulator,
