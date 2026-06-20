@@ -12,11 +12,11 @@ importers:
         specifier: ^0.4.2
         version: 0.4.2
       '@cc65-intel/core':
-        specifier: ^0.7.0
-        version: 0.7.0
+        specifier: ^0.8.1
+        version: 0.8.1
       '@cc65-intel/lsp':
-        specifier: ^0.7.0
-        version: 0.7.0
+        specifier: ^0.8.1
+        version: 0.8.1
       '@codemirror/autocomplete':
         specifier: ^6.20.2
         version: 6.20.3
@@ -302,11 +302,11 @@ packages:
     resolution: {integrity: sha512-sAWO3D8PFP6pBXdxxW93SQi/KQqqhE2AAHo3AgWfdtJXwO6bfK6/wUN81XnOZk0qRC6vHzUEKhjwVD9dtDWvxg==}
     engines: {node: '>=18.18'}
 
-  '@cc65-intel/core@0.7.0':
-    resolution: {integrity: sha512-qm7ZMgu237X7WiHoWDLPtFpV+rCVvOtVtmdXLpCHRKAidsqMMgDIxzHcSHMzsG6KyGbawNC4ydc0jePbK91b1A==}
+  '@cc65-intel/core@0.8.1':
+    resolution: {integrity: sha512-Q/uguaMqDHt8IINprb8G0J8I0uzjY/ZWGxBk5e8QlfXm+/0B+CwZ+NcolnwAqRvBufa7NPwC/V6uXcyWl+/BCQ==}
 
-  '@cc65-intel/lsp@0.7.0':
-    resolution: {integrity: sha512-6seqQ553Gw5kkFglgxxTTVeu5PNsVvykpaJmYa/s902btkNPyz61ZJIsC8ft99y80OfP5e5wYRItsowSJe1lcQ==}
+  '@cc65-intel/lsp@0.8.1':
+    resolution: {integrity: sha512-p8jIrpDa79lVlZ9wfOjMdS7c0PM0NZgilsZZNH+L3BiaysIV1LatMRi2y3gX9a+IvTXXNoFbGA0558sJthscMA==}
     hasBin: true
 
   '@codemirror/autocomplete@6.20.3':
@@ -3450,14 +3450,14 @@ snapshots:
       - eslint-import-resolver-webpack
       - supports-color
 
-  '@cc65-intel/core@0.7.0':
+  '@cc65-intel/core@0.8.1':
     dependencies:
       '@lezer/common': 1.5.2
       '@lezer/cpp': 1.1.6
 
-  '@cc65-intel/lsp@0.7.0':
+  '@cc65-intel/lsp@0.8.1':
     dependencies:
-      '@cc65-intel/core': 0.7.0
+      '@cc65-intel/core': 0.8.1
       vscode-languageserver: 9.0.1
       vscode-languageserver-textdocument: 1.0.12
 
