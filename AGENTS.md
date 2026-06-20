@@ -23,6 +23,7 @@ In-browser Web IDE for retro hardware. Currently Atari 8-bit (MADS + Altirra was
 | Atari + plugin terminology | [`wiki/agents/glossary.md`](wiki/agents/glossary.md) |
 | How `mads.wasm` was built / how to rebuild | [`wiki/agents/mads-wasm-build.md`](wiki/agents/mads-wasm-build.md) |
 | How `altirra-core.wasm` was built / how to rebuild | [`wiki/agents/altirra-wasm-build.md`](wiki/agents/altirra-wasm-build.md) |
+| How `z80asm.wasm` / `appmake.wasm` (z88dk) were built / how to rebuild | [`wiki/agents/z88dk-wasm-build.md`](wiki/agents/z88dk-wasm-build.md) |
 | Things deliberately deferred — do NOT implement unprompted | [`wiki/agents/deferred.md`](wiki/agents/deferred.md) |
 | Plugin contracts (Machine/Toolchain/Emulator/Debug/Panel/Converter/Editor) | [`wiki/plugin-api/`](wiki/plugin-api/) |
 | Architecture Decision Records | [`wiki/adr/`](wiki/adr/) |

@@ -33,6 +33,45 @@ license    = "Zlib"
 artifact   = "src/plugins/toolchain-ca65/wasm/"
 built_with = "wasi-sdk clang (wasm32-wasip1); unmodified"
 
+[source.z88dk]
+name       = "z88dk (z80asm / appmake)"
+role       = "Z80 assembler+linker & tape packager — ZX Spectrum toolchain (asm-first)"
+upstream   = "https://github.com/z88dk/z88dk"
+source     = "https://github.com/z88dk/z88dk"
+ref        = "d6ea38777b002a5888138f4c1825fe9ac1647153"
+version    = "snapshot (git)"
+license    = "Artistic-1.0 (z88dk) / Artistic-2.0 (z80asm)"
+artifact   = "src/plugins/toolchain-z88dk/wasm/"
+built_with = "wasi-sdk clang (wasm32-wasip1); patch-at-build (parse1.c action-switch split, system()/mkstemp stubs, NO_GMP ti8xk guard) — see wiki/agents/z88dk-wasm-build.md. No fork."
+
+# z88dk ext/ submodules pulled for the z80asm build (pinned).
+[source.z88dk-ext-regex]
+name       = "z88dk/regex"
+role       = "z80asm dependency (ext/regex)"
+upstream   = "https://github.com/z88dk/regex"
+source     = "https://github.com/z88dk/regex"
+ref        = "6669b2ff3d881a50b3d06ca7c41554aca1ad3041"
+version    = "snapshot (git submodule)"
+license    = "BSD-3-Clause"
+
+[source.z88dk-ext-optparse]
+name       = "optparse (skeeto)"
+role       = "z80asm dependency (ext/optparse)"
+upstream   = "https://github.com/skeeto/optparse"
+source     = "https://github.com/skeeto/optparse"
+ref        = "cdc96b235343c8cf6475482075371b249b2187d6"
+version    = "snapshot (git submodule)"
+license    = "Unlicense"
+
+[source.z88dk-ext-uthash]
+name       = "uthash (z88dk fork)"
+role       = "z80asm dependency (ext/uthash)"
+upstream   = "https://github.com/z88dk/uthash"
+source     = "https://github.com/z88dk/uthash"
+ref        = "d2dfc78e4f98c3567762758df48f3c2518dcd44e"
+version    = "snapshot (git submodule)"
+license    = "BSD-1-Clause"
+
 [source.altirra]
 name       = "Altirra (core)"
 role       = "Atari 8-bit emulator core"

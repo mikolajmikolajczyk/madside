@@ -277,6 +277,51 @@ compile-chips-wasm:
     @echo "installed → {{chips_out_dir}}"
     @ls -lh "{{chips_out_dir}}/c64-core."*
 
+# === z80asm.wasm + appmake.wasm pipeline (z88dk, asm-first) ===
+
+z88dk_build_dir := justfile_directory() / "_notes/z88dk-wasm-spike/build"
+z88dk_src_dir   := z88dk_build_dir / "z88dk"
+z88dk_out_dir   := justfile_directory() / "src/plugins/toolchain-z88dk/wasm"
+z88dk_support   := justfile_directory() / "build-support/z88dk"
+z88dk_repo      := `python3 scripts/third-party.py get source.z88dk.upstream`
+z88dk_commit    := `python3 scripts/third-party.py get source.z88dk.ref`
+
+# Full pipeline: fetch wasi-sdk (shared with cc65), clone z88dk + its ext
+# submodules at the pinned commit, build z80asm + appmake to wasm (patch-at-build:
+# parse1.c split + stubs + NO_GMP — see wiki/agents/z88dk-wasm-build.md), install,
+# smoke. Needs ~8 GB RAM (the parse1.c split keeps it CI-able). C path = #87.
+build-z88dk-wasm: fetch-wasi-sdk clone-z88dk compile-z88dk-wasm verify-z88dk-wasm
+
+# Clone z88dk at the pinned commit + the three ext/ submodules z80asm needs
+# (versions pinned by that superproject commit).
+clone-z88dk:
+    if [ ! -d "{{z88dk_src_dir}}/.git" ]; then \
+        git clone "{{z88dk_repo}}" "{{z88dk_src_dir}}"; \
+    fi
+    cd "{{z88dk_src_dir}}" && git fetch origin "{{z88dk_commit}}" && git checkout "{{z88dk_commit}}"
+    cd "{{z88dk_src_dir}}" && git submodule update --init --depth 1 ext/regex ext/optparse ext/uthash
+
+# Compile z80asm (C++17) + appmake (C) to wasm via the build-support script.
+compile-z88dk-wasm:
+    Z88DK="{{z88dk_src_dir}}" WASI_SDK="{{wasi_sdk_dir}}" OUT="{{z88dk_out_dir}}" \
+        SCRATCH="{{z88dk_build_dir}}/scratch" \
+        SUPPORT="{{z88dk_support}}" bash "{{z88dk_support}}/build-z88dk.sh"
+    @ls -lh "{{z88dk_out_dir}}/"*.wasm
+
+# Smoke: assemble build-support/z88dk/smoke.asm with the fresh z80asm.wasm, wrap
+# it to a .tap with appmake +zx, check the assembled opcode bytes + tap header.
+verify-z88dk-wasm:
+    rm -rf /tmp/z88dk-verify && mkdir -p /tmp/z88dk-verify/tmp
+    cp "{{z88dk_support}}/smoke.asm" /tmp/z88dk-verify/
+    WASI_DIR=/tmp/z88dk-verify node --no-warnings "{{justfile_directory()}}/build-support/cc65/wasi-run.mjs" \
+        "{{z88dk_out_dir}}/z80asm.wasm" -b -mz80 /smoke.asm
+    @echo "smoke.bin bytes (expect 3e 02 d3 fe c9):"
+    @xxd /tmp/z88dk-verify/smoke.bin | head -1
+    WASI_DIR=/tmp/z88dk-verify node --no-warnings "{{justfile_directory()}}/build-support/cc65/wasi-run.mjs" \
+        "{{z88dk_out_dir}}/appmake.wasm" +zx --binfile /smoke.bin --org 32768 -o /smoke.tap
+    @echo "smoke.tap header (expect 13 00 00 00 = 19-byte BASIC header):"
+    @xxd /tmp/z88dk-verify/smoke.tap | head -1
+
 # === docs site (Astro Starlight) ===
 
 docs_dir := justfile_directory() / "docs"
