@@ -87,7 +87,7 @@ async function loadLanguagePack(
   // LSP running in a Web Worker (#63): member completion, cc65 stdlib + register
   // structs (from the sysroot headers we feed it), and auto-#include.
   if (/\.(c|h|cc|cpp|hpp)$/.test(lower)) {
-    const [{ cpp }, { autocompletion }, lsp, { cc65SemanticTokens }, { cc65SignatureHelpTooltip }, { cc65SysrootHeaders }] = await Promise.all([
+    const [{ cpp }, { autocompletion }, lsp, { cc65SemanticTokens }, { cc65SignatureHelpTooltip }, { cc65SysrootHeaders, cc65TargetDefines }] = await Promise.all([
       import("@codemirror/lang-cpp"),
       import("@codemirror/autocomplete"),
       import("../../codemirror/lsp/client"),
@@ -95,8 +95,11 @@ async function loadLanguagePack(
       import("../../codemirror/lsp/signatureHelp"),
       import("@app/cSysroot"),
     ]);
-    // Feed the cc65 sysroot headers so the LSP offers stdlib completion +
-    // register structs + auto-#include. Set before the first request.
+    // Feed the cc65 sysroot headers (as a resolution pool) + the active target's
+    // predefined macros so the LSP resolves the preprocessor target gating and
+    // offers stdlib completion + register structs + auto-#include, without the
+    // cross-target noise (#30). Set before the first request.
+    lsp.setDefines(cc65TargetDefines(machine));
     lsp.setSysrootHeaders(await cc65SysrootHeaders(machine));
     // Mark this file as the focused doc so completion/hover address its URI in
     // the multi-document worker (#70).

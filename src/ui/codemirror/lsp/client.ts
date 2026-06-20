@@ -72,6 +72,14 @@ export function setSysrootHeaders(headers: SourceFile[]): void {
   sysrootHeaders = headers
 }
 
+// Predefined macros for the active cc65 target (e.g. `{ __C64__: '1' }`). Sent
+// at `initialize` so the server's indexer resolves the preprocessor target
+// gating + drops other targets' headers (#30). Undefined ⇒ legacy flat indexing.
+let defines: Record<string, string> | undefined
+export function setDefines(d: Record<string, string> | undefined): void {
+  defines = d
+}
+
 let connection: MessageConnection | null = null
 let ready: Promise<void> | null = null
 
@@ -127,7 +135,7 @@ function connect(): { conn: MessageConnection; ready: Promise<void> } {
       processId: null,
       rootUri: null,
       capabilities: {},
-      initializationOptions: { sysrootHeaders },
+      initializationOptions: { sysrootHeaders, defines },
     })
     conn.sendNotification('initialized', {})
   })()
