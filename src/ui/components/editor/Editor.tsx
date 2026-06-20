@@ -8,7 +8,7 @@ import { lintGutter, setDiagnostics, type Diagnostic } from "@codemirror/lint";
 import { buildAssemblyLanguage, projectLabelsField, setProjectLabels, formatCView, isCFile, warmFormatter, resolveCStyle, editorTheme, editorHighlight } from "@ui/codemirror";
 import type { CpuLanguage, LabelInfo } from "@core";
 import type { BuildDiagnostic, ToolchainLanguage } from "@ports";
-import type { DefinitionTarget } from "../../codemirror/lsp/client";
+import type { DefinitionTarget, ReferenceLocation } from "../../codemirror/lsp/client";
 import "./Editor.css";
 
 const setBreakpoints = StateEffect.define<Set<number>>();
@@ -210,10 +210,13 @@ interface Props {
   /** Resolved C go-to-definition target (Ctrl/Cmd+click on a C identifier, #73).
    *  App navigates: project file → editor jump, sysroot header → system viewer. */
   onGoToDefinition?: (target: DefinitionTarget) => void;
+  /** Find-references results for the C identifier at the cursor (Shift+F12, #74).
+   *  App shows them in the sidebar. */
+  onFindReferences?: (symbol: string, refs: ReferenceLocation[]) => void;
   onCursorLine?: (line: number) => void;
 }
 
-export function Editor({ value, onChange, filename, pcLine, breakpointLines, lineAddrs, equateValues, diagnostics, projectLabels, tabWidth, cFormatStyle, cpuLanguage, toolchainLanguage, machine, gotoTarget, onToggleBreakpoint, onViewReady, onJumpToLabel, onGoToDefinition, onCursorLine }: Props) {
+export function Editor({ value, onChange, filename, pcLine, breakpointLines, lineAddrs, equateValues, diagnostics, projectLabels, tabWidth, cFormatStyle, cpuLanguage, toolchainLanguage, machine, gotoTarget, onToggleBreakpoint, onViewReady, onJumpToLabel, onGoToDefinition, onFindReferences, onCursorLine }: Props) {
   const hostRef = useRef<HTMLDivElement>(null);
   const viewRef = useRef<EditorView | null>(null);
   // Latest-callback refs so the CodeMirror handlers (built once on mount) always
@@ -224,6 +227,7 @@ export function Editor({ value, onChange, filename, pcLine, breakpointLines, lin
   const onToggleRef = useRef(onToggleBreakpoint);
   const onJumpRef = useRef(onJumpToLabel);
   const onGoToDefRef = useRef(onGoToDefinition);
+  const onFindRefsRef = useRef(onFindReferences);
   const onCursorLineRef = useRef(onCursorLine);
   // Same latest-value refs for the data the format-on-save handler needs — the
   // keymap is built once on mount but must format the *current* file/style.
@@ -235,6 +239,7 @@ export function Editor({ value, onChange, filename, pcLine, breakpointLines, lin
     onToggleRef.current = onToggleBreakpoint;
     onJumpRef.current = onJumpToLabel;
     onGoToDefRef.current = onGoToDefinition;
+    onFindRefsRef.current = onFindReferences;
     onCursorLineRef.current = onCursorLine;
     filenameRef.current = filename;
     cFormatStyleRef.current = cFormatStyle;
@@ -358,6 +363,20 @@ export function Editor({ value, onChange, filename, pcLine, breakpointLines, lin
           // Mod-s binding here would be dead. Format-on-save lives there.
           // Format Document — VS Code parity. Formats without saving/building.
           { key: "Shift-Alt-f", preventDefault: true, run: (view) => { void formatActiveDoc(view); return true; } },
+          // Find all references for the C identifier at the cursor (#74, VS Code
+          // parity). App surfaces the results in the sidebar.
+          { key: "Shift-F12", preventDefault: true, run: (view) => {
+            if (!isCFile(filenameRef.current)) return false;
+            const pos = view.state.selection.main.head;
+            const word = view.state.wordAt(pos);
+            if (!word) return true;
+            const symbol = view.state.doc.sliceString(word.from, word.to);
+            const doc = view.state.doc;
+            void import("../../codemirror/lsp/client").then(({ cc65References }) =>
+              cc65References(doc, pos).then((refs) => onFindRefsRef.current?.(symbol, refs)),
+            );
+            return true;
+          } },
           // Consume the Run / Restart accelerators so the browser doesn't insert
           // a newline into the contenteditable (CM only preventDefaults keys it
           // binds). The window-level shortcut handler still fires the command —

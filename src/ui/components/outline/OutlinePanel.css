@@ -57,3 +57,31 @@
   text-overflow: ellipsis;
   white-space: nowrap;
 }
+
+/* References panel (#74) */
+.outline__head--refs {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  text-transform: none;
+  letter-spacing: 0;
+  color: var(--text-secondary);
+}
+.outline__close {
+  background: transparent;
+  border: none;
+  color: var(--text-tertiary);
+  font-size: 14px;
+  line-height: 1;
+  cursor: pointer;
+}
+.outline__close:hover { color: var(--accent-coral); }
+
+.outline__group { list-style: none; }
+.outline__group-head {
+  padding: 3px 12px;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--text-quaternary);
+}

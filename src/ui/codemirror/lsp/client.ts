@@ -421,3 +421,38 @@ export async function cc65DocumentSymbols(path: string, text: string): Promise<O
     return []
   }
 }
+
+/** One reference site (#74). `path` is a project path (`sysroot: false`,
+ *  navigable in the editor) or a bare sysroot-header path; `line` is 1-based. */
+export interface ReferenceLocation {
+  path: string
+  line: number
+  sysroot: boolean
+}
+
+/** All references to the symbol at `pos`, declaration included, across every
+ *  open project document. Empty on miss / transport failure. */
+export async function cc65References(doc: Text, pos: number): Promise<ReferenceLocation[]> {
+  try {
+    if (!activePath) return []
+    const { conn, ready: handshake } = connect()
+    await handshake
+    const uri = openOrChange(conn, activePath, doc.toString())
+
+    const res = await conn.sendRequest<LspLocation[] | null>('textDocument/references', {
+      textDocument: { uri },
+      position: positionOf(doc, pos),
+      context: { includeDeclaration: true },
+    })
+    return (res ?? []).map((loc) => {
+      const sysroot = !loc.uri.startsWith(FILE_URI_PREFIX)
+      return {
+        path: sysroot ? loc.uri : loc.uri.slice(FILE_URI_PREFIX.length),
+        line: loc.range.start.line + 1,
+        sysroot,
+      }
+    })
+  } catch {
+    return []
+  }
+}

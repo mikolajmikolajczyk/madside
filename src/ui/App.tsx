@@ -2,6 +2,8 @@ import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } fro
 import type { EditorView } from "@codemirror/view";
 import { resolveCStyle, formatCView, isCFile } from "@ui/codemirror";
 import { OutlinePanel } from "./components/outline/OutlinePanel";
+import { ReferencesPanel } from "./components/outline/ReferencesPanel";
+import type { ReferenceLocation } from "./codemirror/lsp/client";
 import { MenuBar } from "./components/layout/MenuBar";
 import { DebugBar } from "./components/layout/DebugBar";
 import { StatusBar } from "./components/layout/StatusBar";
@@ -257,6 +259,23 @@ export default function App() {
     setViewSystemFile(null);
     if (file.path !== project.activePath) project.setActivePath(file.path);
     setGotoTarget((prev) => ({ line: target.line, tick: (prev?.tick ?? 0) + 1 }));
+  }, [project, openSystemFile]);
+
+  // Find-references results (#74) — Shift+F12 in the editor fills these; the
+  // sidebar panel lists them, click navigates cross-file (same path as
+  // go-to-definition). Cleared on close or a fresh search.
+  const [references, setReferences] = useState<{ symbol: string; refs: ReferenceLocation[] } | null>(null);
+  const onFindReferences = useCallback((symbol: string, refs: ReferenceLocation[]) => {
+    setReferences({ symbol, refs });
+  }, []);
+  const jumpToReference = useCallback((path: string, line: number, sysroot: boolean) => {
+    if (sysroot) { openSystemFile(path); return; }
+    if (!project.loaded) return;
+    const file = project.files.find((f) => f.path === path);
+    if (!file) return;
+    setViewSystemFile(null);
+    if (file.path !== project.activePath) project.setActivePath(file.path);
+    setGotoTarget((prev) => ({ line, tick: (prev?.tick ?? 0) + 1 }));
   }, [project, openSystemFile]);
 
   const breakpoints = useBreakpointAddrs(sourceMap, bpLinesByFile);
@@ -791,8 +810,16 @@ export default function App() {
               onJump={(line) => setGotoTarget((prev) => ({ line, tick: (prev?.tick ?? 0) + 1 }))}
             />
           ) : null;
-          if (!course && !outlineEl) return explorerEl;
-          // Vertical split — compact Files on top, lesson + outline below.
+          const refsEl = references ? (
+            <ReferencesPanel
+              symbol={references.symbol}
+              refs={references.refs}
+              onJump={jumpToReference}
+              onClose={() => setReferences(null)}
+            />
+          ) : null;
+          if (!course && !outlineEl && !refsEl) return explorerEl;
+          // Vertical split — compact Files on top, lesson + outline + refs below.
           return (
             <div className="app__explorer-col">
               {explorerEl}
@@ -809,6 +836,7 @@ export default function App() {
                 </Suspense>
               )}
               {outlineEl}
+              {refsEl}
             </div>
           );
         })()}
@@ -873,6 +901,7 @@ export default function App() {
                 onViewReady={(v) => { editorViewRef.current = v; }}
                 onJumpToLabel={onJumpToLabel}
                 onGoToDefinition={onGoToDefinition}
+                onFindReferences={onFindReferences}
                 onCursorLine={setCursorLine}
               />
             </Suspense>
