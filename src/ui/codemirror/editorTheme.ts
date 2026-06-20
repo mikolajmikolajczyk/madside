@@ -163,6 +163,22 @@ export const editorTheme = EditorView.theme(
     ".cm-st-property, .cm-st-property *": { color: "var(--accent-mint) !important" },
     ".cm-st-parameter, .cm-st-parameter *": { color: "var(--text-primary) !important", fontStyle: "italic" },
     ".cm-st-variable, .cm-st-variable *": { color: "var(--text-primary) !important" },
+    // Signature help popup (#71). The base `.cm-tooltip` chrome covers any
+    // plain showTooltip (autocomplete/hover keep their more-specific styles).
+    ".cm-tooltip": {
+      background: "var(--bg-secondary)",
+      border: "1px solid var(--border-default)",
+      boxShadow: "0 4px 12px rgba(0,0,0,0.6)",
+    },
+    ".cm-cc65-sighelp": {
+      fontFamily: "var(--font-mono)",
+      fontSize: "12px",
+      color: "var(--text-secondary)",
+      padding: "4px 8px",
+      maxWidth: "560px",
+      whiteSpace: "pre-wrap",
+    },
+    ".cm-cc65-sighelp strong": { color: "var(--accent-mint)", fontWeight: "bold" },
   },
   { dark: true }
 );

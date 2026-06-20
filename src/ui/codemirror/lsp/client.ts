@@ -315,3 +315,43 @@ export async function cc65SemanticTokensFull(doc: Text): Promise<number[] | null
     return null
   }
 }
+
+interface LspSignatureHelp {
+  signatures?: { label: string; parameters?: { label: string }[] }[]
+  activeSignature?: number
+  activeParameter?: number
+}
+
+/** A resolved signature for the call the cursor sits inside (#71): the full
+ *  signature text + its parameter labels + which one is active. */
+export interface SignatureInfo {
+  label: string
+  params: string[]
+  active: number
+}
+
+/** Signature help for the call enclosing `pos`, or null when the cursor isn't
+ *  inside a known call (the server decides). Transport failures degrade to
+ *  null (no popup). */
+export async function cc65SignatureHelp(doc: Text, pos: number): Promise<SignatureInfo | null> {
+  try {
+    if (!activePath) return null
+    const { conn, ready: handshake } = connect()
+    await handshake
+    const uri = openOrChange(conn, activePath, doc.toString())
+
+    const res = await conn.sendRequest<LspSignatureHelp | null>('textDocument/signatureHelp', {
+      textDocument: { uri },
+      position: positionOf(doc, pos),
+    })
+    const sig = res?.signatures?.[res.activeSignature ?? 0]
+    if (!sig) return null
+    return {
+      label: sig.label,
+      params: (sig.parameters ?? []).map((p) => p.label),
+      active: res?.activeParameter ?? 0,
+    }
+  } catch {
+    return null
+  }
+}
