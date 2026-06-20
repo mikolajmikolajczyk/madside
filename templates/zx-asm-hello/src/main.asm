@@ -1,10 +1,10 @@
 ; ZX Spectrum 48K — Hello World in Z80 assembly (z88dk z80asm).
 ;
-; Sets the border, paints the top character row's attributes, then draws a
-; string to the screen by copying glyphs straight from the ROM font (CHARS at
-; $3C00, 8 bytes per character). Drawing into screen memory directly — rather
-; than RST $10 / the ROM print routine — keeps the demo independent of the
-; BASIC system variables, which a freshly-loaded .sna snapshot hasn't set up.
+; Disables interrupts, clears the screen, paints attributes, then draws a
+; string by copying glyphs straight from the ROM font (CHARS at $3C00, 8 bytes
+; per character). Drawing into screen memory directly — rather than RST $10 /
+; the ROM print routine — keeps the demo independent of the BASIC system
+; variables, which a freshly-loaded .sna snapshot hasn't set up.
 ;
 ; Build: z88dk (z80asm) → 48K .sna → boots in the chips ZX core.
 
@@ -12,16 +12,24 @@
 
 	org $8000
 start:
-	ld a,2
-	out (ULA_PORT),a        ; red border
+	di                      ; take over the machine
 
-	; paint the first character row (32 cells): bright white paper, black ink
+	ld a,1
+	out (ULA_PORT),a        ; blue border
+
+	; clear the 6144-byte pixel bitmap ($4000-$57FF)
+	ld hl,SCREEN
+	ld de,SCREEN+1
+	ld bc,6144-1
+	ld (hl),0
+	ldir
+
+	; paint all 768 attribute cells: bright white paper, black ink
 	ld hl,ATTRS
-	ld b,32
-attr:
+	ld de,ATTRS+1
+	ld bc,768-1
 	ld (hl),$78             ; BRIGHT(40)+PAPER white(38)+INK black(00)
-	inc hl
-	djnz attr
+	ldir
 
 	; draw the message at the top-left, one glyph (8 px rows) per column
 	ld ix,text
