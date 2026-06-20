@@ -233,6 +233,16 @@ export function useProject(storage: StorageBackend, events?: EventBus) {
     reload();
   }, [state, reload, storage]);
 
+  // Write new content to several existing files at once, then reload — the
+  // multi-file apply path for an LSP rename / refactor (#75). Bypasses the
+  // debounced active-file saver: edits can touch any project file, not just the
+  // open one.
+  const applyEdits = useCallback(async (edits: { path: string; content: Uint8Array }[]): Promise<void> => {
+    if (!state || edits.length === 0) return;
+    for (const e of edits) await storage.projects.writeFile(state.projectId, e.path, e.content);
+    reload();
+  }, [state, reload, storage]);
+
   // Empty folders aren't first-class — we drop a .gitkeep placeholder and
   // hide it from the tree. `prefix` should not include trailing slash.
   const createFolder = useCallback(async (prefix: string): Promise<void> => {
@@ -450,6 +460,7 @@ export function useProject(storage: StorageBackend, events?: EventBus) {
     importProject: importProjectAction,
     // file CRUD
     createFile,
+    applyEdits,
     createFolder,
     renameFile,
     renameFolder,

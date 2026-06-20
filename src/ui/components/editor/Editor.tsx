@@ -213,10 +213,13 @@ interface Props {
   /** Find-references results for the C identifier at the cursor (Shift+F12, #74).
    *  App shows them in the sidebar. */
   onFindReferences?: (symbol: string, refs: ReferenceLocation[]) => void;
+  /** Rename request for the C identifier at the cursor (F2, #75). App prompts
+   *  for the new name + applies the LSP edits. `pos` is the cursor offset. */
+  onRequestRename?: (pos: number, symbol: string) => void;
   onCursorLine?: (line: number) => void;
 }
 
-export function Editor({ value, onChange, filename, pcLine, breakpointLines, lineAddrs, equateValues, diagnostics, projectLabels, tabWidth, cFormatStyle, cpuLanguage, toolchainLanguage, machine, gotoTarget, onToggleBreakpoint, onViewReady, onJumpToLabel, onGoToDefinition, onFindReferences, onCursorLine }: Props) {
+export function Editor({ value, onChange, filename, pcLine, breakpointLines, lineAddrs, equateValues, diagnostics, projectLabels, tabWidth, cFormatStyle, cpuLanguage, toolchainLanguage, machine, gotoTarget, onToggleBreakpoint, onViewReady, onJumpToLabel, onGoToDefinition, onFindReferences, onRequestRename, onCursorLine }: Props) {
   const hostRef = useRef<HTMLDivElement>(null);
   const viewRef = useRef<EditorView | null>(null);
   // Latest-callback refs so the CodeMirror handlers (built once on mount) always
@@ -228,6 +231,7 @@ export function Editor({ value, onChange, filename, pcLine, breakpointLines, lin
   const onJumpRef = useRef(onJumpToLabel);
   const onGoToDefRef = useRef(onGoToDefinition);
   const onFindRefsRef = useRef(onFindReferences);
+  const onRequestRenameRef = useRef(onRequestRename);
   const onCursorLineRef = useRef(onCursorLine);
   // Same latest-value refs for the data the format-on-save handler needs — the
   // keymap is built once on mount but must format the *current* file/style.
@@ -240,6 +244,7 @@ export function Editor({ value, onChange, filename, pcLine, breakpointLines, lin
     onJumpRef.current = onJumpToLabel;
     onGoToDefRef.current = onGoToDefinition;
     onFindRefsRef.current = onFindReferences;
+    onRequestRenameRef.current = onRequestRename;
     onCursorLineRef.current = onCursorLine;
     filenameRef.current = filename;
     cFormatStyleRef.current = cFormatStyle;
@@ -375,6 +380,18 @@ export function Editor({ value, onChange, filename, pcLine, breakpointLines, lin
             void import("../../codemirror/lsp/client").then(({ cc65References }) =>
               cc65References(doc, pos).then((refs) => onFindRefsRef.current?.(symbol, refs)),
             );
+            return true;
+          } },
+          // Rename symbol (#75, VS Code parity) — App prompts + applies the LSP
+          // edits across files.
+          { key: "F2", preventDefault: true, run: (view) => {
+            if (!isCFile(filenameRef.current)) return false;
+            const pos = view.state.selection.main.head;
+            const word = view.state.wordAt(pos);
+            if (!word) return true;
+            const symbol = view.state.doc.sliceString(word.from, word.to);
+            if (!/^[A-Za-z_][A-Za-z0-9_]*$/.test(symbol)) return true;
+            onRequestRenameRef.current?.(pos, symbol);
             return true;
           } },
           // Consume the Run / Restart accelerators so the browser doesn't insert

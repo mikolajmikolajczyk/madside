@@ -3,7 +3,7 @@ import type { EditorView } from "@codemirror/view";
 import { resolveCStyle, formatCView, isCFile } from "@ui/codemirror";
 import { OutlinePanel } from "./components/outline/OutlinePanel";
 import { ReferencesPanel } from "./components/outline/ReferencesPanel";
-import type { ReferenceLocation } from "./codemirror/lsp/client";
+import type { ReferenceLocation, RenameTextEdit } from "./codemirror/lsp/client";
 import { MenuBar } from "./components/layout/MenuBar";
 import { DebugBar } from "./components/layout/DebugBar";
 import { StatusBar } from "./components/layout/StatusBar";
@@ -61,6 +61,29 @@ const ASSET_EXTENSIONS = new Set([
 
 function isAssetPath(path: string): boolean {
   return ASSET_EXTENSIONS.has(extOf(path));
+}
+
+// Apply an LSP rename's TextEdits to a file's text (#75). Edits are resolved to
+// offsets and applied back-to-front so earlier ones don't shift later ones.
+function offsetAt(text: string, line: number, character: number): number {
+  let off = 0;
+  let ln = 0;
+  for (let i = 0; i < text.length && ln < line; i++) {
+    if (text.charCodeAt(i) === 10) { ln++; off = i + 1; }
+  }
+  return off + character;
+}
+function applyTextEdits(text: string, edits: RenameTextEdit[]): string {
+  const resolved = edits
+    .map((e) => ({
+      from: offsetAt(text, e.range.start.line, e.range.start.character),
+      to: offsetAt(text, e.range.end.line, e.range.end.character),
+      newText: e.newText,
+    }))
+    .sort((a, b) => b.from - a.from);
+  let out = text;
+  for (const e of resolved) out = out.slice(0, e.from) + e.newText + out.slice(e.to);
+  return out;
 }
 
 // The manifest gets the visual editor, not the plain text editor. Match by
@@ -278,6 +301,13 @@ export default function App() {
     setGotoTarget((prev) => ({ line, tick: (prev?.tick ?? 0) + 1 }));
   }, [project, openSystemFile]);
 
+  // Rename symbol (#75) — F2 in the editor opens the prompt; on confirm the LSP
+  // resolves the edits and we apply them across the project's files.
+  const [renameReq, setRenameReq] = useState<{ pos: number; symbol: string } | null>(null);
+  const onRequestRename = useCallback((pos: number, symbol: string) => {
+    setRenameReq({ pos, symbol });
+  }, []);
+
   const breakpoints = useBreakpointAddrs(sourceMap, bpLinesByFile);
 
   const activePath = project.loaded ? project.activePath : "";
@@ -439,6 +469,29 @@ export default function App() {
     () => (isCFile(activePath) && activeContent ? new TextDecoder().decode(activeContent) : ""),
     [activePath, activeContent],
   );
+
+  // Confirm a rename: ask the LSP for the edits at the captured cursor, apply
+  // them to every touched project file, persist + reload (#75). The modal blocks
+  // editing, so `outlineText` still matches the buffer the cursor offset came
+  // from.
+  const applyRename = useCallback(async (newName: string) => {
+    const req = renameReq;
+    setRenameReq(null);
+    const name = newName.trim();
+    if (!req || !project.loaded || !name || name === req.symbol) return;
+    const { cc65Rename } = await import("./codemirror/lsp/client");
+    const changes = await cc65Rename(outlineText, req.pos, name);
+    if (!changes) return;
+    const dec = new TextDecoder();
+    const enc2 = new TextEncoder();
+    const edits: { path: string; content: Uint8Array }[] = [];
+    for (const [path, textEdits] of Object.entries(changes)) {
+      const file = project.files.find((f) => f.path === path);
+      if (!file) continue;
+      edits.push({ path, content: enc2.encode(applyTextEdits(dec.decode(file.content), textEdits)) });
+    }
+    if (edits.length > 0) await project.applyEdits(edits);
+  }, [renameReq, project, outlineText]);
 
 
   // Run/debug transport controls (#65): onRun/onPause/onStep/onStepFrame/
@@ -902,6 +955,7 @@ export default function App() {
                 onJumpToLabel={onJumpToLabel}
                 onGoToDefinition={onGoToDefinition}
                 onFindReferences={onFindReferences}
+                onRequestRename={onRequestRename}
                 onCursorLine={setCursorLine}
               />
             </Suspense>
@@ -942,6 +996,14 @@ export default function App() {
         brokeOn={brokeOn}
       />
 
+      <TextPromptDialog
+        open={renameReq !== null}
+        title={`Rename '${renameReq?.symbol ?? ""}'`}
+        initial={renameReq?.symbol ?? ""}
+        confirmLabel="Rename"
+        onCancel={() => setRenameReq(null)}
+        onConfirm={applyRename}
+      />
       <TextPromptDialog
         open={dialog === "renameProject"}
         title="Rename project"

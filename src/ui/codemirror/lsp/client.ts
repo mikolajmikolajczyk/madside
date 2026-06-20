@@ -456,3 +456,55 @@ export async function cc65References(doc: Text, pos: number): Promise<ReferenceL
     return []
   }
 }
+
+/** offset → LSP position against a plain string (the host hands us the active
+ *  buffer text + a cursor offset for rename, not a CodeMirror doc). */
+function positionOfText(text: string, offset: number): Position {
+  let line = 0
+  let lineStart = 0
+  const end = Math.min(offset, text.length)
+  for (let i = 0; i < end; i++) {
+    if (text.charCodeAt(i) === 10) {
+      line++
+      lineStart = i + 1
+    }
+  }
+  return { line, character: offset - lineStart }
+}
+
+export interface RenameTextEdit {
+  range: { start: Position; end: Position }
+  newText: string
+}
+/** Rename edits grouped by project path (#75). Sysroot-header edits are dropped
+ *  (read-only); only editable project files are returned. */
+export type RenameChanges = Record<string, RenameTextEdit[]>
+
+/** Rename the symbol at `pos` (offset in `text`) to `newName`, returning the
+ *  edits per project path, or null when the symbol isn't renameable / on
+ *  failure. The host applies the edits to the project files. */
+export async function cc65Rename(
+  text: string,
+  pos: number,
+  newName: string,
+): Promise<RenameChanges | null> {
+  try {
+    if (!activePath) return null
+    const { conn, ready: handshake } = connect()
+    await handshake
+    const uri = openOrChange(conn, activePath, text)
+
+    const res = await conn.sendRequest<{ changes?: Record<string, RenameTextEdit[]> } | null>(
+      'textDocument/rename',
+      { textDocument: { uri }, position: positionOfText(text, pos), newName },
+    )
+    if (!res?.changes) return null
+    const out: RenameChanges = {}
+    for (const [u, edits] of Object.entries(res.changes)) {
+      if (u.startsWith(FILE_URI_PREFIX)) out[u.slice(FILE_URI_PREFIX.length)] = edits
+    }
+    return out
+  } catch {
+    return null
+  }
+}
