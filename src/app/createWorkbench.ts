@@ -42,6 +42,7 @@ import { builtinPlugins } from './builtin-plugins'
 import { atariXl } from '@plugins/machine-atari-xl'
 import { machineNes } from '@plugins/machine-nes'
 import { machineC64 } from '@plugins/machine-c64'
+import { machineZx } from '@plugins/machine-zx'
 import { madsToolchain } from '@plugins/toolchain-mads'
 
 // Workbench Core — the headless workbench instance the rest of the app talks
@@ -221,6 +222,11 @@ export function createWorkbench(deps: WorkbenchDeps): Workbench {
       machine: machineC64,
       backendFactory: resolveEmulatorBackend(machineC64),
       debugAdapter: deps.debugAdapter ?? resolveDebugAdapter(machineC64),
+    },
+    'zx-spectrum': {
+      machine: machineZx,
+      backendFactory: resolveEmulatorBackend(machineZx),
+      debugAdapter: deps.debugAdapter ?? resolveDebugAdapter(machineZx),
     },
   }
   let activeMachine: MachinePlugin = atariXl

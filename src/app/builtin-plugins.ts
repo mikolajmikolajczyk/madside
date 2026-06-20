@@ -11,6 +11,7 @@ import { chipsC64Emulator } from '@plugins/emulator-c64-chips'
 import { chipsZxEmulator } from '@plugins/emulator-zx-chips'
 import { altirraEmulator } from '@adapters/emu'
 import { atari6502DebugAdapter } from '@plugins/debug-atari-6502'
+import { zxZ80DebugAdapter } from '@plugins/debug-zx-z80'
 import { registersPanel } from '@plugins/panel-registers'
 import { memoryPanel } from '@plugins/panel-memory'
 import { outputPanel } from '@plugins/panel-output'
@@ -44,6 +45,7 @@ export const builtinPlugins: readonly PluginBase[] = [
   chipsZxEmulator,
   // debug adapters
   atari6502DebugAdapter,
+  zxZ80DebugAdapter,
   // panels
   registersPanel,
   memoryPanel,

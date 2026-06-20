@@ -86,7 +86,7 @@ describe('manifest-driven machine selection', () => {
     wb.setActiveMachine('atari-xl') // already active
     expect(fired).toBe(0)
 
-    wb.setActiveMachine('zx-spectrum') // unknown — keep current, no notify
+    wb.setActiveMachine('nonexistent-machine') // unknown — keep current, no notify
     expect(wb.machine.id).toBe('atari-xl')
     expect(fired).toBe(0)
   })
