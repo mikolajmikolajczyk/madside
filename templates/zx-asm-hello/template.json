@@ -1,0 +1,6 @@
+{
+  "name": "ZX Spectrum — Hello World (z80asm)",
+  "description": "Write ZX Spectrum 48K programs in Z80 assembly. z88dk's z80asm assembles the source; the IDE wraps it into a 48K .sna snapshot that boots on the chips ZX core. Sets the border and draws text to the screen straight from the ROM font.",
+  "machine": "zx-spectrum",
+  "order": 10
+}

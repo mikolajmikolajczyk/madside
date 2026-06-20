@@ -1,0 +1,8 @@
+{
+  "version": 2,
+  "name": "zx-asm-hello",
+  "main": "src/main.asm",
+  "machine": "zx-spectrum",
+  "toolchain": "z88dk",
+  "run": { "default": { "audio": false } }
+}
