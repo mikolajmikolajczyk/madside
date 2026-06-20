@@ -277,6 +277,28 @@ compile-chips-wasm:
     @echo "installed → {{chips_out_dir}}"
     @ls -lh "{{chips_out_dir}}/c64-core."*
 
+# === zx-core.wasm pipeline (chips systems/zx.h) ===
+
+zx_out_dir := justfile_directory() / "src/plugins/emulator-zx-chips/wasm"
+
+# Compile the ZX Embind wrapper + chips core to an ES6 module (mirror
+# build-chips-wasm). Reuses the chips checkout from clone-chips. The ZX 48K ROM
+# is Amstrad-redistributable and ships under emulator-zx-chips/roms/, handed to
+# the core at init. Requires the wasm shell: `nix develop .#wasm`.
+build-zx-wasm: clone-chips compile-zx-wasm
+
+compile-zx-wasm:
+    cd "{{justfile_directory()}}" && nix --experimental-features 'nix-command flakes' develop .#wasm --command bash -c \
+        'set -e; \
+         emcc -Oz -std=gnu11 -I "{{chips_dir}}" -c "{{zx_out_dir}}/zx-impl.c" -o /tmp/zx-impl.o; \
+         em++ -Oz -std=c++17 -Wno-gnu-anonymous-struct -Wno-nested-anon-types -I "{{chips_dir}}" \
+            "{{zx_out_dir}}/zx-core.cpp" /tmp/zx-impl.o \
+            -o "{{zx_out_dir}}/zx-core.js" \
+            -lembind -sMODULARIZE=1 -sEXPORT_ES6=1 -sENVIRONMENT=web -sALLOW_MEMORY_GROWTH=1 \
+            -sEXPORT_NAME=createZxCore -sFILESYSTEM=0'
+    @echo "installed → {{zx_out_dir}}"
+    @ls -lh "{{zx_out_dir}}/zx-core."*
+
 # === z80asm.wasm + appmake.wasm pipeline (z88dk, asm-first) ===
 
 z88dk_build_dir := justfile_directory() / "_notes/z88dk-wasm-spike/build"

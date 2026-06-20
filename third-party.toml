@@ -112,6 +112,17 @@ license    = "GPL-3.0-or-later"
 artifact   = "src/plugins/emulator-c64-chips/roms/"
 built_with = "Prebuilt images from upstream /bin (not compiled here); bundled as a runtime data asset"
 
+[source.zx_rom]
+name       = "ZX Spectrum 48K ROM"
+role       = "Sinclair ZX Spectrum 48K system ROM — handed to the chips zx core at init"
+upstream   = "https://github.com/floooh/chips-test"
+source     = "https://github.com/floooh/chips-test/blob/master/examples/roms/zx-roms.h"
+ref        = "dump_amstrad_zx48k_bin (SHA1 5ea7c2b824672e914525d1d5c419d71b84a426a2, 16384 bytes)"
+version    = "Sinclair 48K (1982)"
+license    = "Amstrad-redistributable (1999 grant: free redistribution for emulation)"
+artifact   = "src/plugins/emulator-zx-chips/roms/48.rom"
+built_with = "Extracted verbatim from floooh/chips-test's embedded dump; Amstrad granted free redistribution of the Sinclair ROMs for emulator use."
+
 # === build-time toolchains — the justfile reads these; NOT shipped, NOT in the
 #     table (they compile the artifacts above, they aren't part of the product) ===
 

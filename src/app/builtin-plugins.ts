@@ -7,6 +7,7 @@ import { madsToolchain } from '@plugins/toolchain-mads'
 import { cc65Toolchain } from '@plugins/toolchain-ca65'
 import { jsnesEmulator } from '@plugins/emulator-nes-jsnes'
 import { chipsC64Emulator } from '@plugins/emulator-c64-chips'
+import { chipsZxEmulator } from '@plugins/emulator-zx-chips'
 import { altirraEmulator } from '@adapters/emu'
 import { atari6502DebugAdapter } from '@plugins/debug-atari-6502'
 import { registersPanel } from '@plugins/panel-registers'
@@ -38,6 +39,7 @@ export const builtinPlugins: readonly PluginBase[] = [
   altirraEmulator,
   jsnesEmulator,
   chipsC64Emulator,
+  chipsZxEmulator,
   // debug adapters
   atari6502DebugAdapter,
   // panels
