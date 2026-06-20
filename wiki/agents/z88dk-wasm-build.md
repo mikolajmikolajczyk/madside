@@ -145,6 +145,55 @@ the keeper):
   -o /x.asm /x.c")` → the host ran the *real* `sccz80.wasm` on the shared preopen
   → it produced `x.asm` (49 lines) → returned 0 → the caller saw rc=0.
 
+#### Built + wired so far (spikes in `_notes/z88dk-wasm-spike/`)
+
+`zcc.wasm` (452K) **runs as the driver** and emits the full classic `+zx` recipe
+through the shim. Build it from `src/zcc`: sources `zcc.c` + `../copt/regex/reg*.c`
++ `../common/{dirname,option}.c`, flags `-DLOCAL_REGEXP -I. -I../copt -I../common
+-I../../ext/uthash/src` (NOT ext/regex — zcc uses its own copt/regex), plus
+`-Wno-error=implicit-function-declaration -Wno-error=int-conversion`. The shim
+(`build/zcc-shim.c`) overrides `system()`→`env.run` and adds `mkstemp`/`mkdtemp`/
+`tmpfile` (wasi-libc lacks them). Recipe: `build-zcc.sh`.
+
+**The captured classic recipe** (from `zcc +zx -v -create-app`), i.e. what the
+dispatcher must service:
+```
+z88dk-ucpp  hello.c -o X.i2                       # preprocess   → zcpp.wasm
+z88dk-zpragma -sccz80 -zcc-opt=zcc_opt.def <X.i2 >X.i   # pragma→opt  → (passthrough ok for no-pragma)
+z88dk-sccz80  X.i -o X.opt                          # compile      → sccz80.wasm
+z88dk-copt -mz80 z80rules.9 <X.opt >X.op1          # peephole ×3  → (passthrough = unoptimised but correct)
+z88dk-copt -mz80 z80rules.2 <X.op1 >X.opt
+z88dk-copt -mz80 z80rules.1 <X.opt >X.asm
+cat X.asm >> X.tmp ; cat X.tmp >> X.asm            # (zcc merge dance)
+z88dk-z80asm -s -mz80 -I.../lib X.asm              # assemble     → z80asm.wasm
+cat spec_crt0.asm >> Y.asm ; …                     # classic crt0
+z88dk-z80asm -s -mz80 -I.../lib -I.../zx/classic Y.asm
+<LINK: objects + libs>                             # final link   → z80asm.wasm -b -d …
+```
+- `z88dk-copt` and `z88dk-zpragma` are **also C** (`src/copt/copt.c`,
+  `src/zpragma/zpragma.c`) — buildable, but copt's `regex/` collides with
+  wasi-libc's `<regex.h>`; for a first cut the **dispatcher treats both as
+  passthrough** (copy stdin→stdout): the program compiles correct but unoptimised,
+  and a no-`#pragma` hello needs no zcc_opt.def beyond zcc's own defaults. Build
+  them properly later for optimisation + pragma support.
+- The host dispatcher (node spike `_notes/.../zxbuild-dispatch.mjs`) tokenises the
+  command (quotes + `< > >>` redirection, drop literal `(null)` args), services
+  `cat`, passthroughs, and runs the 4 real tools via `node:wasi` with file-backed
+  stdin/stdout (open the redirect targets, pass fds as `WASI({stdin,stdout})`).
+  ZCCCFG=`/z88dk/lib/config`; sysroot = the v2.4 `lib/` + `include/` mounted in
+  the preopen (DESTDIR resolves to `ZCCCFG/../..`).
+
+**Status: gets all the way to the LINK step.** ucpp→zpragma→sccz80→copt→z80asm
+(main) + crt0 assemble all run. **Remaining bug:** zcc's final/consolidate link
+command came through `system()` as just the object files (`"a.o" "b.o"`) with the
+linker name + flags empty — `c_linker` (= `z88dk-z80asm`, set unconditionally in
+`configure_assembler()`) was not in the string. Next debug: why the
+consolidate-objects link (`zcc.c:1712`, the compileonly template `zcc.c:822`) or
+final link (`zcc.c:1736`, template `zcc.c:847`) emits no linker prefix in this
+minimal ZCCCFG setup — likely a missing config value or the consolidate step
+needs different handling. Once the link resolves: wrap output → `.sna`
+(`buildSna48k`) and the C path boots.
+
 **Why this beats replicating zcc's recipe:** zcc stays the driver, so it owns ALL
 the classic-link logic (crt0, libs, `zcc_opt.def`, `CRT_*` defines, link order) —
 **zero reverse-engineering**, works for any z88dk feature, survives version bumps
