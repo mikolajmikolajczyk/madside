@@ -35,6 +35,7 @@ import { useEquateValues } from "./hooks/useEquateValues";
 import { usePluginEditor } from "./hooks/usePluginEditor";
 import { useProjectLabels } from "./hooks/useProjectLabels";
 import { useProjectCDocuments } from "./hooks/useProjectCDocuments";
+import { useLspDiagnostics } from "./hooks/useLspDiagnostics";
 import { useManifestMachineSync } from "./hooks/useManifestMachineSync";
 import { useEmuStateReset } from "./hooks/useEmuStateReset";
 import { useRunControls } from "./hooks/useRunControls";
@@ -370,7 +371,7 @@ export default function App() {
   // that file's markers. Prefer exact path match (same scheme as the source
   // map); fall back to basename only when nothing matches exactly, so a build
   // that reports a bare filename still lights up the right editor.
-  const editorDiagnostics = useMemo(() => {
+  const buildDiagnostics = useMemo(() => {
     const all = result?.diagnostics ?? [];
     if (all.length === 0) return [];
     const exact = all.filter((d) => d.file === activePath);
@@ -378,6 +379,19 @@ export default function App() {
     const base = activePath.split("/").pop();
     return all.filter((d) => d.file.split("/").pop() === base);
   }, [result, activePath]);
+
+  // LSP semantic diagnostics for the active file (#77) — analysis-driven,
+  // as-you-type, complementary to the build diagnostics above (madside parses
+  // the compiler output itself, so the server only ever publishes semantic
+  // findings here). Merge the two, dropping any exact line+message duplicate so
+  // a semantic finding that the build later confirms doesn't double up.
+  const lspDiagnostics = useLspDiagnostics(activePath);
+  const editorDiagnostics = useMemo(() => {
+    if (lspDiagnostics.length === 0) return buildDiagnostics;
+    const seen = new Set(buildDiagnostics.map((d) => `${d.line}:${d.message}`));
+    const extra = lspDiagnostics.filter((d) => !seen.has(`${d.line}:${d.message}`));
+    return extra.length === 0 ? buildDiagnostics : [...buildDiagnostics, ...extra];
+  }, [buildDiagnostics, lspDiagnostics]);
 
   // Live memory values next to address equates (#34). Scan the open assembly
   // file for `LABEL = $addr` lines; the hook then reads the byte at each address

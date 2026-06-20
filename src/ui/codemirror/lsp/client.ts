@@ -15,12 +15,25 @@ import type { Completion, CompletionContext, CompletionResult } from '@codemirro
 import { hoverTooltip, type EditorView, type Tooltip } from '@codemirror/view'
 import type { Text } from '@codemirror/state'
 import type { SourceFile } from '@cc65-intel/core'
+import { setLspDiagnostics } from './diagnosticsStore'
 
 // Project files open with the server under real `file://` URIs (#70) so the
 // engine sees the whole translation unit set, not just the focused buffer —
 // the prerequisite for cross-file navigation. `file:///<project-path>`; the
 // server treats the URI opaquely, we only need it stable + unique per path.
 const uriFor = (path: string): string => 'file:///' + path.replace(/^\/+/, '')
+
+// Reverse of `uriFor`: a project doc URI carries the `file:///` prefix → strip
+// it back to the project path; a sysroot-header URI is a bare path (no prefix)
+// and has no editable project file, so it maps to null.
+const pathForUri = (uri: string): string | null =>
+  uri.startsWith('file:///') ? uri.slice('file:///'.length) : null
+
+interface LspDiagnostic {
+  range: { start: Position; end: Position }
+  severity?: number
+  message: string
+}
 
 // LSP CompletionItemKind → CodeMirror completion `type`. (Field 5, Function 3,
 // Constant 21, Variable 6, Struct 22.)
@@ -85,6 +98,27 @@ function connect(): { conn: MessageConnection; ready: Promise<void> } {
   const conn = createMessageConnection(
     new BrowserMessageReader(worker),
     new BrowserMessageWriter(worker),
+  )
+  // The server pushes semantic diagnostics on every edit (#77). Map each to a
+  // BuildDiagnostic against the project path and stash them for the app to
+  // merge with its build diagnostics. Registered before listen() so no early
+  // push is missed. Sysroot-header URIs (no project path) are ignored.
+  conn.onNotification(
+    'textDocument/publishDiagnostics',
+    (p: { uri: string; diagnostics: LspDiagnostic[] }) => {
+      const path = pathForUri(p.uri)
+      if (!path) return
+      setLspDiagnostics(
+        path,
+        p.diagnostics.map((d) => ({
+          file: path,
+          line: d.range.start.line + 1,
+          column: d.range.start.character + 1,
+          severity: (d.severity ?? 1) === 1 ? 'error' : 'warning',
+          message: d.message,
+        })),
+      )
+    },
   )
   conn.listen()
   connection = conn
