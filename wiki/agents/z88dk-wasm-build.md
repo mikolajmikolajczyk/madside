@@ -127,17 +127,52 @@ artifacts; the **release** has them). From `z88dk-osx-2.4.zip` (GitHub release
 - (the "new" `_DEVELOPMENT` clib at `libsrc/_DEVELOPMENT/lib/sccz80/zx.lib`
   exists too, but its link is zcc-orchestrated/harder — prefer the **classic** path.)
 
+### Chosen approach: ship `zcc.wasm` + shim `system()` (NOT recipe-replication)
+
+The driver problem (`zcc` fork/exec's its sub-tools; WASI has none) is solved by
+**shimming `system()` to a host import** rather than reverse-engineering zcc's
+classic link. **Proven end-to-end** (spike `/tmp/shimtest`, but the technique is
+the keeper):
+
+- Override `system(cmd)` in zcc.wasm to call an imported host function
+  (`__attribute__((import_module("env"),import_name("run")))`). Confirmed: it
+  compiles with wasi-sdk clang and shows up as a wasm import `env.run`.
+- The JS host provides `env.run(cmdPtr)`: read the C string from the instance's
+  memory, parse the shell-ish command (`z88dk-sccz80 …` / `z88dk-z80asm …` /
+  `zcpp …` / `z88dk-appmake …`), dispatch to that sub-tool's wasm module, run it
+  **synchronously** on the **shared VFS**, return its exit code.
+- **Proven loop:** a `system()`-shimmed test wasm called `env.run("z88dk-sccz80
+  -o /x.asm /x.c")` → the host ran the *real* `sccz80.wasm` on the shared preopen
+  → it produced `x.asm` (49 lines) → returned 0 → the caller saw rc=0.
+
+**Why this beats replicating zcc's recipe:** zcc stays the driver, so it owns ALL
+the classic-link logic (crt0, libs, `zcc_opt.def`, `CRT_*` defines, link order) —
+**zero reverse-engineering**, works for any z88dk feature, survives version bumps
+(just rebuild). Cost: ship `zcc.wasm` + the 4 sub-tools + a host dispatcher +
+shared VFS.
+
+Shared VFS: **node WASI uses the real FS** (preopen the same dir → sharing is
+free, as in the spike). The **browser** path (`browser_wasi_shim`, in-memory FS)
+must pass the **same `PreopenDirectory`/`Directory` object** to every instance so
+files flow between tools — the one runtime-integration piece to verify.
+
 **Remaining work for #87:**
-1. Bundle a **+zx sysroot zip** (mirror cc65's `<target>-sysroot.zip`): `zx_clib.lib`
-   + `mzx.lib` + `spec_crt0.asm` (+ its includes) + `include/` headers + the
-   classic `zx.cfg` link params. Pin the z88dk release (v2.4) in `third-party.toml`.
-2. Install `sccz80.wasm` + `zcpp.wasm` next to `z80asm.wasm`; extend the recipe.
-3. **Replicate zcc's classic link in JS** (the real remaining piece — no `zcc`
-   driver under WASI): `zcpp main.c -Iinclude → main.i`; `sccz80 main.i → main.asm`;
-   `z80asm` assemble `spec_crt0.asm` + `main.asm`, link + `zx_clib.lib` + `mzx.lib`
-   with the classic memory layout (the crt0 needs `CRT_*` defines that zcc supplies
-   via `zcc_opt.def` + `-D` flags — sccz80 already emits a basic `zcc_opt.def`).
-   Then → `.sna` (reuse `buildSna48k`) / appmake.
-4. `toolchain-z88dk`: add `c`/`h` to `inputExt`, orchestrate the above.
+1. Build **`zcc.wasm`** from the z88dk source (C, like the others) with the
+   `system()`→`env.run` shim baked into `wasm-stubs.c`. (The native build hit a
+   `regex/REG_OKAY` config snag with ad-hoc gcc — use the z88dk Makefile's flags;
+   z80asm already builds with `ext/regex`, so the wasm build is tractable.)
+2. Bundle a **+zx sysroot zip**: `zx_clib.lib` + `mzx.lib` + `spec_crt0.asm`
+   (+ includes) + `include/` headers + `lib/config/zx.cfg`, mounted at the paths
+   zcc expects (set `ZCCCFG` env + `DESTDIR`). Pin z88dk **v2.4** in
+   `third-party.toml` (matches the prebuilt libs; RMF18/LMF18 compatible).
+3. Install `sccz80.wasm` + `zcpp.wasm` + `zcc.wasm` next to `z80asm.wasm`; extend
+   the recipe. Build a **host dispatcher** (parse cmd incl. quoted paths, route to
+   sub-tool wasm, capture per-tool stdout/stderr for diagnostics).
+4. `toolchain-z88dk`: add `c`/`h` to `inputExt`; the C build runs `zcc.wasm
+   +zx -create-app …` once, the shim drives the rest; wrap output → `.sna`
+   (reuse `buildSna48k`) or take appmake's.
 5. `zx-c-hello` template (`#include`, `printf`/screen).
 6. (separate epic) generalize `client.ts` LSP host for a 2nd language server.
+
+(The earlier "replicate zcc's classic link in JS" idea is superseded by the shim —
+kept only as a fallback if `zcc.wasm` proves hard to build.)
