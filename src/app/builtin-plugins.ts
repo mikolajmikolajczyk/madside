@@ -2,6 +2,7 @@ import type { PluginBase } from '@ports'
 import { atariXl } from '@plugins/machine-atari-xl'
 import { machineNes } from '@plugins/machine-nes'
 import { machineC64 } from '@plugins/machine-c64'
+import { machineZx } from '@plugins/machine-zx'
 import { madsToolchain } from '@plugins/toolchain-mads'
 import { cc65Toolchain } from '@plugins/toolchain-ca65'
 import { jsnesEmulator } from '@plugins/emulator-nes-jsnes'
@@ -28,6 +29,7 @@ export const builtinPlugins: readonly PluginBase[] = [
   atariXl,
   machineNes,
   machineC64,
+  machineZx,
   // toolchains
   madsToolchain,
   cc65Toolchain,
