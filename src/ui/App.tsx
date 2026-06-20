@@ -1,6 +1,7 @@
 import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { EditorView } from "@codemirror/view";
-import { resolveCStyle, formatCView } from "@ui/codemirror";
+import { resolveCStyle, formatCView, isCFile } from "@ui/codemirror";
+import { OutlinePanel } from "./components/outline/OutlinePanel";
 import { MenuBar } from "./components/layout/MenuBar";
 import { DebugBar } from "./components/layout/DebugBar";
 import { StatusBar } from "./components/layout/StatusBar";
@@ -413,6 +414,13 @@ export default function App() {
     toggleBpRef.current?.(activePath, line);
   }, [activePath]);
 
+  // Decoded text of the active C file for the sidebar Outline (#76). Memoised on
+  // the bytes + path so it only re-decodes when the file actually changes.
+  const outlineText = useMemo(
+    () => (isCFile(activePath) && activeContent ? new TextDecoder().decode(activeContent) : ""),
+    [activePath, activeContent],
+  );
+
 
   // Run/debug transport controls (#65): onRun/onPause/onStep/onStepFrame/
   // onStepOver/onStop/onReset. onStepOver carries the documented sourceMap/cpu
@@ -774,21 +782,33 @@ export default function App() {
             />
           );
           const course = project.manifest.course;
-          if (!course) return explorerEl;
-          // Course mode: vertical split — compact Files on top, lesson panel below.
+          // Outline of the active C file, under the file tree (#76). Null for
+          // non-C files, so the column collapses back to just the Explorer.
+          const outlineEl = isCFile(activePath) && !viewSystemFile ? (
+            <OutlinePanel
+              path={activePath}
+              content={outlineText}
+              onJump={(line) => setGotoTarget((prev) => ({ line, tick: (prev?.tick ?? 0) + 1 }))}
+            />
+          ) : null;
+          if (!course && !outlineEl) return explorerEl;
+          // Vertical split — compact Files on top, lesson + outline below.
           return (
             <div className="app__explorer-col">
               {explorerEl}
-              <Suspense fallback={<div className="app__loading">loading lesson…</div>}>
-                <CoursePanel
-                  courseId={course.id}
-                  lessonId={course.lesson}
-                  onOpenLesson={(c, l) => { void handleOpenLesson(c, l); }}
-                  onCheck={handleCheck}
-                  onRefresh={handleRefreshCourse}
-                  onReset={handleResetLesson}
-                />
-              </Suspense>
+              {course && (
+                <Suspense fallback={<div className="app__loading">loading lesson…</div>}>
+                  <CoursePanel
+                    courseId={course.id}
+                    lessonId={course.lesson}
+                    onOpenLesson={(c, l) => { void handleOpenLesson(c, l); }}
+                    onCheck={handleCheck}
+                    onRefresh={handleRefreshCourse}
+                    onReset={handleResetLesson}
+                  />
+                </Suspense>
+              )}
+              {outlineEl}
             </div>
           );
         })()}

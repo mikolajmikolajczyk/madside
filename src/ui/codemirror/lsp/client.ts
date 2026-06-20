@@ -389,3 +389,35 @@ export async function cc65SignatureHelp(doc: Text, pos: number): Promise<Signatu
     return null
   }
 }
+
+interface LspDocumentSymbol {
+  name: string
+  kind: number
+  range: { start: Position; end: Position }
+}
+
+/** One top-level declaration in the active C file (#76). `kind` is the LSP
+ *  SymbolKind; `line` is 1-based for the editor's goto. */
+export interface OutlineItem {
+  name: string
+  kind: number
+  line: number
+}
+
+/** Document symbols (functions / structs / typedefs / globals) for `path`. Syncs
+ *  the passed text first so the outline tracks unsaved edits. Empty on miss /
+ *  transport failure. */
+export async function cc65DocumentSymbols(path: string, text: string): Promise<OutlineItem[]> {
+  try {
+    const { conn, ready: handshake } = connect()
+    await handshake
+    const uri = openOrChange(conn, path, text)
+
+    const res = await conn.sendRequest<LspDocumentSymbol[] | null>('textDocument/documentSymbol', {
+      textDocument: { uri },
+    })
+    return (res ?? []).map((s) => ({ name: s.name, kind: s.kind, line: s.range.start.line + 1 }))
+  } catch {
+    return []
+  }
+}
