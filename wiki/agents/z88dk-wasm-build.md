@@ -98,3 +98,46 @@ Mirrors the cc65 pattern — pin upstream, patch the checkout in the recipe:
 Don't rebuild casually. Bump the pins in `third-party.toml`, rerun
 `just build-z88dk-wasm`, smoke-test, then commit the new wasm. If a pin bump
 changes `parse_rules.h`'s structure, re-check `split-action-switch.py`'s anchors.
+
+## C path (#87) — work-in-progress notes
+
+The asm path ships; C is #87. The tooling is **de-risked + all three compilers
+build to WASI** (spikes live in `_notes/z88dk-wasm-spike/`, git-ignored):
+
+- **`sccz80.wasm`** (650K) — z88dk's native C compiler. Plain gnu99, builds clean
+  with wasi-sdk clang. Needed one stub: `tmpfile()` (wasi-libc lacks it) over
+  mkstemp+fdopen, in `build-support/z88dk/wasm-stubs.c`. Recipe: `build-sccz80.sh`.
+  Proven: compiles `.c` → z88dk `.asm` (SECTION code_compiler + C_LINE + l_* runtime calls).
+- **`zcpp.wasm`** (379K) — z88dk's ucpp C preprocessor (`src/ucpp`, `-DSTAND_ALONE
+  -DUCPP_CONFIG`). **REQUIRED** before sccz80: sccz80 does NOT expand `#define`
+  (it emits the macro name as a symbol) or handle `#include`. ucpp uses
+  setjmp/longjmp → must build with **`-mllvm -wasm-enable-sjlj`** + link
+  `-fwasm-exceptions -lunwind -lsetjmp`. Runs under node WASI (engine has wasm EH);
+  proven: `N*2` with `#define N 5` → `5*2`. Recipe: `build-ucpp.sh`.
+- **`z80asm.wasm`** (the committed asm one) reads the prebuilt v2.4 libs:
+  our HEAD z80asm writes object format **`Z80RMF18`**, v2.4's `.lib` are
+  **`Z80LMF18`** — same v18, **compatible, no re-pin of the z80asm source needed**.
+
+**Prebuilt +zx C library is available** (the git tree's `lib/clibs` is empty —
+artifacts; the **release** has them). From `z88dk-osx-2.4.zip` (GitHub release
+`v2.4`, libs are platform-independent):
+- `lib/clibs/zx_clib.lib` (1.2M, classic clib) + `lib/clibs/mzx.lib` (47K, ZX maths)
+- classic crt0 `lib/target/zx/classic/spec_crt0.asm` (17.9K) + `lib/config/zx.cfg`
+- headers `include/` + `include/arch/zx/`
+- (the "new" `_DEVELOPMENT` clib at `libsrc/_DEVELOPMENT/lib/sccz80/zx.lib`
+  exists too, but its link is zcc-orchestrated/harder — prefer the **classic** path.)
+
+**Remaining work for #87:**
+1. Bundle a **+zx sysroot zip** (mirror cc65's `<target>-sysroot.zip`): `zx_clib.lib`
+   + `mzx.lib` + `spec_crt0.asm` (+ its includes) + `include/` headers + the
+   classic `zx.cfg` link params. Pin the z88dk release (v2.4) in `third-party.toml`.
+2. Install `sccz80.wasm` + `zcpp.wasm` next to `z80asm.wasm`; extend the recipe.
+3. **Replicate zcc's classic link in JS** (the real remaining piece — no `zcc`
+   driver under WASI): `zcpp main.c -Iinclude → main.i`; `sccz80 main.i → main.asm`;
+   `z80asm` assemble `spec_crt0.asm` + `main.asm`, link + `zx_clib.lib` + `mzx.lib`
+   with the classic memory layout (the crt0 needs `CRT_*` defines that zcc supplies
+   via `zcc_opt.def` + `-D` flags — sccz80 already emits a basic `zcc_opt.def`).
+   Then → `.sna` (reuse `buildSna48k`) / appmake.
+4. `toolchain-z88dk`: add `c`/`h` to `inputExt`, orchestrate the above.
+5. `zx-c-hello` template (`#include`, `printf`/screen).
+6. (separate epic) generalize `client.ts` LSP host for a 2nd language server.
