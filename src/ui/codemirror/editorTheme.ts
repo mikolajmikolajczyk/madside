@@ -149,6 +149,20 @@ export const editorTheme = EditorView.theme(
       overflow: "auto",
       maxHeight: "200px",
     },
+    // LSP semantic tokens (#72) — painted over the lexical highlight, so these
+    // win where the cc65-intel server resolves a real role the lexer can't see
+    // (a macro vs a plain identifier, a struct field, a function). `!important`
+    // beats the syntaxHighlighting span colour on the same range.
+    // Target the mark span AND any nested lezer-highlight span (`… *`) so the
+    // semantic colour wins whichever way CodeMirror nests the two overlapping
+    // marks — `!important` on one span can't beat a colour the *other* span sets
+    // on itself.
+    ".cm-st-type, .cm-st-type *": { color: "var(--accent-peach) !important" },
+    ".cm-st-function, .cm-st-function *": { color: "var(--text-heading) !important" },
+    ".cm-st-macro, .cm-st-macro *": { color: "var(--accent-amber) !important" },
+    ".cm-st-property, .cm-st-property *": { color: "var(--accent-mint) !important" },
+    ".cm-st-parameter, .cm-st-parameter *": { color: "var(--text-primary) !important", fontStyle: "italic" },
+    ".cm-st-variable, .cm-st-variable *": { color: "var(--text-primary) !important" },
   },
   { dark: true }
 );

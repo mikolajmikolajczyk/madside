@@ -87,10 +87,11 @@ async function loadLanguagePack(
   // LSP running in a Web Worker (#63): member completion, cc65 stdlib + register
   // structs (from the sysroot headers we feed it), and auto-#include.
   if (/\.(c|h|cc|cpp|hpp)$/.test(lower)) {
-    const [{ cpp }, { autocompletion }, lsp, { cc65SysrootHeaders }] = await Promise.all([
+    const [{ cpp }, { autocompletion }, lsp, { cc65SemanticTokens }, { cc65SysrootHeaders }] = await Promise.all([
       import("@codemirror/lang-cpp"),
       import("@codemirror/autocomplete"),
       import("../../codemirror/lsp/client"),
+      import("../../codemirror/lsp/semanticTokens"),
       import("@app/cSysroot"),
     ]);
     // Feed the cc65 sysroot headers so the LSP offers stdlib completion +
@@ -99,7 +100,9 @@ async function loadLanguagePack(
     // Mark this file as the focused doc so completion/hover address its URI in
     // the multi-document worker (#70).
     lsp.setActiveDoc(path);
-    return [cpp(), autocompletion({ override: [lsp.cc65LspComplete] }), lsp.cc65LspHover];
+    // cpp() = lexical highlight; cc65SemanticTokens() paints the LSP's semantic
+    // roles (macro / type / function / field) on top (#72).
+    return [cpp(), cc65SemanticTokens(), autocompletion({ override: [lsp.cc65LspComplete] }), lsp.cc65LspHover];
   }
   // Assembly: built from the active machine CPU + project toolchain language.
   return cpu && toolchain ? [buildAssemblyLanguage(cpu, toolchain)] : [];

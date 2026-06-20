@@ -293,3 +293,25 @@ export async function cc65LspDefinition(doc: Text, pos: number): Promise<Definit
     return null
   }
 }
+
+/** Full-document semantic tokens for the focused buffer (#72). Returns the
+ *  server's packed LSP array (`[deltaLine, deltaStartChar, length, tokenType,
+ *  tokenModifiers]` quintuples) — the host decodes it into editor decorations.
+ *  The token-type order is the server's legend: type, function, macro,
+ *  parameter, property, variable. Null on miss / transport failure. */
+export async function cc65SemanticTokensFull(doc: Text): Promise<number[] | null> {
+  try {
+    if (!activePath) return null
+    const { conn, ready: handshake } = connect()
+    await handshake
+    const uri = openOrChange(conn, activePath, doc.toString())
+
+    const res = await conn.sendRequest<{ data: number[] } | null>(
+      'textDocument/semanticTokens/full',
+      { textDocument: { uri } },
+    )
+    return res?.data ?? null
+  } catch {
+    return null
+  }
+}
