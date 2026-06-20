@@ -183,16 +183,34 @@ z88dk-z80asm -s -mz80 -I.../lib -I.../zx/classic Y.asm
   ZCCCFG=`/z88dk/lib/config`; sysroot = the v2.4 `lib/` + `include/` mounted in
   the preopen (DESTDIR resolves to `ZCCCFG/../..`).
 
-**Status: gets all the way to the LINK step.** ucpp→zpragma→sccz80→copt→z80asm
-(main) + crt0 assemble all run. **Remaining bug:** zcc's final/consolidate link
-command came through `system()` as just the object files (`"a.o" "b.o"`) with the
-linker name + flags empty — `c_linker` (= `z88dk-z80asm`, set unconditionally in
-`configure_assembler()`) was not in the string. Next debug: why the
-consolidate-objects link (`zcc.c:1712`, the compileonly template `zcc.c:822`) or
-final link (`zcc.c:1736`, template `zcc.c:847`) emits no linker prefix in this
-minimal ZCCCFG setup — likely a missing config value or the consolidate step
-needs different handling. Once the link resolves: wrap output → `.sna`
-(`buildSna48k`) and the C path boots.
+**Two zcc-shim blockers found + FIXED (both are real, keep them):**
+1. **`/dev/null`** — `zcc_vasprintf()` (zcc.c) measured format length by opening
+   `/dev/null` + `vfprintf`; WASI has no `/dev/null` → `fopen` returns NULL → it
+   returned `*s=NULL` → **every command zcc built came out empty** (the earlier
+   "empty linker" symptom). Fix: patch `zcc_vasprintf` to measure with
+   `vsnprintf(NULL,0,…)` (build-time patch; no /dev/null needed). After this, all
+   commands carry full args.
+2. **Quote stripping** — the dispatcher's tokenizer only stripped *fully*-quoted
+   tokens, so `-zcc-opt="…/zcc_opt.def"` reached sccz80 with literal quotes →
+   "Can't open zcc_opt.def". Fix: a proper char-by-char shell tokenizer that drops
+   quote chars *within* tokens.
+
+After both fixes the chain runs ucpp→zpragma→sccz80→copt(passthrough)→z80asm
+(main) + crt0 assemble. **Every tool is verified working in isolation** (ucpp,
+zpragma, sccz80, z80asm; the full manual chain on hello.c yields a 293-line `.opt`
+with `GLOBAL _main`).
+
+**Remaining bug — WASI `..` path traversal (dispatcher/mount level, NOT a tool
+bug):** zcc derives DESTDIR = `ZCCCFG/../..`, so it passes ucpp
+`-isystem"/z88dk/lib/config/../..//include"`. With that `..`-laden path, **ucpp
+silently expands no `#include`** (produces a 3-line `.i2` instead of 855) →
+zpragma→sccz80 then emit a `_main`-less 40-line object → the final link fails
+`undefined symbol: _main`. The exact same ucpp with a **clean** path
+(`-isystem/z88dk/include`) expands stdio.h fine (855 lines, `_main` present).
+**Fix options:** mount/point ZCCCFG so DESTDIR is `..`-free, or have the host
+dispatcher normalise `..` in tool args before exec, or preopen the sysroot at a
+path that needs no traversal. Once includes resolve → `_main` is exported → link
+succeeds → wrap with `buildSna48k` → the C path boots.
 
 **Why this beats replicating zcc's recipe:** zcc stays the driver, so it owns ALL
 the classic-link logic (crt0, libs, `zcc_opt.def`, `CRT_*` defines, link order) —
