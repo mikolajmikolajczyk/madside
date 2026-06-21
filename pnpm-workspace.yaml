@@ -1,9 +1,25 @@
+# One workspace, one lockfile. apps/* (ide, docs) + packages/* (the @madside/*
+# layers, filled by the monorepo restructure — see #89).
+packages:
+  - apps/*
+  - packages/*
+
 # pnpm 11 build-script approval (pnpm's own key; not read from package.json).
 # unrs-resolver (transitive, via eslint-import-resolver-typescript) ships a
 # native binding with a build script — allow it so fresh installs (Docker / CI)
-# don't fail with ERR_PNPM_IGNORED_BUILDS.
+# don't fail with ERR_PNPM_IGNORED_BUILDS. esbuild + sharp are docs' (astro)
+# native install scripts, folded in from the former apps/docs/ pnpm root.
 allowBuilds:
   unrs-resolver: true
+  esbuild: true
+  sharp: true
+
+# Force esbuild past the transitive 0.27.x Astro/Vite pulls in — it carries
+# GHSA-gv7w-rqvm-qjhr (HIGH), fixed in 0.28.1. Keeps the CI trivy gate green.
+# Folded in from the former docs/ workspace.
+overrides:
+  esbuild: '>=0.28.1'
+
 # Our own first-party packages — trusted, exempt from the release-age gate so a
 # fresh cc65-intel publish can be consumed immediately.
 minimumReleaseAgeExclude:

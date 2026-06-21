@@ -52,11 +52,12 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 22
+          cache: pnpm
 
-      # docs/ is a self-contained pnpm root (own lockfile + build-script allowlist).
+      # docs is now a workspace member (@madside/docs) — one root lockfile.
+      - run: pnpm install --frozen-lockfile
       - name: Build docs
-        run: pnpm install --frozen-lockfile && pnpm build
-        working-directory: docs
+        run: pnpm --filter @madside/docs build
 
   security:
     name: secret + vuln scan

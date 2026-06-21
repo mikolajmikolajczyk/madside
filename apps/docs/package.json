@@ -1,5 +1,5 @@
 {
-  "name": "madside-docs",
+  "name": "@madside/docs",
   "version": "0.0.0",
   "private": true,
   "type": "module",
