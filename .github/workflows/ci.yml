@@ -11,8 +11,8 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  app:
-    name: typecheck · test · lint · build
+  ci:
+    name: typecheck · test · lint · build · docs
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -26,38 +26,20 @@ jobs:
           node-version: 22
           cache: pnpm
 
+      # One install for the whole workspace (one root lockfile).
       - run: pnpm install --frozen-lockfile
 
-      # `pnpm build` runs `tsc -b` (typecheck across the project references)
-      # then `vite build`, so it covers both typecheck and the production build.
-      - name: Typecheck + build
-        run: pnpm build
+      # `pnpm -r build` runs each package's build: @madside/ide (`tsc -b` across
+      # the project references, then `vite build`) and @madside/docs (astro) —
+      # so this one step covers typecheck, the app bundle, and the docs site.
+      - name: Build (app + docs)
+        run: pnpm -r build
 
       - name: Test
-        run: pnpm exec vitest run
+        run: pnpm -r test
 
       - name: Lint
         run: pnpm run lint
-
-  docs:
-    name: docs build
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-
-      - uses: pnpm/action-setup@v4
-        with:
-          version: 11.5.1
-
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 22
-          cache: pnpm
-
-      # docs is now a workspace member (@madside/docs) — one root lockfile.
-      - run: pnpm install --frozen-lockfile
-      - name: Build docs
-        run: pnpm --filter @madside/docs build
 
   security:
     name: secret + vuln scan
