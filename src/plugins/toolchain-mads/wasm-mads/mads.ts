@@ -1,9 +1,8 @@
 import { WASI, File, OpenFile, ConsoleStdout } from "@bjorn3/browser_wasi_shim";
 import { createVfs, MemoryProvider, vfsToPreopen, readFromPreopen, loadWasmModule } from "@core/vfs";
-// Plugin-owned wasm asset — Vite content-hashes the URL (cache-busting) and
-// tracks it at build time, same as the Altirra core. Mirrors @adapters/emu's
-// `?url` import; this plugin just owns its binary instead of an adapter.
-import madsWasmUrl from "./mads.wasm?url";
+// wasm blob lives in its own zero-dep workspace package (#92); the package's
+// index re-exports the Vite-emitted, content-hashed URL.
+import { madsWasmUrl } from "@madside/wasm-mads";
 
 export interface AssembleResult {
   ok: boolean;

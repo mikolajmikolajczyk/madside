@@ -10,8 +10,7 @@
 import { AudioPushPump } from '@core/audio'
 import type { CpuZ80State, RunBackend } from '@ports'
 
-import createZxCore from './wasm/zx-core.js'
-import zxWasmUrl from './wasm/zx-core.wasm?url'
+import { createZxCore, zxWasmUrl } from '@madside/wasm-chips'
 // Amstrad-redistributable ZX 48K ROM — bundled, handed to the core at init.
 import romUrl from './roms/48.rom?url'
 

@@ -11,9 +11,7 @@
 import { WASI, File, OpenFile, ConsoleStdout } from "@bjorn3/browser_wasi_shim";
 import { createVfs, MemoryProvider, ZipAssetProvider, vfsToPreopen, readFromPreopen, loadWasmModule } from "@core/vfs";
 import type { PreopenDirectory } from "@bjorn3/browser_wasi_shim";
-import cc65WasmUrl from "./cc65.wasm?url";
-import ca65WasmUrl from "./ca65.wasm?url";
-import ld65WasmUrl from "./ld65.wasm?url";
+import { ca65WasmUrl, cc65WasmUrl, ld65WasmUrl } from "@madside/wasm-cc65";
 import nesSysrootZipUrl from "../nes-sysroot.zip?url";
 import atariSysrootZipUrl from "../atari-sysroot.zip?url";
 import c64SysrootZipUrl from "../c64-sysroot.zip?url";

@@ -22,7 +22,7 @@ import { createNoopLogger } from '@adapters/logger'
 import type { RunBackend } from '@ports'
 
 const repo = (p: string) => fileURLToPath(new URL('../../' + p, import.meta.url))
-const WASM_PATH = repo('src/plugins/toolchain-mads/wasm-mads/mads.wasm')
+const WASM_PATH = repo('packages/wasm-mads/mads.wasm')
 const SRC = 'templates/atari-hello/src/'
 
 const enc = new TextEncoder()

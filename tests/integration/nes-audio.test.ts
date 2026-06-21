@@ -10,7 +10,7 @@ import { madsToolchain } from '@plugins/toolchain-mads'
 import { jsnesEmulator } from '@plugins/emulator-nes-jsnes'
 
 const repo = (p: string) => fileURLToPath(new URL('../../' + p, import.meta.url))
-const WASM_PATH = repo('src/plugins/toolchain-mads/wasm-mads/mads.wasm')
+const WASM_PATH = repo('packages/wasm-mads/mads.wasm')
 const SRC = 'templates/nes-apu-hello/src/'
 
 const enc = new TextEncoder()

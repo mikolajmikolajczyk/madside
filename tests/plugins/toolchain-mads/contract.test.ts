@@ -10,7 +10,7 @@ import { assertToolchainPlugin } from '@ports/test'
 import { madsToolchain } from '@plugins/toolchain-mads'
 
 const WASM_PATH = fileURLToPath(
-  new URL('../../../src/plugins/toolchain-mads/wasm-mads/mads.wasm', import.meta.url),
+  new URL('../../../packages/wasm-mads/mads.wasm', import.meta.url),
 )
 
 const HELLO = `        org $2000

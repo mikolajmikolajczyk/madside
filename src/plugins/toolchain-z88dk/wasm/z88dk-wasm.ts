@@ -23,13 +23,15 @@
 import { WASI, File, OpenFile, ConsoleStdout } from '@bjorn3/browser_wasi_shim'
 import { createVfs, MemoryProvider, ZipAssetProvider, vfsToPreopen, readFromPreopen, loadWasmModule, mkdirP, placeFile, readFile } from '@core/vfs'
 import type { PreopenDirectory } from '@bjorn3/browser_wasi_shim'
-import z80asmWasmUrl from './z80asm.wasm?url'
-import zccWasmUrl from './zcc.wasm?url'
-import zcppWasmUrl from './zcpp.wasm?url'
-import zpragmaWasmUrl from './zpragma.wasm?url'
-import sccz80WasmUrl from './sccz80.wasm?url'
-import coptWasmUrl from './copt.wasm?url'
-import appmakeWasmUrl from './appmake.wasm?url'
+import {
+  z80asmWasmUrl,
+  zccWasmUrl,
+  zcppWasmUrl,
+  zpragmaWasmUrl,
+  sccz80WasmUrl,
+  coptWasmUrl,
+  appmakeWasmUrl,
+} from '@madside/wasm-z88dk'
 import zxSysrootZipUrl from '../zx-sysroot.zip?url'
 
 const encoder = new TextEncoder()

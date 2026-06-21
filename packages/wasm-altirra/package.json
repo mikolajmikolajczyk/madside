@@ -1,0 +1,9 @@
+{
+  "name": "@madside/wasm-altirra",
+  "version": "0.0.0",
+  "type": "module",
+  "main": "index.js",
+  "types": "index.d.ts",
+  "files": ["*.wasm", "altirra-core.js", "altirra-core.d.ts", "index.js", "index.d.ts"],
+  "exports": { ".": { "types": "./index.d.ts", "default": "./index.js" } }
+}

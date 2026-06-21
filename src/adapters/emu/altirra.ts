@@ -52,8 +52,7 @@ interface AltirraModule {
 // the emscripten ESM glue; the .wasm sibling is imported as a URL so we can
 // hand it to locateFile() — Emscripten otherwise tries to resolve the wasm
 // relative to import.meta.url, which the bundler scrambles.
-import createAltirraCore from "./wasm/altirra-core.js";
-import altirraWasmUrl from "./wasm/altirra-core.wasm?url";
+import { createAltirraCore, altirraWasmUrl } from "@madside/wasm-altirra";
 
 let modulePromise: Promise<AltirraModule> | null = null;
 let modulePromiseRef: AltirraModule | null = null;

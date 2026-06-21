@@ -10,8 +10,7 @@
 import { AudioPushPump } from '@core/audio'
 import type { Cpu6502State, RunBackend } from '@ports'
 
-import createC64Core from './wasm/c64-core.js'
-import c64WasmUrl from './wasm/c64-core.wasm?url'
+import { createC64Core, c64WasmUrl } from '@madside/wasm-chips'
 // GPL-3 Open ROMs — bundled as data assets, handed to the core at init.
 import kernalUrl from './roms/kernal_generic.rom?url'
 import basicUrl from './roms/basic_generic.rom?url'

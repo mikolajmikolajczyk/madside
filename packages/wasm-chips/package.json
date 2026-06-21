@@ -1,0 +1,9 @@
+{
+  "name": "@madside/wasm-chips",
+  "version": "0.0.0",
+  "type": "module",
+  "main": "index.js",
+  "types": "index.d.ts",
+  "files": ["*.wasm", "c64-core.js", "c64-core.d.ts", "zx-core.js", "zx-core.d.ts", "index.js", "index.d.ts"],
+  "exports": { ".": { "types": "./index.d.ts", "default": "./index.js" } }
+}
