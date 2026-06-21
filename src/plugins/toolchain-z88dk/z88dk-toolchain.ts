@@ -35,11 +35,12 @@ const Z88DK_TARGET: Record<string, string> = {
 }
 export const targetFor = (machine?: string): string | undefined => Z88DK_TARGET[machine ?? '']
 
-// z80asm reports locations as `<file>:<line>: error|warning: <msg>` (the path is
-// the VFS-absolute one we passed, so it has a leading '/'). An optional `[z80asm]`
-// runner prefix sits on the first line of a block. Parsed into structured
-// diagnostics (#29) so the editor marks the offending lines, same as cc65/MADS.
-const DIAG_RE = /^(?:\[z80asm\]\s*)?(.+?):(\d+):\s*(error|warning):\s*(.*)$/i
+// Both tools report `<file>:<line>[:<col>]: [fatal ]error|warning: <msg>`:
+// z80asm omits the column, sccz80 includes it (and can say `fatal error`). The
+// path may be VFS-absolute (leading '/'); an optional `[tool]` runner prefix can
+// lead the line. Parsed into structured diagnostics (#29) so the editor marks the
+// offending lines, same as cc65/MADS.
+const DIAG_RE = /^(?:\[\w+\]\s*)?(.+?):(\d+)(?::\d+)?:\s*(?:fatal\s+)?(error|warning):\s*(.*)$/i
 
 export function parseDiagnostics(stdout: string, stderr: string): BuildDiagnostic[] {
   const out: BuildDiagnostic[] = []

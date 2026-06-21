@@ -19,6 +19,19 @@ describe('z88dk parseDiagnostics', () => {
   it('ignores non-diagnostic output', () => {
     expect(parseDiagnostics('[z80asm] Assembling...', '')).toEqual([])
   })
+
+  it('parses sccz80 `file:line:col: [fatal ]error|warning:` (C path, #101)', () => {
+    const stderr = [
+      'src/main.c:3:11: error: Invalid expression',
+      'src/main.c:4:11: warning: Implicit definition of function (nosuchfn)',
+      'src/main.c:6:1: fatal error: Expected ;',
+    ].join('\n')
+    expect(parseDiagnostics('', stderr)).toEqual([
+      { file: 'src/main.c', line: 3, severity: 'error', message: 'Invalid expression' },
+      { file: 'src/main.c', line: 4, severity: 'warning', message: 'Implicit definition of function (nosuchfn)' },
+      { file: 'src/main.c', line: 6, severity: 'error', message: 'Expected ;' },
+    ])
+  })
 })
 
 describe('z88dk coerceZ88dkOptions', () => {

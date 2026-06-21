@@ -255,18 +255,23 @@ function parseCmd(cmd: string): ParsedCmd {
 }
 
 /** Run one sub-tool synchronously over the shared root, wiring file-backed
- *  stdin/stdout for `< >`-redirected commands (zpragma, sccz80, copt). */
+ *  stdin/stdout for `< >`-redirected commands (zpragma, sccz80, copt). The tool's
+ *  stderr (sccz80/z80asm diagnostics) is captured into `log` so the toolchain can
+ *  parse + surface it; a non-redirected stdout is captured too. */
 function runSubTool(
   module: WebAssembly.Module,
   root: PreopenDirectory,
   args: string[],
   inF: string | null,
   outF: string | null,
+  log: string[],
 ): number {
   const stdin = new OpenFile(new File(inF ? (dirRead(root.dir, inF) ?? new Uint8Array()) : new Uint8Array()))
   const outFile = outF ? new File(new Uint8Array()) : null
-  const stdout = outFile ? new OpenFile(outFile) : ConsoleStdout.lineBuffered(() => {})
-  const wasi = new WASI(args, [], [stdin, stdout, ConsoleStdout.lineBuffered(() => {}), root])
+  let captured = ''
+  const stdout = outFile ? new OpenFile(outFile) : ConsoleStdout.lineBuffered((m) => { captured += m + '\n' })
+  const stderr = ConsoleStdout.lineBuffered((m) => { captured += m + '\n' })
+  const wasi = new WASI(args, [], [stdin, stdout, stderr, root])
   let code: number
   try {
     code = wasi.start(new WebAssembly.Instance(module, { wasi_snapshot_preview1: wasi.wasiImport }) as unknown as {
@@ -276,6 +281,7 @@ function runSubTool(
     code = typeof e === 'object' && e !== null && 'code' in e ? (e as { code: number }).code : 1
   }
   if (outFile) dirWrite(root.dir, outF!, outFile.data)
+  if (captured.trim()) log.push(captured.trimEnd())
   return code ?? 0
 }
 
@@ -283,8 +289,16 @@ function runSubTool(
  *  then wrap the linked binary into a bootable 48K .sna. Project sources mount
  *  RW at the root; the bundled +zx sysroot mounts read-only at /z88dk. */
 export async function buildZ88dkC(main: string, files: Z88dkFile[], opts: Z88dkOptions = {}): Promise<Z88dkBuildResult> {
-  const org = opts.org ?? C_DEFAULT_ORG
+  // The C link origin is fixed by spec_crt0 (+zx classic = 0x8000) — zcc owns it,
+  // not the project. `opts.org` is an asm-path knob; honouring it here would wrap
+  // the .sna at an address the linker didn't use. Wrap at the crt0 origin and
+  // warn if a stale `org` is set so it isn't silently ignored.
+  const org = C_DEFAULT_ORG
   const sp = opts.snaSp ?? DEFAULT_SNA_SP
+  const log: string[] = []
+  if (opts.org !== undefined && opts.org !== C_DEFAULT_ORG) {
+    log.push(`[zcc] build.options.org (0x${opts.org.toString(16)}) ignored — the C runtime links at 0x${C_DEFAULT_ORG.toString(16)}`)
+  }
 
   // Preload every module up front so env.run can run sub-tools synchronously
   // (zcc blocks inside system()).
@@ -326,8 +340,11 @@ export async function buildZ88dkC(main: string, files: Z88dkFile[], opts: Z88dkO
       return 0
     }
     const mod = tool ? toolModule[tool] : undefined
-    if (!mod) return 127
-    return runSubTool(mod, root, args, inF, outF)
+    if (!mod) {
+      log.push(`[zcc] internal: no wasm for sub-tool '${tool ?? '(empty)'}' — ${cmd}`)
+      return 127
+    }
+    return runSubTool(mod, root, args, inF, outF, log)
   }
 
   // zx.cfg's `default` clib links only -lzx_clib; the release zx_clib references
@@ -337,7 +354,12 @@ export async function buildZ88dkC(main: string, files: Z88dkFile[], opts: Z88dkO
   const wasi = new WASI(
     ['zcc', '+zx', '-create-app', '-lz80_clib', '-lndos', '-o', outBase, main],
     ['ZCCCFG=/z88dk/lib/config', 'TMPDIR=/tmp', 'HOME=/', 'PATH=/'],
-    [new OpenFile(new File([])), ConsoleStdout.lineBuffered(() => {}), ConsoleStdout.lineBuffered(() => {}), root],
+    [
+      new OpenFile(new File([])),
+      ConsoleStdout.lineBuffered((m) => log.push(m)),
+      ConsoleStdout.lineBuffered((m) => log.push(m)),
+      root,
+    ],
   )
   const zccInst = new WebAssembly.Instance(zccMod, {
     wasi_snapshot_preview1: wasi.wasiImport,
@@ -353,12 +375,20 @@ export async function buildZ88dkC(main: string, files: Z88dkFile[], opts: Z88dkO
   }
   exitCode = exitCode ?? 0
 
+  const diagLog = log.join('\n')
   const binary = readFromPreopen(root, outBase)
   if (exitCode !== 0 || !binary || binary.length === 0) {
-    return { ok: false, stdout: '', stderr: `[zcc] C build failed (exit ${exitCode})`, exitCode: exitCode || 1 }
+    const why = log.length ? diagLog : `[zcc] C build failed (exit ${exitCode}) with no diagnostics`
+    return { ok: false, stdout: '', stderr: why, exitCode: exitCode || 1 }
   }
-  if (org < 0x4000 || org + binary.length > 0x10000) {
-    return { ok: false, stdout: '', stderr: `[zcc] linked binary (${binary.length} B @ 0x${org.toString(16)}) overflows 0x4000-0xFFFF`, exitCode: 1 }
+  if (org + binary.length > 0x10000) {
+    return {
+      ok: false,
+      stdout: '',
+      stderr: `${diagLog}\n[zcc] linked binary (${binary.length} B @ 0x${org.toString(16)}) overflows 0x4000-0xFFFF`.trim(),
+      exitCode: 1,
+    }
   }
-  return { ok: true, binary: buildSna48k(binary, org, sp), stdout: '', stderr: '', exitCode: 0 }
+  // A successful build can still carry warnings — pass them through for diagnostics.
+  return { ok: true, binary: buildSna48k(binary, org, sp), stdout: '', stderr: diagLog, exitCode: 0 }
 }
