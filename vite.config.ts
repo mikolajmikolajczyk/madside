@@ -14,6 +14,14 @@ export default defineConfig({
   define: {
     __APP_VERSION__: JSON.stringify(appVersion),
   },
+  server: {
+    // Bind all interfaces so the dev server is reachable over Tailscale (and
+    // LAN) — not just localhost. Vite rejects requests whose Host header isn't
+    // allow-listed (DNS-rebinding guard); '.ts.net' admits the Tailscale
+    // MagicDNS hostname (leading dot = any subdomain) without pinning a machine.
+    host: true,
+    allowedHosts: ['.ts.net'],
+  },
   // React Compiler (#28): auto-memoizes components at build time so re-renders
   // skip unchanged work without hand-written useMemo/useCallback/memo. plugin-
   // react v6 runs on OXC, so the compiler is wired as a Babel preset through
