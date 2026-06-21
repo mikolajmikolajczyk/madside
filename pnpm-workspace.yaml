@@ -19,9 +19,3 @@ allowBuilds:
 # Folded in from the former docs/ workspace.
 overrides:
   esbuild: '>=0.28.1'
-
-# Our own first-party packages — trusted, exempt from the release-age gate so a
-# fresh cc65-intel publish can be consumed immediately.
-minimumReleaseAgeExclude:
-  - '@cc65-intel/core'
-  - '@cc65-intel/lsp'

@@ -129,6 +129,9 @@ export default defineConfig([
       'import/no-internal-modules': [
         'error',
         {
+          // The rule takes `forbid` XOR `allow`, not both — so forbid deep alias
+          // paths, and for the @madside packages forbid every subpath EXCEPT the
+          // declared transport export subpaths (browser/node), which are public.
           forbid: [
             '@core/*/*',
             '@ports/*/*',
@@ -136,9 +139,7 @@ export default defineConfig([
             '@services/*/*',
             '@app/*/*',
             '@ui/*/*',
-            // Plugins are workspace packages now — forbid deep imports past the
-            // package entry (only the package's exports map should be reachable).
-            '@madside/*/*',
+            '@madside/*/!(browser|node)',
           ],
         },
       ],

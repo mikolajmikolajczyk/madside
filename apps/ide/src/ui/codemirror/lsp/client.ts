@@ -1,9 +1,10 @@
-// Thin LSP client: drives the cc65-intel server running in a Web Worker and
-// exposes it as CodeMirror completion + hover sources. Worker-native transport
-// (vscode-jsonrpc over the worker message port) — no WebSocket, no heavy LSP
-// client library. The engine/protocol live in @cc65-intel/*; this is just the
-// host adapter (CodeMirror ↔ LSP), so the editor-specific concerns (trigger,
-// completion shape, applying auto-`#include` edits) stay here, out of the engine.
+// Thin LSP client: drives the in-repo cc65 C language server running in a Web
+// Worker and exposes it as CodeMirror completion + hover sources. Worker-native
+// transport (vscode-jsonrpc over the worker message port) — no WebSocket, no
+// heavy LSP client library. The engine/protocol live in @madside/lsp-* (lsp-core
+// + lsp-c + lsp-cc65); this is just the host adapter (CodeMirror ↔ LSP), so the
+// editor-specific concerns (trigger, completion shape, applying auto-`#include`
+// edits) stay here, out of the engine.
 
 import {
   BrowserMessageReader,
@@ -14,7 +15,7 @@ import {
 import type { Completion, CompletionContext, CompletionResult } from '@codemirror/autocomplete'
 import { hoverTooltip, type EditorView, type Tooltip } from '@codemirror/view'
 import type { Text } from '@codemirror/state'
-import type { SourceFile } from '@cc65-intel/core'
+import type { SourceFile } from '@madside/lsp-core'
 import { setLspDiagnostics } from './diagnosticsStore'
 
 // Project files open with the server under real `file://` URIs (#70) so the
@@ -135,7 +136,8 @@ function connect(): { conn: MessageConnection; ready: Promise<void> } {
       processId: null,
       rootUri: null,
       capabilities: {},
-      initializationOptions: { sysrootHeaders, defines },
+      // @madside/lsp-core ProviderConfig: read-only sysroot files + target defines.
+      initializationOptions: { sysrootFiles: sysrootHeaders, defines },
     })
     conn.sendNotification('initialized', {})
   })()

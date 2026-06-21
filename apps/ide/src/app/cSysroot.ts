@@ -8,7 +8,7 @@
 // calls this through the @app barrel.
 
 import { sysrootFor, targetFor } from '@madside/toolchain-ca65'
-import type { SourceFile } from '@cc65-intel/core'
+import type { SourceFile } from '@madside/lsp-core'
 
 // Headers don't change at runtime — cache the decoded set per cc65 target.
 const cache = new Map<string, SourceFile[]>()

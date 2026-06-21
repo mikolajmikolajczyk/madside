@@ -12,8 +12,6 @@
   },
   "dependencies": {
     "@bjorn3/browser_wasi_shim": "^0.4.2",
-    "@cc65-intel/core": "^0.8.1",
-    "@cc65-intel/lsp": "^0.8.1",
     "@codemirror/autocomplete": "^6.20.2",
     "@codemirror/commands": "^6.10.3",
     "@codemirror/lang-cpp": "^6.0.3",
@@ -31,6 +29,8 @@
     "@madside/emulator-c64-chips": "workspace:*",
     "@madside/emulator-nes-jsnes": "workspace:*",
     "@madside/emulator-zx-chips": "workspace:*",
+    "@madside/lsp-cc65": "workspace:*",
+    "@madside/lsp-core": "workspace:*",
     "@madside/machine-atari-xl": "workspace:*",
     "@madside/machine-c64": "workspace:*",
     "@madside/machine-nes": "workspace:*",

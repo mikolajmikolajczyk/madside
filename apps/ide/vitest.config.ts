@@ -33,9 +33,15 @@ export default defineConfig({
     ],
   },
   test: {
+    // Target each package's own src/ + test/ dirs directly. A broad
+    // `packages/**` glob would also reach packages/<X>/node_modules, where the
+    // workspace symlinks re-expose every other package's tests — running the
+    // same file once per consumer (the default node_modules exclude misses them
+    // because this include is rooted above apps/ide via `../`).
     include: [
       'src/**/*.test.ts',
-      '../../packages/**/*.test.ts',
+      '../../packages/*/src/**/*.test.ts',
+      '../../packages/*/test/**/*.test.ts',
       '../../tests/**/*.test.ts',
     ],
     environment: 'node',
