@@ -28,6 +28,7 @@ import zccWasmUrl from './zcc.wasm?url'
 import zcppWasmUrl from './zcpp.wasm?url'
 import zpragmaWasmUrl from './zpragma.wasm?url'
 import sccz80WasmUrl from './sccz80.wasm?url'
+import coptWasmUrl from './copt.wasm?url'
 import appmakeWasmUrl from './appmake.wasm?url'
 import zxSysrootZipUrl from '../zx-sysroot.zip?url'
 
@@ -167,6 +168,7 @@ const C_TOOLS: Record<string, string> = {
   'z88dk-ucpp': zcppWasmUrl,
   'z88dk-zpragma': zpragmaWasmUrl,
   'z88dk-sccz80': sccz80WasmUrl,
+  'z88dk-copt': coptWasmUrl,
   'z88dk-z80asm': z80asmWasmUrl,
   'z88dk-appmake': appmakeWasmUrl,
 }
@@ -321,11 +323,6 @@ export async function buildZ88dkC(main: string, files: Z88dkFile[], opts: Z88dkO
       const merged = new Uint8Array(prev.length + src.length)
       merged.set(prev); merged.set(src, prev.length)
       dirWrite(root.dir, outF!, merged)
-      return 0
-    }
-    if (tool === 'z88dk-copt') {
-      // peephole optimiser — run as passthrough (unoptimised) for now (#87)
-      if (inF && outF) dirWrite(root.dir, outF, dirRead(root.dir, inF) ?? new Uint8Array())
       return 0
     }
     const mod = tool ? toolModule[tool] : undefined

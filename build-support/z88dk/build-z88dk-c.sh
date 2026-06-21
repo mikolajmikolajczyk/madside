@@ -47,6 +47,18 @@ for f in mem nhash cpp lexer assert macro eval; do
 done
 $CC -fwasm-exceptions $WASI "${objs[@]}" -lunwind -lsetjmp $EMU -o "$OUT/zcpp.wasm"
 
+# ---- copt (peephole optimiser) ---------------------------------------------
+# copt ships its OWN regex/ (compiled with -I.) to avoid colliding with wasi
+# <regex.h>. Reads a rules file (lib/z80rules.*) + stdin, writes stdout.
+echo "▸ copt…"
+CO="$Z88DK/src/copt"; O="$SCRATCH/obj-copt"; mkdir -p "$O"
+F="-Wno-error=implicit-function-declaration -Wno-implicit-function-declaration -Wno-error=int-conversion"
+objs=("$O/copt.o"); $CC -std=gnu11 -O2 $WASI $F -I"$CO" -I"$CO/regex" -c "$CO/copt.c" -o "$O/copt.o"
+for r in regcomp regerror regexec regfree; do
+  $CC -std=gnu11 -O2 $WASI $F -I"$CO/regex" -I"$CO" -c "$CO/regex/$r.c" -o "$O/$r.o"; objs+=("$O/$r.o")
+done
+$CC $WASI "${objs[@]}" $EMU -o "$OUT/copt.wasm"
+
 # ---- zpragma (#pragma -> zcc_opt.def) --------------------------------------
 echo "▸ zpragma…"
 Z="$Z88DK/src/zpragma"; O="$SCRATCH/obj-zpragma"; mkdir -p "$O"
@@ -82,5 +94,5 @@ $CC -std=gnu11 -O2 $WASI -c "$CPATH/zcc-shim.c" -o "$O/zcc-shim.o"; objs+=("$O/z
 $CC $WASI "${objs[@]}" $EMU -o "$OUT/zcc.wasm"
 
 # ---- strip + report --------------------------------------------------------
-for w in zcpp zpragma sccz80 zcc; do "$STRIP" --strip-all "$OUT/$w.wasm"; done
-ls -lh "$OUT"/{zcc,zcpp,zpragma,sccz80}.wasm
+for w in zcpp zpragma sccz80 zcc copt; do "$STRIP" --strip-all "$OUT/$w.wasm"; done
+ls -lh "$OUT"/{zcc,zcpp,zpragma,sccz80,copt}.wasm

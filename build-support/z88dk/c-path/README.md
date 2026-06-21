@@ -5,12 +5,16 @@ driven by `zcc.wasm` with a `system()`→host shim. Proven: a C program compiles
 links (crt0 + zx_clib), and BOOTS in the chips zx core. See
 `wiki/agents/z88dk-wasm-build.md` "C path (#87)" for the full story.
 
-## Tools (build each from the z88dk source, wasi-sdk clang)
+## Tools (built by `../build-z88dk-c.sh` = `just build-z88dk-c`; the per-tool
+## scripts below are the original reference recipes, wasi-sdk clang)
 - `build-sccz80.sh` — sccz80.wasm (C compiler). Plain gnu99.
 - `build-ucpp.sh`   — zcpp.wasm (C preprocessor). Needs `-mllvm -wasm-enable-sjlj`
                       + link `-fwasm-exceptions -lunwind -lsetjmp` (uses setjmp).
 - `build-zpragma.sh`— zpragma.wasm (#pragma → zcc_opt.def; creates zcc_opt.def).
 - `build-zcc.sh`    — zcc.wasm (the driver). Links `zcc-shim.c`.
+- copt.wasm — peephole optimiser. Compiled with its own `src/copt/regex/`
+              (`-Isrc/copt/regex`) so `<regex.h>` resolves to copt's BSD regex,
+              not wasi-libc's. Reads a `lib/z80rules.*` file + stdin → stdout.
 
 ## Patches (no fork)
 - `zcc-shim.c` — overrides `system()`→imported `env.run` (host runs the sub-tool
@@ -26,12 +30,13 @@ links (crt0 + zx_clib), and BOOTS in the chips zx core. See
 Services zcc's `env.run`: tokenises the command (strips quotes WITHIN tokens,
 **normalises `..`/`.`/`//`** in path args — WASI won't traverse `..`, drops literal
 `(null)`), handles `cat` + `< > >>` redirection, runs the 4 real tools via
-`node:wasi` (file-backed stdin/stdout), copt = passthrough (unoptimised).
+`node:wasi` (file-backed stdin/stdout). (This reference spike stubs copt as
+passthrough; the production port runs the real copt.wasm.)
 ZCCCFG=`/z88dk/lib/config`; sysroot = z88dk v2.4 `lib/`+`include/`.
 
 This reference is the spec for the **production** port, now live in
 `src/plugins/toolchain-z88dk/wasm/z88dk-wasm.ts` (`buildZ88dkC`): same parse /
-normPathPart / cat / copt-passthrough logic, ported to `browser_wasi_shim` over a
+normPathPart / cat logic (copt runs for real here), ported to `browser_wasi_shim` over a
 **single `/`-named `PreopenDirectory` shared across every sub-tool instance**
 (absolute + cwd-relative opens both resolve). The sysroot mounts read-only at
 `/z88dk` via `ZipAssetProvider`; sub-tool modules are preloaded so `env.run` runs
@@ -66,6 +71,6 @@ and the sysroot ships `ndos.lib`. The linker pulls only referenced modules, so
 no-stdio builds are unaffected. z88dk's own console driver (set up by `spec_crt0`)
 renders to the screen — no BASIC ROM vars needed, so it works from a bare `.sna`.
 
-REMAINING: `z88dk-copt` runs as passthrough (peephole optimiser disabled);
-enabling it needs the `lib/z80rules.*` (already in the sysroot) wired through a
-real copt run.
+`z88dk-copt` (peephole optimiser) is the **real tool** now (built with its own
+`regex/` to dodge the wasi `<regex.h>` clash); it runs the `lib/z80rules.*` passes
+over sccz80's output. Full C support — no remaining stubs.

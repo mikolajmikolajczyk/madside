@@ -172,11 +172,12 @@ z88dk-z80asm -s -mz80 -I.../lib -I.../zx/classic Y.asm
 <LINK: objects + libs>                             # final link   → z80asm.wasm -b -d …
 ```
 - `z88dk-copt` and `z88dk-zpragma` are **also C** (`src/copt/copt.c`,
-  `src/zpragma/zpragma.c`) — buildable, but copt's `regex/` collides with
-  wasi-libc's `<regex.h>`; for a first cut the **dispatcher treats both as
-  passthrough** (copy stdin→stdout): the program compiles correct but unoptimised,
-  and a no-`#pragma` hello needs no zcc_opt.def beyond zcc's own defaults. Build
-  them properly later for optimisation + pragma support.
+  `src/zpragma/zpragma.c`). zpragma was always built real. **copt is now built
+  real too** (resolved 2026-06-21): the `regex/` clash with wasi-libc's
+  `<regex.h>` is fixed by compiling copt with its own `-Isrc/copt/regex` so the
+  BSD regex headers win. The dispatcher runs all three `lib/z80rules.*` peephole
+  passes — full optimisation, no passthrough. (The historical spike note below
+  reflects the earlier first-cut where copt was stubbed.)
 - The host dispatcher (node spike `_notes/.../zxbuild-dispatch.mjs`) tokenises the
   command (quotes + `< > >>` redirection, drop literal `(null)` args), services
   `cat`, passthroughs, and runs the 4 real tools via `node:wasi` with file-backed
@@ -212,13 +213,14 @@ builds clean, exit 0). **Verified it BOOTS in the chips zx core: the C poke land
 (`screen[0x4000]=0xff`).** The binary starts `cd 31 80` (= z88dk crt0 `CALL`, org
 0x8000). **The C path works.**
 
-Remaining polish (not blockers): **`printf`/stdio** pulls the console driver and
-fails `undefined symbol: writebyte` — the ZX console-driver lib/pragma isn't wired
-yet (a no-stdio C program links fine). And **copt/zpragma**: zpragma is real now;
-copt is still passthrough (unoptimised). Then: package the +zx sysroot zip, install
-zcc/zcpp/sccz80/zpragma wasm in the recipe, port the dispatcher to browser_wasi_shim
+Remaining polish (not blockers) — **ALL RESOLVED in the productionisation, see the
+"#87 productionisation" section above; this paragraph is the historical snapshot**:
+**`printf`/stdio** failed `undefined symbol: writebyte` (fixed = ship ndos.lib +
+`-lz80_clib -lndos`); **copt** was passthrough (fixed = built real with its own
+regex). The productionisation then packaged the +zx sysroot zip, installed
+zcc/zcpp/sccz80/copt/zpragma wasm in the recipe, ported the dispatcher to browser_wasi_shim
 (shared in-memory Directory + the `..` normaliser + the `vsnprintf` zcc patch),
-wire toolchain-z88dk (inputExt c/h → run zcc), add a zx-c-hello template, pin
+wired toolchain-z88dk (inputExt c/h → run zcc), added a zx-c-hello template, pinned
 z88dk v2.4 in third-party.toml.
 
 **Why this beats replicating zcc's recipe:** zcc stays the driver, so it owns ALL
@@ -249,7 +251,7 @@ files flow between tools — the one runtime-integration piece to verify.
    `browser_wasi_shim` in `wasm/z88dk-wasm.ts` (`buildZ88dkC`): one **`/`-named
    `PreopenDirectory` shared across every sub-tool instance** (absolute + cwd
    opens both resolve), sub-tool modules preloaded so `env.run` runs them
-   synchronously inside zcc's `system()`, copt = passthrough.
+   synchronously inside zcc's `system()`. copt runs for real (3 z80rules passes).
 4. ✅ `toolchain-z88dk`: `inputExt` now includes `c`/`h`; a `.c` main routes to
    `buildZ88dkC` (`zcc +zx -create-app`), the linked binary → 48K `.sna` via
    `buildSna48k` (org 0x8000, the spec_crt0 entry).
@@ -265,9 +267,11 @@ files flow between tools — the one runtime-integration piece to verify.
    headless chips-zx node smoke** (built a `-sENVIRONMENT=node` zx-core, loaded
    the printf `.sna`, advanced 200 frames, confirmed non-zero screen-RAM glyphs).
 
+7. ✅ **copt (peephole optimiser) runs real** (2026-06-21) — built with its own
+   `-Isrc/copt/regex` (dodges the wasi `<regex.h>` clash), the dispatcher runs the
+   three `lib/z80rules.*` passes. Full C support, no stubs left.
+
 **Still open:**
-- `z88dk-copt` is passthrough (peephole optimiser off); `lib/z80rules.*` ship in
-  the sysroot ready to wire a real copt run.
 - (separate epic) generalize `client.ts` LSP host for a 2nd language server.
 
 (The earlier "replicate zcc's classic link in JS" idea was superseded by the shim.)

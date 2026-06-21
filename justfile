@@ -361,7 +361,7 @@ compile-z88dk-c:
     Z88DK="{{z88dk_src_dir}}" WASI_SDK="{{wasi_sdk_dir}}" OUT="{{z88dk_out_dir}}" \
         SCRATCH="{{z88dk_build_dir}}/scratch-c" \
         SUPPORT="{{z88dk_support}}" bash "{{z88dk_support}}/build-z88dk-c.sh"
-    @ls -lh "{{z88dk_out_dir}}/"{zcc,zcpp,zpragma,sccz80}.wasm
+    @ls -lh "{{z88dk_out_dir}}/"{zcc,zcpp,zpragma,sccz80,copt}.wasm
 
 # Download + extract the z88dk v2.4 binary release (precompiled +zx clibs/headers).
 fetch-z88dk-release:
