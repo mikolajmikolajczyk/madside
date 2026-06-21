@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Repackage the minimal +zx C sysroot into src/plugins/toolchain-z88dk/zx-sysroot.zip.
+# Repackage the minimal +zx C sysroot into packages/toolchain-z88dk/src/zx-sysroot.zip.
 #
 # The sysroot is the prebuilt crt0 + clibs + headers + target config that
 # `zcc +zx -create-app` (classic clib) needs. It comes from the z88dk v2.4
@@ -16,8 +16,8 @@
 set -euo pipefail
 
 SRC="${1:-/tmp/zxsys/z88dk}"
-REPO="$(cd "$(dirname "$0")/../../.." && pwd)"
-OUT="$REPO/src/plugins/toolchain-z88dk/zx-sysroot.zip"
+REPO="$(cd "$(dirname "$0")/../../../.." && pwd)"
+OUT="$REPO/packages/toolchain-z88dk/src/zx-sysroot.zip"
 STAGE="$(mktemp -d)/z88dk"
 
 [ -d "$SRC/lib/config" ] || { echo "no z88dk tree at $SRC (extract z88dk-osx-2.4.zip first)"; exit 1; }

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Third-party registry tool (single source: ../third-party.toml).
+"""Third-party registry tool (single source: ../build/third-party.toml).
 
 Usage:
   third-party.py get <dotted.key>   # print one value (justfile reads pins this way)
@@ -16,8 +16,11 @@ import tomllib
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
-REGISTRY = ROOT / "third-party.toml"
-DOCS_PAGE = ROOT / "docs/src/content/docs/reference/third-party.md"
+REGISTRY = ROOT / "build/third-party.toml"
+DOCS_PAGE = ROOT / "apps/docs/src/content/docs/reference/third-party.md"
+# Bundled npm libs are deps of the app package now, so their installed
+# package.json lives under apps/ide/node_modules.
+APP_MODULES = ROOT / "apps/ide/node_modules"
 
 
 def load() -> dict:
@@ -34,7 +37,7 @@ def get(key: str) -> str:
 
 def npm_meta(pkg: str) -> tuple[str, str]:
     """(version, license) from node_modules/<pkg>/package.json."""
-    pj = ROOT / "node_modules" / pkg / "package.json"
+    pj = APP_MODULES / pkg / "package.json"
     try:
         data = json.loads(pj.read_text())
     except FileNotFoundError:

@@ -1,0 +1,334 @@
+# madside wasm build machinery (dormant — host-tooling only, NOT run in CI).
+# Run `cd build && just --list`. Requires (per pipeline): fpc, wasi-sdk, emsdk/
+# nix, gnumake, wasmtime, git, node. The built .wasm blobs are committed under
+# packages/wasm-*/ and packages/{toolchain-ca65,toolchain-z88dk}/src/ (sysroots);
+# rebuild + smoke + commit on a pin bump. See #89/#97 + wiki/agents/*-wasm-build.md.
+
+set shell := ["bash", "-cu"]
+
+# Repo root (this justfile lives in build/). Built outputs land in the workspace
+# packages; scratch (cloned sources + intermediate wasm) lives in ../_notes/ —
+# git-ignored, a local build cache the `build-*` recipes recreate on demand.
+root    := justfile_directory() / ".."
+support := justfile_directory() / "support"
+
+# Show available recipes.
+default:
+    @just --list
+
+# === mads.wasm pipeline ===
+
+mads_assets     := support / "mads"
+build_dir       := root / "_notes/wasm-spike/build"
+fpc_dir         := build_dir / "fpc-src"
+mads_dir        := build_dir / "Mad-Assembler"
+wasm_out        := root / "packages/wasm-mads/mads.wasm"
+
+# Pinned upstream — single source of truth in build/third-party.toml; bump there,
+# then rebuild. Pins read via scripts/third-party.py (cwd is build/).
+fpc_repo        := `python3 ../scripts/third-party.py get builddep.fpc.upstream`
+fpc_commit      := `python3 ../scripts/third-party.py get builddep.fpc.ref`
+mads_repo       := `python3 ../scripts/third-party.py get source.mads.upstream`
+mads_commit     := `python3 ../scripts/third-party.py get source.mads.ref`
+
+# Full pipeline: clone sources, bootstrap FPC wasm cross, build mads.wasm, copy into the package.
+build-mads-wasm: clone-sources bootstrap-fpc-wasm compile-mads install-mads-wasm verify-mads-wasm
+
+# Clone (or update) FPC + Mad-Assembler at pinned commits into ../_notes/wasm-spike/build/.
+clone-sources:
+    mkdir -p "{{build_dir}}"
+    if [ ! -d "{{fpc_dir}}/.git" ]; then \
+        git clone --filter=blob:none "{{fpc_repo}}" "{{fpc_dir}}"; \
+    fi
+    cd "{{fpc_dir}}" && git fetch --depth=1 origin "{{fpc_commit}}" && git checkout "{{fpc_commit}}"
+    if [ ! -d "{{mads_dir}}/.git" ]; then \
+        git clone "{{mads_repo}}" "{{mads_dir}}"; \
+    fi
+    cd "{{mads_dir}}" && git fetch origin "{{mads_commit}}" && git checkout "{{mads_commit}}"
+
+# Bootstrap the FPC wasm32-wasip1 cross-compiler. Idempotent — skip if ppcrosswasm32 already present.
+bootstrap-fpc-wasm:
+    if [ ! -x "{{fpc_dir}}/compiler/ppcrosswasm32" ]; then \
+        cd "{{fpc_dir}}" && \
+        make clean OS_TARGET=wasip1 CPU_TARGET=wasm32 BINUTILSPREFIX= PP=$(which fpc) && \
+        make all   OS_TARGET=wasip1 CPU_TARGET=wasm32 BINUTILSPREFIX= PP=$(which fpc) \
+            CROSSOPT="-O- -g- -CTbfexceptions -CTsaturatingfloattoint"; \
+    fi
+
+# Drop the crt shim into Mad-Assembler, compile mads.pas → mads.wasm.
+compile-mads:
+    cp "{{mads_assets}}/crt.pas" "{{mads_dir}}/crt.pas"
+    cd "{{mads_dir}}" && "{{fpc_dir}}/compiler/ppcrosswasm32" \
+        -Twasip1 -Pwasm32 -Mdelphi -vh -O3 \
+        -Fu"{{fpc_dir}}/rtl/units/wasm32-wasip1" \
+        -Fu"{{fpc_dir}}/packages/rtl-objpas/units/wasm32-wasip1" \
+        -Fu. mads.pas
+
+# Copy built mads.wasm into its wasm package (Vite ?url via the package index).
+install-mads-wasm:
+    mkdir -p "$(dirname "{{wasm_out}}")"
+    cp "{{mads_dir}}/mads.wasm" "{{wasm_out}}"
+    @echo "installed → {{wasm_out}}"
+    @ls -lh "{{wasm_out}}"
+
+# Smoke test: assemble smoke.a65 with the freshly built wasm.
+verify-mads-wasm:
+    cp "{{mads_assets}}/smoke.a65" "{{mads_dir}}/smoke.a65"
+    cd "{{mads_dir}}" && wasmtime --dir=. mads.wasm smoke.a65
+    @echo "smoke.obx bytes:"
+    @xxd "{{mads_dir}}/smoke.obx" | head -3
+
+# Wipe build dir (forces full re-clone + re-bootstrap on next run).
+clean-mads-build:
+    rm -rf "{{build_dir}}"
+
+# === cc65 wasm pipeline (ca65 / ld65 / cc65) ===
+# Builds the cc65 toolchain to wasm32-wasip1 with wasi-sdk (clang). Self-
+# contained: downloads wasi-sdk + clones cc65 into ../_notes/ca65-wasm-spike/build/.
+
+cc65_assets     := support / "cc65"
+cc65_build_dir  := root / "_notes/ca65-wasm-spike/build"
+wasi_sdk_dir    := cc65_build_dir / "wasi-sdk"
+cc65_src_dir    := cc65_build_dir / "cc65"
+cc65_out_dir    := root / "packages/wasm-cc65"
+# The per-target sysroot zips ship next to the ca65 toolchain plugin's loader.
+cc65_sysroot_dir := root / "packages/toolchain-ca65/src"
+# cc65 targets to build a sysroot for (one zip each).
+cc65_targets    := "nes atari c64"
+
+cc65_repo       := `python3 ../scripts/third-party.py get source.cc65.upstream`
+cc65_commit     := `python3 ../scripts/third-party.py get source.cc65.ref`
+wasi_sdk_ver    := `python3 ../scripts/third-party.py get builddep.wasi_sdk.version`
+wasi_sdk_asset  := `python3 ../scripts/third-party.py get builddep.wasi_sdk.asset`
+
+# Full pipeline: fetch wasi-sdk, clone cc65, build the sysroots, build the wasm tools, install + smoke.
+build-cc65-wasm: fetch-wasi-sdk clone-cc65 build-sysroots compile-cc65-wasm install-cc65-wasm verify-cc65-wasm
+
+# Build each target's C runtime with NATIVE cc65, then zip it as the in-browser
+# WASI sysroot (one zip per target → packages/toolchain-ca65/src/<t>-sysroot.zip).
+build-sysroots:
+    cd "{{cc65_src_dir}}" && make clean >/dev/null 2>&1 || true
+    cd "{{cc65_src_dir}}" && make -C src -j4
+    cd "{{cc65_src_dir}}" && mkdir -p lib && make -C libsrc {{cc65_targets}} -j4
+    for t in {{cc65_targets}}; do \
+        out="{{cc65_sysroot_dir}}/$t-sysroot.zip"; \
+        rm -f "$out"; \
+        python3 "{{cc65_assets}}/make-sysroot-zip.py" "{{cc65_src_dir}}" "$t" "$out"; \
+    done
+    @ls -lh "{{cc65_sysroot_dir}}/"*-sysroot.zip
+    cd "{{cc65_src_dir}}" && make clean >/dev/null 2>&1 || true
+
+# Download + extract wasi-sdk (clang + wasi-libc sysroot). Idempotent.
+fetch-wasi-sdk:
+    if [ ! -x "{{wasi_sdk_dir}}/bin/clang" ]; then \
+        mkdir -p "{{cc65_build_dir}}"; \
+        curl -fsSL -o "{{cc65_build_dir}}/wasi-sdk.tar.gz" \
+            "https://github.com/WebAssembly/wasi-sdk/releases/download/wasi-sdk-{{wasi_sdk_ver}}/{{wasi_sdk_asset}}"; \
+        tar -xzf "{{cc65_build_dir}}/wasi-sdk.tar.gz" -C "{{cc65_build_dir}}"; \
+        mv "{{cc65_build_dir}}/wasi-sdk-{{wasi_sdk_ver}}.0-x86_64-linux" "{{wasi_sdk_dir}}"; \
+        rm "{{cc65_build_dir}}/wasi-sdk.tar.gz"; \
+    fi
+
+# Clone (or update) cc65 at the pinned commit (shallow fetch of the exact SHA).
+clone-cc65:
+    if [ ! -d "{{cc65_src_dir}}/.git" ]; then \
+        git -C "{{cc65_build_dir}}" init cc65 && \
+        git -C "{{cc65_src_dir}}" remote add origin "{{cc65_repo}}"; \
+    fi
+    cd "{{cc65_src_dir}}" && git fetch --depth 1 origin "{{cc65_commit}}" && git checkout FETCH_HEAD
+
+# Build ca65 + ld65 + cc65 to wasm via wasi-sdk clang.
+compile-cc65-wasm:
+    cd "{{cc65_src_dir}}" && make -C src ca65 ld65 cc65 \
+        CC="{{wasi_sdk_dir}}/bin/clang" AR="{{wasi_sdk_dir}}/bin/llvm-ar"
+    @file "{{cc65_src_dir}}/bin/ca65" "{{cc65_src_dir}}/bin/ld65" "{{cc65_src_dir}}/bin/cc65"
+
+# Copy the built tools into the wasm-cc65 package (imported via ?url).
+install-cc65-wasm:
+    mkdir -p "{{cc65_out_dir}}"
+    cp "{{cc65_src_dir}}/bin/ca65" "{{cc65_out_dir}}/ca65.wasm"
+    cp "{{cc65_src_dir}}/bin/ld65" "{{cc65_out_dir}}/ld65.wasm"
+    cp "{{cc65_src_dir}}/bin/cc65" "{{cc65_out_dir}}/cc65.wasm"
+    @echo "installed → {{cc65_out_dir}}"
+    @ls -lh "{{cc65_out_dir}}/"*.wasm
+
+# Smoke: assemble + link a tiny program with the freshly built wasm.
+verify-cc65-wasm:
+    rm -rf /tmp/cc65-verify && mkdir -p /tmp/cc65-verify
+    cp "{{cc65_assets}}/hello.s" "{{cc65_assets}}/none.cfg" /tmp/cc65-verify/
+    WASI_DIR=/tmp/cc65-verify node --no-warnings "{{cc65_assets}}/wasi-run.mjs" "{{cc65_out_dir}}/ca65.wasm" -o /hello.o /hello.s
+    WASI_DIR=/tmp/cc65-verify node --no-warnings "{{cc65_assets}}/wasi-run.mjs" "{{cc65_out_dir}}/ld65.wasm" -C /none.cfg -o /hello.bin /hello.o
+    @echo "hello.bin bytes (expect a9 42 8d 00 02 60):"
+    @xxd /tmp/cc65-verify/hello.bin | head -1
+
+# Wipe the cc65 build dir (forces re-download of wasi-sdk + re-clone).
+clean-cc65-build:
+    rm -rf "{{cc65_build_dir}}"
+
+# === altirra-core.wasm pipeline ===
+
+altirra_dir         := root / "_notes/altirra"
+altirra_build_dir   := altirra_dir / "build/wasm-embed"
+altirra_out_dir     := root / "packages/wasm-altirra"
+altirra_repo        := `python3 ../scripts/third-party.py get source.altirra.repo`
+altirra_branch      := `python3 ../scripts/third-party.py get source.altirra.branch`
+altirra_commit      := `python3 ../scripts/third-party.py get source.altirra.ref`
+
+# Full pipeline: clone the fork at the pinned commit, configure, build, install.
+# Requires the nix dev shell from the fork's flake.nix.
+build-altirra-wasm: clone-altirra altirra-configure altirra-compile install-altirra-wasm
+
+# Clone (or update) the madside AltirraEmbed fork at the pinned commit.
+clone-altirra:
+    if [ ! -d "{{altirra_dir}}/.git" ]; then \
+        git clone --branch "{{altirra_branch}}" "{{altirra_repo}}" "{{altirra_dir}}"; \
+    fi
+    cd "{{altirra_dir}}" && git fetch origin "{{altirra_commit}}" && git checkout "{{altirra_commit}}"
+
+# Configure with embed mode + wasm. Idempotent — only writes config if absent.
+altirra-configure:
+    if [ ! -f "{{altirra_build_dir}}/CMakeCache.txt" ]; then \
+        cd "{{altirra_dir}}" && nix --experimental-features 'nix-command flakes' develop --command bash -c \
+            'emcmake cmake -B build/wasm-embed -DCMAKE_BUILD_TYPE=Release -DALTIRRA_SDL3=ON -DALTIRRA_WASM=ON -DALTIRRA_EMBED=ON'; \
+    fi
+
+# Compile only the AltirraEmbed target (incremental).
+altirra-compile:
+    cd "{{altirra_dir}}" && nix --experimental-features 'nix-command flakes' develop --command bash -c \
+        'cmake --build build/wasm-embed -j --target AltirraEmbed'
+
+# Copy altirra-core.{wasm,js} into the wasm-altirra package.
+install-altirra-wasm:
+    mkdir -p "{{altirra_out_dir}}"
+    cp "{{altirra_build_dir}}/src/AltirraEmbed/altirra-core.wasm" "{{altirra_out_dir}}/altirra-core.wasm"
+    cp "{{altirra_build_dir}}/src/AltirraEmbed/altirra-core.js"   "{{altirra_out_dir}}/altirra-core.js"
+    @echo "installed → {{altirra_out_dir}}"
+    @ls -lh "{{altirra_out_dir}}/altirra-core."*
+
+# Wipe altirra build dir (forces full reconfigure).
+clean-altirra-build:
+    rm -rf "{{altirra_build_dir}}"
+
+# === c64-core.wasm pipeline (chips systems/c64.h) ===
+# Source (Embind wrapper + impl) lives with the emulator plugin; the built
+# c64-core.{js,wasm} install into the wasm-chips package.
+
+chips_dir       := root / "_notes/chips-build/chips"
+chips_src_dir   := root / "packages/emulator-c64-chips/src/wasm"
+chips_out_dir   := root / "packages/wasm-chips"
+chips_repo      := `python3 ../scripts/third-party.py get source.chips.upstream`
+chips_commit    := `python3 ../scripts/third-party.py get source.chips.ref`
+
+# Full pipeline: clone chips at the pinned commit, compile the Embind wrapper to
+# a wasm ES module, install c64-core.{js,wasm}. Requires `nix develop .#wasm`.
+build-chips-wasm: clone-chips compile-chips-wasm
+
+# Clone (or update) floooh/chips at the pinned commit.
+clone-chips:
+    if [ ! -d "{{chips_dir}}/.git" ]; then \
+        git clone "{{chips_repo}}" "{{chips_dir}}"; \
+    fi
+    cd "{{chips_dir}}" && git fetch origin "{{chips_commit}}" && git checkout "{{chips_commit}}"
+
+# Compile the Embind wrapper + chips core to an ES6 module.
+compile-chips-wasm:
+    cd "{{root}}" && nix --experimental-features 'nix-command flakes' develop .#wasm --command bash -c \
+        'set -e; \
+         emcc -Oz -std=gnu11 -I "{{chips_dir}}" -c "{{chips_src_dir}}/c64-impl.c" -o /tmp/c64-impl.o; \
+         em++ -Oz -std=c++17 -I "{{chips_dir}}" "{{chips_src_dir}}/c64-core.cpp" /tmp/c64-impl.o \
+            -o "{{chips_out_dir}}/c64-core.js" \
+            -lembind -sMODULARIZE=1 -sEXPORT_ES6=1 -sENVIRONMENT=web -sALLOW_MEMORY_GROWTH=1 \
+            -sEXPORT_NAME=createC64Core -sFILESYSTEM=0'
+    @echo "installed → {{chips_out_dir}}"
+    @ls -lh "{{chips_out_dir}}/c64-core."*
+
+# === zx-core.wasm pipeline (chips systems/zx.h) ===
+
+zx_src_dir := root / "packages/emulator-zx-chips/src/wasm"
+zx_out_dir := root / "packages/wasm-chips"
+
+# Compile the ZX Embind wrapper + chips core to an ES6 module (mirror
+# build-chips-wasm). Reuses the chips checkout from clone-chips.
+build-zx-wasm: clone-chips compile-zx-wasm
+
+compile-zx-wasm:
+    cd "{{root}}" && nix --experimental-features 'nix-command flakes' develop .#wasm --command bash -c \
+        'set -e; \
+         emcc -Oz -std=gnu11 -I "{{chips_dir}}" -c "{{zx_src_dir}}/zx-impl.c" -o /tmp/zx-impl.o; \
+         em++ -Oz -std=c++17 -Wno-gnu-anonymous-struct -Wno-nested-anon-types -I "{{chips_dir}}" \
+            "{{zx_src_dir}}/zx-core.cpp" /tmp/zx-impl.o \
+            -o "{{zx_out_dir}}/zx-core.js" \
+            -lembind -sMODULARIZE=1 -sEXPORT_ES6=1 -sENVIRONMENT=web -sALLOW_MEMORY_GROWTH=1 \
+            -sEXPORT_NAME=createZxCore -sFILESYSTEM=0'
+    @echo "installed → {{zx_out_dir}}"
+    @ls -lh "{{zx_out_dir}}/zx-core."*
+
+# === z80asm.wasm + appmake.wasm pipeline (z88dk, asm-first) ===
+
+z88dk_build_dir := root / "_notes/z88dk-wasm-spike/build"
+z88dk_src_dir   := z88dk_build_dir / "z88dk"
+z88dk_out_dir   := root / "packages/wasm-z88dk"
+z88dk_support   := support / "z88dk"
+z88dk_repo      := `python3 ../scripts/third-party.py get source.z88dk.upstream`
+z88dk_commit    := `python3 ../scripts/third-party.py get source.z88dk.ref`
+
+# Full pipeline: fetch wasi-sdk (shared with cc65), clone z88dk + ext submodules,
+# build z80asm + appmake to wasm (patch-at-build), install, smoke.
+build-z88dk-wasm: fetch-wasi-sdk clone-z88dk compile-z88dk-wasm verify-z88dk-wasm
+
+# Clone z88dk at the pinned commit + the three ext/ submodules z80asm needs.
+clone-z88dk:
+    if [ ! -d "{{z88dk_src_dir}}/.git" ]; then \
+        git clone "{{z88dk_repo}}" "{{z88dk_src_dir}}"; \
+    fi
+    cd "{{z88dk_src_dir}}" && git fetch origin "{{z88dk_commit}}" && git checkout "{{z88dk_commit}}"
+    cd "{{z88dk_src_dir}}" && git submodule update --init --depth 1 ext/regex ext/optparse ext/uthash
+
+# Compile z80asm (C++17) + appmake (C) to wasm via the support script.
+compile-z88dk-wasm:
+    Z88DK="{{z88dk_src_dir}}" WASI_SDK="{{wasi_sdk_dir}}" OUT="{{z88dk_out_dir}}" \
+        SCRATCH="{{z88dk_build_dir}}/scratch" \
+        SUPPORT="{{z88dk_support}}" bash "{{z88dk_support}}/build-z88dk.sh"
+    @ls -lh "{{z88dk_out_dir}}/"*.wasm
+
+# Smoke: assemble support/z88dk/smoke.asm with the fresh z80asm.wasm, wrap to .tap.
+verify-z88dk-wasm:
+    rm -rf /tmp/z88dk-verify && mkdir -p /tmp/z88dk-verify/tmp
+    cp "{{z88dk_support}}/smoke.asm" /tmp/z88dk-verify/
+    WASI_DIR=/tmp/z88dk-verify node --no-warnings "{{cc65_assets}}/wasi-run.mjs" \
+        "{{z88dk_out_dir}}/z80asm.wasm" -b -mz80 /smoke.asm
+    @echo "smoke.bin bytes (expect 3e 02 d3 fe c9):"
+    @xxd /tmp/z88dk-verify/smoke.bin | head -1
+    WASI_DIR=/tmp/z88dk-verify node --no-warnings "{{cc65_assets}}/wasi-run.mjs" \
+        "{{z88dk_out_dir}}/appmake.wasm" +zx --binfile /smoke.bin --org 32768 -o /smoke.tap
+    @echo "smoke.tap header (expect 13 00 00 00 = 19-byte BASIC header):"
+    @xxd /tmp/z88dk-verify/smoke.tap | head -1
+
+# === z88dk C path (#87): zcc + sub-tools + sysroot ===
+
+z88dk_sysroot_src := z88dk_build_dir / "release-2.4"
+z88dk_sysroot_ver := `python3 ../scripts/third-party.py get source.z88dk-sysroot-zx.version`
+z88dk_sysroot_url := `python3 ../scripts/third-party.py get source.z88dk-sysroot-zx.source`
+
+# Full C-path pipeline: build zcc + ucpp + zpragma + sccz80 to wasm, repackage
+# the +zx sysroot zip from the v2.4 release. See #87 + wiki/agents/z88dk-wasm-build.md.
+build-z88dk-c: fetch-wasi-sdk clone-z88dk compile-z88dk-c fetch-z88dk-release package-zx-sysroot
+
+# Compile the C driver + sub-tools to wasm (patch-at-build).
+compile-z88dk-c:
+    Z88DK="{{z88dk_src_dir}}" WASI_SDK="{{wasi_sdk_dir}}" OUT="{{z88dk_out_dir}}" \
+        SCRATCH="{{z88dk_build_dir}}/scratch-c" \
+        SUPPORT="{{z88dk_support}}" bash "{{z88dk_support}}/build-z88dk-c.sh"
+    @ls -lh "{{z88dk_out_dir}}/"{zcc,zcpp,zpragma,sccz80,copt}.wasm
+
+# Download + extract the z88dk v2.4 binary release (precompiled +zx clibs/headers).
+fetch-z88dk-release:
+    if [ ! -d "{{z88dk_sysroot_src}}/z88dk/lib/config" ]; then \
+        mkdir -p "{{z88dk_sysroot_src}}"; \
+        curl -fsSL "{{z88dk_sysroot_url}}" -o "{{z88dk_build_dir}}/z88dk-release-{{z88dk_sysroot_ver}}.zip"; \
+        unzip -q -o "{{z88dk_build_dir}}/z88dk-release-{{z88dk_sysroot_ver}}.zip" -d "{{z88dk_sysroot_src}}"; \
+    fi
+
+# Repackage the minimal +zx C sysroot into packages/toolchain-z88dk/src/zx-sysroot.zip.
+package-zx-sysroot:
+    bash "{{z88dk_support}}/c-path/build-zx-sysroot.sh" "{{z88dk_sysroot_src}}/z88dk"
