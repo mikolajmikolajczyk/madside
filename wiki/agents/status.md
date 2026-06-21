@@ -24,7 +24,7 @@
 | project.json v2 schema + validator (`parseProjectManifest`) | ✅ (v0.5.0 443eaed) |
 | MachinePlugin port + Atari-XL first impl | ✅ (v0.4.0 a6c310d) |
 | ToolchainPlugin port + MADS first impl + manifest-driven dispatch | ✅ (v0.5.0 87f03ad + 443eaed) |
-| Second ToolchainPlugin — cc65/ca65/ld65 wasm (`src/plugins/toolchain-ca65`) — C + ca65 asm → NES `.nes` / Atari `.xex` | ✅ (GH #1, #52) |
+| Second ToolchainPlugin — cc65/ca65/ld65 wasm (`packages/toolchain-ca65`) — C + ca65 asm → NES `.nes` / Atari `.xex` | ✅ (GH #1, #52) |
 | DebugAdapterPlugin port + atari-6502 first impl | ✅ (v0.6.0 2810a62) |
 | PanelPlugin port + 4 built-in panels (registers/memory/output + ppu) | ✅ (v0.7.0 5ddf99e; ppu v0.8.0 93c218b) |
 | Event-driven panel refresh via ctx.events / ctx.debug | ✅ (v0.7.0 ba1a27b) |
@@ -32,22 +32,22 @@
 | Plugin contract test harnesses under `@ports/test/` | partial — Toolchain ✅ (51e047c); Machine drift test ✅; Debug/Panel pending |
 | Plugin author docs under `wiki/plugin-api/` | ✅ (v0.7.0 a7b79c0) |
 | Service ↔ UI sync FSM + EventBus + useSyncExternalStore (ADR-0007) | ✅ (v0.7.5 M7.5 epic 152abfd — Run lifecycle reference impl, contract test, dev event logger, property fuzz) |
-| Second MachinePlugin — NES (`src/plugins/machine-nes`) | ✅ (v0.8.0 481d76b) — manifest-driven machine selection (1972a36) |
-| Second emulator backend — jsnes (`src/plugins/emulator-nes-jsnes`) | ✅ (v0.8.0 b41098c) |
+| Second MachinePlugin — NES (`packages/machine-nes`) | ✅ (v0.8.0 481d76b) — manifest-driven machine selection (1972a36) |
+| Second emulator backend — jsnes (`packages/emulator-nes-jsnes`) | ✅ (v0.8.0 b41098c) |
 | Named memory-space mechanism (`MachinePlugin.memorySpaces`, `readMemory(addr,len,space)` — cpu/ppu/oam) | ✅ (v0.8.0 93c218b) |
 | Editor language generalization — toolchain+CPU-driven (`@core/cpu/mos6502`, `ToolchainPlugin.language`) | ✅ (v0.8.7 1f08b2c, 6ba97ca, 5ee1a42) |
-| Bundled templates — `templates/<id>/` via Vite glob, `src/app/templates.ts`, Welcome picker | ✅ (v0.8.5 71acac1, 505492d) |
-| Visual `project.json` manifest editor (`src/ui/components/manifest/ManifestEditor.tsx`, form + raw dual-mode) | ✅ (v0.9.0 f6c22ae) — `build.args` → toolchain options wiring (04bdb5a) |
-| Courses — format + glob loader + CourseService (`src/app/courses.ts`), lesson→project instantiation (`src/app/course-project.ts`), CoursePanel, declarative check runner (`src/app/check-runner.ts`) | ✅ (v0.9.5 epic 2e9c7cc — 3ed11be, 500f11c, 29540fd, 2921c6c) |
+| Bundled templates — `apps/ide/templates/<id>/` via Vite glob, `apps/ide/src/app/templates.ts`, Welcome picker | ✅ (v0.8.5 71acac1, 505492d) |
+| Visual `project.json` manifest editor (`apps/ide/src/ui/components/manifest/ManifestEditor.tsx`, form + raw dual-mode) | ✅ (v0.9.0 f6c22ae) — `build.args` → toolchain options wiring (04bdb5a) |
+| Courses — format + glob loader + CourseService (`apps/ide/src/app/courses.ts`), lesson→project instantiation (`apps/ide/src/app/course-project.ts`), CoursePanel, declarative check runner (`apps/ide/src/app/check-runner.ts`) | ✅ (v0.9.5 epic 2e9c7cc — 3ed11be, 500f11c, 29540fd, 2921c6c) |
 | VFS / virtual filesystem mount layer (`@core/vfs` — Vfs/Mount/VfsProvider, MemoryProvider, ZipAssetProvider, WASI bridge) — toolchains assemble their build FS through it; bundled sysroot mounted read-only in the file tree | ✅ (ADR-0008, GH #55/#56/#57/#50) |
-| Persistent IDB asset cache for large wasm modules + sysroots (`src/plugins/.../asset-cache.ts`) | ✅ (GH #54) |
+| Persistent IDB asset cache for large wasm modules + sysroots (`packages/core/src/vfs/asset-cache.ts`) | ✅ (GH #54) |
 | EmulatorPlugin contract | ⏳ M4 follow-up |
 
 ## Emulator (Altirra wasm)
 
 | Area | State |
 |------|-------|
-| Altirra core via fork `mikolajmikolajczyk/AltirraSDL` branch `madside-embed` | ✅ — `src/adapters/emu/wasm/altirra-core.{wasm,js}` ≈ 4.6 MB + 133 KB; Vite-tracked |
+| Altirra core via fork `mikolajmikolajczyk/AltirraSDL` branch `madside-embed` | ✅ — `packages/wasm-altirra/altirra-core.{wasm,js}` ≈ 4.5 MB + 131 KB; Vite-tracked |
 | Altirra OS kernel | ✅ built into wasm core (no external ROM file) |
 | Run / pause / step (1 instruction) / frame / reset | ✅ |
 | Source-level breakpoints (gutter click, persist across reassemble, IDB schema v2) | ✅ |

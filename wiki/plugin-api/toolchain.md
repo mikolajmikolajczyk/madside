@@ -1,6 +1,6 @@
 # ToolchainPlugin
 
-> Source: [`src/ports/plugin-toolchain.ts`](../../src/ports/plugin-toolchain.ts). MADS reference impl: [`src/plugins/toolchain-mads/`](../../src/plugins/toolchain-mads/).
+> Source: [`packages/ports/src/plugin-toolchain.ts`](../../packages/ports/src/plugin-toolchain.ts). MADS reference impl: [`packages/toolchain-mads/src`](../../packages/toolchain-mads/src).
 
 Wraps an assembler / compiler so `BuildService` stays machine-agnostic. Dispatched by `manifest.toolchain` id.
 

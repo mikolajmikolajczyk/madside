@@ -1,16 +1,16 @@
 # Plugin API
 
-Contracts every madside plugin kind implements. Source of truth for the type definitions lives in `src/ports/plugin-*.ts`; this folder explains them with rationale + a hello-world per kind so an external author can ship a working plugin without reading the workbench source.
+Contracts every madside plugin kind implements. Source of truth for the type definitions lives in `packages/ports/src/plugin-*.ts`; this folder explains them with rationale + a hello-world per kind so an external author can ship a working plugin without reading the workbench source.
 
 | Kind | Folder | Status | Document |
 |------|--------|--------|----------|
-| MachinePlugin | `src/plugins/machine-*/` | v0.4.0 ✅ | [machine.md](machine.md) |
-| ToolchainPlugin | `src/plugins/toolchain-*/` | v0.5.0 ✅ | [toolchain.md](toolchain.md) |
-| DebugAdapterPlugin | `src/plugins/debug-*/` | v0.6.0 ✅ | [debug-adapter.md](debug-adapter.md) |
-| PanelPlugin | `src/plugins/panel-*/` | v0.7.0 ✅ | [panel.md](panel.md) |
-| Converter (asset) | `src/plugins/converters/` + `converters/*.js` | Phase 7 ✅ | [converter.md](converter.md) |
-| FileEditor (legacy) | `src/plugins/editors/` + `editors/*.js` | Phase 11 ✅ → folded into PanelPlugin (cae0633) | [editor.md](editor.md) |
-| EmulatorPlugin | `src/plugins/emulator-*/` | ⏳ M4 follow-up | — |
+| MachinePlugin | `packages/machine-*/src` | v0.4.0 ✅ | [machine.md](machine.md) |
+| ToolchainPlugin | `packages/toolchain-*/src` | v0.5.0 ✅ | [toolchain.md](toolchain.md) |
+| DebugAdapterPlugin | `packages/debug-*/src` | v0.6.0 ✅ | [debug-adapter.md](debug-adapter.md) |
+| PanelPlugin | `packages/panel-*/src` | v0.7.0 ✅ | [panel.md](panel.md) |
+| Converter (asset) | `packages/converters/src` + `converters/*.js` | Phase 7 ✅ | [converter.md](converter.md) |
+| FileEditor (legacy) | `packages/editors/src` + `editors/*.js` | Phase 11 ✅ → folded into PanelPlugin (cae0633) | [editor.md](editor.md) |
+| EmulatorPlugin | `packages/emulator-*/src` | ⏳ M4 follow-up | — |
 
 ## Conventions
 

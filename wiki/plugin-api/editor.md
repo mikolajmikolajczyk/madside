@@ -1,6 +1,6 @@
 # FileEditor (Phase 11)
 
-> Source: [`src/ports/plugin-editor.ts`](../../src/ports/plugin-editor.ts). Reference impl: [`src/plugins/editors/builtins/bitmap.ts`](../../src/plugins/editors/builtins/bitmap.ts).
+> Source: [`packages/ports/src/plugin-editor.ts`](../../packages/ports/src/plugin-editor.ts). Reference impl: [`packages/editors/src/builtins/bitmap.ts`](../../packages/editors/src/builtins/bitmap.ts).
 
 **As of v0.7.0 (commit `6f2dc20`), the FileEditor contract is folded into PanelPlugin via a vanilla `mount(container, ctx)` + `fileExt`.** Phase 11 modules keep working unchanged through the `editorToPanel` bridge — read the [PanelPlugin doc](panel.md) for the new shape. This page documents the legacy EditorModule for the existing `editors/*.js` ecosystem.
 

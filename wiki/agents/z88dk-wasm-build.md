@@ -2,16 +2,17 @@
 
 The z88dk assembler/linker (`z80asm`) and tape packager (`appmake`) ship as
 wasm32-wasip1 binaries for the ZX toolchain, plus the **C path** (`zcc` driver +
-`ucpp`/`zpragma`/`sccz80`) — see "C path (#87)" below; `just build-z88dk-c`. Same
+`ucpp`/`zpragma`/`sccz80`) — see "C path (#87)" below; `cd build && just build-z88dk-c`. Same
 class as the cc65 wasm build: wasi-sdk clang,
-`@bjorn3/browser_wasi_shim` at runtime. Pins in `third-party.toml`; owned build
-inputs in `build-support/z88dk/`; scratch in `_notes/z88dk-wasm-spike/build/`
-(git-ignored).
+`@bjorn3/browser_wasi_shim` at runtime. The wasm blobs ship in the `@madside/wasm-z88dk`
+package at `packages/wasm-z88dk/`. Pins in `build/third-party.toml`; owned build
+inputs in `build/support/z88dk/`; scratch in `_notes/z88dk-wasm-spike/build/`
+(git-ignored). Recipes live in `build/justfile`.
 
 ## One command
 
 ```sh
-just build-z88dk-wasm
+cd build && just build-z88dk-wasm
 ```
 
 1. Fetches wasi-sdk (shared with the cc65 build).
@@ -54,7 +55,7 @@ Levers that did **not** help: `-fno-jump-tables`, IR-level `fix-irreducible`,
 `lower-switch`, `-O0/-O2`, ragel `-F1` (produced a 6.6 GB file) / `-G` (worse).
 The frontend + IR-gen are cheap (<12 GB); only machine codegen explodes.
 
-Fix: **`build-support/z88dk/split-action-switch.py`** extracts the action switch
+Fix: **`build/support/z88dk/split-action-switch.py`** extracts the action switch
 out of the driver loop into a loop-free helper `_parser_exec_action()`. The driver
 loop shrinks to a few hundred blocks (cheap); the helper has no loops (the pass
 does nothing). `fgoto` actions (`goto _again`) become `return 1` + the caller
@@ -65,9 +66,9 @@ makes the build CI-able (and therefore npm-publishable later).
 
 Mirrors the cc65 pattern — pin upstream, patch the checkout in the recipe:
 
-- `build-support/z88dk/split-action-switch.py` — the parse1.c split above
+- `build/support/z88dk/split-action-switch.py` — the parse1.c split above
   (regex-anchored, robust against minor regen drift).
-- `build-support/z88dk/wasm-stubs.c` — `system()` (WASI has no fork/exec; z80asm
+- `build/support/z88dk/wasm-stubs.c` — `system()` (WASI has no fork/exec; z80asm
   uses it only for the m4 path + an unused modlink branch — both off the asm
   flow) and `mkstemp()` (absent from wasi-libc; appmake's chain temp files need
   it; implemented over WASI `open()`).
@@ -86,7 +87,7 @@ Mirrors the cc65 pattern — pin upstream, patch the checkout in the recipe:
 
 ## Smoke test
 
-`build-support/z88dk/smoke.asm` → `z80asm -b` → 5 bytes `3e 02 d3 fe c9`
+`build/support/z88dk/smoke.asm` → `z80asm -b` → 5 bytes `3e 02 d3 fe c9`
 (`ld a,2 / out (0xfe),a / ret`) → `appmake +zx` → a valid `.tap` (BASIC loader
 `CLEAR 32767 : LOAD ""CODE : RANDOMIZE USR 32768` + CODE block).
 
@@ -96,8 +97,8 @@ Mirrors the cc65 pattern — pin upstream, patch the checkout in the recipe:
 
 ## When to rebuild
 
-Don't rebuild casually. Bump the pins in `third-party.toml`, rerun
-`just build-z88dk-wasm`, smoke-test, then commit the new wasm. If a pin bump
+Don't rebuild casually. Bump the pins in `build/third-party.toml`, rerun
+`cd build && just build-z88dk-wasm`, smoke-test, then commit the new wasm. If a pin bump
 changes `parse_rules.h`'s structure, re-check `split-action-switch.py`'s anchors.
 
 ## C path (#87) — work-in-progress notes
@@ -107,7 +108,7 @@ build to WASI** (spikes live in `_notes/z88dk-wasm-spike/`, git-ignored):
 
 - **`sccz80.wasm`** (650K) — z88dk's native C compiler. Plain gnu99, builds clean
   with wasi-sdk clang. Needed one stub: `tmpfile()` (wasi-libc lacks it) over
-  mkstemp+fdopen, in `build-support/z88dk/wasm-stubs.c`. Recipe: `build-sccz80.sh`.
+  mkstemp+fdopen, in `build/support/z88dk/wasm-stubs.c`. Recipe: `build-sccz80.sh`.
   Proven: compiles `.c` → z88dk `.asm` (SECTION code_compiler + C_LINE + l_* runtime calls).
 - **`zcpp.wasm`** (379K) — z88dk's ucpp C preprocessor (`src/ucpp`, `-DSTAND_ALONE
   -DUCPP_CONFIG`). **REQUIRED** before sccz80: sccz80 does NOT expand `#define`
@@ -221,7 +222,7 @@ regex). The productionisation then packaged the +zx sysroot zip, installed
 zcc/zcpp/sccz80/copt/zpragma wasm in the recipe, ported the dispatcher to browser_wasi_shim
 (shared in-memory Directory + the `..` normaliser + the `vsnprintf` zcc patch),
 wired toolchain-z88dk (inputExt c/h → run zcc), added a zx-c-hello template, pinned
-z88dk v2.4 in third-party.toml.
+z88dk v2.4 in build/third-party.toml.
 
 **Why this beats replicating zcc's recipe:** zcc stays the driver, so it owns ALL
 the classic-link logic (crt0, libs, `zcc_opt.def`, `CRT_*` defines, link order) —
@@ -236,14 +237,14 @@ files flow between tools — the one runtime-integration piece to verify.
 
 **#87 productionisation — DONE (this is now the shipping C path):**
 1. ✅ `zcc.wasm` + `zcpp`/`zpragma`/`sccz80` built from z88dk source via
-   `build-support/z88dk/build-z88dk-c.sh` (`just build-z88dk-c`); shim in
+   `build/support/z88dk/build-z88dk-c.sh` (`cd build && just build-z88dk-c`); shim in
    `c-path/zcc-shim.c`, the `vasprintf` `/dev/null`→`vsnprintf(NULL,0)` patch in
    `c-path/patch-vasprintf.py`, `tmpfile`/`mkstemp` in `c-path/wasm-stubs.c`.
    All four installed next to `z80asm.wasm`.
-2. ✅ **+zx sysroot zip** `src/plugins/toolchain-z88dk/zx-sysroot.zip` (~2.1 MB,
+2. ✅ **+zx sysroot zip** `packages/toolchain-z88dk/src/zx-sysroot.zip` (~2.1 MB,
    1044 entries) repackaged from the z88dk **v2.4 release** by
    `c-path/build-zx-sysroot.sh`; pinned `[source.z88dk-sysroot-zx]` in
-   `third-party.toml`. Minimal closure (empirically derived): `lib/config` +
+   `build/third-party.toml`. Minimal closure (empirically derived): `lib/config` +
    `lib/target/zx` + `lib/crt` + `lib/clibs/{zx_clib,mzx,z80_clib,z80_crt0}.lib`
    + loose `lib/{z80_crt0.hdr,z88dk-z80asm.lib,zxr_crt0.asm,z80rules.*}` +
    `include/`. Mounted read-only at `/z88dk`.

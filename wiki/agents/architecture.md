@@ -2,31 +2,35 @@
 
 > Layered layout from [ADR-0002](../adr/0002-layering.md). The workbench has every plugin contract the Atari path needs — MachinePlugin (v0.4.0), ToolchainPlugin (v0.5.0), DebugAdapter (v0.6.0), PanelPlugin (v0.7.0), Service↔UI sync FSM (v0.7.5, ADR-0007) — plus manifest-driven dispatch, contract test harnesses, and a path-aware source map. Shipped since: NES validation (v0.8.0 — machine-nes + jsnes backend + panel-ppu + named memory spaces), Templates (v0.8.5), editor-language generalization (v0.8.7 — CPU opcodes from `@core/cpu` + per-toolchain `ToolchainLanguage`), visual manifest editor + `build.args` + Astro docs site (v0.9.0), and Courses including the declarative check runner (v0.9.5 — only the course-authoring docs child still open). M8 monorepo split was cancelled 2026-06-12 — see [decisions](../decisions/2026-06-12-monorepo-split-cancelled.md). Active issues in GitHub (`gh issue list`).
 
-## Repo shape (ADR-0002 layout)
+## Repo shape (post-#89 monorepo)
+
+The #89 restructure folded the old single `src/` tree into a pnpm workspace: `packages/` (core, ports, the wasm blobs, and every plugin) + `apps/` (the IDE, the docs site) + `build/` (dormant wasm-build tooling). The ADR-0002 layers still hold conceptually (see the [ADR-0002 addendum](../adr/0002-layering.md)); only the on-disk home changed.
 
 ```
-src/
-  main.tsx               # Vite entry; renders @ui/App into #root
-
-  core/                  # pure utilities, zero side effects
+packages/                # workspace libraries (each: src/ + package.json)
+  core/                  # @core — pure utilities, zero side effects (src/)
     hash.ts              # sha256 over Uint8Array / string
     path.ts              # basename / dirname / extOf
     hex.ts               # number → hex formatting / parsing
+    audio.ts             # shared audio helpers
     mads-tokens.ts       # MADS directive set (MADS_DIRECTIVES) + LabelInfo shape (shared @ui + @app)
+    vfs/                 # in-memory virtual filesystem helpers
     cpu/                 # CPU instruction vocabularies, resolved by MachinePlugin.cpu (epic 78b12bf)
       mos6502.ts         # MOS6502 CpuLanguage — opcodes Set + opcodeDocs (drives editor highlight/hover)
       index.ts           # getCpuLanguage(cpuId) registry — mos6502 + ricoh-2a03 (NES 2A03) → MOS6502
 
-  ports/                 # interfaces only (impls in @adapters/@plugins)
+  ports/                 # @ports — interfaces only (impls in apps/ide adapters + plugin packages) (src/)
     index.ts
     errors.ts            # WorkbenchError hierarchy + Result<T, E> + ManifestError (ADR-0004)
     logger.ts            # Logger
     event-bus.ts         # EventBus + WorkbenchEvents declaration-merging map
     command-registry.ts  # CommandRegistry
     plugin-registry.ts   # PluginRegistry (kinds: machine|toolchain|debug-adapter|panel|emulator|converter|editor)
+    plugin-loader.ts     # PluginLoader port
     storage.ts           # StorageBackend port (projects/snapshots/breakpoints/courses/kv) + domain types
     project-manifest.ts  # ProjectManifestV2 + parseProjectManifest validator (v1 hard-cut)
     source-map.ts        # SourceMap shared between toolchain plugins + UI
+    diagnostics.ts       # Diagnostic shape
     plugin-machine.ts    # MachinePlugin contract (v0.4.0)
     plugin-toolchain.ts  # ToolchainPlugin contract (v0.5.0)
     plugin-debug.ts      # DebugAdapterPlugin + DebugTarget + RegisterDescriptor / FlagDescriptor (v0.6.0)
@@ -38,87 +42,121 @@ src/
     services/            # Build/Run/Debug/AssetPipeline contracts
     test/                # assert<Kind>Plugin harnesses for external authors (Toolchain + Emulator ✅)
 
-  services/              # workbench-core services (impl)
-    index.ts
-    event-bus.ts         # createEventBus() — typed pub/sub, hand-rolled, ~50 LOC
-    command-registry.ts  # createCommandRegistry() — id-keyed Map + when() gate
-    plugin-registry.ts   # createPluginRegistry() — per-kind Map; project shadows builtin
-    build-service.ts     # createBuildService() — manifest.toolchain id → ToolchainResolverFn → plugin.build → events
-    run-service.ts       # createRunService() — emulator lifecycle + audio; backend factory + MachineMedia DI'd
-    debug-service.ts     # createDebugService() — delegates to active DebugAdapter via target()
-    asset-pipeline-service.ts # createAssetPipelineService() — runAll / runOne / runAffected (skip-aware)
+  # --- wasm blobs (prebuilt artifacts, each its own @madside/wasm-* package) ---
+  wasm-mads/             # mads.wasm + index.{js,d.ts} — MADS FPC → wasm32-wasip1 (1.9 MB)
+  wasm-altirra/          # altirra-core.{js,wasm} (~131 KB js + ~4.5 MB wasm) + index
+  wasm-cc65/             # ca65.wasm / cc65.wasm / ld65.wasm (cc65 toolchain) + index
+  wasm-z88dk/            # z80asm/zcc/sccz80/zcpp/zpragma/zcc/copt/appmake.wasm + index
+  wasm-chips/            # c64-core.{js,wasm} + zx-core.{js,wasm} (Chips emulator cores) + index
 
-  adapters/              # port implementations (machine-/toolchain-agnostic only)
-    plugin-loader.ts     # Blob URL + dynamic import + sha256 cache
-    storage-idb/         # IDB schema v3 (projects/files/meta/snapshots/blobs/breakpoints/courses)
-                         #   + createIdbStorage() — @ports.StorageBackend impl
-                         #   + parseProjectManifest at load (rejects v1)
-    storage-memory/      # createMemoryStorage() — StorageBackend (tests, future CLI)
-    logger/              # Console / Buffered / Noop logger adapters
-    emu/                 # EmuBackend (Altirra-internal) + AltirraBackend + altirraEmulator EmulatorPlugin
-                         #   wasm/altirra-core.{js,wasm}  — Altirra core (~134 KB js + ~4.6 MB wasm), Vite-tracked
-                         #   altirra.ts loads it via `import createAltirraCore from "./wasm/altirra-core.js"` + `./wasm/altirra-core.wasm?url`
+  # --- plugin packages (built-in plugin instances, each: src/) ---
+  toolchain-mads/        # ToolchainPlugin v0.5.0 — src/mads.ts (parses .lab → labels Map, .lst → SourceMap)
+                         #   src/wasm-mads/ — MADS WASI runner + .lst sourceMap + .lab parser (private)
+  toolchain-ca65/        # ToolchainPlugin (cc65/ca65) — src/ca65-toolchain.ts, cc65-dbg.ts
+                         #   src/{atari,c64,nes}-sysroot.zip — cc65 sysroots; src/wasm/ — ca65/cc65/ld65 loaders
+  toolchain-z88dk/       # ToolchainPlugin (z88dk, ZX) — src/z88dk-toolchain.ts
+                         #   src/zx-sysroot.zip — z88dk ZX sysroot; src/wasm/ — z88dk loaders
+  machine-atari-xl/      # MachinePlugin v0.4.0 — display/audio/input/memoryMap/media{xex,atr,car,cas}/hardwareConfig/bootEquates; src/xex.ts
+  machine-c64/           # MachinePlugin — Commodore 64; src/machine-c64.ts
+  machine-nes/           # MachinePlugin (v0.8.0) — NES; cpu ricoh-2a03, memorySpaces [ppu (PPU VRAM 0x4000), oam (0x100)], devices ppu/apu; pairs with jsnes backend
+  machine-zx/            # MachinePlugin — ZX Spectrum; src/machine-zx.ts
+  emulator-c64-chips/    # EmulatorPlugin — Chips c64-core backend; src/chips-backend.ts + src/{roms,wasm}/
+  emulator-nes-jsnes/    # RunBackend (v0.8.0) over the jsnes npm package; readMem(addr,len,space) serves cpu/ppu/oam; lazy-imported (code-split)
+  emulator-zx-chips/     # EmulatorPlugin — Chips zx-core backend; src/chips-backend.ts + src/{roms,wasm}/
+  debug-atari-6502/      # DebugAdapter v0.6.0 — wraps AltirraBackend; exports MOS6502_REGISTERS/FLAGS (reused for NES — both setups share this adapter)
+  debug-zx-z80/          # DebugAdapter — Z80; src/zx-z80.ts + src/z80.ts
+  panel-registers/       # PanelPlugin v0.7.0 — descriptor-driven register + flag panel
+  panel-memory/          # PanelPlugin v0.7.0 — hex view + base input + cursor follow badge
+  panel-output/          # PanelPlugin v0.7.0 — build stdout/stderr + OK/ERR tag
+  panel-ppu/             # PanelPlugin (v0.8.0) — NES PPU pattern tables + palette; supports() gated on the 'ppu' memory space
+  converters/            # asset converters (Phase 7) — src/{recipeEngine,registry}.ts + src/builtins/
+  editors/               # plugin file editors (Phase 11) + editorToPanel bridge — src/registry.ts + src/builtins/
 
-  plugins/               # built-in plugin instances
-    converters/          # asset converters (Phase 7)
-    editors/             # plugin file editors (Phase 11) + editorToPanel bridge
-    machine-atari-xl/    # MachinePlugin v0.4.0 — display/audio/input/memoryMap/media{xex,atr,car,cas}/hardwareConfig/bootEquates
-    machine-nes/         # MachinePlugin (v0.8.0) — NES; cpu ricoh-2a03, memorySpaces [ppu (PPU VRAM 0x4000), oam (0x100)], devices ppu/apu; pairs with jsnes backend
-    toolchain-mads/      # ToolchainPlugin v0.5.0
-      mads.ts            # plugin wrapper (parses .lab → labels Map, .lst → SourceMap with path-aware reconstruction)
-      wasm-mads/         # MADS WASI runner + .lst sourceMap + .lab parser (private)
-    debug-atari-6502/    # DebugAdapter v0.6.0 — wraps AltirraBackend; exports MOS6502_REGISTERS/FLAGS (reused for NES — both setups share this adapter)
-    emulator-nes-jsnes/  # RunBackend (v0.8.0) over the jsnes npm package; readMem(addr,len,space) serves cpu/ppu/oam; lazy-imported (code-split)
-    panel-registers/     # PanelPlugin v0.7.0 — descriptor-driven register + flag panel
-    panel-memory/        # PanelPlugin v0.7.0 — hex view + base input + cursor follow badge
-    panel-output/        # PanelPlugin v0.7.0 — build stdout/stderr + OK/ERR tag
-    panel-ppu/           # PanelPlugin (v0.8.0) — NES PPU pattern tables + palette; supports() gated on the 'ppu' memory space
+apps/
+  ide/                   # @madside/ide — the Vite app (everything below was the old src/ non-lib layers)
+    index.html
+    vite.config.ts       # path aliases + plugin glob
+    vitest.config.ts     # test runner config (THE vitest config)
+    tsconfig.{app,adapters,services,ui}.json
+    templates/           # bundled project templates (was templates/)
+    courses/             # bundled course content (was courses/)
+    src/
+      main.tsx           # Vite entry; renders @ui/App into #root
 
-  app/                   # workbench wiring + non-React state
-    createWorkbench.ts   # headless factory (DOM-free, test-friendly) — registers every built-in plugin under unified PluginRegistry
-    workbench-context.tsx # React provider + useWorkbench() — wires IDB / console adapters
-    plugin-registry-glue.ts # supervised re-exports of @plugins helpers for @ui
-    state/store.ts       # useProject() — files, activeName, updateActive
-    fileTemplates.ts     # seed text for "new file" of each known ext
-    templates.ts         # bundled-template glob loader (v0.8.5 — project templates)
-    courses.ts           # bundled-course glob loader + CourseService (v0.9.5)
-    course-project.ts    # lesson → persistent project (stamps manifest.course)
-    check-runner.ts      # declarative check evaluator + orchestrator — build/label/register/memory checks (v0.9.5)
-    labels.ts            # MADS label / equate / token registry
+      adapters/          # port implementations (machine-/toolchain-agnostic only)
+        plugin-loader.ts # Blob URL + dynamic import + sha256 cache
+        storage-idb/     # IDB schema (projects/files/meta/snapshots/blobs/breakpoints/courses)
+                         #   + createIdbStorage() — @ports.StorageBackend impl + parseProjectManifest at load (rejects v1)
+        storage-memory/  # createMemoryStorage() — StorageBackend (tests, future CLI)
+        storage-shared/  # shared storage helpers
+        logger/          # Console / Buffered / Noop logger adapters
+        emu/             # EmuBackend (Altirra-internal) + AltirraBackend + altirraEmulator EmulatorPlugin
+                         #   loads the core from @madside/wasm-altirra (packages/wasm-altirra)
 
-  ui/                    # React tree + react-bound hooks + assets
-    App.tsx              # root; owns cpu / bp lines / source map / polling; renders Debug as slot host
-    App.css / tokens.css / index.css
-    components/
-      layout/{MenuBar,DebugBar,StatusBar,Splitter}.tsx
-      project/{Explorer,FileTree}.tsx
-      editor/{Editor,PluginEditor,PluginEditorErrorBoundary}.tsx
-      debug/{Emulator,Debug}.tsx  # Debug is a slot host — no panel-specific JSX
-      asset/AssetPanel.tsx
-      history/HistoryDialog.tsx
-      course/CoursePanel.tsx      # lazy lesson panel (react-markdown), shown when manifest.course is set
-      manifest/ManifestEditor.tsx # visual project.json form + raw editor (v0.9.0)
-      ui/                # Radix wrappers + reusable Dialog/Menu/Tooltip atoms
-      PanelSlot.tsx      # routes between PanelPlugin.Component and PanelPlugin.mount paths
-    hooks/
-      useActiveMachine.ts useAutoAssemble.ts useBreakpointAddrs.ts useCursorMemory.ts
-      useDebuggerShortcuts.ts usePluginEditor.ts useProjectLabels.ts
-      useRunStatus.ts useSplitterWidth.ts
-    codemirror/          # CodeMirror StreamLanguage definitions
-      assemblyLang.ts    # buildAssemblyLanguage(cpu, toolchainLanguage) — generic, CPU+toolchain driven (epic 78b12bf; replaced madsLang.ts)
-      jsConverterLang.ts
-    assets/              # static assets (hero.png, svgs)
+      services/          # workbench-core services (impl)
+        index.ts
+        event-bus.ts     # createEventBus() — typed pub/sub, hand-rolled, ~50 LOC
+        command-registry.ts # createCommandRegistry() — id-keyed Map + when() gate
+        plugin-registry.ts  # createPluginRegistry() — per-kind Map; project shadows builtin
+        build-service.ts # createBuildService() — manifest.toolchain id → ToolchainResolverFn → plugin.build → events
+        run-service.ts   # createRunService() — emulator lifecycle + audio; backend factory + MachineMedia DI'd
+        debug-service.ts # createDebugService() — delegates to active DebugAdapter via target()
+        asset-pipeline-service.ts # createAssetPipelineService() — runAll / runOne / runAffected (skip-aware)
 
-public/
-  wasm/mads.wasm                  # MADS FPC → wasm32-wasip1 (1.9 MB) — the ONLY wasm in public/
+      app/               # workbench wiring + non-React state
+        createWorkbench.ts # headless factory (DOM-free, test-friendly) — registers every built-in plugin under unified PluginRegistry
+        workbench-context.tsx # React provider + useWorkbench() — wires IDB / console adapters
+        builtin-plugins.ts # the built-in plugin import manifest
+        plugin-registry-glue.ts # supervised re-exports of plugin helpers for @ui
+        state/store.ts   # useProject() — files, activeName, updateActive
+        fileTemplates.ts # seed text for "new file" of each known ext
+        templates.ts     # bundled-template glob loader (v0.8.5 — project templates)
+        courses.ts       # bundled-course glob loader + CourseService (v0.9.5)
+        course-project.ts # lesson → persistent project (stamps manifest.course)
+        check-runner.ts  # declarative check evaluator + orchestrator — build/label/register/memory checks (v0.9.5)
+        labels.ts        # MADS label / equate / token registry
+
+      ui/                # React tree + react-bound hooks + assets
+        App.tsx          # root; owns cpu / bp lines / source map / polling; renders Debug as slot host
+        App.css / tokens.css / index.css
+        components/
+          layout/{MenuBar,DebugBar,StatusBar,Splitter}.tsx
+          project/{Explorer,FileTree}.tsx
+          editor/{Editor,PluginEditor,PluginEditorErrorBoundary}.tsx
+          debug/{Emulator,Debug}.tsx  # Debug is a slot host — no panel-specific JSX
+          asset/AssetPanel.tsx
+          history/HistoryDialog.tsx
+          course/CoursePanel.tsx      # lazy lesson panel (react-markdown), shown when manifest.course is set
+          manifest/ManifestEditor.tsx # visual project.json form + raw editor (v0.9.0)
+          ui/            # Radix wrappers + reusable Dialog/Menu/Tooltip atoms
+          PanelSlot.tsx  # routes between PanelPlugin.Component and PanelPlugin.mount paths
+        hooks/
+          useActiveMachine.ts useAutoAssemble.ts useBreakpointAddrs.ts useCursorMemory.ts
+          useDebuggerShortcuts.ts usePluginEditor.ts useProjectLabels.ts
+          useRunStatus.ts useSplitterWidth.ts
+        codemirror/      # CodeMirror StreamLanguage definitions
+          assemblyLang.ts # buildAssemblyLanguage(cpu, toolchainLanguage) — generic, CPU+toolchain driven (epic 78b12bf; replaced madsLang.ts)
+          jsConverterLang.ts
+        assets/          # static assets (hero.png, svgs)
+
+  docs/                  # @madside/docs — public Astro Starlight site (was docs/), published to /docs/
+
+build/                   # dormant build tooling (wasm rebuilds; not in the dev loop)
+  justfile               # build-mads-wasm / build-altirra-wasm / build-*-wasm recipes (cd build && just ...)
+  third-party.toml       # pinned upstream sources for the wasm builds
+  support/{mads,cc65,z88dk}/ # per-toolchain build scaffolding (was build-support/)
+
+public/                  # Vite static root
   favicon.svg / icons.svg
-# Note: the Altirra core does NOT live in public/. It is at src/adapters/emu/wasm/altirra-core.{js,wasm}
-# and pulled in via a Vite URL import (see emu/ above). NES uses the `jsnes` npm package — no local wasm.
-_notes/altirra/                   # Fork sibling: mikolajmikolajczyk/AltirraSDL, branch madside-embed
-wiki/                             # All project documentation
+# Note: wasm blobs no longer live in src/ or public/. They are @madside/wasm-* workspace
+# packages under packages/ (see the wasm blobs block above), consumed by the plugin/adapter
+# packages that need them. NES uses the `jsnes` npm package — no local wasm.
+_notes/altirra/          # Fork sibling: mikolajmikolajczyk/AltirraSDL, branch madside-embed
+wiki/                    # All internal project documentation
+# Root is the workspace shell: pnpm-workspace.yaml, package.json, tsconfig.*.json, justfile (dev/docs/release), flake.nix.
 ```
 
-Path aliases follow the layer table — `@core/...`, `@ports/...`, `@adapters/...`, `@services/...`, `@plugins/...`, `@app/...`, `@ui/...`. Defined in `tsconfig.base.json` and mirrored in `vite.config.ts` + `vitest.config.ts`. Enforced by `eslint-plugin-boundaries` (commit `01c77ab`).
+Path aliases follow the layer table — `@core/...`, `@ports/...`, `@adapters/...`, `@services/...`, `@plugins/...`, `@app/...`, `@ui/...`. Defined in `tsconfig.base.json` and mirrored in `apps/ide/vite.config.ts` + `apps/ide/vitest.config.ts`. Enforced by `eslint-plugin-boundaries` (commit `01c77ab`).
 
 TypeScript uses **project references**: one tsconfig per layer, root `tsconfig.json` references them all. `tsc -b` builds incrementally; only changed layers recompile. Mirrors the ADR-0002 dependency graph.
 
@@ -167,7 +205,7 @@ The browser-reload family (F5 / Ctrl+R / Shift+F5 / Ctrl+Shift+F5 / Ctrl+Shift+R
 
 ### Service ↔ UI sync (ADR-0007)
 
-Every domain (run, debug, build, project, file) has one FSM owned by its service; every transition emits exactly one typed `EventBus` event; UI reads via `useSync*` hooks. Run lifecycle is the reference (`useRunStatus()` in `src/ui/hooks/`); never mirror service state in `useState`. See [ADR-0007](../adr/0007-service-ui-sync.md) + `wiki/plugin-api/panel.md`.
+Every domain (run, debug, build, project, file) has one FSM owned by its service; every transition emits exactly one typed `EventBus` event; UI reads via `useSync*` hooks. Run lifecycle is the reference (`useRunStatus()` in `apps/ide/src/ui/hooks/`); never mirror service state in `useState`. See [ADR-0007](../adr/0007-service-ui-sync.md) + `wiki/plugin-api/panel.md`.
 
 ## Why these stacks
 
@@ -177,7 +215,7 @@ Every domain (run, debug, build, project, file) has one FSM owned by its service
 
 ## Emulator interface (v0.6.0)
 
-Two related contracts exist. **`EmuBackend`** (`src/adapters/emu/backend.ts`) is the Altirra-internal interface below (its `CpuRegs` is now an alias of the shared `Cpu6502State`). **`RunBackend`** (`@ports/services/run-service.ts`) is the machine-agnostic backend contract `RunService` consumes and the `EmulatorPlugin.createBackend()` returns (Altirra adapts to it; the jsnes NES backend implements it directly). Named memory spaces live on `RunBackend.readMem(addr, len, space?)` (`space` defaults to the CPU bus; backends throw on unknown spaces) and on `DebugTarget.readMemory(addr, len, space?)`, mirroring `MachinePlugin.memorySpaces`. The legacy `EmuBackend.readMem` shown below is still the plain `(addr, len)` form.
+Two related contracts exist. **`EmuBackend`** (`apps/ide/src/adapters/emu/backend.ts`) is the Altirra-internal interface below (its `CpuRegs` is now an alias of the shared `Cpu6502State`). **`RunBackend`** (`@ports/services/run-service.ts`) is the machine-agnostic backend contract `RunService` consumes and the `EmulatorPlugin.createBackend()` returns (Altirra adapts to it; the jsnes NES backend implements it directly). Named memory spaces live on `RunBackend.readMem(addr, len, space?)` (`space` defaults to the CPU bus; backends throw on unknown spaces) and on `DebugTarget.readMemory(addr, len, space?)`, mirroring `MachinePlugin.memorySpaces`. The legacy `EmuBackend.readMem` shown below is still the plain `(addr, len)` form.
 
 ```ts
 interface EmuBackend {
@@ -212,7 +250,7 @@ Implementations: `AltirraBackend` (Atari) and `JsnesBackend` (NES, `@plugins/emu
 ## Storage (IDB)
 
 ```
-db: madside, version: 2  (shape: src/adapters/storage-idb/schema.ts; row types: ./types.ts)
+db: madside, version: 2  (shape: apps/ide/src/adapters/storage-idb/schema.ts; row types: ./types.ts)
 stores:
   projects    { id, name, createdAt, updatedAt }                 key: id;             index: byUpdatedAt
   files       { projectId, path, content (Uint8Array), updatedAt } key: [projectId, path]; index: byProject

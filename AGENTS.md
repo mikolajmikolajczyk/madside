@@ -24,11 +24,12 @@ In-browser Web IDE for retro hardware. Currently Atari 8-bit (MADS + Altirra was
 | How `mads.wasm` was built / how to rebuild | [`wiki/agents/mads-wasm-build.md`](wiki/agents/mads-wasm-build.md) |
 | How `altirra-core.wasm` was built / how to rebuild | [`wiki/agents/altirra-wasm-build.md`](wiki/agents/altirra-wasm-build.md) |
 | How `z80asm.wasm` / `appmake.wasm` (z88dk) were built / how to rebuild | [`wiki/agents/z88dk-wasm-build.md`](wiki/agents/z88dk-wasm-build.md) |
+| Dormant wasm-build tooling (rebuild recipes + pinned upstream sources) | [`build/justfile`](build/justfile) + [`build/third-party.toml`](build/third-party.toml) (run as `cd build && just build-*-wasm`) |
 | Things deliberately deferred — do NOT implement unprompted | [`wiki/agents/deferred.md`](wiki/agents/deferred.md) |
 | Plugin contracts (Machine/Toolchain/Emulator/Debug/Panel/Converter/Editor) | [`wiki/plugin-api/`](wiki/plugin-api/) |
 | Architecture Decision Records | [`wiki/adr/`](wiki/adr/) |
 | Testing strategy | [`wiki/testing/`](wiki/testing/) |
-| **Public** docs site (user + plugin-author, published to `/docs/`) | [`docs/src/content/docs/`](docs/src/content/docs/) (Astro Starlight) |
+| **Public** docs site (user + plugin-author, published to `/docs/`) | [`apps/docs/src/content/docs/`](apps/docs/src/content/docs/) (Astro Starlight) |
 
 ## Load-on-demand rule
 
@@ -55,9 +56,9 @@ GitHub is this repo's **canonical forge** — issues and pull requests both live
 ## Quick dev loop
 
 ```sh
-npm run dev          # vite dev server
-npm run build        # tsc -b && vite build
-npx tsc --noEmit     # typecheck
+pnpm dev             # vite dev server
+pnpm build           # tsc -b && vite build
+pnpm typecheck       # tsc -b (real typecheck; plain `tsc --noEmit` is a no-op here)
 ```
 
 Full command list: [`wiki/agents/commands.md`](wiki/agents/commands.md).
@@ -67,7 +68,7 @@ Full command list: [`wiki/agents/commands.md`](wiki/agents/commands.md).
 - **Never commit without explicit user request.** Even mid-task, after accepting a plan, stop and ask. Acceptance of plan ≠ acceptance of commit.
 - **Don't add features, refactor, or introduce abstractions beyond what the task requires.** Bug fix = bug fix, not surrounding cleanup.
 - **Don't pre-empt later milestones.** If something is tagged `milestone:m5`, don't half-implement it during M2 work.
-- **Two doc trees, don't mix them.** `wiki/` = internal, agent-/maintainer-facing notes (architecture, ADRs, conventions, status). `docs/` = the **public** Astro Starlight site (user + plugin-author docs) published to `/docs/`. Both are intentional — do NOT move `docs/` into `wiki/` or delete it. Internal note → `wiki/`; public-facing page → `docs/src/content/docs/`.
+- **Two doc trees, don't mix them.** `wiki/` = internal, agent-/maintainer-facing notes (architecture, ADRs, conventions, status). `apps/docs/` = the **public** Astro Starlight site (user + plugin-author docs) published to `/docs/`. Both are intentional — do NOT move `apps/docs/` into `wiki/` or delete it. Internal note → `wiki/`; public-facing page → `apps/docs/src/content/docs/`.
 
 ## Code ownership
 

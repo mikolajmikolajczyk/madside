@@ -1,6 +1,6 @@
 # DebugAdapterPlugin
 
-> Source: [`src/ports/plugin-debug.ts`](../../src/ports/plugin-debug.ts). Atari 6502 reference impl: [`src/plugins/debug-atari-6502/`](../../src/plugins/debug-atari-6502/).
+> Source: [`packages/ports/src/plugin-debug.ts`](../../packages/ports/src/plugin-debug.ts). Atari 6502 reference impl: [`packages/debug-atari-6502/src`](../../packages/debug-atari-6502/src).
 
 Bridges a CPU-agnostic `DebugTarget` to a specific `RunBackend`. The debugger UI (`Debug.tsx` + `panel-registers` + `panel-memory`) renders identically across any machine — register / flag names + step / breakpoint / read / write primitives come from the adapter.
 

@@ -41,14 +41,19 @@ Most hooks are still `stages: [manual]` during the Foundation cleanup pass. They
 
 ## Wasm rebuilds (rare, deliberate)
 
+The wasm-rebuild recipes live in `build/justfile` (not the root one). Run them from `build/`:
+
 ```sh
-just build-mads-wasm        # rebuild src/plugins/toolchain-mads/wasm-mads/mads.wasm
-just build-altirra-wasm     # rebuild src/adapters/emu/wasm/altirra-core.{wasm,js}
+cd build && just build-mads-wasm     # rebuild packages/wasm-mads/mads.wasm
+cd build && just build-altirra-wasm  # rebuild packages/wasm-altirra/altirra-core.{wasm,js}
+cd build && just build-cc65-wasm     # rebuild packages/wasm-cc65/{ca65,cc65,ld65}.wasm + ca65 sysroots
+cd build && just build-z88dk-wasm    # rebuild packages/wasm-z88dk/*.wasm
+cd build && just build-chips-wasm    # rebuild packages/wasm-chips/{c64,zx}-core.{js,wasm}
 ```
 
-The `just` recipes also wrap the app commands above (`just dev`, `just build`, `just preview`, `just typecheck`, `just install`) and the docs site (`just docs-dev`, `just docs-build` — Astro Starlight under `docs/`).
+The **root** `justfile` only wraps the app + docs commands (`just dev`, `just build`, `just preview`, `just typecheck`, `just install`, `just docs-dev`, `just docs-build` — Astro Starlight under `apps/docs/`); `just --list` at the root shows just those. The wasm recipes are dormant — they live in `build/justfile` alongside `build/third-party.toml` (pins) and `build/support/`.
 
-Details: [`mads-wasm-build.md`](mads-wasm-build.md), [`altirra-wasm-build.md`](altirra-wasm-build.md). **Do not rebuild casually.** Bump pinned commits in `justfile` deliberately, rerun, smoke-test, commit the new artifact.
+Details: [`mads-wasm-build.md`](mads-wasm-build.md), [`altirra-wasm-build.md`](altirra-wasm-build.md), [`z88dk-wasm-build.md`](z88dk-wasm-build.md). **Do not rebuild casually.** Bump pinned commits in `build/third-party.toml` deliberately, rerun, smoke-test, commit the new artifact.
 
 ## GitHub (issues, PRs)
 
@@ -73,9 +78,9 @@ pnpm exec vitest run   # one-shot
 pnpm test              # watch mode (package.json "test" → vitest)
 ```
 
-Test layout (ADR-0005):
+Vitest config lives at `apps/ide/vitest.config.ts`. Test layout (ADR-0005):
 
-- `src/**/*.test.ts` — pure-logic units alongside source
+- `apps/ide/src/**/*.test.ts` + `packages/**/*.test.ts` — pure-logic units alongside source
 - `tests/integration/*.test.ts` — headless workbench + memory adapters
 - `tests/contract/*.test.ts` — plugin-kind contract harnesses (land per kind)
 - Playwright E2E deferred; guardrails tracked in `7659319`.

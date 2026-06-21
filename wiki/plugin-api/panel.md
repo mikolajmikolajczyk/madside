@@ -1,6 +1,6 @@
 # PanelPlugin
 
-> Source: [`src/ports/plugin-panel.ts`](../../src/ports/plugin-panel.ts). Built-in panels: [`src/plugins/panel-registers/`](../../src/plugins/panel-registers/), [`src/plugins/panel-memory/`](../../src/plugins/panel-memory/), [`src/plugins/panel-output/`](../../src/plugins/panel-output/).
+> Source: [`packages/ports/src/plugin-panel.ts`](../../packages/ports/src/plugin-panel.ts). Built-in panels: [`packages/panel-registers/src`](../../packages/panel-registers/src), [`packages/panel-memory/src`](../../packages/panel-memory/src), [`packages/panel-output/src`](../../packages/panel-output/src).
 
 Generic UI surface. Memory viewer, register viewer, ANTIC/PPU/GTIA viewers, symbol browser, file editor — all PanelPlugin.
 
@@ -93,7 +93,7 @@ Component: ({ ctx }) => {
 const [running, setRunning] = useState(false); // RunService.status is the truth
 ```
 
-For run lifecycle specifically, host hook is `useRunStatus()` (from `@ui/hooks`) — panels can read it directly via `ctx` injection or subscribe to `run:state` themselves. See `src/plugins/panel-registers/` and `src/plugins/panel-memory/` for canonical implementations.
+For run lifecycle specifically, host hook is `useRunStatus()` (from `@ui/hooks`) — panels can read it directly via `ctx` injection or subscribe to `run:state` themselves. See `packages/panel-registers/src` and `packages/panel-memory/src` for canonical implementations.
 
 ## Event-driven data flow
 
@@ -108,7 +108,7 @@ Built-in panels subscribe to workbench events instead of receiving props:
 | `project:switched` | Active project changed |
 | `file:changed` | File tree write |
 
-See [`@ports/event-bus.ts`](../../src/ports/event-bus.ts) for the complete typed map.
+See [`@ports/event-bus.ts`](../../packages/ports/src/event-bus.ts) for the complete typed map.
 
 ## Error containment
 

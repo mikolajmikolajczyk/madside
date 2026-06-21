@@ -1,6 +1,6 @@
 # Converter (AssetPlugin)
 
-> Source: [`src/ports/plugin-converter.ts`](../../src/ports/plugin-converter.ts). Built-in pack: [`src/plugins/converters/`](../../src/plugins/converters/).
+> Source: [`packages/ports/src/plugin-converter.ts`](../../packages/ports/src/plugin-converter.ts). Built-in pack: [`packages/converters/src`](../../packages/converters/src).
 
 Converts a source asset into bytes the toolchain can `icl` / link. Recipes in `project.json` declare `{ input, output, converter, options }`; AssetPipelineService runs them.
 

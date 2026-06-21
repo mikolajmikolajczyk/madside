@@ -26,7 +26,7 @@ export function useRunStatus(): RunStatus {
 }
 ```
 
-Reference impl: `src/services/run-service.ts` + `src/ui/hooks/useRunStatus.ts`.
+Reference impl: `apps/ide/src/services/run-service.ts` + `apps/ide/src/ui/hooks/useRunStatus.ts`.
 
 ### Do / Don't
 
@@ -71,7 +71,7 @@ Root cause of `ce0dc6f` / `da6299d` / `d64d0a4`: parallel React state + manual e
 
 ## Converters and editors are project data
 
-- Built-in converters in `src/plugins/converters/builtins/` are a starter pack.
+- Built-in converters in `packages/converters/src/builtins/` are a starter pack.
 - The canonical library lives in a separate repo + blog.
 - Project-local converters in `converters/*.js` shadow built-ins by `meta.id`.
 - Editors follow the Phase 11 `EditorModule` contract (`editors/*.js`). v0.7.0 folds them into `PanelPlugin` via the `editorToPanel` bridge (`6f2dc20`); Phase 11 modules keep working with zero source change.

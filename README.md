@@ -46,7 +46,7 @@ Other commands:
 pnpm build              # tsc -b && vite build → dist/
 pnpm exec vitest run    # tests
 pnpm run lint           # eslint
-pnpm --dir docs dev     # the Astro docs site
+pnpm --filter @madside/docs dev   # the Astro docs site
 ```
 
 Rebuilding the bundled wasm artifacts (`mads.wasm`, `altirra-core.wasm`) is rare — see [`wiki/agents/mads-wasm-build.md`](wiki/agents/mads-wasm-build.md) and [`wiki/agents/altirra-wasm-build.md`](wiki/agents/altirra-wasm-build.md).

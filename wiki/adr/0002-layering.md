@@ -31,6 +31,8 @@ Without a layering contract, the M3 services / M4 machine plugin refactor would 
 
 Adopt seven layers with a strict downward-only dependency rule. Each layer is a `src/<layer>/` folder, an import alias, and an ESLint `boundaries` zone.
 
+> **Addendum (post-#89 restructure).** The seven layers, the aliases, and the downward-only dependency rule below **still hold** — they were not changed. Only the **on-disk home** was superseded by the #89 monorepo split: `core` and `ports` now live as workspace packages under `packages/{core,ports}/src/`, and the remaining layers (`adapters`, `services`, `app`, `ui`, plus `main.tsx`) moved into the IDE app at `apps/ide/src/<layer>/`. Built-in plugins (the `plugins` layer) became one package each under `packages/<plugin>/src/`. The `src/<layer>` paths in the table below are therefore **historical** — read them as "the `<layer>` zone", whose current location is given above. The aliases (`@core`, `@ports`, …) and the boundary contract are unchanged. See [`wiki/agents/architecture.md`](../agents/architecture.md) for the current tree.
+
 ### Layers (top to bottom)
 
 | Layer | Path | Alias | Responsibility |

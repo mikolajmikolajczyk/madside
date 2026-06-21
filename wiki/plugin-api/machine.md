@@ -1,6 +1,6 @@
 # MachinePlugin
 
-> Source: [`src/ports/plugin-machine.ts`](../../src/ports/plugin-machine.ts). Atari-XL reference impl: [`src/plugins/machine-atari-xl/`](../../src/plugins/machine-atari-xl/).
+> Source: [`packages/ports/src/plugin-machine.ts`](../../packages/ports/src/plugin-machine.ts). Atari-XL reference impl: [`packages/machine-atari-xl/src`](../../packages/machine-atari-xl/src).
 
 Describes target hardware so the workbench stays machine-agnostic. Display dims, audio sample rate, input layout, memory map, media-format dispatch table, hardware-config bag — everything that would otherwise calcify as Atari-specific constants in `@adapters` / `@ui`.
 
