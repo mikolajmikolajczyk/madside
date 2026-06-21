@@ -1,6 +1,6 @@
 {
   "name": "ZX Spectrum — Hello World (C, z88dk)",
-  "description": "Write ZX Spectrum 48K programs in C. z88dk's zcc compiles main.c (sccz80) and links it against the bundled +zx runtime (crt0 + zx_clib) entirely in the browser; the IDE wraps the result into a 48K .sna that boots on the chips ZX core. Paints the screen via the ULA helpers (printf/stdio is a follow-up).",
+  "description": "Write ZX Spectrum 48K programs in C. z88dk's zcc compiles main.c (sccz80) and links it against the bundled +zx runtime (crt0 + zx_clib + the console driver) entirely in the browser; the IDE wraps the result into a 48K .sna that boots on the chips ZX core. printf prints to the screen and zx_border tints the frame.",
   "machine": "zx-spectrum",
   "order": 11
 }

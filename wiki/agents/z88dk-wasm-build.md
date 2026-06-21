@@ -253,11 +253,19 @@ files flow between tools — the one runtime-integration piece to verify.
 4. ✅ `toolchain-z88dk`: `inputExt` now includes `c`/`h`; a `.c` main routes to
    `buildZ88dkC` (`zcc +zx -create-app`), the linked binary → 48K `.sna` via
    `buildSna48k` (org 0x8000, the spec_crt0 entry).
-5. ✅ `zx-c-hello` template (no-stdio: `zx_border` + `zx_cls_attr`).
+5. ✅ `zx-c-hello` template — `printf` + `zx_border`.
+6. ✅ **`printf`/stdio works.** Root cause of the old `undefined symbol:
+   writebyte`: the release `zx_clib` references but doesn't bundle `writebyte`
+   (the fd-level console write) — it lives in `ndos.lib` (no-DOS fcntl/console
+   driver) + base `z80_clib`, which `zx.cfg`'s `default` clib (`-lzx_clib` only)
+   omits. Fix: `buildZ88dkC` appends `-lz80_clib -lndos` to the zcc argv and the
+   sysroot ships `ndos.lib`. The linker pulls only referenced modules → no-stdio
+   builds unaffected. z88dk's own console driver (set up by `spec_crt0`, not the
+   BASIC ROM) renders to screen, so it works from a bare `.sna`. **Verified by a
+   headless chips-zx node smoke** (built a `-sENVIRONMENT=node` zx-core, loaded
+   the printf `.sna`, advanced 200 frames, confirmed non-zero screen-RAM glyphs).
 
 **Still open:**
-- `printf`/stdio: links fail with `writebyte` undefined — needs the ZX
-  console-driver lib. No-stdio C links + boots fine today.
 - `z88dk-copt` is passthrough (peephole optimiser off); `lib/z80rules.*` ship in
   the sysroot ready to wire a real copt run.
 - (separate epic) generalize `client.ts` LSP host for a 2nd language server.

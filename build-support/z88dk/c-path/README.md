@@ -55,9 +55,17 @@ a no-stdio `main` and a `zx_border()` call both compile→link→appmake (`.tap`
 DONE: sysroot zip + `build-zx-sysroot.sh`; `build-z88dk-c.sh` + `just build-z88dk-c`
 (sccz80/zcpp/zcc/zpragma wasm installed); dispatcher ported to `browser_wasi_shim`
 (`buildZ88dkC`); toolchain-z88dk wired (inputExt `c`/`h`, `.c` main → C path);
-`zx-c-hello` template. A C program compiles → links → boots end-to-end.
+`zx-c-hello` template. A C program compiles → links → boots end-to-end, **incl.
+`printf`** (headless chips-zx smoke confirms glyphs reach screen RAM).
 
-REMAINING: `printf`/stdio needs the ZX console-driver lib (`writebyte` undefined
-at link) — no-stdio C links + boots fine today. `z88dk-copt` runs as passthrough
-(peephole optimiser disabled); enabling it needs the `lib/z80rules.*` (already in
-the sysroot) wired through a real copt run.
+**stdio fix:** the release `zx_clib` *references* `writebyte` (the fd-level
+console write) but doesn't bundle it — the definition lives in `ndos.lib` (the
+no-DOS fcntl/console driver) + the base `z80_clib`. `zx.cfg`'s `default` clib only
+links `-lzx_clib`, so `buildZ88dkC` appends `-lz80_clib -lndos` to the zcc argv
+and the sysroot ships `ndos.lib`. The linker pulls only referenced modules, so
+no-stdio builds are unaffected. z88dk's own console driver (set up by `spec_crt0`)
+renders to the screen — no BASIC ROM vars needed, so it works from a bare `.sna`.
+
+REMAINING: `z88dk-copt` runs as passthrough (peephole optimiser disabled);
+enabling it needs the `lib/z80rules.*` (already in the sysroot) wired through a
+real copt run.

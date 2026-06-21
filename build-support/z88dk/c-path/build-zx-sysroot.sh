@@ -27,8 +27,10 @@ cp -r "$SRC/lib/config"     "$STAGE/lib/config"
 cp -r "$SRC/lib/target/zx"  "$STAGE/lib/target/zx"   # crt0 + def/
 cp -r "$SRC/lib/crt"        "$STAGE/lib/crt"         # crt_*.inc pulled by spec_crt0.asm
 cp -r "$SRC/include"        "$STAGE/include"
-# classic-clib link set: zx runtime + math + base z80 + crt0 lib
-for l in zx_clib mzx z80_clib z80_crt0; do cp "$SRC/lib/clibs/$l.lib" "$STAGE/lib/clibs/"; done
+# classic-clib link set: zx runtime + math + base z80 + crt0 lib + ndos (the
+# no-DOS fcntl/console driver — provides writebyte, needed by printf/stdio; the
+# release zx_clib references but doesn't bundle it).
+for l in zx_clib mzx z80_clib z80_crt0 ndos; do cp "$SRC/lib/clibs/$l.lib" "$STAGE/lib/clibs/"; done
 # loose lib/ files: crt0 header INCLUDEd by spec_crt0.asm, z80asm runtime, rom crt0
 cp "$SRC/lib/z80_crt0.hdr" "$SRC/lib/z88dk-z80asm.lib" "$SRC/lib/zxr_crt0.asm" "$STAGE/lib/"
 cp "$SRC"/lib/z80rules.* "$STAGE/lib/" 2>/dev/null || true   # for real copt (currently passthrough)

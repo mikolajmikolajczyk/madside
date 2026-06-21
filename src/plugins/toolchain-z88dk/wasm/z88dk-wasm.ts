@@ -333,8 +333,12 @@ export async function buildZ88dkC(main: string, files: Z88dkFile[], opts: Z88dkO
     return runSubTool(mod, root, args, inF, outF)
   }
 
+  // zx.cfg's `default` clib links only -lzx_clib; the release zx_clib references
+  // but doesn't bundle the z80 base + the ndos console driver (writebyte), so
+  // stdio (printf) needs them added explicitly. The linker pulls only the
+  // modules a program references, so no-stdio builds are unaffected.
   const wasi = new WASI(
-    ['zcc', '+zx', '-create-app', '-o', outBase, main],
+    ['zcc', '+zx', '-create-app', '-lz80_clib', '-lndos', '-o', outBase, main],
     ['ZCCCFG=/z88dk/lib/config', 'TMPDIR=/tmp', 'HOME=/', 'PATH=/'],
     [new OpenFile(new File([])), ConsoleStdout.lineBuffered(() => {}), ConsoleStdout.lineBuffered(() => {}), root],
   )
