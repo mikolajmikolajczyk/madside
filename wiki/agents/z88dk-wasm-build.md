@@ -200,17 +200,25 @@ After both fixes the chain runs ucpp→zpragma→sccz80→copt(passthrough)→z8
 zpragma, sccz80, z80asm; the full manual chain on hello.c yields a 293-line `.opt`
 with `GLOBAL _main`).
 
-**Remaining bug — WASI `..` path traversal (dispatcher/mount level, NOT a tool
-bug):** zcc derives DESTDIR = `ZCCCFG/../..`, so it passes ucpp
-`-isystem"/z88dk/lib/config/../..//include"`. With that `..`-laden path, **ucpp
-silently expands no `#include`** (produces a 3-line `.i2` instead of 855) →
-zpragma→sccz80 then emit a `_main`-less 40-line object → the final link fails
-`undefined symbol: _main`. The exact same ucpp with a **clean** path
-(`-isystem/z88dk/include`) expands stdio.h fine (855 lines, `_main` present).
-**Fix options:** mount/point ZCCCFG so DESTDIR is `..`-free, or have the host
-dispatcher normalise `..` in tool args before exec, or preopen the sysroot at a
-path that needs no traversal. Once includes resolve → `_main` is exported → link
-succeeds → wrap with `buildSna48k` → the C path boots.
+**WASI `..` path traversal — FIXED → C COMPILES, LINKS, AND BOOTS end-to-end.**
+zcc derives DESTDIR = `ZCCCFG/../..`, passing ucpp `-isystem"/z88dk/lib/config/../..//include"`;
+WASI's sandboxed `path_open` won't traverse `..`, so ucpp silently expanded no
+`#include` → `_main`-less object → link `undefined _main`. **Fix: the host
+dispatcher normalises `..`/`.`/`//` in every tool arg's path portion before exec
+(`normPathPart`).** After that the full chain runs and **`zcc +zx -create-app`
+produces a working binary + `.tap`** (a minimal `int main(){*(char*)0x4000=0xff;}`
+builds clean, exit 0). **Verified it BOOTS in the chips zx core: the C poke landed
+(`screen[0x4000]=0xff`).** The binary starts `cd 31 80` (= z88dk crt0 `CALL`, org
+0x8000). **The C path works.**
+
+Remaining polish (not blockers): **`printf`/stdio** pulls the console driver and
+fails `undefined symbol: writebyte` — the ZX console-driver lib/pragma isn't wired
+yet (a no-stdio C program links fine). And **copt/zpragma**: zpragma is real now;
+copt is still passthrough (unoptimised). Then: package the +zx sysroot zip, install
+zcc/zcpp/sccz80/zpragma wasm in the recipe, port the dispatcher to browser_wasi_shim
+(shared in-memory Directory + the `..` normaliser + the `vsnprintf` zcc patch),
+wire toolchain-z88dk (inputExt c/h → run zcc), add a zx-c-hello template, pin
+z88dk v2.4 in third-party.toml.
 
 **Why this beats replicating zcc's recipe:** zcc stays the driver, so it owns ALL
 the classic-link logic (crt0, libs, `zcc_opt.def`, `CRT_*` defines, link order) —
