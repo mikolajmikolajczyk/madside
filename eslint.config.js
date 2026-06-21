@@ -11,14 +11,19 @@ import { defineConfig, globalIgnores } from 'eslint/config'
 // lockstep when adding a layer; ESLint resolves @-aliases via the tsconfig.
 const layers = ['core', 'ports', 'adapters', 'services', 'plugins', 'app', 'ui']
 
+// core + ports were carved into workspace packages (#93); the rest still live
+// under src/. The @-aliases are unchanged — only the on-disk base dir differs.
+const layerDir = (name) =>
+  name === 'core' || name === 'ports' ? `packages/${name}/src` : `src/${name}`
+
 // Two patterns per layer so EVERY file is classified, not just sub-folders:
-//  - folder mode catches `src/<layer>/<subdir>/…` (storage-idb/, emu/, …)
+//  - folder mode catches `<base>/<subdir>/…` (storage-idb/, emu/, …)
 //  - file mode catches files sitting DIRECTLY under the layer dir
 //    (e.g. src/adapters/plugin-loader.ts). Without the file rule those root
 //    files are unclassified and imports of them dodge the boundary check (#25).
 const elementTypes = layers.flatMap((name) => [
-  { type: name, pattern: `src/${name}/*`, mode: 'folder' },
-  { type: name, pattern: `src/${name}/*.{ts,tsx}`, mode: 'file' },
+  { type: name, pattern: `${layerDir(name)}/*`, mode: 'folder' },
+  { type: name, pattern: `${layerDir(name)}/*.{ts,tsx}`, mode: 'file' },
 ])
 
 // allow[X] = which layers X may import. Mirror of ADR-0002's table.

@@ -3,7 +3,7 @@
   "compilerOptions": {
     "tsBuildInfoFile": "./node_modules/.tmp/tsconfig.ports.tsbuildinfo"
   },
-  "include": ["src/ports/**/*"],
+  "include": ["packages/ports/src/**/*"],
   "references": [
     { "path": "./tsconfig.core.json" }
   ]

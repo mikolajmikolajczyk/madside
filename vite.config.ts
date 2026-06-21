@@ -47,10 +47,10 @@ export default defineConfig({
   },
   resolve: {
     alias: [
-      { find: /^@core$/,       replacement: r('./src/core') },
-      { find: /^@core\//,      replacement: r('./src/core/') },
-      { find: /^@ports$/,      replacement: r('./src/ports') },
-      { find: /^@ports\//,     replacement: r('./src/ports/') },
+      { find: /^@core$/,       replacement: r('./packages/core/src') },
+      { find: /^@core\//,      replacement: r('./packages/core/src/') },
+      { find: /^@ports$/,      replacement: r('./packages/ports/src') },
+      { find: /^@ports\//,     replacement: r('./packages/ports/src/') },
       { find: /^@adapters$/,   replacement: r('./src/adapters') },
       { find: /^@adapters\//,  replacement: r('./src/adapters/') },
       { find: /^@services$/,   replacement: r('./src/services') },

@@ -199,6 +199,14 @@ importers:
         specifier: ^0.35.1
         version: 0.35.2
 
+  packages/core: {}
+
+  packages/ports:
+    dependencies:
+      '@madside/core':
+        specifier: workspace:*
+        version: link:../core
+
   packages/wasm-altirra: {}
 
   packages/wasm-cc65: {}

@@ -22,10 +22,10 @@
 
     /* Layer aliases (ADR-0002) — shared across every layer config */
     "paths": {
-      "@core":       ["./src/core"],
-      "@core/*":     ["./src/core/*"],
-      "@ports":      ["./src/ports"],
-      "@ports/*":    ["./src/ports/*"],
+      "@core":       ["./packages/core/src"],
+      "@core/*":     ["./packages/core/src/*"],
+      "@ports":      ["./packages/ports/src"],
+      "@ports/*":    ["./packages/ports/src/*"],
       "@adapters":   ["./src/adapters"],
       "@adapters/*": ["./src/adapters/*"],
       "@services":   ["./src/services"],
