@@ -13,7 +13,8 @@ import type { Vfs } from './types';
 
 const segs = (path: string) => path.split('/').filter((p) => p.length > 0);
 
-function mkdirP(root: Directory, dirs: string[]): Directory {
+/** Walk/create the directory chain `dirs` under `root`, returning the leaf. */
+export function mkdirP(root: Directory, dirs: string[]): Directory {
   return dirs.reduce((dir, name) => {
     const existing = dir.contents.get(name);
     if (existing instanceof Directory) return existing;
@@ -23,14 +24,16 @@ function mkdirP(root: Directory, dirs: string[]): Directory {
   }, root);
 }
 
-function placeFile(root: Directory, path: string, data: Uint8Array) {
+/** Write `data` at `path` inside the in-memory tree, creating parent dirs. */
+export function placeFile(root: Directory, path: string, data: Uint8Array) {
   const parts = segs(path);
   if (parts.length === 0) return;
   const dir = mkdirP(root, parts.slice(0, -1));
   dir.contents.set(parts[parts.length - 1]!, new File(data));
 }
 
-function readFile(root: Directory, path: string): Uint8Array | undefined {
+/** Read the file at `path` from the in-memory tree (`undefined` if missing). */
+export function readFile(root: Directory, path: string): Uint8Array | undefined {
   const parts = segs(path);
   let dir: Directory = root;
   for (const name of parts.slice(0, -1)) {

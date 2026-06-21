@@ -20,8 +20,8 @@
 // C path (#87), which *requires* a real link anyway; this fast-path then becomes
 // the legacy asm-only route. Keep new asm projects to a single `org` until then.
 
-import { WASI, File, OpenFile, ConsoleStdout, Directory } from '@bjorn3/browser_wasi_shim'
-import { createVfs, MemoryProvider, ZipAssetProvider, vfsToPreopen, readFromPreopen, loadWasmModule } from '@core/vfs'
+import { WASI, File, OpenFile, ConsoleStdout } from '@bjorn3/browser_wasi_shim'
+import { createVfs, MemoryProvider, ZipAssetProvider, vfsToPreopen, readFromPreopen, loadWasmModule, mkdirP, placeFile, readFile } from '@core/vfs'
 import type { PreopenDirectory } from '@bjorn3/browser_wasi_shim'
 import z80asmWasmUrl from './z80asm.wasm?url'
 import zccWasmUrl from './zcc.wasm?url'
@@ -173,36 +173,6 @@ const C_TOOLS: Record<string, string> = {
   'z88dk-appmake': appmakeWasmUrl,
 }
 
-const seg = (p: string) => p.replace(/^\/+/, '').split('/').filter((x) => x.length > 0)
-
-function dirMkdirP(root: Directory, dirs: string[]): Directory {
-  return dirs.reduce((dir, name) => {
-    const existing = dir.contents.get(name)
-    if (existing instanceof Directory) return existing
-    const next = new Directory(new Map())
-    dir.contents.set(name, next)
-    return next
-  }, root)
-}
-
-function dirWrite(root: Directory, path: string, data: Uint8Array) {
-  const parts = seg(path)
-  if (parts.length === 0) return
-  dirMkdirP(root, parts.slice(0, -1)).contents.set(parts[parts.length - 1]!, new File(data))
-}
-
-function dirRead(root: Directory, path: string): Uint8Array | undefined {
-  const parts = seg(path)
-  let dir: Directory = root
-  for (const name of parts.slice(0, -1)) {
-    const next = dir.contents.get(name)
-    if (!(next instanceof Directory)) return undefined
-    dir = next
-  }
-  const leaf = dir.contents.get(parts[parts.length - 1]!)
-  return leaf instanceof File ? leaf.data : undefined
-}
-
 // Collapse '.', '..', '//' in the path portion of a token — WASI rejects '..'
 // and ucpp builds include paths like `-isystem .../config/../..//include`.
 function normPathPart(tok: string): string {
@@ -266,7 +236,7 @@ function runSubTool(
   outF: string | null,
   log: string[],
 ): number {
-  const stdin = new OpenFile(new File(inF ? (dirRead(root.dir, inF) ?? new Uint8Array()) : new Uint8Array()))
+  const stdin = new OpenFile(new File(inF ? (readFile(root.dir, inF) ?? new Uint8Array()) : new Uint8Array()))
   const outFile = outF ? new File(new Uint8Array()) : null
   let captured = ''
   const stdout = outFile ? new OpenFile(outFile) : ConsoleStdout.lineBuffered((m) => { captured += m + '\n' })
@@ -280,7 +250,7 @@ function runSubTool(
   } catch (e) {
     code = typeof e === 'object' && e !== null && 'code' in e ? (e as { code: number }).code : 1
   }
-  if (outFile) dirWrite(root.dir, outF!, outFile.data)
+  if (outFile) placeFile(root.dir, outF!, outFile.data)
   if (captured.trim()) log.push(captured.trimEnd())
   return code ?? 0
 }
@@ -319,7 +289,7 @@ export async function buildZ88dkC(main: string, files: Z88dkFile[], opts: Z88dkO
   ])
   // '/'-named preopen: zcc's absolute paths and cwd-relative opens both resolve.
   const root = await vfsToPreopen(vfs, { name: '/' })
-  dirMkdirP(root.dir, ['tmp'])
+  mkdirP(root.dir, ['tmp'])
 
   const outBase = stem(main).split('/').pop()!
 
@@ -332,11 +302,11 @@ export async function buildZ88dkC(main: string, files: Z88dkFile[], opts: Z88dkO
     const { args, inF, outF, append } = parseCmd(cmd)
     const tool = args[0]
     if (tool === 'cat') {
-      const src = dirRead(root.dir, args[1]!) ?? new Uint8Array()
-      const prev = (append && dirRead(root.dir, outF!)) || new Uint8Array()
+      const src = readFile(root.dir, args[1]!) ?? new Uint8Array()
+      const prev = (append && readFile(root.dir, outF!)) || new Uint8Array()
       const merged = new Uint8Array(prev.length + src.length)
       merged.set(prev); merged.set(src, prev.length)
-      dirWrite(root.dir, outF!, merged)
+      placeFile(root.dir, outF!, merged)
       return 0
     }
     const mod = tool ? toolModule[tool] : undefined

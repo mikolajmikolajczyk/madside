@@ -4,5 +4,5 @@ export type { Vfs, Mount, VfsProvider } from './types';
 export { createVfs } from './vfs';
 export { MemoryProvider } from './memory-provider';
 export { ZipAssetProvider } from './zip-provider';
-export { vfsToPreopen, readFromPreopen } from './wasi-bridge';
+export { vfsToPreopen, readFromPreopen, mkdirP, placeFile, readFile } from './wasi-bridge';
 export { loadWasmModule, cacheGet, cachePut } from './asset-cache';
