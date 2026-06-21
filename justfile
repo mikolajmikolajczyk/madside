@@ -14,19 +14,19 @@ default:
 
 # Start the Vite dev server.
 dev:
-    npm run dev
+    pnpm dev
 
 # Production build (tsc -b + vite build).
 build:
-    npm run build
+    pnpm build
 
 # Preview the production bundle.
 preview:
-    npm run preview
+    pnpm preview
 
 # TypeScript typecheck across the workspace (solution build).
 typecheck:
-    npm run typecheck
+    pnpm typecheck
 
 # Install workspace deps.
 install:
