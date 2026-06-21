@@ -16,15 +16,26 @@ const layers = ['core', 'ports', 'adapters', 'services', 'plugins', 'app', 'ui']
 const layerDir = (name) =>
   name === 'core' || name === 'ports' ? `packages/${name}/src` : `src/${name}`
 
+// Plugins carved into their own workspace packages (#94 onward). Still the
+// 'plugins' layer — same import rules — just relocated under packages/. Add a
+// package dir here as each plugin moves out of src/plugins/.
+const pluginPackages = ['toolchain-mads', 'toolchain-ca65', 'toolchain-z88dk']
+
 // Two patterns per layer so EVERY file is classified, not just sub-folders:
 //  - folder mode catches `<base>/<subdir>/…` (storage-idb/, emu/, …)
 //  - file mode catches files sitting DIRECTLY under the layer dir
 //    (e.g. src/adapters/plugin-loader.ts). Without the file rule those root
 //    files are unclassified and imports of them dodge the boundary check (#25).
-const elementTypes = layers.flatMap((name) => [
-  { type: name, pattern: `${layerDir(name)}/*`, mode: 'folder' },
-  { type: name, pattern: `${layerDir(name)}/*.{ts,tsx}`, mode: 'file' },
-])
+const elementTypes = [
+  ...layers.flatMap((name) => [
+    { type: name, pattern: `${layerDir(name)}/*`, mode: 'folder' },
+    { type: name, pattern: `${layerDir(name)}/*.{ts,tsx}`, mode: 'file' },
+  ]),
+  ...pluginPackages.flatMap((pkg) => [
+    { type: 'plugins', pattern: `packages/${pkg}/src/*`, mode: 'folder' },
+    { type: 'plugins', pattern: `packages/${pkg}/src/*.{ts,tsx}`, mode: 'file' },
+  ]),
+]
 
 // allow[X] = which layers X may import. Mirror of ADR-0002's table.
 // Same-layer imports are always permitted; added explicitly per row.

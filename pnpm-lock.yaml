@@ -50,6 +50,15 @@ importers:
       '@lezer/highlight':
         specifier: ^1.2.3
         version: 1.2.3
+      '@madside/toolchain-ca65':
+        specifier: workspace:*
+        version: link:packages/toolchain-ca65
+      '@madside/toolchain-mads':
+        specifier: workspace:*
+        version: link:packages/toolchain-mads
+      '@madside/toolchain-z88dk':
+        specifier: workspace:*
+        version: link:packages/toolchain-z88dk
       '@madside/wasm-altirra':
         specifier: workspace:*
         version: link:packages/wasm-altirra
@@ -206,6 +215,42 @@ importers:
       '@madside/core':
         specifier: workspace:*
         version: link:../core
+
+  packages/toolchain-ca65:
+    dependencies:
+      '@madside/core':
+        specifier: workspace:*
+        version: link:../core
+      '@madside/ports':
+        specifier: workspace:*
+        version: link:../ports
+      '@madside/wasm-cc65':
+        specifier: workspace:*
+        version: link:../wasm-cc65
+
+  packages/toolchain-mads:
+    dependencies:
+      '@madside/core':
+        specifier: workspace:*
+        version: link:../core
+      '@madside/ports':
+        specifier: workspace:*
+        version: link:../ports
+      '@madside/wasm-mads':
+        specifier: workspace:*
+        version: link:../wasm-mads
+
+  packages/toolchain-z88dk:
+    dependencies:
+      '@madside/core':
+        specifier: workspace:*
+        version: link:../core
+      '@madside/ports':
+        specifier: workspace:*
+        version: link:../ports
+      '@madside/wasm-z88dk':
+        specifier: workspace:*
+        version: link:../wasm-z88dk
 
   packages/wasm-altirra: {}
 

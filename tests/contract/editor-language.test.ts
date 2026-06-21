@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { MOS6502 } from '@core'
-import { madsToolchain } from '@plugins/toolchain-mads'
+import { madsToolchain } from '@madside/toolchain-mads'
 import { reservedWords, scanFileLabels } from '@app/labels'
 import type { LabelInfo } from '@core'
 

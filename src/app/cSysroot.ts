@@ -7,7 +7,7 @@
 // toolchain plugin (@plugins) — which @ui may not import directly. The editor
 // calls this through the @app barrel.
 
-import { sysrootFor, targetFor } from '@plugins/toolchain-ca65'
+import { sysrootFor, targetFor } from '@madside/toolchain-ca65'
 import type { SourceFile } from '@cc65-intel/core'
 
 // Headers don't change at runtime — cache the decoded set per cc65 target.

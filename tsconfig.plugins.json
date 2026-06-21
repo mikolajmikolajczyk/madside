@@ -3,7 +3,12 @@
   "compilerOptions": {
     "tsBuildInfoFile": "./node_modules/.tmp/tsconfig.plugins.tsbuildinfo"
   },
-  "include": ["src/plugins/**/*"],
+  "include": [
+    "src/plugins/**/*",
+    "packages/toolchain-mads/src/**/*",
+    "packages/toolchain-ca65/src/**/*",
+    "packages/toolchain-z88dk/src/**/*"
+  ],
   "references": [
     { "path": "./tsconfig.core.json" },
     { "path": "./tsconfig.ports.json" },

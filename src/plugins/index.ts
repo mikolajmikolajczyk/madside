@@ -1,7 +1,7 @@
 export * as converters from './converters'
 export * as editors from './editors'
 export * as machineAtariXl from './machine-atari-xl'
-export * as toolchainMads from './toolchain-mads'
+export * as toolchainMads from '@madside/toolchain-mads'
 export * as debugAtari6502 from './debug-atari-6502'
 export * as panelRegisters from './panel-registers'
 export * as panelMemory from './panel-memory'

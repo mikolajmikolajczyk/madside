@@ -14,7 +14,7 @@
 import { readFile } from 'node:fs/promises'
 import { fileURLToPath } from 'node:url'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
-import { madsToolchain } from '@plugins/toolchain-mads'
+import { madsToolchain } from '@madside/toolchain-mads'
 import { atariXl } from '@plugins/machine-atari-xl'
 import { createWorkbench } from '@app/createWorkbench'
 import { createMemoryStorage } from '@adapters/storage-memory'

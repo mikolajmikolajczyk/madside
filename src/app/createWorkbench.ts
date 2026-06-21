@@ -43,7 +43,7 @@ import { atariXl } from '@plugins/machine-atari-xl'
 import { machineNes } from '@plugins/machine-nes'
 import { machineC64 } from '@plugins/machine-c64'
 import { machineZx } from '@plugins/machine-zx'
-import { madsToolchain } from '@plugins/toolchain-mads'
+import { madsToolchain } from '@madside/toolchain-mads'
 
 // Workbench Core — the headless workbench instance the rest of the app talks
 // to. UI consumes it via React context; tests instantiate it directly with

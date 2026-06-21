@@ -6,7 +6,7 @@
 import { readFile } from 'node:fs/promises'
 import { fileURLToPath } from 'node:url'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
-import { madsToolchain } from '@plugins/toolchain-mads'
+import { madsToolchain } from '@madside/toolchain-mads'
 import { jsnesEmulator } from '@plugins/emulator-nes-jsnes'
 
 const repo = (p: string) => fileURLToPath(new URL('../../' + p, import.meta.url))

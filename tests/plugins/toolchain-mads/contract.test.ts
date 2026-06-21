@@ -7,7 +7,7 @@ import { readFile } from 'node:fs/promises'
 import { fileURLToPath } from 'node:url'
 import { afterAll, beforeAll, describe, it } from 'vitest'
 import { assertToolchainPlugin } from '@ports/test'
-import { madsToolchain } from '@plugins/toolchain-mads'
+import { madsToolchain } from '@madside/toolchain-mads'
 
 const WASM_PATH = fileURLToPath(
   new URL('../../../packages/wasm-mads/mads.wasm', import.meta.url),
