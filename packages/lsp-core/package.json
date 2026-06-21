@@ -1,0 +1,15 @@
+{
+  "name": "@madside/lsp-core",
+  "version": "0.0.0",
+  "description": "Language-agnostic LSP framework: transports, document sync, request routing, and the LanguageProvider contract. No language knowledge.",
+  "license": "MIT",
+  "type": "module",
+  "main": "./src/index.ts",
+  "types": "./src/index.ts",
+  "exports": { ".": "./src/index.ts" },
+  "files": ["src", "LICENSE"],
+  "dependencies": {
+    "vscode-languageserver": "^9.0.1",
+    "vscode-languageserver-textdocument": "^1.0.12"
+  }
+}

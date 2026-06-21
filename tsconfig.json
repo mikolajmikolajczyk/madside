@@ -4,6 +4,7 @@
     { "path": "./tsconfig.core.json" },
     { "path": "./tsconfig.ports.json" },
     { "path": "./tsconfig.plugins.json" },
+    { "path": "./tsconfig.lsp.json" },
     { "path": "./apps/ide/tsconfig.json" },
     { "path": "./tsconfig.node.json" }
   ]
