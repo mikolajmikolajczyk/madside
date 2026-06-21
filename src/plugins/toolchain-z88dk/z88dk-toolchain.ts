@@ -1,5 +1,5 @@
 import type { BuildDiagnostic, ToolchainBuildOutput, ToolchainPlugin } from '@ports'
-import { buildZ88dk, type Z88dkFile, type Z88dkOptions } from './wasm/z88dk-wasm'
+import { buildZ88dk, buildZ88dkC, type Z88dkFile, type Z88dkOptions } from './wasm/z88dk-wasm'
 
 /** Validate the z88dk slice of `manifest.build.options`. The manifest passes the
  *  bag through untyped — the toolchain owns its schema. */
@@ -60,16 +60,18 @@ export function parseDiagnostics(stdout: string, stderr: string): BuildDiagnosti
   return out
 }
 
-// z88dk toolchain — z80asm assembler+linker shipped as WASI wasm (wasm/z80asm.wasm,
-// built by `just build-z88dk-wasm`). Second non-6502 toolchain (epic #79),
-// asm-first: a ZX `.asm` project assembles to a binary, wrapped into a 48K .sna
-// the chips zx core boots. C (sccz80/zsdcc) + appmake `.tap` are follow-ups (#87).
+// z88dk toolchain — z80asm + the C driver (zcc) shipped as WASI wasm
+// (wasm/*.wasm, built by `just build-z88dk-wasm` + `just build-z88dk-c`). Second
+// non-6502 toolchain (epic #79). Two entry paths, both producing a 48K .sna the
+// chips zx core boots: a `.asm` project assembles directly; a `.c` project runs
+// the full z88dk C chain (zcc → ucpp → sccz80 → z80asm + crt0/clibs link) over
+// the bundled +zx sysroot, with zcc's system() shimmed to a host dispatcher (#87).
 
 export const z88dkToolchain: ToolchainPlugin = {
   kind: 'toolchain',
   id: 'z88dk',
   name: 'z88dk (z80asm)',
-  inputExt: ['asm', 's', 'inc'],
+  inputExt: ['asm', 's', 'inc', 'c', 'h'],
   // The build emits a 48K .sna (the bootable format for the chips zx core).
   outputExt: 'sna',
 
@@ -105,7 +107,11 @@ export const z88dkToolchain: ToolchainPlugin = {
       }
     }
     const files: Z88dkFile[] = input.files.map((f) => ({ path: f.path, content: f.content }))
-    const r = await buildZ88dk(input.main, files, optsResult.value)
+    // .c entry → full C path (zcc + crt0 + clibs link); .asm → asm-first .sna.
+    const isC = /\.c$/i.test(input.main)
+    const r = isC
+      ? await buildZ88dkC(input.main, files, optsResult.value)
+      : await buildZ88dk(input.main, files, optsResult.value)
     const diagnostics = parseDiagnostics(r.stdout, r.stderr)
     if (!r.ok || !r.binary) {
       return { ok: false, stdout: r.stdout, stderr: r.stderr, diagnostics, exitCode: r.exitCode !== 0 ? r.exitCode : 1 }

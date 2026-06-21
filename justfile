@@ -344,6 +344,37 @@ verify-z88dk-wasm:
     @echo "smoke.tap header (expect 13 00 00 00 = 19-byte BASIC header):"
     @xxd /tmp/z88dk-verify/smoke.tap | head -1
 
+# === z88dk C path (#87): zcc + sub-tools + sysroot ===
+
+z88dk_sysroot_src := z88dk_build_dir / "release-2.4"
+z88dk_sysroot_ver := `python3 scripts/third-party.py get source.z88dk-sysroot-zx.version`
+z88dk_sysroot_url := `python3 scripts/third-party.py get source.z88dk-sysroot-zx.source`
+
+# Full C-path pipeline: build zcc + ucpp + zpragma + sccz80 to wasm (reusing the
+# z80asm clone + wasi-sdk), then repackage the +zx sysroot zip from the v2.4
+# release. No fork — zcc's system() is shimmed to a host `env.run`. See #87 +
+# wiki/agents/z88dk-wasm-build.md "C path".
+build-z88dk-c: fetch-wasi-sdk clone-z88dk compile-z88dk-c fetch-z88dk-release package-zx-sysroot
+
+# Compile the C driver + sub-tools to wasm (patch-at-build: vasprintf, shim, stubs).
+compile-z88dk-c:
+    Z88DK="{{z88dk_src_dir}}" WASI_SDK="{{wasi_sdk_dir}}" OUT="{{z88dk_out_dir}}" \
+        SCRATCH="{{z88dk_build_dir}}/scratch-c" \
+        SUPPORT="{{z88dk_support}}" bash "{{z88dk_support}}/build-z88dk-c.sh"
+    @ls -lh "{{z88dk_out_dir}}/"{zcc,zcpp,zpragma,sccz80}.wasm
+
+# Download + extract the z88dk v2.4 binary release (precompiled +zx clibs/headers).
+fetch-z88dk-release:
+    if [ ! -d "{{z88dk_sysroot_src}}/z88dk/lib/config" ]; then \
+        mkdir -p "{{z88dk_sysroot_src}}"; \
+        curl -fsSL "{{z88dk_sysroot_url}}" -o "{{z88dk_build_dir}}/z88dk-release-{{z88dk_sysroot_ver}}.zip"; \
+        unzip -q -o "{{z88dk_build_dir}}/z88dk-release-{{z88dk_sysroot_ver}}.zip" -d "{{z88dk_sysroot_src}}"; \
+    fi
+
+# Repackage the minimal +zx C sysroot into src/plugins/toolchain-z88dk/zx-sysroot.zip.
+package-zx-sysroot:
+    bash "{{z88dk_support}}/c-path/build-zx-sysroot.sh" "{{z88dk_sysroot_src}}/z88dk"
+
 # === docs site (Astro Starlight) ===
 
 docs_dir := justfile_directory() / "docs"

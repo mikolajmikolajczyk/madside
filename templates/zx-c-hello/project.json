@@ -1,0 +1,8 @@
+{
+  "version": 2,
+  "name": "zx-c-hello",
+  "main": "src/main.c",
+  "machine": "zx-spectrum",
+  "toolchain": "z88dk",
+  "run": { "default": { "audio": false } }
+}

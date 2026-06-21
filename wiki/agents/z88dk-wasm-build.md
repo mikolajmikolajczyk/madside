@@ -1,8 +1,9 @@
 # Rebuilding `z80asm.wasm` + `appmake.wasm` (z88dk)
 
 The z88dk assembler/linker (`z80asm`) and tape packager (`appmake`) ship as
-wasm32-wasip1 binaries for the ZX toolchain (asm-first; the C path — sccz80/zsdcc
-— is deferred, issue #87). Same class as the cc65 wasm build: wasi-sdk clang,
+wasm32-wasip1 binaries for the ZX toolchain, plus the **C path** (`zcc` driver +
+`ucpp`/`zpragma`/`sccz80`) — see "C path (#87)" below; `just build-z88dk-c`. Same
+class as the cc65 wasm build: wasi-sdk clang,
 `@bjorn3/browser_wasi_shim` at runtime. Pins in `third-party.toml`; owned build
 inputs in `build-support/z88dk/`; scratch in `_notes/z88dk-wasm-spike/build/`
 (git-ignored).
@@ -231,23 +232,34 @@ free, as in the spike). The **browser** path (`browser_wasi_shim`, in-memory FS)
 must pass the **same `PreopenDirectory`/`Directory` object** to every instance so
 files flow between tools — the one runtime-integration piece to verify.
 
-**Remaining work for #87:**
-1. Build **`zcc.wasm`** from the z88dk source (C, like the others) with the
-   `system()`→`env.run` shim baked into `wasm-stubs.c`. (The native build hit a
-   `regex/REG_OKAY` config snag with ad-hoc gcc — use the z88dk Makefile's flags;
-   z80asm already builds with `ext/regex`, so the wasm build is tractable.)
-2. Bundle a **+zx sysroot zip**: `zx_clib.lib` + `mzx.lib` + `spec_crt0.asm`
-   (+ includes) + `include/` headers + `lib/config/zx.cfg`, mounted at the paths
-   zcc expects (set `ZCCCFG` env + `DESTDIR`). Pin z88dk **v2.4** in
-   `third-party.toml` (matches the prebuilt libs; RMF18/LMF18 compatible).
-3. Install `sccz80.wasm` + `zcpp.wasm` + `zcc.wasm` next to `z80asm.wasm`; extend
-   the recipe. Build a **host dispatcher** (parse cmd incl. quoted paths, route to
-   sub-tool wasm, capture per-tool stdout/stderr for diagnostics).
-4. `toolchain-z88dk`: add `c`/`h` to `inputExt`; the C build runs `zcc.wasm
-   +zx -create-app …` once, the shim drives the rest; wrap output → `.sna`
-   (reuse `buildSna48k`) or take appmake's.
-5. `zx-c-hello` template (`#include`, `printf`/screen).
-6. (separate epic) generalize `client.ts` LSP host for a 2nd language server.
+**#87 productionisation — DONE (this is now the shipping C path):**
+1. ✅ `zcc.wasm` + `zcpp`/`zpragma`/`sccz80` built from z88dk source via
+   `build-support/z88dk/build-z88dk-c.sh` (`just build-z88dk-c`); shim in
+   `c-path/zcc-shim.c`, the `vasprintf` `/dev/null`→`vsnprintf(NULL,0)` patch in
+   `c-path/patch-vasprintf.py`, `tmpfile`/`mkstemp` in `c-path/wasm-stubs.c`.
+   All four installed next to `z80asm.wasm`.
+2. ✅ **+zx sysroot zip** `src/plugins/toolchain-z88dk/zx-sysroot.zip` (~2.1 MB,
+   1044 entries) repackaged from the z88dk **v2.4 release** by
+   `c-path/build-zx-sysroot.sh`; pinned `[source.z88dk-sysroot-zx]` in
+   `third-party.toml`. Minimal closure (empirically derived): `lib/config` +
+   `lib/target/zx` + `lib/crt` + `lib/clibs/{zx_clib,mzx,z80_clib,z80_crt0}.lib`
+   + loose `lib/{z80_crt0.hdr,z88dk-z80asm.lib,zxr_crt0.asm,z80rules.*}` +
+   `include/`. Mounted read-only at `/z88dk`.
+3. ✅ Host dispatcher ported from `c-path/dispatcher.reference.mjs` to
+   `browser_wasi_shim` in `wasm/z88dk-wasm.ts` (`buildZ88dkC`): one **`/`-named
+   `PreopenDirectory` shared across every sub-tool instance** (absolute + cwd
+   opens both resolve), sub-tool modules preloaded so `env.run` runs them
+   synchronously inside zcc's `system()`, copt = passthrough.
+4. ✅ `toolchain-z88dk`: `inputExt` now includes `c`/`h`; a `.c` main routes to
+   `buildZ88dkC` (`zcc +zx -create-app`), the linked binary → 48K `.sna` via
+   `buildSna48k` (org 0x8000, the spec_crt0 entry).
+5. ✅ `zx-c-hello` template (no-stdio: `zx_border` + `zx_cls_attr`).
 
-(The earlier "replicate zcc's classic link in JS" idea is superseded by the shim —
-kept only as a fallback if `zcc.wasm` proves hard to build.)
+**Still open:**
+- `printf`/stdio: links fail with `writebyte` undefined — needs the ZX
+  console-driver lib. No-stdio C links + boots fine today.
+- `z88dk-copt` is passthrough (peephole optimiser off); `lib/z80rules.*` ship in
+  the sysroot ready to wire a real copt run.
+- (separate epic) generalize `client.ts` LSP host for a 2nd language server.
+
+(The earlier "replicate zcc's classic link in JS" idea was superseded by the shim.)

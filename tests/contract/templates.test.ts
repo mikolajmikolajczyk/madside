@@ -15,7 +15,7 @@ describe('project templates', () => {
 
   it('lists the bundled templates with display metadata, ordered', () => {
     const list = listTemplates()
-    expect(list.map((t) => t.id)).toEqual(['atari-hello', 'nes-hello', 'nes-apu-hello', 'nes-c-hello', 'atari-c-hello', 'c64-c-hello', 'c64-hello', 'empty', 'zx-asm-hello'])
+    expect(list.map((t) => t.id)).toEqual(['atari-hello', 'nes-hello', 'nes-apu-hello', 'nes-c-hello', 'atari-c-hello', 'c64-c-hello', 'c64-hello', 'empty', 'zx-asm-hello', 'zx-c-hello'])
     expect(list[0]).toMatchObject({ machine: 'atari-xl', name: expect.stringContaining('Atari') })
     expect(list[1]).toMatchObject({ machine: 'nes' })
     expect(list[2]).toMatchObject({ id: 'nes-apu-hello', machine: 'nes' })
@@ -25,6 +25,7 @@ describe('project templates', () => {
     expect(list[6]).toMatchObject({ id: 'c64-hello', machine: 'c64' })
     expect(list[7]).toMatchObject({ id: 'empty', machine: 'atari-xl' })
     expect(list[8]).toMatchObject({ id: 'zx-asm-hello', machine: 'zx-spectrum' })
+    expect(list[9]).toMatchObject({ id: 'zx-c-hello', machine: 'zx-spectrum' })
     expect(list[0]!.description.length).toBeGreaterThan(0)
   })
 

@@ -44,6 +44,22 @@ license    = "Artistic-1.0 (z88dk) / Artistic-2.0 (z80asm)"
 artifact   = "src/plugins/toolchain-z88dk/wasm/"
 built_with = "wasi-sdk clang (wasm32-wasip1); patch-at-build (parse1.c action-switch split, system()/mkstemp stubs, NO_GMP ti8xk guard) — see wiki/agents/z88dk-wasm-build.md. No fork."
 
+# Prebuilt +zx C sysroot (crt0, clibs, headers, target config) bundled as a zip
+# asset for the C path (#87). Taken from the z88dk v2.4 binary release, NOT the
+# git snapshot above — the release ships the compiled .lib files. Minimal closure
+# for `zcc +zx -create-app` (classic clib): lib/config + lib/target/zx + lib/crt
+# + lib/clibs/{zx_clib,mzx,z80_clib,z80_crt0}.lib + lib/z80rules.* + include/.
+[source.z88dk-sysroot-zx]
+name       = "z88dk +zx sysroot (release)"
+role       = "ZX Spectrum C sysroot — crt0 + clibs + headers (C path)"
+upstream   = "https://github.com/z88dk/z88dk/releases/tag/v2.4"
+source     = "https://github.com/z88dk/z88dk/releases/download/v2.4/z88dk-osx-2.4.zip"
+ref        = "v2.4"
+version    = "2.4"
+license    = "Artistic-1.0 (z88dk) / Artistic-2.0 (z80asm)"
+artifact   = "src/plugins/toolchain-z88dk/zx-sysroot.zip"
+built_with = "repackaged from the v2.4 release (minimal +zx classic-clib closure); see wiki/agents/z88dk-wasm-build.md."
+
 # z88dk ext/ submodules pulled for the z80asm build (pinned).
 [source.z88dk-ext-regex]
 name       = "z88dk/regex"

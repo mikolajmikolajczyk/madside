@@ -20,10 +20,16 @@
 // C path (#87), which *requires* a real link anyway; this fast-path then becomes
 // the legacy asm-only route. Keep new asm projects to a single `org` until then.
 
-import { WASI, File, OpenFile, ConsoleStdout } from '@bjorn3/browser_wasi_shim'
-import { createVfs, MemoryProvider, vfsToPreopen, readFromPreopen, loadWasmModule } from '@core/vfs'
+import { WASI, File, OpenFile, ConsoleStdout, Directory } from '@bjorn3/browser_wasi_shim'
+import { createVfs, MemoryProvider, ZipAssetProvider, vfsToPreopen, readFromPreopen, loadWasmModule } from '@core/vfs'
 import type { PreopenDirectory } from '@bjorn3/browser_wasi_shim'
 import z80asmWasmUrl from './z80asm.wasm?url'
+import zccWasmUrl from './zcc.wasm?url'
+import zcppWasmUrl from './zcpp.wasm?url'
+import zpragmaWasmUrl from './zpragma.wasm?url'
+import sccz80WasmUrl from './sccz80.wasm?url'
+import appmakeWasmUrl from './appmake.wasm?url'
+import zxSysrootZipUrl from '../zx-sysroot.zip?url'
 
 const encoder = new TextEncoder()
 
@@ -143,4 +149,215 @@ export async function buildZ88dk(main: string, files: Z88dkFile[], opts: Z88dkOp
     }
   }
   return { ok: true, binary: buildSna48k(binary, org, sp), stdout, stderr, exitCode: 0 }
+}
+
+// ---------------------------------------------------------------------------
+// C path (#87): zcc drives ucpp → zpragma → sccz80 → copt → z80asm → appmake.
+// zcc stays the driver; its system() is shimmed to an imported host `env.run`
+// that runs each sub-tool wasm over ONE shared preopen tree (no fork, no crt0
+// reverse-engineering). The dispatcher below is the production port of
+// build-support/z88dk/c-path/dispatcher.reference.mjs. See #87.
+// ---------------------------------------------------------------------------
+
+// zcc emits absolute paths (/z88dk, /tmp); the sysroot is mounted at /z88dk and
+// a single '/' preopen serves both absolute and (cwd=/) relative opens.
+const C_DEFAULT_ORG = 0x8000 // z88dk +zx classic ORG; spec_crt0 entry sits here
+
+const C_TOOLS: Record<string, string> = {
+  'z88dk-ucpp': zcppWasmUrl,
+  'z88dk-zpragma': zpragmaWasmUrl,
+  'z88dk-sccz80': sccz80WasmUrl,
+  'z88dk-z80asm': z80asmWasmUrl,
+  'z88dk-appmake': appmakeWasmUrl,
+}
+
+const seg = (p: string) => p.replace(/^\/+/, '').split('/').filter((x) => x.length > 0)
+
+function dirMkdirP(root: Directory, dirs: string[]): Directory {
+  return dirs.reduce((dir, name) => {
+    const existing = dir.contents.get(name)
+    if (existing instanceof Directory) return existing
+    const next = new Directory(new Map())
+    dir.contents.set(name, next)
+    return next
+  }, root)
+}
+
+function dirWrite(root: Directory, path: string, data: Uint8Array) {
+  const parts = seg(path)
+  if (parts.length === 0) return
+  dirMkdirP(root, parts.slice(0, -1)).contents.set(parts[parts.length - 1]!, new File(data))
+}
+
+function dirRead(root: Directory, path: string): Uint8Array | undefined {
+  const parts = seg(path)
+  let dir: Directory = root
+  for (const name of parts.slice(0, -1)) {
+    const next = dir.contents.get(name)
+    if (!(next instanceof Directory)) return undefined
+    dir = next
+  }
+  const leaf = dir.contents.get(parts[parts.length - 1]!)
+  return leaf instanceof File ? leaf.data : undefined
+}
+
+// Collapse '.', '..', '//' in the path portion of a token — WASI rejects '..'
+// and ucpp builds include paths like `-isystem .../config/../..//include`.
+function normPathPart(tok: string): string {
+  const i = tok.indexOf('/')
+  if (i < 0) return tok
+  const pre = tok.slice(0, i)
+  const path = tok.slice(i)
+  const abs = path.startsWith('/')
+  const out: string[] = []
+  for (const s of path.split('/')) {
+    if (s === '' || s === '.') continue
+    if (s === '..') out.pop()
+    else out.push(s)
+  }
+  return pre + (abs ? '/' : '') + out.join('/')
+}
+
+interface ParsedCmd {
+  args: string[]
+  inF: string | null
+  outF: string | null
+  append: boolean
+}
+
+// Tokenise a shell-ish command: strip quotes within tokens, drop literal
+// `(null)`, peel off `< > >>` redirections.
+function parseCmd(cmd: string): ParsedCmd {
+  const toks: string[] = []
+  let cur = ''
+  let q = false
+  let has = false
+  for (const ch of cmd) {
+    if (ch === '"') { q = !q; has = true }
+    else if (!q && /\s/.test(ch)) { if (has) { toks.push(cur); cur = ''; has = false } }
+    else { cur += ch; has = true }
+  }
+  if (has) toks.push(cur)
+  const t = toks.filter((x) => x !== '(null)')
+  const args: string[] = []
+  let inF: string | null = null
+  let outF: string | null = null
+  let append = false
+  for (let i = 0; i < t.length; i++) {
+    if (t[i] === '<') inF = t[++i] ?? null
+    else if (t[i] === '>') outF = t[++i] ?? null
+    else if (t[i] === '>>') { outF = t[++i] ?? null; append = true }
+    else args.push(t[i]!)
+  }
+  return { args: args.map(normPathPart), inF: inF && normPathPart(inF), outF: outF && normPathPart(outF), append }
+}
+
+/** Run one sub-tool synchronously over the shared root, wiring file-backed
+ *  stdin/stdout for `< >`-redirected commands (zpragma, sccz80, copt). */
+function runSubTool(
+  module: WebAssembly.Module,
+  root: PreopenDirectory,
+  args: string[],
+  inF: string | null,
+  outF: string | null,
+): number {
+  const stdin = new OpenFile(new File(inF ? (dirRead(root.dir, inF) ?? new Uint8Array()) : new Uint8Array()))
+  const outFile = outF ? new File(new Uint8Array()) : null
+  const stdout = outFile ? new OpenFile(outFile) : ConsoleStdout.lineBuffered(() => {})
+  const wasi = new WASI(args, [], [stdin, stdout, ConsoleStdout.lineBuffered(() => {}), root])
+  let code: number
+  try {
+    code = wasi.start(new WebAssembly.Instance(module, { wasi_snapshot_preview1: wasi.wasiImport }) as unknown as {
+      exports: { memory: WebAssembly.Memory; _start: () => unknown }
+    }) as unknown as number
+  } catch (e) {
+    code = typeof e === 'object' && e !== null && 'code' in e ? (e as { code: number }).code : 1
+  }
+  if (outFile) dirWrite(root.dir, outF!, outFile.data)
+  return code ?? 0
+}
+
+/** Compile + link a C program for the ZX Spectrum with the z88dk C toolchain,
+ *  then wrap the linked binary into a bootable 48K .sna. Project sources mount
+ *  RW at the root; the bundled +zx sysroot mounts read-only at /z88dk. */
+export async function buildZ88dkC(main: string, files: Z88dkFile[], opts: Z88dkOptions = {}): Promise<Z88dkBuildResult> {
+  const org = opts.org ?? C_DEFAULT_ORG
+  const sp = opts.snaSp ?? DEFAULT_SNA_SP
+
+  // Preload every module up front so env.run can run sub-tools synchronously
+  // (zcc blocks inside system()).
+  const [zccMod, ...toolMods] = await Promise.all([
+    loadWasmModule(zccWasmUrl),
+    ...Object.values(C_TOOLS).map((u) => loadWasmModule(u)),
+  ])
+  const toolModule: Record<string, WebAssembly.Module> = {}
+  Object.keys(C_TOOLS).forEach((name, i) => { toolModule[name] = toolMods[i]! })
+
+  const project = new MemoryProvider(
+    files.map((f) => [f.path, typeof f.content === 'string' ? encoder.encode(f.content) : f.content] as const),
+  )
+  const sysroot = new ZipAssetProvider(zxSysrootZipUrl)
+  const vfs = createVfs([
+    { prefix: '', provider: project, ro: false },
+    { prefix: 'z88dk', provider: sysroot, ro: true },
+  ])
+  // '/'-named preopen: zcc's absolute paths and cwd-relative opens both resolve.
+  const root = await vfsToPreopen(vfs, { name: '/' })
+  dirMkdirP(root.dir, ['tmp'])
+
+  const outBase = stem(main).split('/').pop()!
+
+  const zccRef: { inst?: { exports: { memory: WebAssembly.Memory } } } = {}
+  const dispatch = (ptr: number): number => {
+    const mem = new Uint8Array(zccRef.inst!.exports.memory.buffer)
+    let end = ptr
+    while (mem[end]) end++
+    const cmd = new TextDecoder().decode(mem.slice(ptr, end))
+    const { args, inF, outF, append } = parseCmd(cmd)
+    const tool = args[0]
+    if (tool === 'cat') {
+      const src = dirRead(root.dir, args[1]!) ?? new Uint8Array()
+      const prev = (append && dirRead(root.dir, outF!)) || new Uint8Array()
+      const merged = new Uint8Array(prev.length + src.length)
+      merged.set(prev); merged.set(src, prev.length)
+      dirWrite(root.dir, outF!, merged)
+      return 0
+    }
+    if (tool === 'z88dk-copt') {
+      // peephole optimiser — run as passthrough (unoptimised) for now (#87)
+      if (inF && outF) dirWrite(root.dir, outF, dirRead(root.dir, inF) ?? new Uint8Array())
+      return 0
+    }
+    const mod = tool ? toolModule[tool] : undefined
+    if (!mod) return 127
+    return runSubTool(mod, root, args, inF, outF)
+  }
+
+  const wasi = new WASI(
+    ['zcc', '+zx', '-create-app', '-o', outBase, main],
+    ['ZCCCFG=/z88dk/lib/config', 'TMPDIR=/tmp', 'HOME=/', 'PATH=/'],
+    [new OpenFile(new File([])), ConsoleStdout.lineBuffered(() => {}), ConsoleStdout.lineBuffered(() => {}), root],
+  )
+  const zccInst = new WebAssembly.Instance(zccMod, {
+    wasi_snapshot_preview1: wasi.wasiImport,
+    env: { run: dispatch },
+  }) as unknown as { exports: { memory: WebAssembly.Memory } }
+  zccRef.inst = zccInst
+
+  let exitCode: number
+  try {
+    exitCode = wasi.start(zccInst as unknown as { exports: { memory: WebAssembly.Memory; _start: () => unknown } }) as unknown as number
+  } catch (e) {
+    exitCode = typeof e === 'object' && e !== null && 'code' in e ? (e as { code: number }).code : 1
+  }
+  exitCode = exitCode ?? 0
+
+  const binary = readFromPreopen(root, outBase)
+  if (exitCode !== 0 || !binary || binary.length === 0) {
+    return { ok: false, stdout: '', stderr: `[zcc] C build failed (exit ${exitCode})`, exitCode: exitCode || 1 }
+  }
+  if (org < 0x4000 || org + binary.length > 0x10000) {
+    return { ok: false, stdout: '', stderr: `[zcc] linked binary (${binary.length} B @ 0x${org.toString(16)}) overflows 0x4000-0xFFFF`, exitCode: 1 }
+  }
+  return { ok: true, binary: buildSna48k(binary, org, sp), stdout: '', stderr: '', exitCode: 0 }
 }

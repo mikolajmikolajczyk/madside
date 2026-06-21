@@ -26,12 +26,38 @@ links (crt0 + zx_clib), and BOOTS in the chips zx core. See
 Services zcc's `env.run`: tokenises the command (strips quotes WITHIN tokens,
 **normalises `..`/`.`/`//`** in path args — WASI won't traverse `..`, drops literal
 `(null)`), handles `cat` + `< > >>` redirection, runs the 4 real tools via
-`node:wasi` (file-backed stdin/stdout), copt = passthrough (unoptimised). The
-production version must port this to `browser_wasi_shim` with a shared in-memory
-Directory across instances. ZCCCFG=`/z88dk/lib/config`; sysroot = z88dk v2.4
-`lib/`+`include/`.
+`node:wasi` (file-backed stdin/stdout), copt = passthrough (unoptimised).
+ZCCCFG=`/z88dk/lib/config`; sysroot = z88dk v2.4 `lib/`+`include/`.
 
-## Remaining
-printf needs the ZX console-driver lib (`writebyte`); package +zx sysroot zip;
-install the wasm in the recipe; wire toolchain-z88dk (inputExt c/h); zx-c-hello
-template; pin z88dk v2.4 in third-party.toml.
+This reference is the spec for the **production** port, now live in
+`src/plugins/toolchain-z88dk/wasm/z88dk-wasm.ts` (`buildZ88dkC`): same parse /
+normPathPart / cat / copt-passthrough logic, ported to `browser_wasi_shim` over a
+**single `/`-named `PreopenDirectory` shared across every sub-tool instance**
+(absolute + cwd-relative opens both resolve). The sysroot mounts read-only at
+`/z88dk` via `ZipAssetProvider`; sub-tool modules are preloaded so `env.run` runs
+them synchronously inside zcc's `system()`. Output: the linked binary is JS-wrapped
+into a 48K `.sna` (org 0x8000), same as the asm path.
+
+## Sysroot (`build-zx-sysroot.sh`)
+Repackages the minimal +zx C sysroot (crt0 + clibs + headers + target config)
+into `src/plugins/toolchain-z88dk/zx-sysroot.zip` (relative entries `lib/…`
+`include/…`, mounted at `/z88dk` by the dispatcher). Source = z88dk **v2.4 binary
+release** (precompiled RMF `.lib`, platform-independent), pinned in `third-party.toml`
+(`[source.z88dk-sysroot-zx]`) — NOT the git snapshot used for the wasm tools.
+
+Closure (derived empirically — build until the assembler/linker stops reporting
+missing files): `lib/config` + `lib/target/zx` + `lib/crt` + `lib/clibs/{zx_clib,
+mzx,z80_clib,z80_crt0}.lib` + loose `lib/{z80_crt0.hdr,z88dk-z80asm.lib,
+zxr_crt0.asm,z80rules.*}` + `include/`. ~2.1M zipped, 1044 entries. Validated:
+a no-stdio `main` and a `zx_border()` call both compile→link→appmake (`.tap`).
+
+## Status (#87)
+DONE: sysroot zip + `build-zx-sysroot.sh`; `build-z88dk-c.sh` + `just build-z88dk-c`
+(sccz80/zcpp/zcc/zpragma wasm installed); dispatcher ported to `browser_wasi_shim`
+(`buildZ88dkC`); toolchain-z88dk wired (inputExt `c`/`h`, `.c` main → C path);
+`zx-c-hello` template. A C program compiles → links → boots end-to-end.
+
+REMAINING: `printf`/stdio needs the ZX console-driver lib (`writebyte` undefined
+at link) — no-stdio C links + boots fine today. `z88dk-copt` runs as passthrough
+(peephole optimiser disabled); enabling it needs the `lib/z80rules.*` (already in
+the sysroot) wired through a real copt run.
