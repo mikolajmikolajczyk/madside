@@ -309,6 +309,15 @@ export async function buildZ88dkC(main: string, files: Z88dkFile[], opts: Z88dkO
       placeFile(root.dir, outF!, merged)
       return 0
     }
+    if (tool === 'z88dk-copt') {
+      // Peephole optimiser run as passthrough (unoptimised). The real copt.wasm
+      // regresses on non-trivial sccz80 output: its regex peephole drops `i_N:`
+      // label definitions while keeping the references, so z80asm fails the link
+      // with `undefined symbol: i_2/i_4`. Passthrough is the known-good chain
+      // that links + boots; re-enabling real copt is tracked separately (#87).
+      if (inF && outF) placeFile(root.dir, outF, readFile(root.dir, inF) ?? new Uint8Array())
+      return 0
+    }
     const mod = tool ? toolModule[tool] : undefined
     if (!mod) {
       log.push(`[zcc] internal: no wasm for sub-tool '${tool ?? '(empty)'}' — ${cmd}`)
