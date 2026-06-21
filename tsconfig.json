@@ -3,11 +3,8 @@
   "references": [
     { "path": "./tsconfig.core.json" },
     { "path": "./tsconfig.ports.json" },
-    { "path": "./tsconfig.adapters.json" },
-    { "path": "./tsconfig.services.json" },
     { "path": "./tsconfig.plugins.json" },
-    { "path": "./tsconfig.app.json" },
-    { "path": "./tsconfig.ui.json" },
+    { "path": "./apps/ide/tsconfig.json" },
     { "path": "./tsconfig.node.json" }
   ]
 }

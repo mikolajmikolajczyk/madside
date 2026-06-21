@@ -11,150 +11,12 @@ importers:
 
   .:
     dependencies:
-      '@bjorn3/browser_wasi_shim':
-        specifier: ^0.4.2
-        version: 0.4.2
-      '@cc65-intel/core':
-        specifier: ^0.8.1
-        version: 0.8.1
-      '@cc65-intel/lsp':
-        specifier: ^0.8.1
-        version: 0.8.1
-      '@codemirror/autocomplete':
-        specifier: ^6.20.2
-        version: 6.20.3
-      '@codemirror/commands':
-        specifier: ^6.10.3
-        version: 6.10.3
-      '@codemirror/lang-cpp':
-        specifier: ^6.0.3
-        version: 6.0.3
-      '@codemirror/lang-javascript':
-        specifier: ^6.2.5
-        version: 6.2.5
-      '@codemirror/lang-json':
-        specifier: ^6.0.2
-        version: 6.0.2
-      '@codemirror/language':
-        specifier: ^6.12.3
-        version: 6.12.3
-      '@codemirror/lint':
-        specifier: ^6.9.6
-        version: 6.9.7
-      '@codemirror/state':
-        specifier: ^6.6.0
-        version: 6.6.0
-      '@codemirror/view':
-        specifier: ^6.43.0
-        version: 6.43.1
-      '@lezer/highlight':
-        specifier: ^1.2.3
-        version: 1.2.3
-      '@madside/converters':
-        specifier: workspace:*
-        version: link:packages/converters
-      '@madside/debug-atari-6502':
-        specifier: workspace:*
-        version: link:packages/debug-atari-6502
-      '@madside/debug-zx-z80':
-        specifier: workspace:*
-        version: link:packages/debug-zx-z80
-      '@madside/editors':
-        specifier: workspace:*
-        version: link:packages/editors
-      '@madside/emulator-c64-chips':
-        specifier: workspace:*
-        version: link:packages/emulator-c64-chips
-      '@madside/emulator-nes-jsnes':
-        specifier: workspace:*
-        version: link:packages/emulator-nes-jsnes
-      '@madside/emulator-zx-chips':
-        specifier: workspace:*
-        version: link:packages/emulator-zx-chips
-      '@madside/machine-atari-xl':
-        specifier: workspace:*
-        version: link:packages/machine-atari-xl
-      '@madside/machine-c64':
-        specifier: workspace:*
-        version: link:packages/machine-c64
-      '@madside/machine-nes':
-        specifier: workspace:*
-        version: link:packages/machine-nes
-      '@madside/machine-zx':
-        specifier: workspace:*
-        version: link:packages/machine-zx
-      '@madside/panel-memory':
-        specifier: workspace:*
-        version: link:packages/panel-memory
-      '@madside/panel-output':
-        specifier: workspace:*
-        version: link:packages/panel-output
-      '@madside/panel-ppu':
-        specifier: workspace:*
-        version: link:packages/panel-ppu
-      '@madside/panel-registers':
-        specifier: workspace:*
-        version: link:packages/panel-registers
-      '@madside/toolchain-ca65':
-        specifier: workspace:*
-        version: link:packages/toolchain-ca65
-      '@madside/toolchain-mads':
-        specifier: workspace:*
-        version: link:packages/toolchain-mads
-      '@madside/toolchain-z88dk':
-        specifier: workspace:*
-        version: link:packages/toolchain-z88dk
-      '@madside/wasm-altirra':
-        specifier: workspace:*
-        version: link:packages/wasm-altirra
-      '@madside/wasm-cc65':
-        specifier: workspace:*
-        version: link:packages/wasm-cc65
-      '@madside/wasm-chips':
-        specifier: workspace:*
-        version: link:packages/wasm-chips
-      '@madside/wasm-mads':
-        specifier: workspace:*
-        version: link:packages/wasm-mads
-      '@madside/wasm-z88dk':
-        specifier: workspace:*
-        version: link:packages/wasm-z88dk
-      '@radix-ui/react-context-menu':
-        specifier: ^2.2.16
-        version: 2.3.0(@types/react-dom@19.2.3(@types/react@19.2.17))(@types/react@19.2.17)(react-dom@19.2.7(react@19.2.7))(react@19.2.7)
-      '@radix-ui/react-dialog':
-        specifier: ^1.1.15
-        version: 1.1.16(@types/react-dom@19.2.3(@types/react@19.2.17))(@types/react@19.2.17)(react-dom@19.2.7(react@19.2.7))(react@19.2.7)
-      '@radix-ui/react-dropdown-menu':
-        specifier: ^2.1.16
-        version: 2.1.17(@types/react-dom@19.2.3(@types/react@19.2.17))(@types/react@19.2.17)(react-dom@19.2.7(react@19.2.7))(react@19.2.7)
-      '@radix-ui/react-tooltip':
-        specifier: ^1.2.8
-        version: 1.2.9(@types/react-dom@19.2.3(@types/react@19.2.17))(@types/react@19.2.17)(react-dom@19.2.7(react@19.2.7))(react@19.2.7)
-      '@wasm-fmt/clang-format':
-        specifier: 22.1.7
-        version: 22.1.7
-      fflate:
-        specifier: ^0.8.3
-        version: 0.8.3
-      idb:
-        specifier: ^8.0.3
-        version: 8.0.3
-      jsnes:
-        specifier: 2.1.0
-        version: 2.1.0
       react:
         specifier: ^19.2.6
         version: 19.2.7
       react-dom:
         specifier: ^19.2.6
         version: 19.2.7(react@19.2.7)
-      react-markdown:
-        specifier: ^10.1.0
-        version: 10.1.0(@types/react@19.2.17)(react@19.2.7)
-      vscode-jsonrpc:
-        specifier: ^8.2.1
-        version: 8.2.1
     devDependencies:
       '@babel/core':
         specifier: ^8.0.0
@@ -253,6 +115,153 @@ importers:
         specifier: ^0.35.1
         version: 0.35.2
 
+  apps/ide:
+    dependencies:
+      '@bjorn3/browser_wasi_shim':
+        specifier: ^0.4.2
+        version: 0.4.2
+      '@cc65-intel/core':
+        specifier: ^0.8.1
+        version: 0.8.1
+      '@cc65-intel/lsp':
+        specifier: ^0.8.1
+        version: 0.8.1
+      '@codemirror/autocomplete':
+        specifier: ^6.20.2
+        version: 6.20.3
+      '@codemirror/commands':
+        specifier: ^6.10.3
+        version: 6.10.3
+      '@codemirror/lang-cpp':
+        specifier: ^6.0.3
+        version: 6.0.3
+      '@codemirror/lang-javascript':
+        specifier: ^6.2.5
+        version: 6.2.5
+      '@codemirror/lang-json':
+        specifier: ^6.0.2
+        version: 6.0.2
+      '@codemirror/language':
+        specifier: ^6.12.3
+        version: 6.12.3
+      '@codemirror/lint':
+        specifier: ^6.9.6
+        version: 6.9.7
+      '@codemirror/state':
+        specifier: ^6.6.0
+        version: 6.6.0
+      '@codemirror/view':
+        specifier: ^6.43.0
+        version: 6.43.1
+      '@lezer/highlight':
+        specifier: ^1.2.3
+        version: 1.2.3
+      '@madside/converters':
+        specifier: workspace:*
+        version: link:../../packages/converters
+      '@madside/debug-atari-6502':
+        specifier: workspace:*
+        version: link:../../packages/debug-atari-6502
+      '@madside/debug-zx-z80':
+        specifier: workspace:*
+        version: link:../../packages/debug-zx-z80
+      '@madside/editors':
+        specifier: workspace:*
+        version: link:../../packages/editors
+      '@madside/emulator-c64-chips':
+        specifier: workspace:*
+        version: link:../../packages/emulator-c64-chips
+      '@madside/emulator-nes-jsnes':
+        specifier: workspace:*
+        version: link:../../packages/emulator-nes-jsnes
+      '@madside/emulator-zx-chips':
+        specifier: workspace:*
+        version: link:../../packages/emulator-zx-chips
+      '@madside/machine-atari-xl':
+        specifier: workspace:*
+        version: link:../../packages/machine-atari-xl
+      '@madside/machine-c64':
+        specifier: workspace:*
+        version: link:../../packages/machine-c64
+      '@madside/machine-nes':
+        specifier: workspace:*
+        version: link:../../packages/machine-nes
+      '@madside/machine-zx':
+        specifier: workspace:*
+        version: link:../../packages/machine-zx
+      '@madside/panel-memory':
+        specifier: workspace:*
+        version: link:../../packages/panel-memory
+      '@madside/panel-output':
+        specifier: workspace:*
+        version: link:../../packages/panel-output
+      '@madside/panel-ppu':
+        specifier: workspace:*
+        version: link:../../packages/panel-ppu
+      '@madside/panel-registers':
+        specifier: workspace:*
+        version: link:../../packages/panel-registers
+      '@madside/toolchain-ca65':
+        specifier: workspace:*
+        version: link:../../packages/toolchain-ca65
+      '@madside/toolchain-mads':
+        specifier: workspace:*
+        version: link:../../packages/toolchain-mads
+      '@madside/toolchain-z88dk':
+        specifier: workspace:*
+        version: link:../../packages/toolchain-z88dk
+      '@madside/wasm-altirra':
+        specifier: workspace:*
+        version: link:../../packages/wasm-altirra
+      '@madside/wasm-cc65':
+        specifier: workspace:*
+        version: link:../../packages/wasm-cc65
+      '@madside/wasm-chips':
+        specifier: workspace:*
+        version: link:../../packages/wasm-chips
+      '@madside/wasm-mads':
+        specifier: workspace:*
+        version: link:../../packages/wasm-mads
+      '@madside/wasm-z88dk':
+        specifier: workspace:*
+        version: link:../../packages/wasm-z88dk
+      '@radix-ui/react-context-menu':
+        specifier: ^2.2.16
+        version: 2.3.0(@types/react-dom@19.2.3(@types/react@19.2.17))(@types/react@19.2.17)(react-dom@19.2.7(react@19.2.7))(react@19.2.7)
+      '@radix-ui/react-dialog':
+        specifier: ^1.1.15
+        version: 1.1.16(@types/react-dom@19.2.3(@types/react@19.2.17))(@types/react@19.2.17)(react-dom@19.2.7(react@19.2.7))(react@19.2.7)
+      '@radix-ui/react-dropdown-menu':
+        specifier: ^2.1.16
+        version: 2.1.17(@types/react-dom@19.2.3(@types/react@19.2.17))(@types/react@19.2.17)(react-dom@19.2.7(react@19.2.7))(react@19.2.7)
+      '@radix-ui/react-tooltip':
+        specifier: ^1.2.8
+        version: 1.2.9(@types/react-dom@19.2.3(@types/react@19.2.17))(@types/react@19.2.17)(react-dom@19.2.7(react@19.2.7))(react@19.2.7)
+      '@wasm-fmt/clang-format':
+        specifier: 22.1.7
+        version: 22.1.7
+      fflate:
+        specifier: ^0.8.3
+        version: 0.8.3
+      idb:
+        specifier: ^8.0.3
+        version: 8.0.3
+      jsnes:
+        specifier: 2.1.0
+        version: 2.1.0
+      react:
+        specifier: ^19.2.6
+        version: 19.2.7
+      react-dom:
+        specifier: ^19.2.6
+        version: 19.2.7(react@19.2.7)
+      react-markdown:
+        specifier: ^10.1.0
+        version: 10.1.0(@types/react@19.2.17)(react@19.2.7)
+      vscode-jsonrpc:
+        specifier: ^8.2.1
+        version: 8.2.1
+
   packages/converters:
     dependencies:
       '@madside/core':
@@ -262,7 +271,17 @@ importers:
         specifier: workspace:*
         version: link:../ports
 
-  packages/core: {}
+  packages/core:
+    dependencies:
+      '@bjorn3/browser_wasi_shim':
+        specifier: ^0.4.2
+        version: 0.4.2
+      fflate:
+        specifier: ^0.8.3
+        version: 0.8.3
+      idb:
+        specifier: ^8.0.3
+        version: 8.0.3
 
   packages/debug-atari-6502:
     dependencies:
@@ -383,6 +402,9 @@ importers:
 
   packages/toolchain-ca65:
     dependencies:
+      '@bjorn3/browser_wasi_shim':
+        specifier: ^0.4.2
+        version: 0.4.2
       '@madside/core':
         specifier: workspace:*
         version: link:../core
@@ -395,6 +417,9 @@ importers:
 
   packages/toolchain-mads:
     dependencies:
+      '@bjorn3/browser_wasi_shim':
+        specifier: ^0.4.2
+        version: 0.4.2
       '@madside/core':
         specifier: workspace:*
         version: link:../core
@@ -407,6 +432,9 @@ importers:
 
   packages/toolchain-z88dk:
     dependencies:
+      '@bjorn3/browser_wasi_shim':
+        specifier: ^0.4.2
+        version: 0.4.2
       '@madside/core':
         specifier: workspace:*
         version: link:../core

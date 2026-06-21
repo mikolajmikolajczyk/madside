@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { createFileSaver } from '../../src/app/state/file-saver'
+import { createFileSaver } from '../../apps/ide/src/app/state/file-saver'
 
 const bytes = (s: string) => new TextEncoder().encode(s)
 

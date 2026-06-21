@@ -25,10 +25,6 @@
   ],
   "references": [
     { "path": "./tsconfig.core.json" },
-    { "path": "./tsconfig.ports.json" },
-    // TODO(M3): drop adapters once recipeEngine + registry stop importing
-    // @adapters directly. ESLint boundaries already flags the violation;
-    // the project reference is the transitional concession.
-    { "path": "./tsconfig.adapters.json" }
+    { "path": "./tsconfig.ports.json" }
   ]
 }

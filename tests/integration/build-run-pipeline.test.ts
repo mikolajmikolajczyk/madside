@@ -23,7 +23,7 @@ import type { RunBackend } from '@ports'
 
 const repo = (p: string) => fileURLToPath(new URL('../../' + p, import.meta.url))
 const WASM_PATH = repo('packages/wasm-mads/mads.wasm')
-const SRC = 'templates/atari-hello/src/'
+const SRC = 'apps/ide/templates/atari-hello/src/'
 
 const enc = new TextEncoder()
 const srcFile = async (name: string) => ({

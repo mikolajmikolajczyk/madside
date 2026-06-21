@@ -26,14 +26,14 @@
       "@core/*":     ["./packages/core/src/*"],
       "@ports":      ["./packages/ports/src"],
       "@ports/*":    ["./packages/ports/src/*"],
-      "@adapters":   ["./src/adapters"],
-      "@adapters/*": ["./src/adapters/*"],
-      "@services":   ["./src/services"],
-      "@services/*": ["./src/services/*"],
-      "@app":        ["./src/app"],
-      "@app/*":      ["./src/app/*"],
-      "@ui":         ["./src/ui"],
-      "@ui/*":       ["./src/ui/*"]
+      "@adapters":   ["./apps/ide/src/adapters"],
+      "@adapters/*": ["./apps/ide/src/adapters/*"],
+      "@services":   ["./apps/ide/src/services"],
+      "@services/*": ["./apps/ide/src/services/*"],
+      "@app":        ["./apps/ide/src/app"],
+      "@app/*":      ["./apps/ide/src/app/*"],
+      "@ui":         ["./apps/ide/src/ui"],
+      "@ui/*":       ["./apps/ide/src/ui/*"]
     },
 
     /* Linting */

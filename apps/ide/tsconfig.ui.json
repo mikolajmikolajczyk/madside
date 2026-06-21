@@ -1,12 +1,12 @@
 {
-  "extends": "./tsconfig.base.json",
+  "extends": "../../tsconfig.base.json",
   "compilerOptions": {
-    "tsBuildInfoFile": "./node_modules/.tmp/tsconfig.ui.tsbuildinfo"
+    "tsBuildInfoFile": "../../node_modules/.tmp/tsconfig.ui.tsbuildinfo"
   },
   "include": ["src/ui/**/*", "src/main.tsx"],
   "references": [
-    { "path": "./tsconfig.core.json" },
-    { "path": "./tsconfig.ports.json" },
+    { "path": "../../tsconfig.core.json" },
+    { "path": "../../tsconfig.ports.json" },
     { "path": "./tsconfig.services.json" },
     { "path": "./tsconfig.app.json" }
   ]

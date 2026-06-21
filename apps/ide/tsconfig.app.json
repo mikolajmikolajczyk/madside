@@ -1,14 +1,14 @@
 {
-  "extends": "./tsconfig.base.json",
+  "extends": "../../tsconfig.base.json",
   "compilerOptions": {
-    "tsBuildInfoFile": "./node_modules/.tmp/tsconfig.app.tsbuildinfo"
+    "tsBuildInfoFile": "../../node_modules/.tmp/tsconfig.app.tsbuildinfo"
   },
   "include": ["src/app/**/*"],
   "references": [
-    { "path": "./tsconfig.core.json" },
-    { "path": "./tsconfig.ports.json" },
+    { "path": "../../tsconfig.core.json" },
+    { "path": "../../tsconfig.ports.json" },
     { "path": "./tsconfig.services.json" },
-    { "path": "./tsconfig.plugins.json" },
+    { "path": "../../tsconfig.plugins.json" },
     { "path": "./tsconfig.adapters.json" }
   ]
 }

@@ -62,7 +62,7 @@ repos:
       - id: madge-circular
         name: madge --circular
         language: system
-        entry: pnpm exec madge --circular --extensions ts,tsx src
+        entry: pnpm exec madge --circular --extensions ts,tsx apps/ide/src packages
         pass_filenames: false
         # Baseline is zero cycles (bc68621). Hook now runs on every commit
         # to keep it that way.

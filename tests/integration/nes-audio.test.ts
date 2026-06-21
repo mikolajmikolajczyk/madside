@@ -11,7 +11,7 @@ import { jsnesEmulator } from '@madside/emulator-nes-jsnes'
 
 const repo = (p: string) => fileURLToPath(new URL('../../' + p, import.meta.url))
 const WASM_PATH = repo('packages/wasm-mads/mads.wasm')
-const SRC = 'templates/nes-apu-hello/src/'
+const SRC = 'apps/ide/templates/nes-apu-hello/src/'
 
 const enc = new TextEncoder()
 const srcFile = async (name: string) => ({
