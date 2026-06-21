@@ -1,6 +1,19 @@
-import { describe, expect, it } from 'vitest'
-import { parseDiagnostics, coerceZ88dkOptions, targetFor } from './z88dk-toolchain'
+import { describe, expect, it, vi, beforeEach } from 'vitest'
+import { parseDiagnostics, coerceZ88dkOptions, targetFor, z88dkToolchain } from './z88dk-toolchain'
 import { buildSna48k } from './wasm/z88dk-wasm'
+import * as wasm from './wasm/z88dk-wasm'
+import type { ToolchainBuildInput } from '@ports'
+
+// Stub the wasm build entry points (they need browser WASI) so build()'s routing
+// + diagnostics wiring can be tested as pure logic. buildSna48k stays real.
+vi.mock('./wasm/z88dk-wasm', async (importActual) => {
+  const actual = await importActual<typeof import('./wasm/z88dk-wasm')>()
+  return {
+    ...actual,
+    buildZ88dk: vi.fn(async () => ({ ok: true, binary: new Uint8Array([0xaa]), stdout: '', stderr: '', exitCode: 0 })),
+    buildZ88dkC: vi.fn(async () => ({ ok: true, binary: new Uint8Array([0xbb]), stdout: '', stderr: '', exitCode: 0 })),
+  }
+})
 
 describe('z88dk parseDiagnostics', () => {
   it('parses z80asm `file:line: error|warning:` lines (VFS-absolute path → relative)', () => {
@@ -30,6 +43,56 @@ describe('z88dk parseDiagnostics', () => {
       { file: 'src/main.c', line: 3, severity: 'error', message: 'Invalid expression' },
       { file: 'src/main.c', line: 4, severity: 'warning', message: 'Implicit definition of function (nosuchfn)' },
       { file: 'src/main.c', line: 6, severity: 'error', message: 'Expected ;' },
+    ])
+  })
+})
+
+describe('z88dk build routing (#103)', () => {
+  const base = (main: string): ToolchainBuildInput => ({
+    projectId: 'p',
+    main,
+    files: [{ path: main, content: new Uint8Array() }],
+    machine: 'zx-spectrum',
+  })
+
+  beforeEach(() => {
+    vi.mocked(wasm.buildZ88dk).mockClear()
+    vi.mocked(wasm.buildZ88dkC).mockClear()
+  })
+
+  it('routes a .c entry to the C path', async () => {
+    const r = await z88dkToolchain.build(base('src/main.c'))
+    expect(wasm.buildZ88dkC).toHaveBeenCalledOnce()
+    expect(wasm.buildZ88dk).not.toHaveBeenCalled()
+    expect(r.ok).toBe(true)
+    expect(r.binary).toEqual(new Uint8Array([0xbb]))
+  })
+
+  it('routes a .asm entry to the asm path', async () => {
+    const r = await z88dkToolchain.build(base('src/main.asm'))
+    expect(wasm.buildZ88dk).toHaveBeenCalledOnce()
+    expect(wasm.buildZ88dkC).not.toHaveBeenCalled()
+    expect(r.binary).toEqual(new Uint8Array([0xaa]))
+  })
+
+  it('rejects an unmapped machine before building', async () => {
+    const r = await z88dkToolchain.build({ ...base('src/main.c'), machine: 'atari-xl' })
+    expect(r.ok).toBe(false)
+    expect(r.exitCode).not.toBe(0)
+    expect(wasm.buildZ88dkC).not.toHaveBeenCalled()
+  })
+
+  it('parses diagnostics from a failed C build (pairs with #101)', async () => {
+    vi.mocked(wasm.buildZ88dkC).mockResolvedValueOnce({
+      ok: false,
+      stdout: '',
+      stderr: 'src/main.c:3:11: error: Invalid expression',
+      exitCode: 1,
+    })
+    const r = await z88dkToolchain.build(base('src/main.c'))
+    expect(r.ok).toBe(false)
+    expect(r.diagnostics).toEqual([
+      { file: 'src/main.c', line: 3, severity: 'error', message: 'Invalid expression' },
     ])
   })
 })
