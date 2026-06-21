@@ -60,10 +60,11 @@ const allowed = {
   ui: ['core', 'ports', 'services', 'app', 'ui'],
 }
 
-// boundaries/element-types rule shape: { from: ['layer-name'], allow: [...types] }
+// boundaries/dependencies rule shape (v6 object selectors):
+//   { from: { type }, allow: { to: { type: [...allowed] } } }
 const dependencyRules = layers.map((from) => ({
-  from: [from],
-  allow: allowed[from],
+  from: { type: from },
+  allow: { to: { type: allowed[from] } },
 }))
 
 export default defineConfig([
@@ -98,7 +99,7 @@ export default defineConfig([
       },
     },
     rules: {
-      'boundaries/element-types': [
+      'boundaries/dependencies': [
         'error',
         { default: 'disallow', rules: dependencyRules },
       ],
@@ -133,9 +134,11 @@ export default defineConfig([
             '@ports/*/*',
             '@adapters/*/*',
             '@services/*/*',
-            '@plugins/*/*',
             '@app/*/*',
             '@ui/*/*',
+            // Plugins are workspace packages now — forbid deep imports past the
+            // package entry (only the package's exports map should be reachable).
+            '@madside/*/*',
           ],
         },
       ],
@@ -145,7 +148,7 @@ export default defineConfig([
   },
   {
     files: ['apps/ide/src/main.tsx'],
-    rules: { 'boundaries/element-types': 'off' },
+    rules: { 'boundaries/dependencies': 'off' },
   },
   {
     // Radix wrapper modules deliberately re-export primitive parts alongside
