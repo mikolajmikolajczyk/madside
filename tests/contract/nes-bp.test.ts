@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { jsnesEmulator } from '@plugins/emulator-nes-jsnes'
+import { jsnesEmulator } from '@madside/emulator-nes-jsnes'
 
 // Build the backend through the EmulatorPlugin contract (jsnes boots headless).
 const newBackend = () => jsnesEmulator.createBackend()

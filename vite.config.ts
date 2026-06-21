@@ -63,8 +63,6 @@ export default defineConfig({
       { find: /^@adapters\//,  replacement: r('./src/adapters/') },
       { find: /^@services$/,   replacement: r('./src/services') },
       { find: /^@services\//,  replacement: r('./src/services/') },
-      { find: /^@plugins$/,    replacement: r('./src/plugins') },
-      { find: /^@plugins\//,   replacement: r('./src/plugins/') },
       { find: /^@app$/,        replacement: r('./src/app') },
       { find: /^@app\//,       replacement: r('./src/app/') },
       { find: /^@ui$/,         replacement: r('./src/ui') },

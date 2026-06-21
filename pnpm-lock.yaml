@@ -50,6 +50,51 @@ importers:
       '@lezer/highlight':
         specifier: ^1.2.3
         version: 1.2.3
+      '@madside/converters':
+        specifier: workspace:*
+        version: link:packages/converters
+      '@madside/debug-atari-6502':
+        specifier: workspace:*
+        version: link:packages/debug-atari-6502
+      '@madside/debug-zx-z80':
+        specifier: workspace:*
+        version: link:packages/debug-zx-z80
+      '@madside/editors':
+        specifier: workspace:*
+        version: link:packages/editors
+      '@madside/emulator-c64-chips':
+        specifier: workspace:*
+        version: link:packages/emulator-c64-chips
+      '@madside/emulator-nes-jsnes':
+        specifier: workspace:*
+        version: link:packages/emulator-nes-jsnes
+      '@madside/emulator-zx-chips':
+        specifier: workspace:*
+        version: link:packages/emulator-zx-chips
+      '@madside/machine-atari-xl':
+        specifier: workspace:*
+        version: link:packages/machine-atari-xl
+      '@madside/machine-c64':
+        specifier: workspace:*
+        version: link:packages/machine-c64
+      '@madside/machine-nes':
+        specifier: workspace:*
+        version: link:packages/machine-nes
+      '@madside/machine-zx':
+        specifier: workspace:*
+        version: link:packages/machine-zx
+      '@madside/panel-memory':
+        specifier: workspace:*
+        version: link:packages/panel-memory
+      '@madside/panel-output':
+        specifier: workspace:*
+        version: link:packages/panel-output
+      '@madside/panel-ppu':
+        specifier: workspace:*
+        version: link:packages/panel-ppu
+      '@madside/panel-registers':
+        specifier: workspace:*
+        version: link:packages/panel-registers
       '@madside/toolchain-ca65':
         specifier: workspace:*
         version: link:packages/toolchain-ca65
@@ -208,7 +253,127 @@ importers:
         specifier: ^0.35.1
         version: 0.35.2
 
+  packages/converters:
+    dependencies:
+      '@madside/core':
+        specifier: workspace:*
+        version: link:../core
+      '@madside/ports':
+        specifier: workspace:*
+        version: link:../ports
+
   packages/core: {}
+
+  packages/debug-atari-6502:
+    dependencies:
+      '@madside/ports':
+        specifier: workspace:*
+        version: link:../ports
+
+  packages/debug-zx-z80:
+    dependencies:
+      '@madside/ports':
+        specifier: workspace:*
+        version: link:../ports
+
+  packages/editors:
+    dependencies:
+      '@madside/ports':
+        specifier: workspace:*
+        version: link:../ports
+
+  packages/emulator-c64-chips:
+    dependencies:
+      '@madside/core':
+        specifier: workspace:*
+        version: link:../core
+      '@madside/ports':
+        specifier: workspace:*
+        version: link:../ports
+      '@madside/wasm-chips':
+        specifier: workspace:*
+        version: link:../wasm-chips
+
+  packages/emulator-nes-jsnes:
+    dependencies:
+      '@madside/core':
+        specifier: workspace:*
+        version: link:../core
+      '@madside/ports':
+        specifier: workspace:*
+        version: link:../ports
+      jsnes:
+        specifier: 2.1.0
+        version: 2.1.0
+
+  packages/emulator-zx-chips:
+    dependencies:
+      '@madside/core':
+        specifier: workspace:*
+        version: link:../core
+      '@madside/ports':
+        specifier: workspace:*
+        version: link:../ports
+      '@madside/wasm-chips':
+        specifier: workspace:*
+        version: link:../wasm-chips
+
+  packages/machine-atari-xl:
+    dependencies:
+      '@madside/ports':
+        specifier: workspace:*
+        version: link:../ports
+
+  packages/machine-c64:
+    dependencies:
+      '@madside/ports':
+        specifier: workspace:*
+        version: link:../ports
+
+  packages/machine-nes:
+    dependencies:
+      '@madside/ports':
+        specifier: workspace:*
+        version: link:../ports
+
+  packages/machine-zx:
+    dependencies:
+      '@madside/ports':
+        specifier: workspace:*
+        version: link:../ports
+
+  packages/panel-memory:
+    dependencies:
+      '@madside/core':
+        specifier: workspace:*
+        version: link:../core
+      '@madside/ports':
+        specifier: workspace:*
+        version: link:../ports
+
+  packages/panel-output:
+    dependencies:
+      '@madside/ports':
+        specifier: workspace:*
+        version: link:../ports
+
+  packages/panel-ppu:
+    dependencies:
+      '@madside/core':
+        specifier: workspace:*
+        version: link:../core
+      '@madside/ports':
+        specifier: workspace:*
+        version: link:../ports
+
+  packages/panel-registers:
+    dependencies:
+      '@madside/core':
+        specifier: workspace:*
+        version: link:../core
+      '@madside/ports':
+        specifier: workspace:*
+        version: link:../ports
 
   packages/ports:
     dependencies:

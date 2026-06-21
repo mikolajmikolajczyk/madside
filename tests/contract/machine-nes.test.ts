@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { machineNes } from '@plugins/machine-nes'
+import { machineNes } from '@madside/machine-nes'
 
 // Structural contract for the NES MachinePlugin. Not an end-to-end boot — that
 // needs manifest-driven machine selection (separate task). These guard the

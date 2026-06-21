@@ -30,8 +30,6 @@
       "@adapters/*": ["./src/adapters/*"],
       "@services":   ["./src/services"],
       "@services/*": ["./src/services/*"],
-      "@plugins":    ["./src/plugins"],
-      "@plugins/*":  ["./src/plugins/*"],
       "@app":        ["./src/app"],
       "@app/*":      ["./src/app/*"],
       "@ui":         ["./src/ui"],

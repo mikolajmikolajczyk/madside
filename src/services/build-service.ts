@@ -20,7 +20,7 @@ import { BuildError, err, ok } from '@ports'
 //
 // Per ADR-0002, services don't know about specific adapters. The toolchain
 // invocation + the recipe engine are injected as functions; @app wires the
-// concrete @adapters/wasm-mads + @plugins/converters implementations in.
+// concrete @adapters/wasm-mads + @madside/converters implementations in.
 // When ToolchainPlugin (M5) lands, the same hooks become PluginRegistry
 // lookups.
 

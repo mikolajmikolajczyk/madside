@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { machineC64 } from '@plugins/machine-c64'
+import { machineC64 } from '@madside/machine-c64'
 
 // Structural contract for the C64 MachinePlugin (issue #53). Not an end-to-end
 // boot — that runs the wasm chips core in the browser. These guard the data the

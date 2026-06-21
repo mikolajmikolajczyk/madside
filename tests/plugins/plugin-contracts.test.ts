@@ -6,17 +6,17 @@ import {
   assertMachinePlugin,
   assertPanelPlugin,
 } from '@ports/test'
-import { atariXl } from '@plugins/machine-atari-xl'
-import { machineNes } from '@plugins/machine-nes'
-import { machineC64 } from '@plugins/machine-c64'
-import { registersPanel } from '@plugins/panel-registers'
-import { memoryPanel } from '@plugins/panel-memory'
-import { outputPanel } from '@plugins/panel-output'
-import { ppuPanel } from '@plugins/panel-ppu'
-import { atari6502DebugAdapter } from '@plugins/debug-atari-6502'
-import { jsnesEmulator } from '@plugins/emulator-nes-jsnes'
-import { listBuiltins } from '@plugins/converters'
-import { listBuiltinEditors } from '@plugins/editors'
+import { atariXl } from '@madside/machine-atari-xl'
+import { machineNes } from '@madside/machine-nes'
+import { machineC64 } from '@madside/machine-c64'
+import { registersPanel } from '@madside/panel-registers'
+import { memoryPanel } from '@madside/panel-memory'
+import { outputPanel } from '@madside/panel-output'
+import { ppuPanel } from '@madside/panel-ppu'
+import { atari6502DebugAdapter } from '@madside/debug-atari-6502'
+import { jsnesEmulator } from '@madside/emulator-nes-jsnes'
+import { listBuiltins } from '@madside/converters'
+import { listBuiltinEditors } from '@madside/editors'
 
 // Every built-in plugin runs through its kind's contract harness, so a contract
 // drift fails CI and external authors have the same checker to import.

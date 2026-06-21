@@ -1,7 +1,7 @@
 import { describe, it } from 'vitest'
 import { assertEmulatorPlugin } from '@ports/test'
-import { jsnesEmulator } from '@plugins/emulator-nes-jsnes'
-import { chipsC64Emulator } from '@plugins/emulator-c64-chips'
+import { jsnesEmulator } from '@madside/emulator-nes-jsnes'
+import { chipsC64Emulator } from '@madside/emulator-c64-chips'
 import { altirraEmulator } from '@adapters/emu'
 
 // Both built-in emulators satisfy the same EmulatorPlugin contract.

@@ -1,8 +1,8 @@
 import { readFileSync } from 'node:fs'
 import { describe, expect, it } from 'vitest'
-import { atariXl } from '@plugins/machine-atari-xl'
-import { machineNes } from '@plugins/machine-nes'
-import { machineC64 } from '@plugins/machine-c64'
+import { atariXl } from '@madside/machine-atari-xl'
+import { machineNes } from '@madside/machine-nes'
+import { machineC64 } from '@madside/machine-c64'
 
 // The bootEquates string lives canonically on the MachinePlugin. The bundled
 // templates ship a parallel copy as the equates file each template `icl`s.

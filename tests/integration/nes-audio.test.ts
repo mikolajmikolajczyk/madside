@@ -7,7 +7,7 @@ import { readFile } from 'node:fs/promises'
 import { fileURLToPath } from 'node:url'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { madsToolchain } from '@madside/toolchain-mads'
-import { jsnesEmulator } from '@plugins/emulator-nes-jsnes'
+import { jsnesEmulator } from '@madside/emulator-nes-jsnes'
 
 const repo = (p: string) => fileURLToPath(new URL('../../' + p, import.meta.url))
 const WASM_PATH = repo('packages/wasm-mads/mads.wasm')

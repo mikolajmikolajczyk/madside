@@ -12,10 +12,10 @@ export {
   type ProjectConverterSource,
   isBuiltin as isBuiltinConverter,
   listBuiltins as listBuiltinConverters,
-} from "@plugins/converters";
+} from "@madside/converters";
 
 export {
   buildEditorRegistry,
   resolveEditorId,
   type ProjectEditorSource,
-} from "@plugins/editors";
+} from "@madside/editors";

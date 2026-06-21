@@ -4,10 +4,24 @@
     "tsBuildInfoFile": "./node_modules/.tmp/tsconfig.plugins.tsbuildinfo"
   },
   "include": [
-    "src/plugins/**/*",
     "packages/toolchain-mads/src/**/*",
     "packages/toolchain-ca65/src/**/*",
-    "packages/toolchain-z88dk/src/**/*"
+    "packages/toolchain-z88dk/src/**/*",
+    "packages/machine-atari-xl/src/**/*",
+    "packages/machine-c64/src/**/*",
+    "packages/machine-nes/src/**/*",
+    "packages/machine-zx/src/**/*",
+    "packages/emulator-c64-chips/src/**/*",
+    "packages/emulator-nes-jsnes/src/**/*",
+    "packages/emulator-zx-chips/src/**/*",
+    "packages/debug-atari-6502/src/**/*",
+    "packages/debug-zx-z80/src/**/*",
+    "packages/panel-memory/src/**/*",
+    "packages/panel-output/src/**/*",
+    "packages/panel-ppu/src/**/*",
+    "packages/panel-registers/src/**/*",
+    "packages/converters/src/**/*",
+    "packages/editors/src/**/*"
   ],
   "references": [
     { "path": "./tsconfig.core.json" },

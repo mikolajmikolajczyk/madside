@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it } from 'vitest'
-import { clearRecipeCache, listBuiltins, runRecipes } from '@plugins/converters'
+import { clearRecipeCache, listBuiltins, runRecipes } from '@madside/converters'
 import type { Recipe } from '@ports'
 
 // Converter byte-output + recipe-engine tests (ADR-0005 Layer-1/2).

@@ -19,7 +19,14 @@ const layerDir = (name) =>
 // Plugins carved into their own workspace packages (#94 onward). Still the
 // 'plugins' layer — same import rules — just relocated under packages/. Add a
 // package dir here as each plugin moves out of src/plugins/.
-const pluginPackages = ['toolchain-mads', 'toolchain-ca65', 'toolchain-z88dk']
+const pluginPackages = [
+  'toolchain-mads', 'toolchain-ca65', 'toolchain-z88dk',
+  'machine-atari-xl', 'machine-c64', 'machine-nes', 'machine-zx',
+  'emulator-c64-chips', 'emulator-nes-jsnes', 'emulator-zx-chips',
+  'debug-atari-6502', 'debug-zx-z80',
+  'panel-memory', 'panel-output', 'panel-ppu', 'panel-registers',
+  'converters', 'editors',
+]
 
 // Two patterns per layer so EVERY file is classified, not just sub-folders:
 //  - folder mode catches `<base>/<subdir>/…` (storage-idb/, emu/, …)

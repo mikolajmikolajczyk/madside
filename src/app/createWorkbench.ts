@@ -28,8 +28,8 @@ import {
   type ToolchainAssembleFn,
   type ToolchainResolverFn,
 } from '@services'
-import { runRecipes, setConverterLoaderFactory } from '@plugins/converters'
-import { setEditorLoaderFactory } from '@plugins/editors'
+import { runRecipes, setConverterLoaderFactory } from '@madside/converters'
+import { setEditorLoaderFactory } from '@madside/editors'
 import { createPluginLoader } from '@adapters'
 // NOTE: editorToPanel/listBuiltinEditors intentionally NOT imported — built-in
 // editors are no longer registered as panels (see the deleted dead scaffolding
@@ -39,10 +39,10 @@ import { builtinPlugins } from './builtin-plugins'
 // machine-selection table / RunService init / introspection fields below, on
 // top of being registered via the builtin manifest. Every other built-in is
 // register-then-resolve-by-id only, so it lives only in builtin-plugins.ts.
-import { atariXl } from '@plugins/machine-atari-xl'
-import { machineNes } from '@plugins/machine-nes'
-import { machineC64 } from '@plugins/machine-c64'
-import { machineZx } from '@plugins/machine-zx'
+import { atariXl } from '@madside/machine-atari-xl'
+import { machineNes } from '@madside/machine-nes'
+import { machineC64 } from '@madside/machine-c64'
+import { machineZx } from '@madside/machine-zx'
 import { madsToolchain } from '@madside/toolchain-mads'
 
 // Workbench Core — the headless workbench instance the rest of the app talks
@@ -56,7 +56,7 @@ export interface WorkbenchDeps {
   /** Override the toolchain resolver — tests pass a stub keyed on the
    *  manifest.toolchain id. Default uses the PluginRegistry. */
   toolchain?: ToolchainResolverFn
-  /** Override the recipe runner — defaults to @plugins/converters.runRecipes. */
+  /** Override the recipe runner — defaults to @madside/converters.runRecipes. */
   recipes?: RecipeRunnerFn
   /** Override the emulator backend factory (atari-xl only; tests pass a stub).
    *  Default resolves the machine's `compatibleEmulators[0]` from the registry. */
@@ -171,7 +171,7 @@ export function createWorkbench(deps: WorkbenchDeps): Workbench {
   // JS loaded on demand via Blob URL, resolved by file extension). The
   // PluginRegistry models built-in singletons (machine/toolchain/emulator/
   // debug/panel); converters/editors use their dedicated content-addressed
-  // loaders (@plugins/converters, @plugins/editors). See
+  // loaders (@madside/converters, @madside/editors). See
   // wiki/decisions/2026-06-16-plugin-registry-vs-dedicated-loaders.md.
 
   // Resolve a machine's emulator backend through the registry: the machine
