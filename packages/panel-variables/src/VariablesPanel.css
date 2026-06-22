@@ -66,6 +66,22 @@
 .vars__addr { flex: none; color: var(--text-quaternary); }
 .vars__type { flex: none; }
 .vars__val { flex: none; }
+
+.vars__watchbar { display: flex; padding: 0 0 4px; }
+.vars__watchbar .vars__filter { width: 100%; margin-left: 0; }
+.vars__sep { height: 1px; background: var(--border-default); margin: 4px 0; }
+.vars__row--err .vars__name { color: var(--text-tertiary); }
+.vars__val--err { color: var(--accent-coral); white-space: nowrap; }
+.vars__x {
+  flex: none;
+  background: transparent;
+  border: none;
+  color: var(--text-quaternary);
+  cursor: pointer;
+  font-size: 10px;
+  padding: 0 2px;
+}
+.vars__x:hover { color: var(--accent-coral); }
 .vars__type { color: var(--accent-peach); white-space: nowrap; }
 .vars__val { color: var(--accent-mint); white-space: nowrap; }
 .vars__val--word { color: var(--text-secondary); }

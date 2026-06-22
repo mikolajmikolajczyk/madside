@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import type { DebugInfo, DebugType, PanelContext } from '@ports'
 import { hex } from '@core/hex'
 import { childNodes, decodeValue, isExpandable, pointerTarget, typeLabel } from './decode'
+import { evalWatch, type ReadMem } from './watch-eval'
 import './VariablesPanel.css'
 
 // Variables panel (#121). When the build supplies a typed-symbol model (#130,
@@ -25,12 +26,31 @@ export function VariablesPanel({ ctx }: { ctx: PanelContext }) {
   return <RawVars ctx={ctx} labels={data?.labels} />
 }
 
+const watchKey = (pid: string) => `madside.watch.${pid}`
+function loadWatches(pid: string): string[] {
+  try { return JSON.parse(localStorage.getItem(watchKey(pid)) ?? '[]') as string[] } catch { return [] }
+}
+
 // ── Typed view (#130) — expandable tree over the DebugInfo type model ────────
 function TypedVars({ ctx, symbols }: { ctx: PanelContext; symbols: DebugInfo['symbols'] }) {
   const [filter, setFilter] = useState('')
   const [values, setValues] = useState<Map<string, Uint8Array>>(new Map())
   // Bumped on every debug event so expanded pointer-deref rows re-read too.
   const [tick, setTick] = useState(0)
+
+  // Watch expressions (#132) — persisted per project.
+  const projectId = ctx.project.id
+  const [watches, setWatches] = useState<string[]>(() => loadWatches(projectId))
+  const [draft, setDraft] = useState('')
+  const setWatchList = (next: string[]) => {
+    setWatches(next)
+    localStorage.setItem(watchKey(projectId), JSON.stringify(next))
+  }
+  const addWatch = () => {
+    const e = draft.trim()
+    if (e && !watches.includes(e)) setWatchList([...watches, e])
+    setDraft('')
+  }
 
   const entries = useMemo(() => [...symbols].sort((a, b) => a.name.localeCompare(b.name)), [symbols])
   const shown = useMemo(() => {
@@ -70,7 +90,21 @@ function TypedVars({ ctx, symbols }: { ctx: PanelContext; symbols: DebugInfo['sy
   return (
     <div className="debug__panel">
       <Header filter={filter} setFilter={setFilter} />
+      <div className="vars__watchbar">
+        <input
+          className="vars__filter"
+          placeholder="+ watch (e.g. pos.x, *ptr, arr[3])"
+          value={draft}
+          onChange={(e) => setDraft(e.target.value)}
+          onKeyDown={(e) => { if (e.key === 'Enter') addWatch() }}
+          spellCheck={false}
+        />
+      </div>
       <div className="vars__rows">
+        {watches.map((expr) => (
+          <WatchRow key={expr} ctx={ctx} tick={tick} expr={expr} symbols={symbols} onRemove={() => setWatchList(watches.filter((w) => w !== expr))} />
+        ))}
+        {watches.length > 0 && <div className="vars__sep" />}
         {shown.map((s) => {
           const b = values.get(s.name)
           if (!b) return null
@@ -92,9 +126,11 @@ interface VarRowProps {
   type: DebugType
   bytes: Uint8Array
   addr: number
+  /** When set, the row shows a remove (✕) action — used for watch roots. */
+  onRemove?: () => void
 }
 
-function VarRow({ ctx, tick, depth, name, type, bytes, addr }: VarRowProps) {
+function VarRow({ ctx, tick, depth, name, type, bytes, addr, onRemove }: VarRowProps) {
   const [open, setOpen] = useState(false)
   const expandable = isExpandable(type) && depth < MAX_DEPTH
   const isPtr = type.kind === 'pointer'
@@ -137,12 +173,48 @@ function VarRow({ ctx, tick, depth, name, type, bytes, addr }: VarRowProps) {
         <span className="vars__name">{name}</span>
         <span className="vars__type">{typeLabel(type)}</span>
         <span className="vars__val">{value}</span>
+        {onRemove && (
+          <button className="vars__x" title="Remove watch" onClick={(e) => { e.stopPropagation(); onRemove() }}>✕</button>
+        )}
       </div>
       {children.map((c) => (
         <VarRow key={c.name} ctx={ctx} tick={tick} depth={depth + 1} name={c.name} type={c.type} bytes={c.bytes} addr={c.addr} />
       ))}
     </>
   )
+}
+
+// A watch expression (#132): evaluate to a typed location, then render it with
+// the same VarRow tree as a global. Re-evaluated on each debug tick.
+function WatchRow({ ctx, tick, expr, symbols, onRemove }: {
+  ctx: PanelContext; tick: number; expr: string; symbols: DebugInfo['symbols']; onRemove: () => void
+}) {
+  const [state, setState] = useState<{ type?: DebugType; bytes?: Uint8Array; addr?: number; error?: string }>({})
+  useEffect(() => {
+    let cancelled = false
+    const read: ReadMem = (a, l) => ctx.debug.readMemory(a, l)
+    void (async () => {
+      const r = await evalWatch(expr, symbols, read)
+      if (cancelled) return
+      if (!r.ok) { setState({ error: r.error }); return }
+      const b = await read(r.node.addr, Math.min(r.node.type.bytes || 1, MAX_READ))
+      if (!cancelled) setState({ type: r.node.type, addr: r.node.addr, bytes: b ?? new Uint8Array() })
+    })()
+    return () => { cancelled = true }
+  }, [expr, tick, symbols, ctx.debug])
+
+  if (state.error) {
+    return (
+      <div className="vars__row vars__row--err" title={state.error}>
+        <span className="vars__caret" />
+        <span className="vars__name">{expr}</span>
+        <span className="vars__val vars__val--err">⚠ {state.error}</span>
+        <button className="vars__x" title="Remove watch" onClick={onRemove}>✕</button>
+      </div>
+    )
+  }
+  if (!state.type || !state.bytes) return null
+  return <VarRow ctx={ctx} tick={tick} depth={0} name={expr} type={state.type} bytes={state.bytes} addr={state.addr ?? 0} onRemove={onRemove} />
 }
 
 // ── Raw view (phase 1 — asm / no type info) ─────────────────────────────────
