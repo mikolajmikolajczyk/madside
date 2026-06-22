@@ -25,13 +25,16 @@ export function useProjectCDocuments(files: ProjectFile[] | null, machine?: stri
     if (cFiles.length === 0) return;
     let cancelled = false;
     void (async () => {
-      const [{ setSysrootHeaders, setDefines, syncProjectDocs }, { cc65SysrootHeaders, cc65TargetDefines }] = await Promise.all([
+      const [{ setSysrootHeaders, setDefines, setLspTarget, syncProjectDocs }, { cSysrootHeaders, cTargetDefines, cLspTarget }] = await Promise.all([
         import("../codemirror/lsp/client"),
         import("@app/cSysroot"),
       ]);
       if (cancelled) return;
-      setDefines(cc65TargetDefines(machine));
-      setSysrootHeaders(await cc65SysrootHeaders(machine));
+      // Select the C server for this machine before seeding — switching targets
+      // respawns the worker, so defines + headers must ride the new connection.
+      setLspTarget(cLspTarget(machine));
+      setDefines(cTargetDefines(machine));
+      setSysrootHeaders(await cSysrootHeaders(machine));
       if (cancelled) return;
       await syncProjectDocs(cFiles.map((f) => ({ path: f.path, text: dec.decode(f.content) })));
     })();

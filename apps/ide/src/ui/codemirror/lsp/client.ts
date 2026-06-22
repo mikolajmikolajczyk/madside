@@ -81,6 +81,31 @@ export function setDefines(d: Record<string, string> | undefined): void {
   defines = d
 }
 
+// Which in-repo C language server the worker hosts: cc65 (6502, default) or z80
+// (z88dk/sccz80). The worker itself is target-agnostic — sysroot + defines are
+// host-injected at `initialize` — so switching targets means respawning the
+// worker bound to the other dialect's browser entry. Set by the editor (from the
+// active machine's target) BEFORE the lazy `connect()`.
+let lspTarget: 'cc65' | 'z80' = 'cc65'
+
+/** Select the C language server the worker hosts. If it differs from the live
+ *  connection's target, tear the connection down (close worker, drop the open-
+ *  doc registry) so the next `connect()` respawns the worker for the new target.
+ *  The caller re-pushes sysroot + defines (they ride the next `initialize`). */
+export function setLspTarget(t: 'cc65' | 'z80'): void {
+  if (t === lspTarget) return
+  lspTarget = t
+  if (connection) {
+    worker?.terminate()
+    worker = null
+    connection.dispose()
+    connection = null
+    ready = null
+    docs.clear()
+  }
+}
+
+let worker: Worker | null = null
 let connection: MessageConnection | null = null
 let ready: Promise<void> | null = null
 
@@ -103,7 +128,12 @@ export function setActiveDoc(path: string): void {
 
 function connect(): { conn: MessageConnection; ready: Promise<void> } {
   if (connection && ready) return { conn: connection, ready }
-  const worker = new Worker(new URL('./cc65-lsp.worker.ts', import.meta.url), { type: 'module' })
+  // Both URLs are static literals so Vite bundles each worker as its own chunk
+  // (cc65-lsp.worker-*.js / z80-lsp.worker-*.js); the active target picks which.
+  worker =
+    lspTarget === 'z80'
+      ? new Worker(new URL('./z80-lsp.worker.ts', import.meta.url), { type: 'module' })
+      : new Worker(new URL('./cc65-lsp.worker.ts', import.meta.url), { type: 'module' })
   const conn = createMessageConnection(
     new BrowserMessageReader(worker),
     new BrowserMessageWriter(worker),

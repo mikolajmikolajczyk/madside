@@ -87,7 +87,7 @@ async function loadLanguagePack(
   // C language server running in a Web Worker (#63): member completion, cc65 stdlib + register
   // structs (from the sysroot headers we feed it), and auto-#include.
   if (/\.(c|h|cc|cpp|hpp)$/.test(lower)) {
-    const [{ cpp }, { autocompletion }, lsp, { cc65SemanticTokens }, { cc65SignatureHelpTooltip }, { cc65SysrootHeaders, cc65TargetDefines }] = await Promise.all([
+    const [{ cpp }, { autocompletion }, lsp, { cc65SemanticTokens }, { cc65SignatureHelpTooltip }, { cSysrootHeaders, cTargetDefines, cLspTarget }] = await Promise.all([
       import("@codemirror/lang-cpp"),
       import("@codemirror/autocomplete"),
       import("../../codemirror/lsp/client"),
@@ -95,12 +95,15 @@ async function loadLanguagePack(
       import("../../codemirror/lsp/signatureHelp"),
       import("@app/cSysroot"),
     ]);
-    // Feed the cc65 sysroot headers (as a resolution pool) + the active target's
-    // predefined macros so the LSP resolves the preprocessor target gating and
-    // offers stdlib completion + register structs + auto-#include, without the
-    // cross-target noise (#30). Set before the first request.
-    lsp.setDefines(cc65TargetDefines(machine));
-    lsp.setSysrootHeaders(await cc65SysrootHeaders(machine));
+    // Pick the C language server backing this machine (cc65 6502 vs z88dk Z80)
+    // FIRST — switching targets respawns the worker, so the sysroot + defines
+    // below must be pushed at the new connection's `initialize`. Feed the
+    // target's sysroot headers (a resolution pool) + predefined macros so the
+    // LSP resolves the preprocessor target gating and offers stdlib completion +
+    // register structs + auto-#include, without cross-target noise (#30).
+    lsp.setLspTarget(cLspTarget(machine));
+    lsp.setDefines(cTargetDefines(machine));
+    lsp.setSysrootHeaders(await cSysrootHeaders(machine));
     // Mark this file as the focused doc so completion/hover address its URI in
     // the multi-document worker (#70).
     lsp.setActiveDoc(path);

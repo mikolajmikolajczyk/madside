@@ -31,6 +31,7 @@
     "@madside/emulator-zx-chips": "workspace:*",
     "@madside/lsp-cc65": "workspace:*",
     "@madside/lsp-core": "workspace:*",
+    "@madside/lsp-z80": "workspace:*",
     "@madside/machine-atari-xl": "workspace:*",
     "@madside/machine-c64": "workspace:*",
     "@madside/machine-nes": "workspace:*",

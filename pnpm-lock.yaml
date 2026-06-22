@@ -177,6 +177,9 @@ importers:
       '@madside/lsp-core':
         specifier: workspace:*
         version: link:../../packages/lsp-core
+      '@madside/lsp-z80':
+        specifier: workspace:*
+        version: link:../../packages/lsp-z80
       '@madside/machine-atari-xl':
         specifier: workspace:*
         version: link:../../packages/machine-atari-xl
@@ -369,6 +372,18 @@ importers:
       vscode-languageserver-textdocument:
         specifier: ^1.0.12
         version: 1.0.12
+
+  packages/lsp-z80:
+    dependencies:
+      '@madside/lsp-c':
+        specifier: workspace:*
+        version: link:../lsp-c
+      '@madside/lsp-core':
+        specifier: workspace:*
+        version: link:../lsp-core
+      vscode-languageserver:
+        specifier: ^9.0.1
+        version: 9.0.1
 
   packages/machine-atari-xl:
     dependencies:

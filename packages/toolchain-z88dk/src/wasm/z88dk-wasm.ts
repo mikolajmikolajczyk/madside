@@ -36,6 +36,20 @@ import zxSysrootZipUrl from '../zx-sysroot.zip?url'
 
 const encoder = new TextEncoder()
 
+// The +zx sysroot provider (z88dk's bundled crt0 + libs + headers), lazy +
+// cached: the zip is fetched + unzipped once, shared between the C build (mounted
+// RO at /z88dk) and the C LSP's sysroot indexing (#114, headers under include/).
+let zxSysrootProvider: ZipAssetProvider | undefined
+
+/** The read-only z88dk sysroot provider for a target (`+zx`), or undefined when
+ *  the target has no bundled sysroot. Today only `+zx` ships one. The provider
+ *  exposes `list('include')` + `read(path)` for the C LSP to index headers. */
+export function sysrootFor(target: string): ZipAssetProvider | undefined {
+  if (target !== '+zx') return undefined
+  if (!zxSysrootProvider) zxSysrootProvider = new ZipAssetProvider(zxSysrootZipUrl)
+  return zxSysrootProvider
+}
+
 export interface Z88dkFile {
   /** POSIX path within the project root, no leading slash. */
   path: string
