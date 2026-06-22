@@ -178,6 +178,15 @@ export function parseDbg(text: string, projectFiles: readonly string[]): ParsedD
   // Build per-function frames (#131): map each auto local to the function scope
   // that encloses it (folding block-nested scopes into their function), then
   // resolve the function's PC range from its label sym.
+  //
+  // ⚠️ CURRENTLY UNCONSUMED IN PRODUCTION (audit finding C, #131). buildCc65DebugInfo
+  // does NOT emit DebugInfo.scopes: cc65 is frameless, c_sp moves within a function,
+  // and the per-PC delta isn't in the .dbg, so a local's runtime address can't be
+  // resolved reliably (ADR-0012 Postscript) — cc65 locals are deferred by ABI. The
+  // z80 locals path (#136) uses z80asm's own format + IX, not this parser, so this
+  // is unlikely to gain a consumer. Open decision on #131: keep as foundation, or
+  // drop this cc65-specific scope/csym parse (the reusable parts are the @ports
+  // contract + lsp-c functionLocals). Don't assume `scopes` is wired anywhere.
   const scopeById = new Map<number, ScopeRec>()
   for (const s of scopeRecs) scopeById.set(s.id, s)
   const enclosingFunc = (id: number): ScopeRec | undefined => {
