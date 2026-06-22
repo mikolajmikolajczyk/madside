@@ -8,6 +8,7 @@ import { MenuBar } from "./components/layout/MenuBar";
 import { DebugBar } from "./components/layout/DebugBar";
 import { StatusBar } from "./components/layout/StatusBar";
 import { Explorer } from "./components/project/Explorer";
+import type { ReadOnlyMount } from "./components/project/FileTree";
 import { SystemFileView } from "./components/editor/SystemFileView";
 import { Splitter } from "./components/layout/Splitter";
 const Editor = lazy(() => import("./components/editor/Editor").then((m) => ({ default: m.Editor })));
@@ -195,7 +196,6 @@ export default function App() {
     void sysrootProvider.list().then((f) => { if (!cancelled) setSystemFiles(f); }).catch(() => {});
     return () => { cancelled = true; };
   }, [sysrootProvider]);
-  const systemFiles = sysrootProvider ? systemFilesState : [];
 
   // A sysroot file opened read-only — kept apart from the project's active file
   // so it never enters storage or the breakpoint / source-map model.
@@ -206,6 +206,21 @@ export default function App() {
       setViewSystemFile({ path, text: bytes ? new TextDecoder().decode(bytes) : "" });
     });
   }, [sysrootProvider]);
+
+  // Read-only VFS mounts surfaced in the file tree as collapsed top-level
+  // folders (#55, ADR-0008). One per source — today just the active toolchain
+  // sysroot; future emulator-exposed / course / remote dirs append here.
+  const readOnlyMounts = useMemo<ReadOnlyMount[]>(() => {
+    const files = sysrootProvider ? systemFilesState : [];
+    if (files.length === 0) return [];
+    return [{
+      id: "toolchain",
+      label: "toolchain (system)",
+      files,
+      activePath: viewSystemFile?.path,
+      onSelect: openSystemFile,
+    }];
+  }, [sysrootProvider, systemFilesState, viewSystemFile?.path, openSystemFile]);
 
   const projectLabels = useProjectLabels(
     project.loaded ? project.files : null,
@@ -848,9 +863,7 @@ export default function App() {
               onDeleteFolder={project.deleteFolder}
               onDuplicateFile={project.duplicateFile}
               onSetMain={project.setMainFile}
-              systemFiles={systemFiles}
-              activeSystem={viewSystemFile?.path}
-              onSelectSystemFile={openSystemFile}
+              readOnlyMounts={readOnlyMounts}
             />
           );
           const course = project.manifest.course;

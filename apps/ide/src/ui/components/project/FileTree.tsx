@@ -12,6 +12,19 @@ interface TreeFile { kind: "file"; path: string; name: string }
 interface TreeFolder { kind: "folder"; path: string; name: string; children: TreeNode[] }
 type TreeNode = TreeFile | TreeFolder;
 
+/** A read-only VFS source shown in the file tree as a top-level, collapsed
+ *  folder with a "read-only" badge (a toolchain sysroot today; tomorrow an
+ *  emulator-exposed dir, course assets, …). Files are flat mount-relative POSIX
+ *  paths; `onSelect` receives the mount-relative path. No CRUD — these aren't
+ *  project files (ADR-0008, #55). */
+export interface ReadOnlyMount {
+  id: string;
+  label: string;
+  files: string[];
+  activePath?: string;
+  onSelect: (path: string) => void;
+}
+
 interface Props {
   files: FileLike[];
   activePath: string;
@@ -24,6 +37,8 @@ interface Props {
   onDelete: (path: string, isFolder: boolean) => void;
   onDuplicate: (path: string) => void;
   onSetMain: (path: string) => void;
+  /** Read-only mounts rendered below the project tree (collapsed by default). */
+  mounts?: ReadOnlyMount[];
 }
 
 export function FileTree(p: Props) {
@@ -89,7 +104,10 @@ export function FileTree(p: Props) {
               onSetMain={p.onSetMain}
             />
           ))}
-          {tree.length === 0 && <div className="filetree__empty">(no files)</div>}
+          {tree.length === 0 && !p.mounts?.some((m) => m.files.length > 0) && (
+            <div className="filetree__empty">(no files)</div>
+          )}
+          {p.mounts?.map((m) => <MountNode key={m.id} mount={m} />)}
         </div>
       </ContextMenu.Trigger>
       <ContextMenu.Portal>
@@ -215,6 +233,103 @@ function NodeView(p: NodeViewProps) {
           {...p}
           node={child}
           depth={p.depth + 1}
+        />
+      ))}
+    </>
+  );
+}
+
+// A read-only mount: a top-level folder (the mount label + a "read-only" badge),
+// collapsed by default, whose subtree is built from the mount's flat paths and
+// shares FileTree's row/icon visuals. No context menu, rename, or set-main — the
+// read-only contract is structural (cf. the deleted SystemTree, now unified here).
+function MountNode({ mount }: { mount: ReadOnlyMount }) {
+  const tree = useMemo(() => buildTree(mount.files.map((path) => ({ path }))), [mount.files]);
+  const [open, setOpen] = useState(false);
+  // Folded unless the user clicks (everything starts collapsed).
+  const [expanded, setExpanded] = useState<Set<string>>(() => new Set());
+  const toggle = (path: string) =>
+    setExpanded((prev) => {
+      const next = new Set(prev);
+      if (next.has(path)) next.delete(path); else next.add(path);
+      return next;
+    });
+  if (mount.files.length === 0) return null;
+  return (
+    <>
+      <div
+        role="treeitem"
+        aria-expanded={open}
+        className="filetree__row"
+        style={{ paddingLeft: 6 }}
+        tabIndex={0}
+        onClick={() => setOpen((o) => !o)}
+        onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); setOpen((o) => !o); } }}
+        title={mount.label}
+      >
+        <span className="filetree__caret">{open ? "▾" : "▸"}</span>
+        <NodeIcon isFolder expanded={open} name={mount.label} />
+        <span className="filetree__name">{mount.label}</span>
+        <span className="filetree__badge filetree__badge--ro">read-only</span>
+      </div>
+      {open && tree.map((node) => (
+        <RoNode
+          key={node.path}
+          node={node}
+          depth={1}
+          expanded={expanded}
+          onToggle={toggle}
+          activePath={mount.activePath}
+          onSelect={mount.onSelect}
+        />
+      ))}
+    </>
+  );
+}
+
+function RoNode({ node, depth, expanded, onToggle, activePath, onSelect }: {
+  node: TreeNode;
+  depth: number;
+  expanded: Set<string>;
+  onToggle: (path: string) => void;
+  activePath?: string;
+  onSelect: (path: string) => void;
+}) {
+  const isFolder = node.kind === "folder";
+  const isExpanded = isFolder && expanded.has(node.path);
+  const isActive = !isFolder && node.path === activePath;
+  const onClick = () => { if (isFolder) onToggle(node.path); else onSelect(node.path); };
+  return (
+    <>
+      <div
+        role="treeitem"
+        aria-level={depth + 1}
+        aria-selected={isActive}
+        aria-expanded={isFolder ? isExpanded : undefined}
+        className={"filetree__row" + (isActive ? " filetree__row--active" : "")}
+        style={{ paddingLeft: 6 + depth * 12 }}
+        tabIndex={0}
+        onClick={onClick}
+        onKeyDown={(e) => {
+          if (e.key === "Enter" || e.key === " ") { e.preventDefault(); onClick(); return; }
+          if (isFolder && e.key === "ArrowRight" && !isExpanded) { e.preventDefault(); onToggle(node.path); return; }
+          if (isFolder && e.key === "ArrowLeft" && isExpanded) { e.preventDefault(); onToggle(node.path); return; }
+        }}
+        title={node.path}
+      >
+        <span className="filetree__caret">{isFolder ? (isExpanded ? "▾" : "▸") : ""}</span>
+        <NodeIcon isFolder={isFolder} expanded={isExpanded} name={node.name} />
+        <span className="filetree__name">{node.name}</span>
+      </div>
+      {isFolder && isExpanded && node.children.map((child) => (
+        <RoNode
+          key={child.path}
+          node={child}
+          depth={depth + 1}
+          expanded={expanded}
+          onToggle={onToggle}
+          activePath={activePath}
+          onSelect={onSelect}
         />
       ))}
     </>

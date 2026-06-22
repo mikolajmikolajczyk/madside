@@ -67,6 +67,12 @@
   border-radius: 2px;
 }
 
+/* Read-only mount chip — muted, distinct from the mint "main" badge. */
+.filetree__badge--ro {
+  color: var(--text-quaternary);
+  border-color: var(--border-default);
+}
+
 .filetree__input {
   background: var(--bg-primary);
   border: 1px solid var(--accent-mint);
