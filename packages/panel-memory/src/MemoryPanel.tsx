@@ -1,7 +1,16 @@
-import React, { useEffect, useMemo, useState } from 'react'
+import React, { useEffect, useMemo, useRef, useState } from 'react'
 import type { MemoryRegion, PanelContext } from '@ports'
 import { hex } from '@core/hex'
 import './MemoryPanel.css'
+
+const ROW = 16
+// Fallback row height (px) before a row is measured, and a sane upper bound on
+// rows so a very tall panel can't request a huge readMemory.
+const FALLBACK_ROW_H = 15
+const MAX_ROWS = 4096 / ROW
+// Wheel pixels per row stepped — accumulated so mouse + trackpad feel the same.
+const WHEEL_PX_PER_ROW = 24
+const ADDR_MAX = 0xffff
 
 interface MemoryUiData {
   base: number
@@ -24,9 +33,52 @@ export function MemoryPanel({ ctx }: { ctx: PanelContext }) {
   const data = (ctx.data.memory as MemoryUiData | undefined) ?? null
   const base = data?.base ?? 0x2000
   const onBaseChange = data?.onBaseChange
-  const length = data?.length ?? 128
   const memoryMap = ctx.machine.memoryMap
   const [bytes, setBytes] = useState<Uint8Array>(new Uint8Array(0))
+
+  // Rows are derived from the panel's available height (#119), not a constant.
+  // The measured count drives both how many rows render and how many bytes we
+  // fetch, so the dump fills the panel however tall it's docked/resized.
+  const viewRef = useRef<HTMLDivElement>(null)
+  const [rowCount, setRowCount] = useState(8)
+  useEffect(() => {
+    const el = viewRef.current
+    if (!el) return
+    const measure = () => {
+      const row = el.querySelector('.memview__row') as HTMLElement | null
+      const rowH = row?.offsetHeight || FALLBACK_ROW_H
+      const n = Math.max(1, Math.min(MAX_ROWS, Math.floor(el.clientHeight / rowH)))
+      setRowCount((prev) => (prev === n ? prev : n))
+    }
+    measure()
+    const ro = new ResizeObserver(measure)
+    ro.observe(el)
+    return () => ro.disconnect()
+  }, [bytes])
+
+  const length = data?.length ?? rowCount * ROW
+
+  // Scroll the view through memory: the wheel walks `base` a row at a time (#119
+  // follow-up). Accumulated by pixels so a mouse notch and a trackpad swipe step
+  // the same. Routed through onBaseChange, so it also disengages cursor-follow.
+  // Native non-passive listener — React's onWheel is passive, so preventDefault
+  // (stop the page/dock from scrolling) wouldn't take.
+  const wheelAccum = useRef(0)
+  useEffect(() => {
+    const el = viewRef.current
+    if (!el || !onBaseChange) return
+    const onWheel = (e: WheelEvent) => {
+      e.preventDefault()
+      wheelAccum.current += e.deltaY
+      const step = Math.trunc(wheelAccum.current / WHEEL_PX_PER_ROW)
+      if (step === 0) return
+      wheelAccum.current -= step * WHEEL_PX_PER_ROW
+      const next = Math.max(0, Math.min(ADDR_MAX, base + step * ROW))
+      if (next !== base) onBaseChange(next)
+    }
+    el.addEventListener('wheel', onWheel, { passive: false })
+    return () => el.removeEventListener('wheel', onWheel)
+  }, [base, onBaseChange])
 
   useEffect(() => {
     let cancelled = false
@@ -73,6 +125,8 @@ export function MemoryPanel({ ctx }: { ctx: PanelContext }) {
         )}
       </div>
       <MemoryView
+        viewRef={viewRef}
+        maxRows={rowCount}
         base={base}
         bytes={bytes}
         highlightStart={data?.highlightStart}
@@ -112,24 +166,23 @@ function BaseInput({ value, onChange }: { value: number; onChange?: (addr: numbe
   )
 }
 
-function MemoryView({ base, bytes, highlightStart, highlightLen, memoryMap }:
-    { base: number; bytes: Uint8Array; highlightStart?: number; highlightLen?: number; memoryMap?: readonly MemoryRegion[] }) {
-  const ROW = 16
-  const MAX_ROWS = 8
-
+function MemoryView({ viewRef, maxRows, base, bytes, highlightStart, highlightLen, memoryMap }:
+    { viewRef: React.RefObject<HTMLDivElement | null>; maxRows: number; base: number; bytes: Uint8Array; highlightStart?: number; highlightLen?: number; memoryMap?: readonly MemoryRegion[] }) {
   const regionAt = useMemo(() => {
     const map = memoryMap ?? []
     return (addr: number): MemoryRegion | undefined =>
       map.find((r) => addr >= r.start && addr <= r.end)
   }, [memoryMap])
 
-  if (bytes.length === 0) return <pre className="memview">(empty — load .xex)</pre>
+  if (bytes.length === 0) {
+    return <div ref={viewRef} className="memview">(empty — load .xex)</div>
+  }
   const hi0 = highlightStart ?? -1
   const hi1 = hi0 + (highlightLen ?? 0)
   const isHi = (addr: number) => hi0 >= 0 && addr >= hi0 && addr < hi1
 
   const rows: React.ReactNode[] = []
-  for (let i = 0; i < Math.min(bytes.length, ROW * MAX_ROWS); i += ROW) {
+  for (let i = 0; i < Math.min(bytes.length, ROW * maxRows); i += ROW) {
     const slice = Array.from(bytes.subarray(i, i + ROW))
     const rowAddr = base + i
     const region = regionAt(rowAddr)
@@ -155,5 +208,5 @@ function MemoryView({ base, bytes, highlightStart, highlightLen, memoryMap }:
       </div>
     )
   }
-  return <div className="memview">{rows}</div>
+  return <div ref={viewRef} className="memview">{rows}</div>
 }
