@@ -38,6 +38,8 @@ packages/                # workspace libraries (each: src/ + package.json)
     plugin-emulator.ts   # EmulatorPlugin contract — createBackend(): RunBackend
     plugin-converter.ts  # ConverterModule (Phase 7)
     plugin-editor.ts     # EditorModule (Phase 11 — folded into PanelPlugin via editorToPanel)
+    plugin-theme.ts      # ThemePlugin contract — ThemeTokens / ThemeTokenName (themes-as-plugins seam, #118)
+    debug-info.ts        # DebugInfo port (ADR-0011) — typed-symbol model + DebugFrame/DebugScope/DebugLocal frame contract (ADR-0012, #131)
     cpu.ts               # Cpu6502State — shared 6502 register snapshot
     services/            # Build/Run/Debug/AssetPipeline contracts
     test/                # assert<Kind>Plugin harnesses for external authors (Toolchain + Emulator ✅)
@@ -69,13 +71,20 @@ packages/                # workspace libraries (each: src/ + package.json)
   panel-memory/          # PanelPlugin v0.7.0 — hex view + base input + cursor follow badge
   panel-output/          # PanelPlugin v0.7.0 — build stdout/stderr + OK/ERR tag
   panel-ppu/             # PanelPlugin (v0.8.0) — NES PPU pattern tables + palette; supports() gated on the 'ppu' memory space
+  panel-variables/       # PanelPlugin (#121) — debugger Variables: typed globals + struct/array/pointer tree + watch; reads the @ports DebugInfo model (never a language pkg, ADR-0011). src/{VariablesPanel.tsx,decode.ts,watch-eval.ts}
   converters/            # asset converters (Phase 7) — src/{recipeEngine,registry}.ts + src/builtins/
   editors/               # plugin file editors (Phase 11) + editorToPanel bridge — src/registry.ts + src/builtins/
+
+  # --- workbench services + storage, extracted to private workspace packages (#123/#125) ---
+  workbench-core/        # @madside/workbench-core — Build/Run/Debug/AssetPipeline services + EventBus/CommandRegistry/PluginRegistry impls + event-bus-logger (was apps/ide/src/services/). DI'd via *ServiceDeps.
+  storage-idb/           # @madside/storage-idb — IDB StorageBackend impl (projects/files/meta/snapshots/blobs/breakpoints/courses) + migrations (was apps/ide/src/adapters/storage-idb/)
+  storage-shared/        # @madside/storage-shared — storage helpers shared across backends (snapshot diff, manifest serialize, id mint)
 
 # --- C language intelligence (LSP), MIT-licensed leaf libs — ADR-0009 ---
   lsp-core/              # @madside/lsp-core — language-AGNOSTIC LSP framework: startServer(connection, provider), transports (browser worker / node stdio), doc sync, request router + the LanguageProvider contract (zero language knowledge)
   lsp-c/                 # @madside/lsp-c — generic C engine (src/engine/* = the former @cc65-intel/core) implementing LanguageProvider via createCProvider(dialect: CDialect); dialect supplies decorators + diagnostic sources, host supplies sysroot headers + defines (#30)
   lsp-cc65/              # @madside/lsp-cc65 — cc65 (6502) dialect profile + browser-worker / node-stdio server entries (consumed by the IDE CodeMirror LSP adapter)
+  lsp-z80/               # @madside/lsp-z80 — sccz80 / z88dk (ZX Spectrum) dialect profile + server entries (#114). Second dialect on the agnostic core — proved lsp-core ⊥ language (boundary lint-enforced, 868bc7e)
 
 apps/
   ide/                   # @madside/ide — the Vite app (everything below was the old src/ non-lib layers)
@@ -90,23 +99,15 @@ apps/
 
       adapters/          # port implementations (machine-/toolchain-agnostic only)
         plugin-loader.ts # Blob URL + dynamic import + sha256 cache
-        storage-idb/     # IDB schema (projects/files/meta/snapshots/blobs/breakpoints/courses)
-                         #   + createIdbStorage() — @ports.StorageBackend impl + parseProjectManifest at load (rejects v1)
         storage-memory/  # createMemoryStorage() — StorageBackend (tests, future CLI)
-        storage-shared/  # shared storage helpers
         logger/          # Console / Buffered / Noop logger adapters
         emu/             # EmuBackend (Altirra-internal) + AltirraBackend + altirraEmulator EmulatorPlugin
                          #   loads the core from @madside/wasm-altirra (packages/wasm-altirra)
+                         # NOTE: storage-idb + storage-shared extracted to packages/ (#125); only storage-memory stays app-local.
 
-      services/          # workbench-core services (impl)
-        index.ts
-        event-bus.ts     # createEventBus() — typed pub/sub, hand-rolled, ~50 LOC
-        command-registry.ts # createCommandRegistry() — id-keyed Map + when() gate
-        plugin-registry.ts  # createPluginRegistry() — per-kind Map; project shadows builtin
-        build-service.ts # createBuildService() — manifest.toolchain id → ToolchainResolverFn → plugin.build → events
-        run-service.ts   # createRunService() — emulator lifecycle + audio; backend factory + MachineMedia DI'd
-        debug-service.ts # createDebugService() — delegates to active DebugAdapter via target()
-        asset-pipeline-service.ts # createAssetPipelineService() — runAll / runOne / runAffected (skip-aware)
+      # services/ — EXTRACTED to packages/workbench-core (#123). createWorkbench wires the
+      #   @madside/workbench-core services (build/run/debug/asset + event-bus/command/plugin
+      #   registries) with app adapters DI'd. No longer an apps/ide/src/ layer.
 
       app/               # workbench wiring + non-React state
         createWorkbench.ts # headless factory (DOM-free, test-friendly) — registers every built-in plugin under unified PluginRegistry
@@ -122,27 +123,28 @@ apps/
         labels.ts        # MADS label / equate / token registry
 
       ui/                # React tree + react-bound hooks + assets
-        App.tsx          # root; owns cpu / bp lines / source map / polling; renders Debug as slot host
+        App.tsx          # root; owns cpu / bp lines / source map / polling; hosts the Dockview layout
         App.css / tokens.css / index.css
+        dock/            # Dockview workbench (ADR-0010) — replaced the legacy splitter entirely
+          DockLayout.tsx # DockviewReact host: panel registry → dock surfaces, serialize/restore, float, named layouts + user presets, View-menu toggles. Themed via --dv-* tokens.
         components/
-          layout/{MenuBar,DebugBar,StatusBar,Splitter}.tsx
+          layout/{MenuBar,DebugBar,StatusBar}.tsx  # (Splitter removed — Dockview owns layout)
           project/{Explorer,FileTree}.tsx
           editor/{Editor,PluginEditor,PluginEditorErrorBoundary}.tsx
           debug/{Emulator,Debug}.tsx  # Debug is a slot host — no panel-specific JSX
           asset/AssetPanel.tsx
           history/HistoryDialog.tsx
-          course/CoursePanel.tsx      # lazy lesson panel (react-markdown), shown when manifest.course is set
+          course/CoursePanel.tsx      # lazy lesson panel (react-markdown); own dock surface, shown only during a course (#127)
           manifest/ManifestEditor.tsx # visual project.json form + raw editor (v0.9.0)
           ui/            # Radix wrappers + reusable Dialog/Menu/Tooltip atoms
           PanelSlot.tsx  # routes between PanelPlugin.Component and PanelPlugin.mount paths
         hooks/
           useActiveMachine.ts useAutoAssemble.ts useBreakpointAddrs.ts useCursorMemory.ts
-          useDebuggerShortcuts.ts usePluginEditor.ts useProjectLabels.ts
-          useRunStatus.ts useSplitterWidth.ts
+          useDebuggerShortcuts.ts usePluginEditor.ts useProjectLabels.ts useRunStatus.ts
         codemirror/      # CodeMirror StreamLanguage definitions
           assemblyLang.ts # buildAssemblyLanguage(cpu, toolchainLanguage) — generic, CPU+toolchain driven (epic 78b12bf; replaced madsLang.ts)
           jsConverterLang.ts
-          lsp/           # C language-server client (flag-gated): spawns the @madside/lsp-cc65 Web Worker, drives it over vscode-jsonrpc, exposes completion/hover/diagnostics/etc to CodeMirror; host sends sysroot headers + target defines (cSysroot.ts, #30). ADR-0009.
+          lsp/           # C language-server client: spawns the matching @madside/lsp-{cc65,z80} Web Worker (per dialect), drives it over vscode-jsonrpc, exposes completion/hover/diagnostics/etc to CodeMirror; host sends sysroot headers + target defines (cSysroot.ts, #30). ADR-0009.
         assets/          # static assets (hero.png, svgs)
 
   docs/                  # @madside/docs — public Astro Starlight site (was docs/), published to /docs/
@@ -199,10 +201,10 @@ The browser-reload family (F5 / Ctrl+R / Shift+F5 / Ctrl+Shift+F5 / Ctrl+Shift+R
 
 ## Component map: what owns what
 
-- **`App.tsx`** — root state glue. Owns: `files`, `cpu`, `bp lines per file`, `sourceMap`, polling, tab routing. Renders `Debug` as a slot host; renders `panel-output` as a fixed slot above the editor.
+- **`App.tsx`** — root state glue. Owns: `files`, `cpu`, `bp lines per file`, `sourceMap`, polling. Hosts the **Dockview** layout (`dock/DockLayout`); each editor/emulator/panel is a dock surface, no fixed splitter slots.
+- **`dock/DockLayout.tsx`** — Dockview host (ADR-0010). Maps the active panel set (`manifest.panels` → `machine.defaultPanels` → fallback) to dock surfaces via `SurfaceHost` → `<PanelSlot>`; serialize/restore, float, named layouts (Desktop/Tablet) + user presets, View-menu toggles. Replaced the old `Debug` slot-host + `Splitter`.
 - **`Emulator.tsx`** — canvas + frame loop. Reads `machine.display` dims + `pixelFormat`. Drives `RunService`; emits `debug:bp-hit` on trap.
-- **`Debug.tsx`** — pure slot host. Iterates `manifest.panels` → `machine.defaultPanels` → fallback `['registers', 'memory']` and renders `<PanelSlot>` per id. Zero panel-specific JSX.
-- **`PanelSlot`** — closes a `PanelContext` over the workbench services + project + data slot. Branches on `panel.Component` (React) vs `panel.mount` (vanilla container). Honours `supports(machine)` gate.
+- **`PanelSlot`** — closes a `PanelContext` over the workbench services + project + data slot. Branches on `panel.Component` (React) vs `panel.mount` (vanilla container). Honours `supports(machine)` gate. Rendered inside each Dockview surface.
 - **`PluginEditor.tsx`** — sandbox host for Phase 11 file editors. Three-layer error containment: sync try/catch + React error boundary + window error/unhandledrejection listeners scoped to the editor lifetime.
 - **`useAutoAssemble`** — debounce + race-guard. Dispatches to `BuildService`.
 - **`workbench.machine`** — active MachinePlugin, **manifest-driven**. `createWorkbench` holds a `machineSetups` table keyed by machine id (`'atari-xl'` → Altirra backend + atari-6502 adapter; `'nes'` → lazy jsnes backend + reused atari-6502 adapter). `setActiveMachine(manifest.machine)` swaps the active entry and `run.reconfigure(...)`s the backend/media/hardware; UI reads it via `useActiveMachine()` (subscribes through `subscribeMachine`). Defaults to atari-xl until a project manifest names another machine.
@@ -256,7 +258,7 @@ Implementations: `AltirraBackend` (Atari) and `JsnesBackend` (NES, `@plugins/emu
 ## Storage (IDB)
 
 ```
-db: madside, version: 2  (shape: apps/ide/src/adapters/storage-idb/schema.ts; row types: ./types.ts)
+db: madside, version: 4  (shape: packages/storage-idb/src/schema.ts; row types: ./types.ts; migrations: ./migrations.ts — v3 courses, v4 builds)
 stores:
   projects    { id, name, createdAt, updatedAt }                 key: id;             index: byUpdatedAt
   files       { projectId, path, content (Uint8Array), updatedAt } key: [projectId, path]; index: byProject
@@ -283,7 +285,7 @@ v2 shipped in M5 (`443eaed`). Validated by `parseProjectManifest` in `@ports/pro
 | **MachinePlugin** | `@ports/plugin-machine` | `@plugins/machine-atari-xl` | v0.4.0 ✅ (+ `@plugins/machine-nes`, v0.8.0; `memorySpaces` declares extra address spaces — NES `ppu`/`oam`) |
 | **ToolchainPlugin** | `@ports/plugin-toolchain` | `@plugins/toolchain-mads` | v0.5.0 ✅ (manifest-driven dispatch via `ToolchainResolverFn`; optional `language?: ToolchainLanguage` — directives/comments/snippets — paired with CPU opcodes to drive the editor, v0.8.7) |
 | **DebugAdapterPlugin** | `@ports/plugin-debug` | `@plugins/debug-atari-6502` | v0.6.0 ✅ (`DebugService.target()` returns live `DebugTarget`; the atari-6502 adapter is reused for NES) |
-| **PanelPlugin** | `@ports/plugin-panel` | `@plugins/panel-registers/memory/output` | v0.7.0 ✅ (React + vanilla mount union; FileEditor folded via `editorToPanel`; + `@plugins/panel-ppu`, v0.8.0 — `supports()` gated on the `ppu` memory space) |
+| **PanelPlugin** | `@ports/plugin-panel` | `@plugins/panel-registers/memory/output` | v0.7.0 ✅ (React + vanilla mount union; FileEditor folded via `editorToPanel`; + `panel-ppu` v0.8.0 — `supports()` gated on `ppu` space; + `panel-variables` #121 — typed globals/tree/watch over the `DebugInfo` port; + outline/references panels #120) |
 | **ConverterModule** | `@ports/plugin-converter` | `@plugins/converters/*` | Phase 7 ✅ |
 | **EditorModule** | `@ports/plugin-editor` | `@plugins/editors/*` | Phase 11 ✅, bridge to PanelPlugin shipped in `6f2dc20` |
 | **EmulatorPlugin** | `@ports/plugin-emulator.ts` | `altirraEmulator` (`@adapters/emu`), `jsnesEmulator` (`@plugins/emulator-nes-jsnes`) | `createBackend(): RunBackend`; resolved from the machine's `compatibleEmulators` via the PluginRegistry. `assertEmulatorPlugin` harness. |

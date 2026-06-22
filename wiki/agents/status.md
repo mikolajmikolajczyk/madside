@@ -12,7 +12,7 @@
 | WASI shim via `@bjorn3/browser_wasi_shim` | ✅ |
 | `BuildService.build()` dispatched by `manifest.toolchain` id | ✅ (v0.5.0 443eaed) |
 | Auto-assemble (debounce 400 ms + race guard) | ✅ — binary committed to emu only on Run |
-| Layout: toolbar / [explorer \| editor+output \| emulator+debug side panel] | ✅ resizable splitter, persisted |
+| Layout: **Dockview** dockable workbench — drag/dock/float panels, View-menu toggles, named layouts (Desktop/Tablet) + user presets, serialized + persisted | ✅ (ADR-0010) — replaced the legacy resizable splitter entirely (no opt-in flag) |
 
 ## Workbench core (services + plugins)
 
@@ -25,8 +25,11 @@
 | MachinePlugin port + Atari-XL first impl | ✅ (v0.4.0 a6c310d) |
 | ToolchainPlugin port + MADS first impl + manifest-driven dispatch | ✅ (v0.5.0 87f03ad + 443eaed) |
 | Second ToolchainPlugin — cc65/ca65/ld65 wasm (`packages/toolchain-ca65`) — C + ca65 asm → NES `.nes` / Atari `.xex` | ✅ (GH #1, #52) |
+| Third ToolchainPlugin — z88dk z80asm/sccz80 wasm (`packages/toolchain-z88dk`) — C → ZX Spectrum (binary only; no source-debug yet, #135) | ✅ (#114) |
+| Private workspace package extractions — `workbench-core` (services), `storage-idb` (IDB backend) — enforce ADR-0002 layers without npm publish | ✅ (#123, #125) |
 | DebugAdapterPlugin port + atari-6502 first impl | ✅ (v0.6.0 2810a62) |
-| PanelPlugin port + 4 built-in panels (registers/memory/output + ppu) | ✅ (v0.7.0 5ddf99e; ppu v0.8.0 93c218b) |
+| PanelPlugin port + built-in panels (registers/memory/output/ppu, **variables**, outline, references) — own dock surfaces | ✅ (v0.7.0 5ddf99e; ppu v0.8.0 93c218b; variables #121; outline/references #120) |
+| Co-located panel packages (`packages/panel-{memory,registers,ppu,variables}/`) — each self-contained with its CSS | ✅ |
 | Event-driven panel refresh via ctx.events / ctx.debug | ✅ (v0.7.0 ba1a27b) |
 | FileEditor (Phase 11) folded into PanelPlugin via editorToPanel | ✅ (v0.7.0 6f2dc20) |
 | Plugin contract test harnesses under `@ports/test/` | partial — Toolchain ✅ (51e047c); Machine drift test ✅; Debug/Panel pending |
@@ -68,6 +71,18 @@
 | Per-step display refresh | ⏳ Frame button workaround — backlog c309619 |
 | Hosting | ⏳ Infra epic 70269cc — efc75d1 |
 
+## Debugger — Variables panel (#121)
+
+| Area | State |
+|------|-------|
+| Phase 1 — flat globals + live raw byte/word values (`labels` + `readMemory`) | ✅ |
+| `DebugInfo` port — toolchain-supplied, language-agnostic typed-symbol model (panel never imports a language pkg) | ✅ (ADR-0011, #130) |
+| `@madside/lsp-c` type introspection (`typeOfSymbol`/`resolveType`, packed cc65 layout) — the C toolchains fill the port | ✅ (#129) |
+| Phase 2 — typed globals + expandable struct/array/pointer tree, value decode by type | ✅ (#130) |
+| Watch expressions (`pos.x`, `*ptr`, `arr[3]`, `p->next`) — persisted per project, live | ✅ (#132) |
+| Frame/locals contract — `DebugFrame` (memptr/reg) + `DebugScope` + `functionLocals`, `parseDbg` scope/csym parse | ✅ contract + foundation only (ADR-0012, #131) |
+| **Locals of current frame** | ❌ deferred — cc65 is frameless (`c_sp` moves, no per-PC delta in dbginfo); reliable path is sccz80 IX (#136), gated on z88dk source-debug (#135) |
+
 ## Editor UX
 
 - Tab → 8 spaces (`indentWithTab`), Ctrl/Cmd+S = force assemble + snapshot
@@ -80,7 +95,7 @@
 
 ### C / cc65 editor support (GH #1 ecosystem)
 
-> The C intelligence below (completion / hover / go-to-def / references / rename / semantic tokens / diagnostics) is powered by the **in-repo `@madside/lsp-*` C language server** in a Web Worker — `lsp-core` (agnostic framework) + `lsp-c` (generic C engine) + `lsp-cc65` (cc65 dialect). Migrated from the external `@cc65-intel/*` npm packages per **ADR-0009** (epic #110); the core stays language-agnostic so a z80/sccz80 server (`lsp-z80`, #114) drops in without touching it.
+> The C intelligence below (completion / hover / go-to-def / references / rename / semantic tokens / diagnostics) is powered by the **in-repo `@madside/lsp-*` C language server** in a Web Worker — `lsp-core` (agnostic framework) + `lsp-c` (generic C engine) + per-dialect engines: `lsp-cc65` (cc65) and `lsp-z80` (sccz80/z88dk ZX Spectrum, #114 — shipped, 25e1e45/25036ee). Migrated from the external `@cc65-intel/*` npm packages per **ADR-0009** (epic #110); the agnostic core proved out: the z80 server dropped in without touching it. Boundary `lsp-core` ⊥ language enforced by lint (868bc7e).
 
 - Syntax highlighting for cc65 C + ca65 assembly via `@codemirror/lang-cpp` (GH #47)
 - Autocomplete + hover for cc65 C stdlib / ca65 directives (GH #48), plus cross-file project symbols — the user's own functions/macros, not just stdlib (GH #58, #48)
@@ -120,6 +135,12 @@
 - `milestone:v0.9.0` — ✅ **done.** Visual `project.json` manifest editor (form + raw, f6c22ae) + `build.args`→toolchain wiring (04bdb5a); Astro Starlight docs site under `docs/` (1116ee3) — content for using/extending/reference/meta now written.
 - `milestone:v0.9.5` — Courses (epic 2e9c7cc) — **essentially complete**: course format + glob loader + CourseService (3ed11be), lesson→project instantiation (500f11c, 30ba629), declarative check runner (29540fd), entry points + Check wiring (2921c6c) all shipped. Only the course-authoring **docs** child (17bd00e) remains open.
 - **C / cc65 ecosystem (GH #1)** — ✅ **shipped.** Second ToolchainPlugin (cc65/ca65/ld65 wasm, `src/plugins/toolchain-ca65`) builds C + ca65 asm for NES (`.nes`) and Atari (`.xex`, GH #52); rides on the VFS mount layer (ADR-0008, GH #55/#56/#57). Full C editor experience: highlight (#47), autocomplete + cross-file completion + auto-`#include` (#48/#58), clang-format formatting (#60), inline compile errors (#61), configurable indent / manual build / format style (#59), persisted last build (#62). Still open: source-level breakpoints C↔6502 (#49), custom build options / linker config (#51), C64 plugin to run cc65 `.prg` (#53).
+- **Recent (≈ v0.10–v0.15.x)** — landed since the milestones above; see `gh` + ADRs for detail:
+  - **Dockview dockable workbench** (ADR-0010) — named layouts (Desktop/Tablet) + user presets, floating panels, View-menu toggles, touch tuning; legacy splitter + opt-in flag removed. Course switcher in View shown only during a course (#127).
+  - **Variables panel epic (#121)** — Phase 1 globals → DebugInfo port (ADR-0011, #129/#130) → typed tree + watch (#132). Locals deferred (cc65 ABI, ADR-0012); z80-via-IX path #136 gated on #135.
+  - **`@madside/lsp-z80`** (#114) — sccz80/z88dk ZX Spectrum C server on the agnostic core; `@madside/lsp-c` carved MIT (ADR-0009 epic #110 closed).
+  - **Private package extractions** (#123 workbench-core, #125 storage-idb) — clean ADR-0002 layers without publish; #64 reframed (publish gate vs private modularization).
+  - Outline / References as own dock panels (#120). Themes-as-plugins scoped as issue #118 (not built).
 - `milestone:v1.0.0` — first post-docs major release; TBD
 - `milestone:backlog` — Altirra bindings.cpp split (cd90f9d), per-step display refresh research (c309619). IDB schema migration framework shipped (`migrations.ts`): v3 courses store, v4 builds store (#62); BP Map/Record drift test shipped.
 - **Infra epic 70269cc** (no milestone, separate clock) — GitHub mirror (edbc165), VPS hosting (efc75d1)
