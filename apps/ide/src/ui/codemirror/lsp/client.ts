@@ -64,21 +64,31 @@ interface LspHover {
   contents?: string | { value?: string }
 }
 
-// cc65 sysroot headers the server indexes for stdlib completion + register
-// structs + auto-`#include`. Set by the editor (from the active machine's
-// target) before the first request, so the lazy `connect()` sends them at
-// `initialize`.
+// Push the current sysroot + defines to a LIVE connection. The config also rides
+// the `initialize` request (connect()), but it often loads asynchronously (a
+// sysroot zip is fetched + unzipped) and can land AFTER the lazy completion-
+// source connect() already raced a worker up with an empty/stale sysroot — which
+// the slow ~800-header ZX sysroot hit every time. Re-pushing makes the server
+// reconfigure + reindex, so completion picks it up without a respawn.
+function pushConfig(): void {
+  connection?.sendNotification('madside/configure', { sysrootFiles: sysrootHeaders, defines })
+}
+
+// C sysroot headers the server indexes for stdlib completion + register structs
+// + auto-`#include`. Set by the editor (from the active machine's target).
 let sysrootHeaders: SourceFile[] = []
 export function setSysrootHeaders(headers: SourceFile[]): void {
   sysrootHeaders = headers
+  pushConfig()
 }
 
-// Predefined macros for the active cc65 target (e.g. `{ __C64__: '1' }`). Sent
-// at `initialize` so the server's indexer resolves the preprocessor target
-// gating + drops other targets' headers (#30). Undefined ⇒ legacy flat indexing.
+// Predefined macros for the active target (e.g. `{ __C64__: '1' }` / `{ __SPECTRUM__:
+// '1' }`). Drive the indexer's preprocessor target gating so cross-target headers
+// drop (#30). Undefined ⇒ legacy flat indexing.
 let defines: Record<string, string> | undefined
 export function setDefines(d: Record<string, string> | undefined): void {
   defines = d
+  pushConfig()
 }
 
 // Which in-repo C language server the worker hosts: cc65 (6502, default) or z80

@@ -172,6 +172,17 @@ export function startServer(connection: Connection, provider: LanguageProvider):
     reindex()
     publishAll()
   })
+
+  // Live reconfigure: the host can push sysroot files + defines after initialize
+  // (they often load asynchronously — a sysroot zip is fetched + unzipped — and
+  // can land after the first request races a connection up). Re-apply + reindex
+  // so completion picks up the (possibly large) sysroot without a respawn.
+  connection.onNotification('madside/configure', (cfg: ProviderConfig) => {
+    if (cfg.sysrootFiles) sysrootFiles = cfg.sysrootFiles
+    provider.configure(cfg)
+    reindex()
+    publishAll()
+  })
   documents.onDidChangeContent(() => {
     reindex()
     publishAll()
