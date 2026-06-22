@@ -4,6 +4,13 @@
   height: 100vh;
 }
 
+/* Idle state for an info panel (Outline / References) with nothing to show. */
+.app__panel-empty {
+  padding: 12px 14px;
+  color: var(--text-tertiary);
+  font-size: 12px;
+}
+
 
 /* Directional pane focus (#27): a subtle inset ring marks the active region so
    you can see where Alt+Shift+Arrow landed. :focus-within keeps it in sync with

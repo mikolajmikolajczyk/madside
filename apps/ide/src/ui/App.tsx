@@ -311,6 +311,10 @@ export default function App() {
   const onFindReferences = useCallback((symbol: string, refs: ReferenceLocation[]) => {
     setReferences({ symbol, refs });
   }, []);
+  // Bring the References panel forward when a find-references lookup lands (#120).
+  useEffect(() => {
+    if (references) dockControlsRef.current?.focusPanel("references");
+  }, [references]);
   const jumpToReference = useCallback((path: string, line: number, sysroot: boolean) => {
     if (sysroot) { openSystemFile(path); return; }
     if (!project.loaded) return;
@@ -806,45 +810,48 @@ export default function App() {
       />
     );
     const course = project.manifest.course;
-    // Outline of the active C file, under the file tree (#76). Null for
-    // non-C files, so the column collapses back to just the Explorer.
-    const outlineEl = isCFile(activePath) && !viewSystemFile ? (
-      <OutlinePanel
-        path={activePath}
-        content={outlineText}
-        onJump={(line) => setGotoTarget((prev) => ({ line, tick: (prev?.tick ?? 0) + 1 }))}
-      />
-    ) : null;
-    const refsEl = references ? (
-      <ReferencesPanel
-        symbol={references.symbol}
-        refs={references.refs}
-        onJump={jumpToReference}
-        onClose={() => setReferences(null)}
-      />
-    ) : null;
-    if (!course && !outlineEl && !refsEl) return explorerEl;
-    // Vertical split — compact Files on top, lesson + outline + refs below.
+    if (!course) return explorerEl;
+    // Files + lesson stacked; Outline and References are their own panels (#120).
     return (
       <div className="app__explorer-col">
         {explorerEl}
-        {course && (
-          <Suspense fallback={<div className="app__loading">loading lesson…</div>}>
-            <CoursePanel
-              courseId={course.id}
-              lessonId={course.lesson}
-              onOpenLesson={(c, l) => { void handleOpenLesson(c, l); }}
-              onCheck={handleCheck}
-              onRefresh={handleRefreshCourse}
-              onReset={handleResetLesson}
-            />
-          </Suspense>
-        )}
-        {outlineEl}
-        {refsEl}
+        <Suspense fallback={<div className="app__loading">loading lesson…</div>}>
+          <CoursePanel
+            courseId={course.id}
+            lessonId={course.lesson}
+            onOpenLesson={(c, l) => { void handleOpenLesson(c, l); }}
+            onCheck={handleCheck}
+            onRefresh={handleRefreshCourse}
+            onReset={handleResetLesson}
+          />
+        </Suspense>
       </div>
     );
   })();
+
+  // Outline of the active C file (#76) — its own dock panel (#120). Empty state
+  // for non-C / system files so the panel reads sensibly when idle.
+  const outlineSurface = isCFile(activePath) && !viewSystemFile ? (
+    <OutlinePanel
+      path={activePath}
+      content={outlineText}
+      onJump={(line) => setGotoTarget((prev) => ({ line, tick: (prev?.tick ?? 0) + 1 }))}
+    />
+  ) : (
+    <div className="app__panel-empty">Outline appears for C files.</div>
+  );
+
+  // References from a find-references lookup (#75) — its own dock panel (#120).
+  const referencesSurface = references ? (
+    <ReferencesPanel
+      symbol={references.symbol}
+      refs={references.refs}
+      onJump={jumpToReference}
+      onClose={() => setReferences(null)}
+    />
+  ) : (
+    <div className="app__panel-empty">No references — use “Find references”.</div>
+  );
 
   const editorSurface = viewSystemFile ? (
     <SystemFileView
@@ -948,6 +955,8 @@ export default function App() {
   const dockSurfaces: Record<string, ReactNode> = {
     files: filesSurface,
     editor: editorSurface,
+    outline: outlineSurface,
+    references: referencesSurface,
     emulator: emulatorSurface,
     ...(outputSurface ? { output: outputSurface } : {}),
   };
@@ -956,6 +965,8 @@ export default function App() {
   const dockPanels: DockPanelMeta[] = [
     { id: "files", title: "Files" },
     { id: "editor", title: "Editor" },
+    { id: "outline", title: "Outline" },
+    { id: "references", title: "References" },
     { id: "emulator", title: "Emulator" },
     ...debugSurfaces.map((d) => ({ id: d.id, title: d.title })),
     ...(outputSurface ? [{ id: "output", title: "Output" }] : []),

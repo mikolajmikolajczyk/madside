@@ -36,7 +36,7 @@ const DEFAULT_LAYOUT = {
         {
           type: 'branch',
           data: [
-            { type: 'leaf', data: { views: ['files'], activeView: 'files', id: '15' }, size: 381 },
+            { type: 'leaf', data: { views: ['files', 'outline', 'references'], activeView: 'files', id: '15' }, size: 381 },
             { type: 'leaf', data: { views: ['editor'], activeView: 'editor', id: '13' }, size: 868 },
             {
               type: 'branch',
@@ -60,6 +60,8 @@ const DEFAULT_LAYOUT = {
   },
   panels: {
     files: { id: 'files', contentComponent: 'surface', params: { id: 'files' }, title: 'Files' },
+    outline: { id: 'outline', contentComponent: 'surface', params: { id: 'outline' }, title: 'Outline' },
+    references: { id: 'references', contentComponent: 'surface', params: { id: 'references' }, title: 'References' },
     editor: { id: 'editor', contentComponent: 'surface', params: { id: 'editor' }, title: 'Editor' },
     emulator: { id: 'emulator', contentComponent: 'surface', params: { id: 'emulator' }, title: 'Emulator' },
     output: { id: 'output', contentComponent: 'surface', params: { id: 'output' }, title: 'Output' },
@@ -79,7 +81,7 @@ const TABLET_LAYOUT = {
         {
           type: 'branch',
           data: [
-            { type: 'leaf', data: { views: ['editor', 'files'], activeView: 'editor', id: '13' }, size: 1033 },
+            { type: 'leaf', data: { views: ['editor', 'files', 'outline', 'references'], activeView: 'editor', id: '13' }, size: 1033 },
             {
               type: 'branch',
               data: [
@@ -103,6 +105,8 @@ const TABLET_LAYOUT = {
   panels: {
     editor: { id: 'editor', contentComponent: 'surface', params: { id: 'editor' }, title: 'Editor' },
     files: { id: 'files', contentComponent: 'surface', params: { id: 'files' }, title: 'Files' },
+    outline: { id: 'outline', contentComponent: 'surface', params: { id: 'outline' }, title: 'Outline' },
+    references: { id: 'references', contentComponent: 'surface', params: { id: 'references' }, title: 'References' },
     emulator: { id: 'emulator', contentComponent: 'surface', params: { id: 'emulator' }, title: 'Emulator' },
     'panel:memory': { id: 'panel:memory', contentComponent: 'surface', params: { id: 'panel:memory' }, title: 'Memory' },
     'panel:registers': { id: 'panel:registers', contentComponent: 'surface', params: { id: 'panel:registers' }, title: 'Registers' },
@@ -133,6 +137,8 @@ export interface DockControls {
   applyBuiltin: (name: string) => void
   /** Pop a panel out into a floating group. */
   float: (id: string) => void
+  /** Bring a panel's tab to the front (if it's open). */
+  focusPanel: (id: string) => void
   /** Capture the current arrangement as a named user preset. */
   saveCurrentAs: (name: string) => void
   /** Restore a saved user preset by name. */
@@ -271,6 +277,10 @@ export function DockLayout({ surfaces, panels, controlsRef, onOpenChange, onPres
     if (panel) api.addFloatingGroup(panel, { width: 380, height: 300, x: 96, y: 96 })
   }, [])
 
+  const focusPanel = useCallback((id: string) => {
+    apiRef.current?.getPanel(id)?.api.setActive()
+  }, [])
+
   const reportPresets = useCallback(() => {
     onPresetsChange?.(Object.keys(loadPresets()).sort())
   }, [onPresetsChange])
@@ -308,10 +318,10 @@ export function DockLayout({ surfaces, panels, controlsRef, onOpenChange, onPres
   // Publish the imperative handle for the View menu.
   useEffect(() => {
     if (controlsRef) {
-      controlsRef.current = { toggle, reset, applyBuiltin, float, saveCurrentAs, applyUserPreset, deletePreset, exportLayout }
+      controlsRef.current = { toggle, reset, applyBuiltin, float, focusPanel, saveCurrentAs, applyUserPreset, deletePreset, exportLayout }
     }
     return () => { if (controlsRef) controlsRef.current = null }
-  }, [controlsRef, toggle, reset, applyBuiltin, float, saveCurrentAs, applyUserPreset, deletePreset, exportLayout])
+  }, [controlsRef, toggle, reset, applyBuiltin, float, focusPanel, saveCurrentAs, applyUserPreset, deletePreset, exportLayout])
 
   // Surface the saved-preset names to the View menu on mount.
   useEffect(() => { reportPresets() }, [reportPresets])
