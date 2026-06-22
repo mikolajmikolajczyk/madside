@@ -1,4 +1,4 @@
-import { createContext, useCallback, useContext, useEffect, useRef, useState, type ReactNode } from 'react'
+import { createContext, useCallback, useContext, useEffect, useRef, type MutableRefObject, type ReactNode } from 'react'
 import {
   DockviewReact,
   type DockviewApi,
@@ -12,7 +12,8 @@ import './DockLayout.css'
 // A rearrangeable layout for the App body: every content surface (editor, file
 // tree, emulator, each debug panel, output) becomes a draggable/tabbable/
 // splittable dockview panel, toggleable on/off, with the arrangement persisted.
-// The toolbar (MenuBar/DebugBar/StatusBar) stays fixed chrome outside this.
+// The toolbar (MenuBar/DebugBar/StatusBar) stays fixed chrome; panel toggles +
+// reset live in the MenuBar's View menu, driven through `controlsRef`.
 //
 // Surfaces are LIVE ReactNodes owned by App — they change every render as App
 // state changes, so they ride a context (not dockview `params`, which serialize
@@ -30,6 +31,12 @@ export interface DockPanelMeta {
   group: DockGroup
 }
 
+/** Imperative handle for the MenuBar View menu. */
+export interface DockControls {
+  toggle: (id: string) => void
+  reset: () => void
+}
+
 const SurfacesContext = createContext<Record<string, ReactNode>>({})
 
 function SurfaceHost(props: IDockviewPanelProps<{ id: string }>) {
@@ -39,19 +46,23 @@ function SurfaceHost(props: IDockviewPanelProps<{ id: string }>) {
 
 const COMPONENTS = { surface: SurfaceHost }
 
-export function DockLayout({ surfaces, panels }: {
+export function DockLayout({ surfaces, panels, controlsRef, onOpenChange }: {
   surfaces: Record<string, ReactNode>
   panels: DockPanelMeta[]
+  controlsRef?: MutableRefObject<DockControls | null>
+  onOpenChange?: (ids: string[]) => void
 }) {
   const apiRef = useRef<DockviewApi | null>(null)
   const restoredRef = useRef(false)
   const seededIdsRef = useRef<string>('')
-  const [openIds, setOpenIds] = useState<Set<string>>(new Set())
+  // Latest panel meta, read by the imperative toggle without re-binding it.
+  const panelsRef = useRef(panels)
+  useEffect(() => { panelsRef.current = panels }, [panels])
 
   const syncOpen = useCallback(() => {
     const api = apiRef.current
-    if (api) setOpenIds(new Set(api.panels.map((p) => p.id)))
-  }, [])
+    if (api) onOpenChange?.(api.panels.map((p) => p.id))
+  }, [onOpenChange])
 
   const persist = useCallback(() => {
     const api = apiRef.current
@@ -64,11 +75,12 @@ export function DockLayout({ surfaces, panels }: {
 
   const seed = useCallback((api: DockviewApi) => {
     api.clear()
-    const center = panels.find((p) => p.group === 'center') ?? panels[0]
+    const meta = panelsRef.current
+    const center = meta.find((p) => p.group === 'center') ?? meta[0]
     if (!center) return
     add(api, center)
     let rightAnchor: string | undefined
-    for (const p of panels) {
+    for (const p of meta) {
       if (p.id === center.id) continue
       switch (p.group) {
         case 'left': add(api, p, { referencePanel: center.id, direction: 'left' }); break
@@ -80,8 +92,8 @@ export function DockLayout({ surfaces, panels }: {
         default: add(api, p)
       }
     }
-    seededIdsRef.current = panels.map((p) => p.id).join(',')
-  }, [panels, add])
+    seededIdsRef.current = meta.map((p) => p.id).join(',')
+  }, [add])
 
   const onReady = useCallback((event: DockviewReadyEvent) => {
     apiRef.current = event.api
@@ -107,12 +119,13 @@ export function DockLayout({ surfaces, panels }: {
     if (ids !== seededIdsRef.current) seed(api)
   }, [panels, seed])
 
-  const toggle = useCallback((m: DockPanelMeta) => {
+  const toggle = useCallback((id: string) => {
     const api = apiRef.current
     if (!api) return
-    const existing = api.getPanel(m.id)
+    const existing = api.getPanel(id)
     if (existing) { existing.api.close(); return }
-    add(api, m)
+    const m = panelsRef.current.find((p) => p.id === id)
+    if (m) add(api, m)
   }, [add])
 
   const reset = useCallback(() => {
@@ -123,25 +136,19 @@ export function DockLayout({ surfaces, panels }: {
     seed(api)
   }, [seed])
 
+  // Publish the imperative handle for the View menu.
+  useEffect(() => {
+    if (controlsRef) controlsRef.current = { toggle, reset }
+    return () => { if (controlsRef) controlsRef.current = null }
+  }, [controlsRef, toggle, reset])
+
   return (
     <SurfacesContext.Provider value={surfaces}>
-      <div className="docklayout">
-        <div className="docklayout__bar">
-          <span className="docklayout__hint">drag tabs to split/dock · toggle:</span>
-          {panels.map((m) => (
-            <label key={m.id} className="docklayout__toggle">
-              <input type="checkbox" checked={openIds.has(m.id)} onChange={() => toggle(m)} />
-              {m.title}
-            </label>
-          ))}
-          <button className="docklayout__reset" onClick={reset}>Reset layout</button>
-        </div>
-        <DockviewReact
-          className="dockview-theme-abyss docklayout__view"
-          components={COMPONENTS}
-          onReady={onReady}
-        />
-      </div>
+      <DockviewReact
+        className="dockview-theme-madside docklayout__view"
+        components={COMPONENTS}
+        onReady={onReady}
+      />
     </SurfacesContext.Provider>
   )
 }

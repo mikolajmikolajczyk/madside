@@ -1,44 +1,62 @@
-.docklayout {
-  display: flex;
-  flex-direction: column;
-  flex: 1;
-  min-height: 0;
-}
-
-.docklayout__bar {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  padding: 4px 12px;
-  border-bottom: 1px solid var(--border-default);
-  font-size: 11px;
-  flex-wrap: wrap;
-  color: var(--text-secondary);
-}
-
-.docklayout__hint { color: var(--text-tertiary); }
-
-.docklayout__toggle {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  cursor: pointer;
-  user-select: none;
-}
-
-.docklayout__reset {
-  margin-left: auto;
-  background: var(--bg-tertiary);
-  color: inherit;
-  border: 1px solid var(--border-default);
-  border-radius: 3px;
-  padding: 2px 8px;
-  cursor: pointer;
-  font-size: 11px;
-}
-.docklayout__reset:hover { background: var(--bg-secondary); }
-
-.docklayout__view { flex: 1; min-height: 0; }
+.docklayout__view { flex: 1; min-height: 0; height: 100%; }
 
 .docklayout__surface { height: 100%; overflow: auto; display: flex; flex-direction: column; }
 .docklayout__surface > * { flex: 1; min-height: 0; }
+
+/* In a dock panel the emulator owns the whole pane, so its screen scales to fit
+   BOTH dimensions (contain), not just width like the fixed side column does.
+   Scoped to the dock surface — the legacy layout's width:100% screen is left
+   untouched. */
+.docklayout__surface .emulator__canvas {
+  flex: 1;
+  min-height: 0;
+}
+.docklayout__surface .emulator__screen {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+
+/* madside dockview theme — maps dockview's --dv-* knobs onto our design tokens
+   so the dock chrome (tabs, sashes, panel bg) matches the rest of the IDE. */
+.dockview-theme-madside {
+  --dv-paneview-active-outline-color: var(--accent-mint);
+  --dv-tabs-and-actions-container-font-size: 12px;
+  --dv-tabs-and-actions-container-height: 32px;
+  --dv-tab-font-size: 12px;
+  --dv-border-radius: 0px;
+  --dv-tab-border-radius: 0px;
+  --dv-spacing-padding: 0px;
+  --dv-tab-margin: 0;
+
+  --dv-group-view-background-color: var(--bg-primary);
+  --dv-tabs-and-actions-container-background-color: var(--bg-outer);
+  --dv-tabs-container-scrollbar-color: var(--border-default);
+  --dv-scrollbar-background-color: var(--border-default);
+
+  --dv-activegroup-visiblepanel-tab-background-color: var(--bg-primary);
+  --dv-activegroup-visiblepanel-tab-color: var(--text-primary);
+  --dv-activegroup-hiddenpanel-tab-background-color: var(--bg-outer);
+  --dv-activegroup-hiddenpanel-tab-color: var(--text-tertiary);
+  --dv-inactivegroup-visiblepanel-tab-background-color: var(--bg-secondary);
+  --dv-inactivegroup-visiblepanel-tab-color: var(--text-secondary);
+  --dv-inactivegroup-hiddenpanel-tab-background-color: var(--bg-outer);
+  --dv-inactivegroup-hiddenpanel-tab-color: var(--text-quaternary);
+
+  --dv-tab-divider-color: var(--border-default);
+  --dv-separator-border: var(--border-default);
+  --dv-sash-color: transparent;
+  --dv-active-sash-color: var(--accent-mint);
+  --dv-icon-hover-background-color: var(--bg-tertiary);
+  --dv-drag-over-background-color: rgba(124, 214, 184, 0.18);
+  --dv-drag-over-border-color: var(--accent-mint);
+  --dv-context-menu-background-color: var(--bg-secondary);
+  --dv-context-menu-color: var(--text-primary);
+  --dv-floating-box-shadow: 0 6px 18px rgba(0, 0, 0, 0.6);
+}
+
+/* Active-tab accent underline so the focused panel reads clearly. */
+.dockview-theme-madside .dv-active-tab,
+.dockview-theme-madside .tab.active-tab {
+  box-shadow: inset 0 -2px 0 var(--accent-mint);
+}

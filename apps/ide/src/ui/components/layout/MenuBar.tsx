@@ -1,6 +1,6 @@
 import type { ProjectRow } from "@ports";
 import {
-  Menu, MenuTrigger, MenuContent, MenuItem, MenuLabel, MenuSeparator,
+  Menu, MenuTrigger, MenuContent, MenuItem, MenuCheckboxItem, MenuLabel, MenuSeparator,
   MenuSub, MenuSubTrigger, MenuSubContent,
 } from "../ui/Menu";
 import "./MenuBar.css";
@@ -49,6 +49,13 @@ export interface MenuBarProps {
   onSnapshotNow?: () => void;
   onAbout?: () => void;
   onCommandPalette?: () => void;
+  /** Present only in dockview layout mode — drives the View menu (panel
+   *  show/hide + reset). */
+  viewMenu?: {
+    panels: { id: string; title: string; open: boolean }[];
+    onToggle: (id: string) => void;
+    onReset: () => void;
+  };
 }
 
 export function MenuBar(p: MenuBarProps) {
@@ -115,6 +122,27 @@ export function MenuBar(p: MenuBarProps) {
           <MenuItem disabled shortcut="Ctrl+H">Replace</MenuItem>
         </MenuContent>
       </Menu>
+
+      {p.viewMenu && (
+        <Menu>
+          <MenuTrigger data-testid="menu.view">View</MenuTrigger>
+          <MenuContent>
+            <MenuLabel>Panels</MenuLabel>
+            {p.viewMenu.panels.map((panel) => (
+              <MenuCheckboxItem
+                key={panel.id}
+                data-testid={`menu.view.panel.${panel.id}`}
+                checked={panel.open}
+                onCheckedChange={() => p.viewMenu?.onToggle(panel.id)}
+              >
+                {panel.title}
+              </MenuCheckboxItem>
+            ))}
+            <MenuSeparator />
+            <MenuItem data-testid="menu.view.reset" onSelect={p.viewMenu.onReset}>Reset layout</MenuItem>
+          </MenuContent>
+        </Menu>
+      )}
 
       <Menu>
         <MenuTrigger data-testid="menu.run">Run</MenuTrigger>

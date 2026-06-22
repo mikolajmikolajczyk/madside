@@ -40,6 +40,24 @@ export function MenuItem(
   );
 }
 
+export function MenuCheckboxItem(
+  props: React.ComponentProps<typeof DropdownMenu.CheckboxItem>,
+) {
+  const { className = "", children, onSelect, ...rest } = props;
+  return (
+    <DropdownMenu.CheckboxItem
+      {...rest}
+      // Keep the menu open across toggles (unless the caller overrides) so
+      // several panels can be flipped without reopening it.
+      onSelect={onSelect ?? ((e) => e.preventDefault())}
+      className={`ui-menu__item ui-menu__item--check ${className}`}
+    >
+      <DropdownMenu.ItemIndicator className="ui-menu__check">✓</DropdownMenu.ItemIndicator>
+      <span>{children}</span>
+    </DropdownMenu.CheckboxItem>
+  );
+}
+
 export function MenuLabel(props: React.ComponentProps<typeof DropdownMenu.Label>) {
   const { className = "", ...rest } = props;
   return <DropdownMenu.Label {...rest} className={`ui-menu__label ${className}`} />;

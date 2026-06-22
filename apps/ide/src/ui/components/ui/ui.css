@@ -43,6 +43,15 @@
   pointer-events: none;
 }
 .ui-menu__item--danger { color: var(--accent-coral); }
+
+/* Checkbox menu item — leading ✓ indicator (hidden until checked), label after. */
+.ui-menu__item--check { justify-content: flex-start; gap: 8px; }
+.ui-menu__check {
+  width: 12px;
+  display: inline-flex;
+  justify-content: center;
+  color: var(--accent-mint);
+}
 .ui-menu__item--danger[data-highlighted] { color: var(--accent-coral); }
 
 .ui-menu__shortcut {

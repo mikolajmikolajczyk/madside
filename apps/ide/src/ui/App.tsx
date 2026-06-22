@@ -9,7 +9,7 @@ import { DebugBar } from "./components/layout/DebugBar";
 import { StatusBar } from "./components/layout/StatusBar";
 import { Explorer } from "./components/project/Explorer";
 import type { ReadOnlyMount } from "./components/project/FileTree";
-import { DockLayout, type DockPanelMeta } from "./dock/DockLayout";
+import { DockLayout, type DockPanelMeta, type DockControls } from "./dock/DockLayout";
 import { SystemFileView } from "./components/editor/SystemFileView";
 import { Splitter } from "./components/layout/Splitter";
 const Editor = lazy(() => import("./components/editor/Editor").then((m) => ({ default: m.Editor })));
@@ -222,6 +222,11 @@ export default function App() {
       onSelect: openSystemFile,
     }];
   }, [sysrootProvider, systemFilesState, viewSystemFile?.path, openSystemFile]);
+
+  // Dockview layout (behind VITE_MADSIDE_DOCKVIEW) — open-panel ids drive the
+  // MenuBar View menu checkmarks; the imperative handle drives toggle/reset.
+  const [dockOpenIds, setDockOpenIds] = useState<string[]>([]);
+  const dockControlsRef = useRef<DockControls | null>(null);
 
   const projectLabels = useProjectLabels(
     project.loaded ? project.files : null,
@@ -965,6 +970,16 @@ export default function App() {
     ...(outputSurface ? [{ id: "output", title: "Output", group: "bottom" as const }] : []),
   ];
 
+  // View menu (only in dock mode) — toggle panels + reset, driven by the
+  // DockLayout imperative handle; checkmarks track the open-panel ids.
+  const viewMenu = useDock
+    ? {
+        panels: dockPanels.map((p) => ({ id: p.id, title: p.title, open: dockOpenIds.includes(p.id) })),
+        onToggle: (id: string) => dockControlsRef.current?.toggle(id),
+        onReset: () => dockControlsRef.current?.reset(),
+      }
+    : undefined;
+
   return (
     <TooltipProvider delayDuration={300} skipDelayDuration={100}>
     <div className="app">
@@ -1001,6 +1016,7 @@ export default function App() {
         onOpenHistory={() => setHistoryOpen(true)}
         onAbout={() => setAboutOpen(true)}
         onCommandPalette={() => setPaletteOpen(true)}
+        viewMenu={viewMenu}
       />
       <input
         ref={importFileInputRef}
@@ -1025,7 +1041,12 @@ export default function App() {
         onToggleBp={toggleBpAtCursor}
       />
       {useDock ? (
-        <DockLayout surfaces={dockSurfaces} panels={dockPanels} />
+        <DockLayout
+          surfaces={dockSurfaces}
+          panels={dockPanels}
+          controlsRef={dockControlsRef}
+          onOpenChange={setDockOpenIds}
+        />
       ) : (
         <div
           className="app__body"
