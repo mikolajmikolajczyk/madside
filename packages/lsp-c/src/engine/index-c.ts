@@ -353,7 +353,7 @@ export function functionLocals(text: string, funcName: string, decorators?: RegE
   }
   for (let n = root.firstChild; n; n = n.nextSibling) {
     if (n.name !== 'FunctionDefinition') continue
-    const decl = n.getChild('FunctionDeclarator')
+    const decl = funcDeclarator(n) // descends through a pointer-return wrapper (#137)
     const id = decl ? fnNameNode(decl) : null
     if (!decl || !id || slice(text, id) !== funcName) continue
     const list = decl.getChild('ParameterList')

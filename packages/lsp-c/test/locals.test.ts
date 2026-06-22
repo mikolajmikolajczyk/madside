@@ -23,6 +23,16 @@ describe('functionLocals', () => {
     expect(functionLocals(`int g(void) { return 0; }`, 'nope')).toEqual([])
   })
 
+  it('finds locals of a pointer-returning function (#137 — declarator nesting)', () => {
+    const src = `char *get_name(int id) {\n  char *p;\n  int n;\n  return p;\n}\n`
+    expect(names(functionLocals(src, 'get_name'))).toEqual(['id', 'p', 'n'])
+  })
+
+  it('finds locals of a struct-pointer-returning function', () => {
+    const src = `struct Node { int v; };\nstruct Node *head(int k) {\n  struct Node *cur;\n  return cur;\n}\n`
+    expect(names(functionLocals(src, 'head'))).toEqual(['k', 'cur'])
+  })
+
   it('carries exact pointer/array shape (no declarator bleed)', () => {
     const src = `void h(void) {\n  int x, *p;\n  char buf[8];\n}\n`
     const ls = functionLocals(src, 'h')
