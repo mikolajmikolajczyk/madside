@@ -1,4 +1,4 @@
-import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import type { EditorView } from "@codemirror/view";
 import { resolveCStyle, formatCView, isCFile } from "@ui/codemirror";
 import { OutlinePanel } from "./components/outline/OutlinePanel";
@@ -9,6 +9,7 @@ import { DebugBar } from "./components/layout/DebugBar";
 import { StatusBar } from "./components/layout/StatusBar";
 import { Explorer } from "./components/project/Explorer";
 import type { ReadOnlyMount } from "./components/project/FileTree";
+import { DockLayout, type DockPanelMeta } from "./dock/DockLayout";
 import { SystemFileView } from "./components/editor/SystemFileView";
 import { Splitter } from "./components/layout/Splitter";
 const Editor = lazy(() => import("./components/editor/Editor").then((m) => ({ default: m.Editor })));
@@ -784,6 +785,186 @@ export default function App() {
     );
   }
 
+  // Body content surfaces — extracted once so the legacy fixed layout and the
+  // dockview layout (behind VITE_MADSIDE_DOCKVIEW) render the SAME live nodes
+  // (#55 follow-up). Toolbar (MenuBar/DebugBar/StatusBar) stays fixed chrome.
+  const useDock = !!import.meta.env.VITE_MADSIDE_DOCKVIEW;
+
+  const filesSurface = (() => {
+    const explorerEl = (
+      <Explorer
+        files={project.files}
+        active={viewSystemFile ? "" : project.activePath}
+        mainPath={project.manifest.main}
+        onSelect={(p) => { setViewSystemFile(null); project.setActivePath(p); }}
+        onCreateFile={project.createFile}
+        onImportFile={project.createFile}
+        onCreateFolder={project.createFolder}
+        onRenameFile={project.renameFile}
+        onRenameFolder={project.renameFolder}
+        onDeleteFile={project.deleteFile}
+        onDeleteFolder={project.deleteFolder}
+        onDuplicateFile={project.duplicateFile}
+        onSetMain={project.setMainFile}
+        readOnlyMounts={readOnlyMounts}
+      />
+    );
+    const course = project.manifest.course;
+    // Outline of the active C file, under the file tree (#76). Null for
+    // non-C files, so the column collapses back to just the Explorer.
+    const outlineEl = isCFile(activePath) && !viewSystemFile ? (
+      <OutlinePanel
+        path={activePath}
+        content={outlineText}
+        onJump={(line) => setGotoTarget((prev) => ({ line, tick: (prev?.tick ?? 0) + 1 }))}
+      />
+    ) : null;
+    const refsEl = references ? (
+      <ReferencesPanel
+        symbol={references.symbol}
+        refs={references.refs}
+        onJump={jumpToReference}
+        onClose={() => setReferences(null)}
+      />
+    ) : null;
+    if (!course && !outlineEl && !refsEl) return explorerEl;
+    // Vertical split — compact Files on top, lesson + outline + refs below.
+    return (
+      <div className="app__explorer-col">
+        {explorerEl}
+        {course && (
+          <Suspense fallback={<div className="app__loading">loading lesson…</div>}>
+            <CoursePanel
+              courseId={course.id}
+              lessonId={course.lesson}
+              onOpenLesson={(c, l) => { void handleOpenLesson(c, l); }}
+              onCheck={handleCheck}
+              onRefresh={handleRefreshCourse}
+              onReset={handleResetLesson}
+            />
+          </Suspense>
+        )}
+        {outlineEl}
+        {refsEl}
+      </div>
+    );
+  })();
+
+  const editorSurface = viewSystemFile ? (
+    <SystemFileView
+      path={viewSystemFile.path}
+      text={viewSystemFile.text}
+      onClose={() => setViewSystemFile(null)}
+      onGoToDefinition={onGoToDefinition}
+    />
+  ) : activeEditorModule ? (
+    <Suspense fallback={<div className="app__loading">loading editor…</div>}>
+      <PluginEditor
+        module={activeEditorModule}
+        path={project.active.path}
+        value={project.active.content}
+        onChange={project.updateActive}
+        assets={pluginAssets}
+      />
+    </Suspense>
+  ) : isManifestPath(project.active.path) ? (
+    <Suspense fallback={<div className="app__loading">loading editor…</div>}>
+      <ManifestEditor
+        value={project.active.content}
+        onChange={project.updateActive}
+        files={project.files}
+      />
+    </Suspense>
+  ) : isAssetPath(project.active.path) ? (
+    <Suspense fallback={<div className="app__loading">loading panel…</div>}>
+      <AssetPanel
+        filename={project.active.path}
+        bytes={project.active.content}
+        files={project.files}
+        manifest={project.manifest}
+        onUpdateManifest={project.updateManifest}
+        onUpdateFile={project.updateActive}
+        onForceBuild={() => { void runAssemble(); }}
+      />
+    </Suspense>
+  ) : (
+    <Suspense fallback={<div className="app__loading">loading editor…</div>}>
+      <Editor
+        value={new TextDecoder().decode(project.active.content)}
+        onChange={project.updateActive}
+        filename={project.active.path}
+        pcLine={pcLine}
+        breakpointLines={breakpointLines}
+        lineAddrs={lineAddrs}
+        equateValues={equateValues}
+        diagnostics={editorDiagnostics}
+        projectLabels={projectLabels}
+        tabWidth={project.manifest.editor?.tabWidth ?? 4}
+        cFormatStyle={cFormatStyle}
+        cpuLanguage={cpuLanguage}
+        toolchainLanguage={toolchainLanguage}
+        machine={project.manifest.machine}
+        gotoTarget={gotoTarget}
+        onToggleBreakpoint={onToggleBreakpoint}
+        onViewReady={(v) => { editorViewRef.current = v; }}
+        onJumpToLabel={onJumpToLabel}
+        onGoToDefinition={onGoToDefinition}
+        onFindReferences={onFindReferences}
+        onRequestRename={onRequestRename}
+        onCursorLine={setCursorLine}
+      />
+    </Suspense>
+  );
+
+  const outputSurface = project.loaded && outputPanel ? (
+    <PanelSlot
+      panel={outputPanel}
+      projectId={project.projectId}
+      manifest={project.manifest}
+      data={panelData}
+    />
+  ) : null;
+
+  const emulatorSurface = (
+    <Emulator
+      breakpoints={breakpoints}
+      onState={setCpu}
+      blockedMsg={runBlockedMsg}
+    />
+  );
+
+  // Each debug panel is its own dockable surface (legacy stacks them via <Debug>).
+  const debugSurfaces: { id: string; title: string; node: ReactNode }[] = project.loaded
+    ? debugColumnPanels.map((panel) => ({
+        id: `panel:${panel.id}`,
+        title: panel.title ?? panel.id,
+        node: (
+          <PanelSlot
+            panel={panel}
+            projectId={project.projectId}
+            manifest={project.manifest}
+            data={panelData}
+          />
+        ),
+      }))
+    : [];
+
+  const dockSurfaces: Record<string, ReactNode> = {
+    files: filesSurface,
+    editor: editorSurface,
+    emulator: emulatorSurface,
+    ...(outputSurface ? { output: outputSurface } : {}),
+  };
+  for (const d of debugSurfaces) dockSurfaces[d.id] = d.node;
+
+  const dockPanels: DockPanelMeta[] = [
+    { id: "files", title: "Files", group: "left" },
+    { id: "editor", title: "Editor", group: "center" },
+    { id: "emulator", title: "Emulator", group: "right" },
+    ...debugSurfaces.map((d) => ({ id: d.id, title: d.title, group: "right-tabs" as const })),
+    ...(outputSurface ? [{ id: "output", title: "Output", group: "bottom" as const }] : []),
+  ];
+
   return (
     <TooltipProvider delayDuration={300} skipDelayDuration={100}>
     <div className="app">
@@ -843,162 +1024,33 @@ export default function App() {
         onReset={onReset}
         onToggleBp={toggleBpAtCursor}
       />
-      <div
-        className="app__body"
-        style={{ "--explorer-w": explorerW + "px", "--side-w": sideW + "px" } as React.CSSProperties}
-      >
-        {(() => {
-          const explorerEl = (
-            <Explorer
-              files={project.files}
-              active={viewSystemFile ? "" : project.activePath}
-              mainPath={project.manifest.main}
-              onSelect={(p) => { setViewSystemFile(null); project.setActivePath(p); }}
-              onCreateFile={project.createFile}
-              onImportFile={project.createFile}
-              onCreateFolder={project.createFolder}
-              onRenameFile={project.renameFile}
-              onRenameFolder={project.renameFolder}
-              onDeleteFile={project.deleteFile}
-              onDeleteFolder={project.deleteFolder}
-              onDuplicateFile={project.duplicateFile}
-              onSetMain={project.setMainFile}
-              readOnlyMounts={readOnlyMounts}
-            />
-          );
-          const course = project.manifest.course;
-          // Outline of the active C file, under the file tree (#76). Null for
-          // non-C files, so the column collapses back to just the Explorer.
-          const outlineEl = isCFile(activePath) && !viewSystemFile ? (
-            <OutlinePanel
-              path={activePath}
-              content={outlineText}
-              onJump={(line) => setGotoTarget((prev) => ({ line, tick: (prev?.tick ?? 0) + 1 }))}
-            />
-          ) : null;
-          const refsEl = references ? (
-            <ReferencesPanel
-              symbol={references.symbol}
-              refs={references.refs}
-              onJump={jumpToReference}
-              onClose={() => setReferences(null)}
-            />
-          ) : null;
-          if (!course && !outlineEl && !refsEl) return explorerEl;
-          // Vertical split — compact Files on top, lesson + outline + refs below.
-          return (
-            <div className="app__explorer-col">
-              {explorerEl}
-              {course && (
-                <Suspense fallback={<div className="app__loading">loading lesson…</div>}>
-                  <CoursePanel
-                    courseId={course.id}
-                    lessonId={course.lesson}
-                    onOpenLesson={(c, l) => { void handleOpenLesson(c, l); }}
-                    onCheck={handleCheck}
-                    onRefresh={handleRefreshCourse}
-                    onReset={handleResetLesson}
-                  />
-                </Suspense>
-              )}
-              {outlineEl}
-              {refsEl}
-            </div>
-          );
-        })()}
-        <Splitter onResize={(dx) => setExplorerW((w) => clampExplorer(w + dx))} />
-        <main className="app__main" data-focus-region="editor">
-          {viewSystemFile ? (
-            <SystemFileView
-              path={viewSystemFile.path}
-              text={viewSystemFile.text}
-              onClose={() => setViewSystemFile(null)}
-              onGoToDefinition={onGoToDefinition}
-            />
-          ) : activeEditorModule ? (
-            <Suspense fallback={<div className="app__loading">loading editor…</div>}>
-              <PluginEditor
-                module={activeEditorModule}
-                path={project.active.path}
-                value={project.active.content}
-                onChange={project.updateActive}
-                assets={pluginAssets}
-              />
-            </Suspense>
-          ) : isManifestPath(project.active.path) ? (
-            <Suspense fallback={<div className="app__loading">loading editor…</div>}>
-              <ManifestEditor
-                value={project.active.content}
-                onChange={project.updateActive}
-                files={project.files}
-              />
-            </Suspense>
-          ) : isAssetPath(project.active.path) ? (
-            <Suspense fallback={<div className="app__loading">loading panel…</div>}>
-              <AssetPanel
-                filename={project.active.path}
-                bytes={project.active.content}
-                files={project.files}
+      {useDock ? (
+        <DockLayout surfaces={dockSurfaces} panels={dockPanels} />
+      ) : (
+        <div
+          className="app__body"
+          style={{ "--explorer-w": explorerW + "px", "--side-w": sideW + "px" } as React.CSSProperties}
+        >
+          {filesSurface}
+          <Splitter onResize={(dx) => setExplorerW((w) => clampExplorer(w + dx))} />
+          <main className="app__main" data-focus-region="editor">
+            {editorSurface}
+            {outputSurface}
+          </main>
+          <Splitter invert onResize={(dx) => setSideW((w) => clampSide(w + dx))} />
+          <aside className="app__side">
+            {emulatorSurface}
+            {project.loaded && (
+              <Debug
+                panels={debugColumnPanels}
+                projectId={project.projectId}
                 manifest={project.manifest}
-                onUpdateManifest={project.updateManifest}
-                onUpdateFile={project.updateActive}
-                onForceBuild={() => { void runAssemble(); }}
+                panelData={panelData}
               />
-            </Suspense>
-          ) : (
-            <Suspense fallback={<div className="app__loading">loading editor…</div>}>
-              <Editor
-                value={new TextDecoder().decode(project.active.content)}
-                onChange={project.updateActive}
-                filename={project.active.path}
-                pcLine={pcLine}
-                breakpointLines={breakpointLines}
-                lineAddrs={lineAddrs}
-                equateValues={equateValues}
-                diagnostics={editorDiagnostics}
-                projectLabels={projectLabels}
-                tabWidth={project.manifest.editor?.tabWidth ?? 4}
-                cFormatStyle={cFormatStyle}
-                cpuLanguage={cpuLanguage}
-                toolchainLanguage={toolchainLanguage}
-                machine={project.manifest.machine}
-                gotoTarget={gotoTarget}
-                onToggleBreakpoint={onToggleBreakpoint}
-                onViewReady={(v) => { editorViewRef.current = v; }}
-                onJumpToLabel={onJumpToLabel}
-                onGoToDefinition={onGoToDefinition}
-                onFindReferences={onFindReferences}
-                onRequestRename={onRequestRename}
-                onCursorLine={setCursorLine}
-              />
-            </Suspense>
-          )}
-          {project.loaded && outputPanel && (
-            <PanelSlot
-              panel={outputPanel}
-              projectId={project.projectId}
-              manifest={project.manifest}
-              data={panelData}
-            />
-          )}
-        </main>
-        <Splitter invert onResize={(dx) => setSideW((w) => clampSide(w + dx))} />
-        <aside className="app__side">
-          <Emulator
-            breakpoints={breakpoints}
-            onState={setCpu}
-            blockedMsg={runBlockedMsg}
-          />
-          {project.loaded && (
-            <Debug
-              panels={debugColumnPanels}
-              projectId={project.projectId}
-              manifest={project.manifest}
-              panelData={panelData}
-            />
-          )}
-        </aside>
-      </div>
+            )}
+          </aside>
+        </div>
+      )}
       <StatusBar
         projectName={project.manifest.name}
         activePath={project.activePath}

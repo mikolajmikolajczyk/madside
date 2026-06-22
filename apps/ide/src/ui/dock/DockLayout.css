@@ -1,0 +1,44 @@
+.docklayout {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+}
+
+.docklayout__bar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 4px 12px;
+  border-bottom: 1px solid var(--border-default);
+  font-size: 11px;
+  flex-wrap: wrap;
+  color: var(--text-secondary);
+}
+
+.docklayout__hint { color: var(--text-tertiary); }
+
+.docklayout__toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  cursor: pointer;
+  user-select: none;
+}
+
+.docklayout__reset {
+  margin-left: auto;
+  background: var(--bg-tertiary);
+  color: inherit;
+  border: 1px solid var(--border-default);
+  border-radius: 3px;
+  padding: 2px 8px;
+  cursor: pointer;
+  font-size: 11px;
+}
+.docklayout__reset:hover { background: var(--bg-secondary); }
+
+.docklayout__view { flex: 1; min-height: 0; }
+
+.docklayout__surface { height: 100%; overflow: auto; display: flex; flex-direction: column; }
+.docklayout__surface > * { flex: 1; min-height: 0; }
