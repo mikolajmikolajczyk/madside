@@ -314,26 +314,78 @@ export function indexC(files: SourceFile[], opts: IndexOptions = {}): CIndex {
   // agat.h on a C64 build). Generic headers + the active target's headers stay,
   // so completion + auto-`#include` keep working without the cross-target noise.
   const defines = opts.defines
+
+  // The sysroot is immutable across reindexes (it's a fixed toolchain runtime),
+  // and parsing it is the whole cost — ~825 ZX headers take ~0.5 s each pass, so
+  // re-parsing them on every keystroke is what made the z80 LSP take tens of
+  // seconds. Build the sysroot's index ONCE per (sysroot array, defines,
+  // decorators) and clone it; each reindex then only parses the (small) project
+  // files on top. Keyed off the sysroot array identity — the host hands back the
+  // same cached array per target, so this hits after the first build.
+  const sysrootIndex = getSysrootIndex(sysroot, defines, decorators)
+  const index2: CIndex = {
+    types: new Map(sysrootIndex.types),
+    symbols: new Map(sysrootIndex.symbols),
+    aliases: new Map(sysrootIndex.aliases),
+  }
+  // Project files on top, same order as the original (sysroot first, then
+  // project): collectSymbols is first-wins so project names don't shadow sysroot,
+  // and project includes resolve against the already-built sysroot index.
+  for (const f of files) {
+    const file = basename(f.path)
+    const { stripped } = preprocess(f.text, defines)
+    collectTypes(stripped, file, f.path, index2.types, index2.aliases, decorators)
+    collectSymbols(stripped, file, f.path, index2.symbols, undefined, decorators)
+  }
+  return index2
+}
+
+// Cached sysroot index per (sysroot array, defines + decorators). WeakMap on the
+// array so a dropped sysroot is GC'd; inner Map keys the variant.
+type SysrootIndex = { types: Map<string, CType>; symbols: Map<string, CSymbol>; aliases: Map<string, string> }
+const sysrootCache = new WeakMap<SourceFile[], Map<string, SysrootIndex>>()
+
+function variantKey(defines: Record<string, string>, decorators?: RegExp): string {
+  const d = Object.keys(defines)
+    .sort()
+    .map((k) => `${k}=${defines[k]}`)
+    .join(',')
+  return `${d} ${decorators?.source ?? ''}`
+}
+
+/** Build (or reuse) the index for the immutable sysroot under these defines —
+ *  the preprocessor-aware reachability walk + parse, run once and cached. The
+ *  reachability is computed from the sysroot alone (project-independent): a
+ *  project's own conditional `#include`s don't gate sysroot headers in practice,
+ *  and an over-kept header only adds harmless extra completions. */
+function getSysrootIndex(
+  sysroot: SourceFile[],
+  defines: Record<string, string>,
+  decorators?: RegExp,
+): SysrootIndex {
+  let byVariant = sysrootCache.get(sysroot)
+  if (!byVariant) {
+    byVariant = new Map()
+    sysrootCache.set(sysroot, byVariant)
+  }
+  const key = variantKey(defines, decorators)
+  const hit = byVariant.get(key)
+  if (hit) return hit
+
   const byName = new Map<string, { src: SourceFile; pp: PreprocessResult }>()
   for (const h of sysroot) byName.set(basename(h.path), { src: h, pp: preprocess(h.text, defines) })
-  const ppProj = files.map((f) => ({ src: f, pp: preprocess(f.text, defines) }))
 
-  // A header included anywhere through an *inactive* conditional `#include` is a
-  // candidate other-target header (e.g. agat.h / apple2.h on a C64 build). It
-  // is kept only if some *reachable* header reaches it through an active include
-  // — hence a reachability walk, not a flat tally: an excluded header's own
-  // includes (agat.h unconditionally pulls apple2.h) must not rescue it.
+  // A header included only through an *inactive* conditional is a candidate
+  // other-target header (agat.h / apple2.h on a C64 build); keep it only if a
+  // *reachable* header pulls it through an active include — a reachability walk,
+  // not a flat tally (an excluded header's own includes must not rescue it).
   const inactiveSet = new Set<string>()
-  for (const { pp } of [...byName.values(), ...ppProj]) {
+  for (const { pp } of byName.values()) {
     for (const inc of pp.includes) if (!inc.active) inactiveSet.add(basename(inc.name))
   }
 
-  // Reach = project files + every sysroot header NOT gated out by an inactive
-  // conditional, then follow active `#include`s. Other-target headers (in
-  // inactiveSet, not actively reached) fall out; generic + active-target headers
-  // stay, so completion + auto-`#include` keep working.
   const reached = new Set<string>()
-  const queue: PreprocessResult[] = ppProj.map((e) => e.pp)
+  const queue: PreprocessResult[] = []
   for (const [name, e] of byName) {
     if (!inactiveSet.has(name)) {
       reached.add(name)
@@ -353,15 +405,12 @@ export function indexC(files: SourceFile[], opts: IndexOptions = {}): CIndex {
     }
   }
 
+  const out: SysrootIndex = { types: new Map(), symbols: new Map(), aliases: new Map() }
   for (const [name, e] of byName) {
     if (!reached.has(name)) continue
-    collectTypes(e.pp.stripped, name, e.src.path, index.types, index.aliases, decorators)
-    collectSymbols(e.pp.stripped, name, e.src.path, index.symbols, name, decorators)
+    collectTypes(e.pp.stripped, name, e.src.path, out.types, out.aliases, decorators)
+    collectSymbols(e.pp.stripped, name, e.src.path, out.symbols, name, decorators)
   }
-  for (const { src, pp } of ppProj) {
-    const file = basename(src.path)
-    collectTypes(pp.stripped, file, src.path, index.types, index.aliases, decorators)
-    collectSymbols(pp.stripped, file, src.path, index.symbols, undefined, decorators)
-  }
-  return index
+  byVariant.set(key, out)
+  return out
 }
