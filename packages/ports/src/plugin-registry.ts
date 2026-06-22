@@ -10,6 +10,7 @@ export type PluginKind =
   | 'emulator'
   | 'debug-adapter'
   | 'panel'
+  | 'theme'
 
 /** Minimum surface every plugin instance shares. Specific contracts (Machine,
  *  Toolchain, …) extend this in their own ports modules. */

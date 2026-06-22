@@ -21,7 +21,9 @@
     "packages/panel-ppu/src/**/*",
     "packages/panel-registers/src/**/*",
     "packages/converters/src/**/*",
-    "packages/editors/src/**/*"
+    "packages/editors/src/**/*",
+    "packages/theme-dark/src/**/*",
+    "packages/theme-light/src/**/*"
   ],
   "references": [
     { "path": "./tsconfig.core.json" },

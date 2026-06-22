@@ -16,6 +16,8 @@ import { registersPanel } from '@madside/panel-registers'
 import { memoryPanel } from '@madside/panel-memory'
 import { outputPanel } from '@madside/panel-output'
 import { ppuPanel } from '@madside/panel-ppu'
+import { darkTheme } from '@madside/theme-dark'
+import { lightTheme } from '@madside/theme-light'
 
 // Built-in plugin manifest (#67). Single source of truth for the bundled
 // (`origin: 'builtin'`) plugins the workbench registers at bootstrap. Adding a
@@ -51,4 +53,7 @@ export const builtinPlugins: readonly PluginBase[] = [
   memoryPanel,
   outputPanel,
   ppuPanel,
+  // themes (#118)
+  darkTheme,
+  lightTheme,
 ]

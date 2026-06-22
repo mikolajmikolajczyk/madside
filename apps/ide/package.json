@@ -40,6 +40,8 @@
     "@madside/panel-output": "workspace:*",
     "@madside/panel-ppu": "workspace:*",
     "@madside/panel-registers": "workspace:*",
+    "@madside/theme-dark": "workspace:*",
+    "@madside/theme-light": "workspace:*",
     "@madside/toolchain-ca65": "workspace:*",
     "@madside/toolchain-mads": "workspace:*",
     "@madside/toolchain-z88dk": "workspace:*",

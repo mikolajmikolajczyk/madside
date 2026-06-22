@@ -32,6 +32,7 @@ export type {
   PluginLoaderFactory,
   ProjectPluginSource,
 } from './plugin-loader'
+export type { ThemePlugin, ThemeTokens, ThemeTokenName } from './plugin-theme'
 
 // Plugin contracts
 export type {

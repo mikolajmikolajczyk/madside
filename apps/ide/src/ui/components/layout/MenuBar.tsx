@@ -63,6 +63,8 @@ export interface MenuBarProps {
     onDeletePreset: (name: string) => void;
     onSavePreset: () => void;
     onCopyLayout: () => void;
+    themes: { id: string; name: string; active: boolean }[];
+    onTheme: (id: string) => void;
   };
 }
 
@@ -206,6 +208,21 @@ export function MenuBar(p: MenuBarProps) {
                 )}
                 <MenuSeparator />
                 <MenuItem data-testid="menu.view.layout.copy" onSelect={p.viewMenu.onCopyLayout}>Copy layout JSON</MenuItem>
+              </MenuSubContent>
+            </MenuSub>
+            <MenuSub>
+              <MenuSubTrigger data-testid="menu.view.theme">Theme</MenuSubTrigger>
+              <MenuSubContent>
+                {p.viewMenu.themes.map((t) => (
+                  <MenuCheckboxItem
+                    key={t.id}
+                    data-testid={`menu.view.theme.${t.id}`}
+                    checked={t.active}
+                    onCheckedChange={() => p.viewMenu?.onTheme(t.id)}
+                  >
+                    {t.name}
+                  </MenuCheckboxItem>
+                ))}
               </MenuSubContent>
             </MenuSub>
             <MenuSeparator />

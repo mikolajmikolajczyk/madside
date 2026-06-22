@@ -27,7 +27,7 @@ import { CommandPalette } from "./components/command/CommandPalette";
 import { useToast } from "./components/ui/Toast";
 import { buildAppCommands, type AppCommandEnv } from "./commands/appCommands";
 import type { CpuRegs } from "./components/debug/Emulator";
-import type { CommandContext, PanelPlugin, ToolchainPlugin } from "@ports";
+import type { CommandContext, PanelPlugin, ThemePlugin, ToolchainPlugin } from "@ports";
 import { basename, extOf } from "@core/path";
 import { getCpuLanguage } from "@core";
 import { useCommandShortcuts } from "./hooks/useCommandShortcuts";
@@ -48,6 +48,7 @@ import { useAutoAssemble } from "./hooks/useAutoAssemble";
 import { useRunStatus } from "./hooks/useRunStatus";
 import { useActiveMachine } from "./hooks/useActiveMachine";
 import { useWorkbench } from "@app";
+import { applyTheme, loadThemeId, saveThemeId } from "@app";
 import { getCourse, openLesson, refreshCourseFromGitHub, resetLessonToStarter, runChecks, scanEquates } from "@app";
 import type { CheckReport, CheckRunDeps } from "@app";
 import type { CourseCheck } from "@app";
@@ -226,6 +227,15 @@ export default function App() {
   const [dockUserPresets, setDockUserPresets] = useState<string[]>([]);
   const [savePresetOpen, setSavePresetOpen] = useState(false);
   const dockControlsRef = useRef<DockControls | null>(null);
+
+  // Theme (#118) — registered ThemePlugins; apply the selected palette's tokens
+  // to :root and persist the choice. Default 'dark' (matches base tokens.css).
+  const themes = useMemo(() => workbench.plugins.list<ThemePlugin>('theme'), [workbench.plugins]);
+  const [themeId, setThemeId] = useState(() => loadThemeId('dark'));
+  useEffect(() => {
+    const theme = themes.find((t) => t.id === themeId) ?? themes[0];
+    if (theme) { applyTheme(theme.tokens); saveThemeId(theme.id); }
+  }, [themes, themeId]);
 
   const projectLabels = useProjectLabels(
     project.loaded ? project.files : null,
@@ -989,6 +999,8 @@ export default function App() {
       const json = dockControlsRef.current?.exportLayout() ?? "{}";
       void navigator.clipboard?.writeText(json);
     },
+    themes: themes.map((t) => ({ id: t.id, name: t.name ?? t.id, active: t.id === themeId })),
+    onTheme: setThemeId,
   };
 
   return (

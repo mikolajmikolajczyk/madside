@@ -30,6 +30,7 @@ const pluginPackages = [
   'debug-atari-6502', 'debug-zx-z80',
   'panel-memory', 'panel-output', 'panel-ppu', 'panel-registers',
   'converters', 'editors',
+  'theme-dark', 'theme-light',
 ]
 
 // Two patterns per layer so EVERY file is classified, not just sub-folders:
