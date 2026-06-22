@@ -15,9 +15,10 @@ The workbench core knows nothing about Atari, NES, MADS, or jsnes. Those are **p
 | `toolchain` | An assembler/compiler — the build, plus the editor language (directives, snippets). |
 | `emulator` | A run backend — framebuffer, audio, single-instruction step, breakpoints, save state. |
 | `debug-adapter` | The debugger surface — register/flag descriptors, step, memory reads. |
-| `panel` | A UI panel — registers, memory, machine-specific viewers. |
+| `panel` | A UI panel — registers, memory, variables, machine-specific viewers. |
 | `converter` | An asset transform — image/CSV/binary → assembler data. |
 | `editor` | A custom editor for a file type. |
+| `theme` | A colour palette — design tokens applied as CSS custom properties. |
 
 A project's `project.json` selects which `machine` and `toolchain` it uses; the machine declares which emulators and debug adapters are compatible. See the [Reference](/docs/reference/) for the full manifest schema.
 
@@ -28,7 +29,7 @@ Every plugin shares a minimal base — an `id`, its `kind`, and an optional `nam
 ```ts
 interface PluginBase {
   readonly id: string       // kebab-case ascii slug — stable; manifest dispatch keys off it
-  readonly kind: PluginKind // 'machine' | 'toolchain' | 'emulator' | 'debug-adapter' | 'panel' | 'converter' | 'editor'
+  readonly kind: PluginKind // 'machine' | 'toolchain' | 'emulator' | 'debug-adapter' | 'panel' | 'converter' | 'editor' | 'theme'
   readonly name?: string
   readonly version?: string
 }
@@ -49,7 +50,7 @@ Services resolve plugins through `get`/`list` — `BuildService` looks up `get('
 
 ## Registering a plugin
 
-Built-ins are registered in [`src/app/createWorkbench.ts`](https://github.com/) at workbench construction. You pass a `PluginEntry` — the plugin tagged with its `kind` plus a `source` descriptor:
+Built-ins are registered in [`apps/ide/src/app/createWorkbench.ts`](https://github.com/) at workbench construction. You pass a `PluginEntry` — the plugin tagged with its `kind` plus a `source` descriptor:
 
 ```ts
 plugins.register({

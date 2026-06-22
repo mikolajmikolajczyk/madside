@@ -50,7 +50,7 @@ Prefer rebuild-as-you-type? Set `build.trigger: "auto"` in the project manifest 
 
 Press **Run** (the ▶ button, or **Ctrl+Enter**). The emulator boots, loads the assembled binary, and starts. The canvas on the right shows the Atari screen with the text drawn.
 
-- **Pause** / **Stop** halt the run; **Step** advances one instruction, **Frame** one display frame.
+- **Pause** / **Stop** halt the run; **Step Over** (F10) advances one source line, **Step Instruction** (Shift+F10) one CPU instruction, **Frame** (F11) one display frame.
 - Click in the gutter next to a line to set a **breakpoint** — the run pauses there and the register / memory panels show the machine state.
 
 ## Next

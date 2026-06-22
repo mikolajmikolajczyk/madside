@@ -35,7 +35,7 @@ The panels that appear (and their order) are resolved like this:
 2. Otherwise the active machine's default panel list is used.
 3. Otherwise it falls back to **Registers** + **Memory**.
 
-A panel id with no registered plugin is skipped. So an Atari project shows Registers / Memory / Variables / Output (+ Asset), while an NES project additionally shows the PPU viewer. See the [per-machine default panels](/docs/reference/machines/#default-panels).
+A panel id with no registered plugin is skipped. So an Atari project shows Memory / Registers / Variables / Output (+ Asset), in that order, while an NES project additionally shows the PPU viewer. See the [per-machine default panels](/docs/reference/machines/#default-panels).
 
 To pin a specific set, add a `panels` array to your manifest:
 

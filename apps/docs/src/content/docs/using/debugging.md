@@ -17,11 +17,12 @@ Set a breakpoint by clicking the breakpoint gutter next to a line, or with **F9*
 
 Breakpoints are stored per file (path-aware) and survive re-assembles and reloads. After a build, each breakpoint line resolves through the [source map](/docs/using/building/#the-source-map-and-labels) to a machine address. When the running emulator's program counter reaches one of those addresses, it traps: the emulator pauses, the editor highlights the line, and the panels refresh. The status bar shows the address you broke on.
 
-## Step instruction vs step frame
+## Stepping
 
-Both are available only while the emulator is paused:
+All three are available only while the emulator is paused:
 
-- **Step** (F10) advances exactly one CPU instruction.
+- **Step over** (F10) runs to the next source line, executing transparently through any library calls in between (so you don't trap inside `clrscr` and friends).
+- **Step instruction** (Shift+F10) advances exactly one CPU instruction.
 - **Frame** (F11) advances one full display frame.
 
 Frame temporarily ignores breakpoints while it advances, so it always completes a real frame even when you're paused on a breakpoint. Stepping repaints the emulator screen and refreshes the panels each time.

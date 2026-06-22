@@ -27,9 +27,11 @@ readMemory(addr: number, len: number, space?: string): Promise<Uint8Array>
 | Machine | Space id | Label | Size | Notes |
 |---------|----------|-------|------|-------|
 | Atari (`atari-xl`) | `cpu` | CPU bus | — | Implicit; only space. No extra `memorySpaces`. |
+| C64 (`c64`) | `cpu` | CPU bus | — | Implicit; only space. |
+| ZX Spectrum (`zx-spectrum`) | `cpu` | CPU bus | — | Implicit; only space. |
 | NES (`nes`) | `cpu` | CPU bus | — | Implicit. |
 | NES (`nes`) | `ppu` | PPU VRAM | `0x4000` (16 KB) | Pattern tables, nametables, palette. Read by the PPU viewer. |
 | NES (`nes`) | `oam` | OAM | `0x100` (256 B) | Sprite attribute table. |
 
-The Atari machine declares no extra spaces, so only the implicit `cpu` space is
-available there.
+Only the NES declares extra spaces today; the Atari, C64, and ZX Spectrum expose
+only the implicit `cpu` space.

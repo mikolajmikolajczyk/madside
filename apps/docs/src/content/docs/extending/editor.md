@@ -88,7 +88,7 @@ Editor crashes don't take down the workbench. The host wraps mount in a three-la
 
 Two ways to own a file type exist side by side:
 
-- **`EditorModule`** (this page) — the project-local `editors/*.js` ecosystem, loaded at runtime via Blob URL and bound through `manifest.editors`. The built-in bitmap editor (`packages/editors/builtins/bitmap`) is also an `EditorModule`, resolved by extension through `buildEditorRegistry`.
+- **`EditorModule`** (this page) — the project-local `editors/*.js` ecosystem, loaded at runtime via Blob URL and bound through `manifest.editors`. The built-in bitmap editor (`packages/editors/src/builtins/bitmap`) is also an `EditorModule`, resolved by extension through `buildEditorRegistry`.
 - **`PanelPlugin` with `fileExt`** — a built-in panel that doubles as a file editor; the workbench routes matching opens through it and populates `ctx.file`. See the [panel guide](/docs/extending/panel/).
 
 There is no automatic bridge between the two — pick the contract that fits (project-shippable editor → `EditorModule`; built-in panel-style editor → `PanelPlugin`).

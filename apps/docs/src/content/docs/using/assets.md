@@ -20,7 +20,18 @@ If no converter applies to the file's extension, the form says so.
 
 ## Converters
 
-Converters are JavaScript modules. Built-in converters cover common cases, and you can add project-local converters by dropping `.js` files under `converters/` in your project — they're picked up automatically and offered in the Asset panel alongside the built-ins.
+Converters are JavaScript modules. Two ship built-in:
+
+| Converter id | Input | What it emits |
+|--------------|-------|---------------|
+| `bin-to-incbin` | `.bin`, `.raw` | raw bytes as `.byte` lines (options: `label`, `perLine`) |
+| `csv-to-data` | `.csv` | CSV cells as byte/word data (options: `label`, `size`) |
+
+Image and tilemap files (`.png`, `.tmx`, …) still **preview** in the Asset panel,
+but there's no built-in image-data converter yet — you supply one as a project-local
+converter. Drop `.js` files under `converters/` in your project and they're picked up
+automatically and offered in the Asset panel alongside the built-ins (see
+[Converters](/docs/extending/converter/) for the module contract).
 
 ## How recipes run
 
@@ -30,10 +41,10 @@ Recipes are stored in the manifest as `recipes`:
 {
   "recipes": [
     {
-      "input": "assets/sprite.png",
+      "input": "assets/sprite.bin",
       "output": "generated/sprite.asm",
-      "converter": "png2bytes",
-      "options": { }
+      "converter": "bin-to-incbin",
+      "options": { "label": "sprite", "perLine": 16 }
     }
   ]
 }

@@ -20,7 +20,7 @@ interface EmulatorPlugin {
 }
 ```
 
-`createBackend` is deliberately lazy — typically a `() => (await import('./core')).create()` — so the wasm/JS core stays out of the main bundle and is fetched only when an emulator is actually selected. The plugin is registered through the `PluginRegistry` like every other kind; a machine names the one it runs on via `MachinePlugin.compatibleEmulators`, and the workbench resolves `compatibleEmulators[0]` from the registry. The shipped emulators are Altirra (`@adapters/emu`, id `altirra-wasm`) and jsnes (`@plugins/emulator-nes-jsnes`, id `jsnes`).
+`createBackend` is deliberately lazy — typically a `() => (await import('./core')).create()` — so the wasm/JS core stays out of the main bundle and is fetched only when an emulator is actually selected. The plugin is registered through the `PluginRegistry` like every other kind; a machine names the one it runs on via `MachinePlugin.compatibleEmulators`, and the workbench resolves `compatibleEmulators[0]` from the registry. The shipped emulators are Altirra (`@adapters/emu`, id `altirra-wasm`) and jsnes (`@madside/emulator-nes-jsnes`, id `jsnes`).
 
 The rest of this page documents `RunBackend` — the interface your `createBackend` returns.
 
@@ -88,4 +88,4 @@ On a breakpoint hit, `RunService` pauses and emits `debug:bp-hit`; a completed s
 plugins.register({ plugin: { ...myEmulator, kind: 'emulator' }, source: { origin: 'builtin' } })
 ```
 
-A machine names its emulator in `compatibleEmulators`; `createWorkbench` resolves `compatibleEmulators[0]` from the registry and uses its `createBackend` as the `backendFactory` in the machine-selection table, alongside the `MachinePlugin` and the resolved `DebugAdapter`. Switching the project's `machine` swaps all three via `RunService.reconfigure`. See `src/app/createWorkbench.ts` (`resolveEmulatorBackend`) for the wiring.
+A machine names its emulator in `compatibleEmulators`; `createWorkbench` resolves `compatibleEmulators[0]` from the registry and uses its `createBackend` as the `backendFactory` in the machine-selection table, alongside the `MachinePlugin` and the resolved `DebugAdapter`. Switching the project's `machine` swaps all three via `RunService.reconfigure`. See `apps/ide/src/app/createWorkbench.ts` (`resolveEmulatorBackend`) for the wiring.

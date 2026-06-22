@@ -2,7 +2,7 @@
 title: Validating your plugin
 description: Contract test harnesses and the patterns for testing each plugin kind.
 sidebar:
-  order: 11
+  order: 12
 ---
 
 Each plugin contract is small enough to test directly. Every plugin kind now ships an `assert<Kind>Plugin` harness — drop in a one-liner for the shape check, then add a behaviour test where it matters. The harnesses live under `@ports/test/`, and built-in plugins use the same ones — so your test fails on the exact drift a built-in's would.

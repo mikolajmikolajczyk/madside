@@ -5,7 +5,7 @@ sidebar:
   order: 4
 ---
 
-Pressing **Run** boots your assembled binary in the in-browser emulator — Altirra for Atari, jsnes for NES, and Chips cores for the C64 (`c64-core`) and ZX Spectrum (`zx-core`). The emulator is a dockable panel; click its screen to give it keyboard focus, then type to send keys to the machine.
+Pressing **Run** boots your assembled binary in the in-browser emulator — Altirra (`altirra-wasm`) for Atari, jsnes for NES, and Chips cores for the C64 (`chips-c64`) and ZX Spectrum (`zx-chips`). The emulator is a dockable panel; click its screen to give it keyboard focus, then type to send keys to the machine.
 
 ## Run controls
 
@@ -44,14 +44,15 @@ The common controls have shortcuts:
 | Ctrl+. | Pause |
 | Ctrl+Shift+. | Stop |
 | Ctrl+Shift+Enter | Restart |
-| F10 | Step instruction |
+| F10 | Step over (next source line) |
+| Shift+F10 | Step instruction (one CPU instruction) |
 | F11 | Step frame |
 | F9 | Toggle breakpoint at cursor |
+| Ctrl+S | Save + assemble + snapshot |
+| Ctrl+B | Build |
 
 Don't remember a shortcut? Open the **command palette** with `Ctrl+K` and type —
 every action is there with its key shown next to it.
-| Ctrl+S | Save + assemble + snapshot |
-| Ctrl+B | Build |
 
 On macOS, use Cmd in place of Ctrl. The full table — including the editor and build shortcuts — lives in [Reference](/docs/reference/).
 

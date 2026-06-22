@@ -12,7 +12,7 @@ just the starting arrangement.
 
 ## Menu bar & toolbar
 
-Across the top: **File / Edit / View / Run / Help** menus and a toolbar with the run controls — Run, Pause, Stop, Step (one instruction), Frame (one display frame), and Reset. The **View** menu shows/hides any panel and switches between named layouts + your presets.
+Across the top: **File / Edit / View / Run / Help** menus and a toolbar with the run controls — Run, Pause, Stop, Step Over (next source line), Step Instruction (one CPU instruction), Frame (one display frame), and Reset. The **View** menu shows/hides any panel and switches between named layouts + your presets.
 
 ## Files
 

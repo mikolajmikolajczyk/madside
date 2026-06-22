@@ -9,11 +9,10 @@ madside snapshots your project as you work so you can roll back. Snapshots are s
 
 ## When snapshots are taken
 
-- **Automatically** after 30 seconds of no edits.
-- **On Ctrl+S** (save + assemble + snapshot).
-- **Manually** via **File → Snapshot now**, or the **Snapshot now** button in the History dialog.
+- **Automatically** after 30 seconds of no edits — tagged `auto`.
+- **On Ctrl+S** (save + assemble + snapshot), or via **File → Snapshot now** / the **Snapshot now** button — all tagged `manual`.
 
-Automatic snapshots are pruned over time; manual snapshots are kept.
+So a snapshot carries one of two tags: `auto` or `manual`. Automatic snapshots are pruned over time (the most recent 100 are kept); every `manual` snapshot is kept indefinitely.
 
 ## The History dialog
 

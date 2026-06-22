@@ -2,7 +2,7 @@
 title: Authoring a course
 description: Write an interactive course — lessons, starter files, and declarative checks.
 sidebar:
-  order: 12
+  order: 13
 ---
 
 A **course** is interactive, in-app learning: a course holds ordered **lessons**, each combining theory (markdown), a starter project, and an automated **check** that verifies the learner's work. Courses are *content*, not plugins — no code to register, no build step. Drop a directory in and it shows up in the picker.

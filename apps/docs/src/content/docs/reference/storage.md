@@ -35,7 +35,7 @@ normally (v3 added the `courses` store; v4 added the `builds` store).
   deduplicated in the `blobs` store (content-addressable by sha-256).
 - **`breakpoints.bps`** maps a file path to a list of 1-based line numbers.
 - **`builds.build`** holds the last build of a project — `StoredBuild` is
-  `{ ok, binary?, sourceMap?, labels?, diagnostics?, stdout, stderr, exitCode }`.
+  `{ ok, binary?, sourceMap?, labels?, debugInfo?, diagnostics?, stdout, stderr, exitCode }`.
   Persisting it lets a page reload restore the OUTPUT panel + inline error
   markers and the binary, so **Run** works without a rebuild. The `Uint8Array`
   (`binary`) and `Map` (`labels`, `sourceMap`) round-trip through IndexedDB's

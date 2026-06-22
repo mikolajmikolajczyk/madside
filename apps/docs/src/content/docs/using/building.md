@@ -72,4 +72,4 @@ Includes are resolved by the assembler relative to the project root; add source 
 
 ## Exporting the binary
 
-**File → Export binary** downloads the assembled binary to your machine, named after the project with the machine's output extension — `.xex` for Atari, `.nes` (iNES) for NES. It's enabled once a build has succeeded; run the result on a hardware emulator, flash it to a cart, or share it. (To export the whole *project* — sources + manifest — use **File → Export ZIP** instead.)
+**File → Export binary** downloads the assembled binary to your machine, named after the project with the machine's default media extension — `.xex` for Atari, `.nes` (iNES) for NES, `.prg` for C64, `.tap` for the ZX Spectrum. It's enabled once a build has succeeded; run the result on a hardware emulator, flash it to a cart, or share it. (To export the whole *project* — sources + manifest — use **File → Export ZIP** instead.)

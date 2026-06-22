@@ -123,7 +123,7 @@ bootEquates: { path: 'src/atari.a65', content: 'SAVMSC = $58\nCOLOR0 = $02C4\n' 
 
 ## Compatibility + default panels
 
-- `compatibleToolchains` / `compatibleEmulators` / `compatibleDebugAdapters` — plugin ids known to target/host/debug this machine; resolved through the registry and used for selection and validation. The workbench takes the first entry of each as the active pairing. Both shipped machines list `compatibleToolchains: ['mads', 'cc65']`; Atari hosts on `altirra-wasm`, NES on `jsnes`; both reuse the generic `atari-6502-debug` adapter.
+- `compatibleToolchains` / `compatibleEmulators` / `compatibleDebugAdapters` — plugin ids known to target/host/debug this machine; resolved through the registry and used for selection and validation. The workbench takes the first entry of each as the active pairing. The 6502 machines (Atari, NES, C64) list `cc65` + `mads` and reuse the generic `atari-6502-debug` adapter; they host on `altirra-wasm` / `jsnes` / `chips-c64` respectively. The ZX Spectrum lists `z88dk`, hosts on `zx-chips`, and uses `zx-z80-debug`.
 - `defaultPanels` — panel ids the machine recommends when a project doesn't list its own.
 
 ## Program load range (optional)
@@ -140,4 +140,4 @@ plugins.register({ plugin: { ...helloMachine, kind: 'machine' }, source: { origi
 { "version": 2, "machine": "hello" }
 ```
 
-The workbench's machine-selection table pairs each `MachinePlugin` with its emulator backend factory and debug adapter; switching the manifest's `machine` swaps all three. See `src/app/createWorkbench.ts` for the wiring, and the [emulator](/docs/extending/emulator/) and [debug adapter](/docs/extending/debug-adapter/) guides for the pieces a machine pairs with.
+The workbench's machine-selection table pairs each `MachinePlugin` with its emulator backend factory and debug adapter; switching the manifest's `machine` swaps all three. See `apps/ide/src/app/createWorkbench.ts` for the wiring, and the [emulator](/docs/extending/emulator/) and [debug adapter](/docs/extending/debug-adapter/) guides for the pieces a machine pairs with.

@@ -2,12 +2,12 @@
 title: Adding a template
 description: Bundle a starter project that appears on the welcome screen.
 sidebar:
-  order: 10
+  order: 11
 ---
 
 A **template** is a starter project — a `project.json`, some source files, and a one-line descriptor. Templates appear on the welcome screen (shown on first run, or anytime via **File → New project**); choosing one instantiates a fresh project into storage.
 
-Templates are bundled at build time from the repo-root `templates/` directory (via Vite's glob import) — no separate repo, no hosting, always available offline. See `src/app/templates.ts`.
+Templates are bundled at build time from the `apps/ide/templates/` directory (via Vite's glob import) — no separate repo, no hosting, always available offline. See `apps/ide/src/app/templates.ts`.
 
 ## Layout
 

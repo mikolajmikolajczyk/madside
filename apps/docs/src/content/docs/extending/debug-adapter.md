@@ -56,7 +56,7 @@ The generic 6502 register set (A / X / Y / PC / SP) and flag set (N V B D I Z C)
 
 ```ts
 import type { DebugAdapterPlugin, RunBackend } from '@ports'
-import { MOS6502_FLAGS, MOS6502_REGISTERS } from '@plugins/debug-atari-6502'
+import { MOS6502_FLAGS, MOS6502_REGISTERS } from '@madside/debug-atari-6502'
 
 export const nes6502DebugAdapter: DebugAdapterPlugin = {
   id: 'nes-6502-debug',

@@ -128,28 +128,7 @@ language: {
 
 The 6502 *opcodes* come from the machine's CPU; `language` carries only what's assembler-specific. A toolchain without `language` falls back to plain text. `snippets` use CodeMirror's `${n:placeholder}` template syntax but the contract itself doesn't depend on CodeMirror.
 
-### C library symbols (`cSymbols`)
-
-A toolchain that compiles C (cc65) can also offer its standard-library surface for autocomplete + hover in `.c` / `.h` sources via `language.cSymbols`:
-
-```ts
-interface ToolchainCSymbol {
-  label: string     // identifier as typed, e.g. 'cputs'
-  detail?: string   // one-line signature shown beside the completion, e.g. 'void cputs(const char*)'
-  info?: string     // longer hover/info text
-  header?: string   // declaring header, e.g. 'conio.h' — auto-`#include`d when the completion is accepted
-}
-
-language: {
-  // ...directives / lineComment / snippets as above...
-  cSymbols: [
-    { label: 'cputs', header: 'conio.h', detail: 'void cputs(const char* s)', info: 'Output a string at the cursor.' },
-    { label: 'memcpy', header: 'string.h', detail: 'void* memcpy(void* dst, const void* src, size_t n)' },
-  ],
-}
-```
-
-`cSymbols` is declarative — like the rest of `language`, no CodeMirror dependency. When the user accepts a completion, the editor auto-`#include`s the symbol's `header` so they learn where it comes from. It's a curated surface (the common console + stdlib calls), not full clangd-style analysis. cc65 ships its set in `cc65-symbols.ts`.
+> **C intelligence is not a toolchain field.** Completion / hover / go-to-def for C come from the in-repo language server (`@madside/lsp-*`, ADR-0009), not from the toolchain. A toolchain's `language` block is assembler metadata only (`directives` / `lineComment` / `snippets?`).
 
 ## Build options forwarding
 
