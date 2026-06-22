@@ -80,6 +80,8 @@
 
 ### C / cc65 editor support (GH #1 ecosystem)
 
+> The C intelligence below (completion / hover / go-to-def / references / rename / semantic tokens / diagnostics) is powered by the **in-repo `@madside/lsp-*` C language server** in a Web Worker — `lsp-core` (agnostic framework) + `lsp-c` (generic C engine) + `lsp-cc65` (cc65 dialect). Migrated from the external `@cc65-intel/*` npm packages per **ADR-0009** (epic #110); the core stays language-agnostic so a z80/sccz80 server (`lsp-z80`, #114) drops in without touching it.
+
 - Syntax highlighting for cc65 C + ca65 assembly via `@codemirror/lang-cpp` (GH #47)
 - Autocomplete + hover for cc65 C stdlib / ca65 directives (GH #48), plus cross-file project symbols — the user's own functions/macros, not just stdlib (GH #58, #48)
 - Auto-`#include` the matching header when accepting a cc65 completion (GH #48)

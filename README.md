@@ -4,24 +4,27 @@
 [![License: AGPL-3.0-or-later](https://img.shields.io/badge/license-AGPL--3.0--or--later-blue.svg)](LICENSE)
 [![Status: alpha](https://img.shields.io/badge/status-alpha-orange)](#status)
 
-**An in-browser IDE for retro hardware.** Write 6502 assembly, assemble it, run it on a cycle-accurate emulator, and debug it with breakpoints, a register view, and a memory inspector — all in the browser, nothing to install.
+**An in-browser IDE for retro hardware.** Write assembly or C, assemble/compile it, run it on a cycle-accurate emulator, and debug it with breakpoints, a register view, and a memory inspector — all in the browser, nothing to install.
 
 ### ▶︎ [Try it live → madside.mikolajczyk.org](https://madside.mikolajczyk.org) · 📖 [Docs](https://madside.mikolajczyk.org/docs/)
 
 <!-- TODO: screenshot or animated demo here -->
 <!-- ![madside running an Atari project](assets/screenshot.png) -->
 
-It currently targets two machines:
+It currently targets four machines, across two CPU families and three toolchains:
 
-- **Atari 8-bit** (800XL / 130XE) — the [MADS](https://mads.atari8.info/) assembler on the Altirra core.
-- **NES** — MADS again (it assembles NROM iNES directly), on the [jsnes](https://github.com/bfirsh/jsnes) core.
+- **Atari 8-bit** (800XL / 130XE) — the [MADS](https://mads.atari8.info/) assembler or [cc65](https://cc65.github.io/) (C), on the Altirra core.
+- **NES** — MADS (assembles NROM iNES directly) or cc65 (C), on the [jsnes](https://github.com/bfirsh/jsnes) core.
+- **Commodore 64** — cc65 (C), on the [chips](https://github.com/floooh/chips) C64 core.
+- **ZX Spectrum** — [z88dk](https://z88dk.org/) (C) or z80 assembly, on the chips ZX core.
 
 Everything beyond the editor is a **plugin**: machines, toolchains, emulators, debug adapters, panels, file converters, and editors. Adding a new retro platform doesn't touch the workbench — it ships as a set of plugins. See [ADR-0001](wiki/adr/0001-plugin-based-workbench.md).
 
 ## What you can do
 
 - Start from a **template** or a guided **course** (bundled, or loaded from any public GitHub repo), then edit, assemble, and run.
-- Auto-assemble on edit via `mads.wasm`; a source map drives the address gutter and active-PC highlight.
+- Auto-assemble/compile on edit; a source map drives the address gutter and active-PC highlight.
+- Write **C** (cc65 / z88dk) with full in-editor intelligence — completion, hover, go-to-definition, references, rename, and inline diagnostics — from an in-browser language server (no extension, no server). See [ADR-0009](wiki/adr/0009-in-repo-language-agnostic-lsp.md).
 - Set source-level **breakpoints**, step by instruction or by frame, and watch registers, flags, and memory update live.
 - Inspect machine-specific state — the NES build ships a **PPU viewer** (pattern tables + palette).
 - Convert assets (images, CSV, binaries) into assembler data with the **asset pipeline**, or write your own converter as a single JS file.
@@ -65,4 +68,7 @@ Short version: you may use, study, modify, and redistribute madside — includin
 
 - **Altirra** by Avery Lee — the cycle-exact Atari emulator powering the run + debug path. The wasm core is built from a [fork](https://github.com/mikolajmikolajczyk/AltirraSDL) with a small embedding shim.
 - **MADS** by Tomasz Biela — the fast, modern 6502 cross-assembler bundled as `mads.wasm`.
+- **cc65** by Ullrich von Bassewitz and contributors — the 6502 C compiler / assembler / linker (`cc65`/`ca65`/`ld65`), compiled to wasm.
+- **z88dk** — the z80 C toolchain (`zcc`/`sccz80`/`z80asm`) behind ZX Spectrum C, compiled to wasm.
+- **chips** by Andre Weissflog — the cycle-accurate C64 + ZX Spectrum emulator cores.
 - **jsnes** by Ben Firshman — the NES emulator core.

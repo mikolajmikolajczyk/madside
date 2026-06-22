@@ -72,6 +72,11 @@ packages/                # workspace libraries (each: src/ + package.json)
   converters/            # asset converters (Phase 7) — src/{recipeEngine,registry}.ts + src/builtins/
   editors/               # plugin file editors (Phase 11) + editorToPanel bridge — src/registry.ts + src/builtins/
 
+# --- C language intelligence (LSP), MIT-licensed leaf libs — ADR-0009 ---
+  lsp-core/              # @madside/lsp-core — language-AGNOSTIC LSP framework: startServer(connection, provider), transports (browser worker / node stdio), doc sync, request router + the LanguageProvider contract (zero language knowledge)
+  lsp-c/                 # @madside/lsp-c — generic C engine (src/engine/* = the former @cc65-intel/core) implementing LanguageProvider via createCProvider(dialect: CDialect); dialect supplies decorators + diagnostic sources, host supplies sysroot headers + defines (#30)
+  lsp-cc65/              # @madside/lsp-cc65 — cc65 (6502) dialect profile + browser-worker / node-stdio server entries (consumed by the IDE CodeMirror LSP adapter)
+
 apps/
   ide/                   # @madside/ide — the Vite app (everything below was the old src/ non-lib layers)
     index.html
@@ -137,6 +142,7 @@ apps/
         codemirror/      # CodeMirror StreamLanguage definitions
           assemblyLang.ts # buildAssemblyLanguage(cpu, toolchainLanguage) — generic, CPU+toolchain driven (epic 78b12bf; replaced madsLang.ts)
           jsConverterLang.ts
+          lsp/           # C language-server client (flag-gated): spawns the @madside/lsp-cc65 Web Worker, drives it over vscode-jsonrpc, exposes completion/hover/diagnostics/etc to CodeMirror; host sends sysroot headers + target defines (cSysroot.ts, #30). ADR-0009.
         assets/          # static assets (hero.png, svgs)
 
   docs/                  # @madside/docs — public Astro Starlight site (was docs/), published to /docs/
