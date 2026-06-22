@@ -37,8 +37,41 @@ export interface DebugSymbol {
   type: DebugType
 }
 
-/** The toolchain's typed-symbol model for a build. Globals now; scoped/frame
- *  symbols (phase 3, #131) extend this. */
+/** How to compute a stack frame's base address at runtime (#131, ADR-0012).
+ *  Machine/ABI-specific but expressed generically so the panel stays neutral:
+ *  - `memptr`: the frame base is a pointer held in memory — read a `bytes`-wide
+ *    word at `addr` (cc65's software C-stack pointer `c_sp`, a zeropage word).
+ *  - `reg`: the frame base is a CPU register (sccz80's IX frame pointer). */
+export type DebugFrame =
+  | { kind: 'memptr'; addr: number; bytes: number; endian: 'le' | 'be'; space?: string }
+  | { kind: 'reg'; reg: string }
+
+/** A local variable: its type + a **frame-relative** offset. Its live address is
+ *  `frameBase + offset`, where `frameBase` comes from the owning scope's
+ *  `DebugFrame`. (cc65: `local addr = read_word(c_sp) + offset`.) */
+export interface DebugLocal {
+  name: string
+  offset: number
+  type: DebugType
+}
+
+/** A lexical scope active over a PC range (a function, for now). Carries the
+ *  frame model + the locals visible in it, so the panel can show "locals of the
+ *  current frame": PC ∈ [pc.start, pc.end) → read the frame base → each local at
+ *  base + offset. Language/machine-neutral (cc65 C today; sccz80 via `reg`). */
+export interface DebugScope {
+  /** Source-level name (the C function name, demangled). */
+  name: string
+  /** Half-open PC range this scope is active over. */
+  pc: { start: number; end: number }
+  frame: DebugFrame
+  locals: DebugLocal[]
+}
+
+/** The toolchain's typed-symbol model for a build. `symbols` = globals; `scopes`
+ *  = per-function frames + locals (phase 3, #131) — absent when the toolchain
+ *  has no frame info (asm builds, z88dk today). */
 export interface DebugInfo {
   symbols: DebugSymbol[]
+  scopes?: DebugScope[]
 }
