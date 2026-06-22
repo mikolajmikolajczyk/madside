@@ -62,3 +62,5 @@ Open a [GitHub issue](https://github.com/mikolajmikolajczyk/madside/issues) usin
 ## License
 
 By contributing you agree your contributions are licensed under [AGPL-3.0-or-later](LICENSE), the project's license.
+
+**One scoped exception (mixed-license monorepo).** The C language-server packages under `packages/lsp-*` (`@madside/lsp-core`, `@madside/lsp-c`, `@madside/lsp-cc65`, and future language packages) are **MIT-licensed** — each carries its own `LICENSE` and `"license": "MIT"`. They are reusable libraries kept permissive on purpose (see [ADR-0009](wiki/adr/0009-in-repo-language-agnostic-lsp.md)); MIT is compatible *into* the AGPL app. Contributions to those packages are under **MIT**; everything else in the repo is AGPL-3.0-or-later.

@@ -160,4 +160,27 @@ export default defineConfig([
       'react-refresh/only-export-components': 'off',
     },
   },
+  {
+    // ADR-0009: @madside/lsp-core is the language-AGNOSTIC LSP framework — it
+    // must never import a language package. Dependencies point language → core,
+    // never the reverse, so adding a language (lsp-c / lsp-cc65 / lsp-z80 / a
+    // future non-C one) is a new package implementing LanguageProvider with zero
+    // core changes. (These leaf libs sit outside the ADR-0002 layer model, so
+    // this is a targeted import ban rather than a boundaries element rule.)
+    files: ['packages/lsp-core/**/*.ts'],
+    rules: {
+      'no-restricted-imports': [
+        'error',
+        {
+          patterns: [
+            {
+              group: ['@madside/lsp-c', '@madside/lsp-cc65', '@madside/lsp-z80'],
+              message:
+                'lsp-core is language-agnostic (ADR-0009) — it must not import a language package. Languages depend on core, never the reverse.',
+            },
+          ],
+        },
+      ],
+    },
+  },
 ])
