@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
-import type { DebugInfo, PanelContext } from '@ports'
+import type { DebugInfo, DebugType, PanelContext } from '@ports'
 import { hex } from '@core/hex'
-import { decodeValue, typeLabel } from './decode'
+import { childNodes, decodeValue, isExpandable, pointerTarget, typeLabel } from './decode'
 import './VariablesPanel.css'
 
 // Variables panel (#121). When the build supplies a typed-symbol model (#130,
@@ -15,6 +15,8 @@ interface VariablesUiData {
 }
 
 const MAX_ROWS = 500
+const MAX_READ = 512 // cap bytes read per symbol (arrays cap elements separately)
+const MAX_DEPTH = 6 // pointer-deref depth guard (cycles)
 
 export function VariablesPanel({ ctx }: { ctx: PanelContext }) {
   const data = (ctx.data.variables as VariablesUiData | undefined) ?? null
@@ -23,10 +25,12 @@ export function VariablesPanel({ ctx }: { ctx: PanelContext }) {
   return <RawVars ctx={ctx} labels={data?.labels} />
 }
 
-// ── Typed view (#130) ────────────────────────────────────────────────────────
+// ── Typed view (#130) — expandable tree over the DebugInfo type model ────────
 function TypedVars({ ctx, symbols }: { ctx: PanelContext; symbols: DebugInfo['symbols'] }) {
   const [filter, setFilter] = useState('')
   const [values, setValues] = useState<Map<string, Uint8Array>>(new Map())
+  // Bumped on every debug event so expanded pointer-deref rows re-read too.
+  const [tick, setTick] = useState(0)
 
   const entries = useMemo(() => [...symbols].sort((a, b) => a.name.localeCompare(b.name)), [symbols])
   const shown = useMemo(() => {
@@ -42,13 +46,12 @@ function TypedVars({ ctx, symbols }: { ctx: PanelContext; symbols: DebugInfo['sy
         const next = new Map<string, Uint8Array>()
         await Promise.all(
           shown.map(async (s) => {
-            // Read the leaf bytes (scalars/pointers); aggregates show their shape.
-            const len = Math.min(s.type.bytes || 1, 8)
-            const b = await ctx.debug.readMemory(s.location.addr, len)
+            // Read the symbol's whole region once; children slice it by offset.
+            const b = await ctx.debug.readMemory(s.location.addr, Math.min(s.type.bytes || 1, MAX_READ))
             if (b) next.set(s.name, b)
           }),
         )
-        if (!cancelled) setValues(next)
+        if (!cancelled) { setValues(next); setTick((t) => t + 1) }
       } catch {
         // Backend not booted yet.
       }
@@ -70,21 +73,75 @@ function TypedVars({ ctx, symbols }: { ctx: PanelContext; symbols: DebugInfo['sy
       <div className="vars__rows">
         {shown.map((s) => {
           const b = values.get(s.name)
-          const aggregate = s.type.kind === 'struct' || s.type.kind === 'union' || s.type.kind === 'array'
-          const val = aggregate ? '{…}' : b ? (decodeValue(b, s.type) ?? '··') : '··'
-          return (
-            <div className="vars__row" key={s.name} title={`${s.name} @ $${hex(s.location.addr, 4)}`}>
-              <span className="vars__name">{s.name}</span>
-              <span className="vars__type">{typeLabel(s.type)}</span>
-              <span className="vars__val">{val}</span>
-            </div>
-          )
+          if (!b) return null
+          return <VarRow key={s.name} ctx={ctx} tick={tick} depth={0} name={s.name} type={s.type} bytes={b} addr={s.location.addr} />
         })}
         {entries.length > shown.length && (
           <div className="vars__more">… {entries.length - shown.length} more (filter to narrow)</div>
         )}
       </div>
     </div>
+  )
+}
+
+interface VarRowProps {
+  ctx: PanelContext
+  tick: number
+  depth: number
+  name: string
+  type: DebugType
+  bytes: Uint8Array
+  addr: number
+}
+
+function VarRow({ ctx, tick, depth, name, type, bytes, addr }: VarRowProps) {
+  const [open, setOpen] = useState(false)
+  const expandable = isExpandable(type) && depth < MAX_DEPTH
+  const isPtr = type.kind === 'pointer'
+
+  // Value: leaf decoded; pointer = its address; aggregate = a shape hint.
+  const value =
+    type.kind === 'struct' || type.kind === 'union' ? '{…}'
+    : type.kind === 'array' ? `[${type.count}]`
+    : decodeValue(bytes, type) ?? '··'
+
+  // Pointer deref: read the target lazily while open (and on each refresh tick).
+  const [deref, setDeref] = useState<Uint8Array | null>(null)
+  const target = isPtr ? pointerTarget(bytes, type) : 0
+  useEffect(() => {
+    if (!isPtr || !open) return
+    const to = (type as Extract<DebugType, { kind: 'pointer' }>).to
+    let cancelled = false
+    void ctx.debug.readMemory(target, Math.min(to.bytes || 1, MAX_READ)).then((b) => {
+      if (!cancelled) setDeref(b ?? null)
+    }).catch(() => {})
+    return () => { cancelled = true }
+  }, [isPtr, open, target, tick, ctx.debug, type])
+
+  const children = !open ? [] : isPtr
+    ? (deref && target !== 0
+        ? [{ name: `*${name}`, type: (type as Extract<DebugType, { kind: 'pointer' }>).to, bytes: deref, addr: target }]
+        : [])
+    : childNodes(type, bytes, addr)
+
+  return (
+    <>
+      <div
+        className="vars__row"
+        style={{ paddingLeft: 6 + depth * 12 }}
+        title={`${name} @ $${hex(addr, 4)}`}
+        onClick={expandable ? () => setOpen((o) => !o) : undefined}
+        data-expandable={expandable || undefined}
+      >
+        <span className="vars__caret">{expandable ? (open ? '▾' : '▸') : ''}</span>
+        <span className="vars__name">{name}</span>
+        <span className="vars__type">{typeLabel(type)}</span>
+        <span className="vars__val">{value}</span>
+      </div>
+      {children.map((c) => (
+        <VarRow key={c.name} ctx={ctx} tick={tick} depth={depth + 1} name={c.name} type={c.type} bytes={c.bytes} addr={c.addr} />
+      ))}
+    </>
   )
 }
 

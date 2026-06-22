@@ -26,6 +26,52 @@ export function typeLabel(t: DebugType): string {
   }
 }
 
+/** A child node spec: where it lives + its type + its slice of the parent's
+ *  bytes. Used to expand struct fields / array elements (#130 step 2). */
+export interface ChildNode {
+  name: string
+  type: DebugType
+  addr: number
+  bytes: Uint8Array
+}
+
+/** Max array elements shown (lazy cap — huge arrays don't render 1000s of rows). */
+export const MAX_ELEMS = 64
+
+/** True when a node can expand: aggregates (children) or pointers (deref). */
+export function isExpandable(t: DebugType): boolean {
+  return t.kind === 'struct' || t.kind === 'union' || t.kind === 'array' || t.kind === 'pointer'
+}
+
+/** Struct fields / array elements as child nodes, slicing `bytes` (the parent's
+ *  region) by offset. Empty for non-aggregates (pointers deref separately). */
+export function childNodes(t: DebugType, bytes: Uint8Array, addr: number): ChildNode[] {
+  if (t.kind === 'struct' || t.kind === 'union') {
+    return t.fields.map((f) => ({
+      name: f.name,
+      type: f.type,
+      addr: addr + f.offset,
+      bytes: bytes.subarray(f.offset, f.offset + f.type.bytes),
+    }))
+  }
+  if (t.kind === 'array') {
+    const elemSize = t.elem.bytes || 1
+    const n = Math.min(t.count, MAX_ELEMS)
+    return Array.from({ length: n }, (_, i) => ({
+      name: `[${i}]`,
+      type: t.elem,
+      addr: addr + i * elemSize,
+      bytes: bytes.subarray(i * elemSize, (i + 1) * elemSize),
+    }))
+  }
+  return []
+}
+
+/** The address a pointer's bytes hold (its target). */
+export function pointerTarget(bytes: Uint8Array, t: Extract<DebugType, { kind: 'pointer' }>): number {
+  return readInt(bytes, t.bytes, false, t.endian)
+}
+
 // Read an N-byte integer from `bytes` per endianness; sign-extend when signed.
 function readInt(bytes: Uint8Array, n: number, signed: boolean, endian: 'le' | 'be'): number {
   let v = 0
