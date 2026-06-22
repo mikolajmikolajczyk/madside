@@ -9,7 +9,7 @@ import {
 import 'dockview/dist/styles/dockview.css'
 import './DockLayout.css'
 
-// ── Dockview-driven workbench body (behind VITE_MADSIDE_DOCKVIEW) ────────────
+// ── Dockview-driven workbench body ───────────────────────────────────────────
 // A rearrangeable layout for the App body: every content surface (editor, file
 // tree, emulator, each debug panel, output) becomes a draggable/tabbable/
 // splittable dockview panel, toggleable on/off, with the arrangement persisted.

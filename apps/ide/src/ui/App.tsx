@@ -11,14 +11,12 @@ import { Explorer } from "./components/project/Explorer";
 import type { ReadOnlyMount } from "./components/project/FileTree";
 import { DockLayout, builtinLayoutNames, type DockPanelMeta, type DockControls } from "./dock/DockLayout";
 import { SystemFileView } from "./components/editor/SystemFileView";
-import { Splitter } from "./components/layout/Splitter";
 const Editor = lazy(() => import("./components/editor/Editor").then((m) => ({ default: m.Editor })));
 const AssetPanel = lazy(() => import("./components/asset/AssetPanel").then((m) => ({ default: m.AssetPanel })));
 const HistoryDialog = lazy(() => import("./components/history/HistoryDialog").then((m) => ({ default: m.HistoryDialog })));
 const PluginEditor = lazy(() => import("./components/editor/PluginEditor").then((m) => ({ default: m.PluginEditor })));
 const ManifestEditor = lazy(() => import("./components/manifest/ManifestEditor").then((m) => ({ default: m.ManifestEditor })));
 import { Emulator } from "./components/debug/Emulator";
-import { Debug } from "./components/debug/Debug";
 import { PanelSlot } from "./components/PanelSlot";
 const Welcome = lazy(() => import("./components/Welcome").then((m) => ({ default: m.Welcome })));
 const CoursePanel = lazy(() => import("./components/course/CoursePanel").then((m) => ({ default: m.CoursePanel })));
@@ -32,7 +30,6 @@ import type { CpuRegs } from "./components/debug/Emulator";
 import type { CommandContext, PanelPlugin, ToolchainPlugin } from "@ports";
 import { basename, extOf } from "@core/path";
 import { getCpuLanguage } from "@core";
-import { useSplitterWidth } from "./hooks/useSplitterWidth";
 import { useCommandShortcuts } from "./hooks/useCommandShortcuts";
 import { useBreakpointAddrs } from "./hooks/useBreakpointAddrs";
 import { useCursorMemory } from "./hooks/useCursorMemory";
@@ -223,8 +220,8 @@ export default function App() {
     }];
   }, [sysrootProvider, systemFilesState, viewSystemFile?.path, openSystemFile]);
 
-  // Dockview layout (behind VITE_MADSIDE_DOCKVIEW) — open-panel ids drive the
-  // MenuBar View menu checkmarks; the imperative handle drives toggle/reset.
+  // Dockview layout — open-panel ids drive the MenuBar View menu checkmarks;
+  // the imperative handle drives toggle/reset.
   const [dockOpenIds, setDockOpenIds] = useState<string[]>([]);
   const [dockUserPresets, setDockUserPresets] = useState<string[]>([]);
   const [savePresetOpen, setSavePresetOpen] = useState(false);
@@ -669,11 +666,6 @@ export default function App() {
   const [historyOpen, setHistoryOpen] = useState(false);
   const [aboutOpen, setAboutOpen] = useState(false);
 
-  const [explorerW, setExplorerW] = useSplitterWidth("splitter.explorer", 220);
-  const [sideW, setSideW] = useSplitterWidth("splitter.side", 480);
-  const clampExplorer = (n: number) => Math.max(140, Math.min(560, n));
-  const clampSide     = (n: number) => Math.max(320, Math.min(900, n));
-
   const handleSnapshotNow = useCallback(() => {
     if (!project.loaded) return;
     void project.createSnapshotNow("manual");
@@ -792,11 +784,8 @@ export default function App() {
     );
   }
 
-  // Body content surfaces — extracted once so the legacy fixed layout and the
-  // dockview layout (behind VITE_MADSIDE_DOCKVIEW) render the SAME live nodes
-  // (#55 follow-up). Toolbar (MenuBar/DebugBar/StatusBar) stays fixed chrome.
-  const useDock = !!import.meta.env.VITE_MADSIDE_DOCKVIEW;
-
+  // Body content surfaces — each becomes a dockview panel (DockLayout). The
+  // toolbar (MenuBar/DebugBar/StatusBar) stays fixed chrome around it.
   const filesSurface = (() => {
     const explorerEl = (
       <Explorer
@@ -940,7 +929,7 @@ export default function App() {
     />
   );
 
-  // Each debug panel is its own dockable surface (legacy stacks them via <Debug>).
+  // Each debug panel is its own dockable surface.
   const debugSurfaces: { id: string; title: string; node: ReactNode }[] = project.loaded
     ? debugColumnPanels.map((panel) => ({
         id: `panel:${panel.id}`,
@@ -972,26 +961,24 @@ export default function App() {
     ...(outputSurface ? [{ id: "output", title: "Output" }] : []),
   ];
 
-  // View menu (only in dock mode) — toggle panels + float + user presets +
-  // reset, driven by the DockLayout imperative handle; checkmarks track open ids.
-  const viewMenu = useDock
-    ? {
-        panels: dockPanels.map((p) => ({ id: p.id, title: p.title, open: dockOpenIds.includes(p.id) })),
-        onToggle: (id: string) => dockControlsRef.current?.toggle(id),
-        onFloat: (id: string) => dockControlsRef.current?.float(id),
-        onReset: () => dockControlsRef.current?.reset(),
-        builtinLayouts: builtinLayoutNames,
-        onBuiltinLayout: (name: string) => dockControlsRef.current?.applyBuiltin(name),
-        userPresets: dockUserPresets,
-        onUserPreset: (name: string) => dockControlsRef.current?.applyUserPreset(name),
-        onDeletePreset: (name: string) => dockControlsRef.current?.deletePreset(name),
-        onSavePreset: () => setSavePresetOpen(true),
-        onCopyLayout: () => {
-          const json = dockControlsRef.current?.exportLayout() ?? "{}";
-          void navigator.clipboard?.writeText(json);
-        },
-      }
-    : undefined;
+  // View menu — toggle panels + float + layouts/presets + reset, driven by the
+  // DockLayout imperative handle; checkmarks track open ids.
+  const viewMenu = {
+    panels: dockPanels.map((p) => ({ id: p.id, title: p.title, open: dockOpenIds.includes(p.id) })),
+    onToggle: (id: string) => dockControlsRef.current?.toggle(id),
+    onFloat: (id: string) => dockControlsRef.current?.float(id),
+    onReset: () => dockControlsRef.current?.reset(),
+    builtinLayouts: builtinLayoutNames,
+    onBuiltinLayout: (name: string) => dockControlsRef.current?.applyBuiltin(name),
+    userPresets: dockUserPresets,
+    onUserPreset: (name: string) => dockControlsRef.current?.applyUserPreset(name),
+    onDeletePreset: (name: string) => dockControlsRef.current?.deletePreset(name),
+    onSavePreset: () => setSavePresetOpen(true),
+    onCopyLayout: () => {
+      const json = dockControlsRef.current?.exportLayout() ?? "{}";
+      void navigator.clipboard?.writeText(json);
+    },
+  };
 
   return (
     <TooltipProvider delayDuration={300} skipDelayDuration={100}>
@@ -1053,39 +1040,13 @@ export default function App() {
         onReset={onReset}
         onToggleBp={toggleBpAtCursor}
       />
-      {useDock ? (
-        <DockLayout
-          surfaces={dockSurfaces}
-          panels={dockPanels}
-          controlsRef={dockControlsRef}
-          onOpenChange={setDockOpenIds}
-          onPresetsChange={setDockUserPresets}
-        />
-      ) : (
-        <div
-          className="app__body"
-          style={{ "--explorer-w": explorerW + "px", "--side-w": sideW + "px" } as React.CSSProperties}
-        >
-          {filesSurface}
-          <Splitter onResize={(dx) => setExplorerW((w) => clampExplorer(w + dx))} />
-          <main className="app__main" data-focus-region="editor">
-            {editorSurface}
-            {outputSurface}
-          </main>
-          <Splitter invert onResize={(dx) => setSideW((w) => clampSide(w + dx))} />
-          <aside className="app__side">
-            {emulatorSurface}
-            {project.loaded && (
-              <Debug
-                panels={debugColumnPanels}
-                projectId={project.projectId}
-                manifest={project.manifest}
-                panelData={panelData}
-              />
-            )}
-          </aside>
-        </div>
-      )}
+      <DockLayout
+        surfaces={dockSurfaces}
+        panels={dockPanels}
+        controlsRef={dockControlsRef}
+        onOpenChange={setDockOpenIds}
+        onPresetsChange={setDockUserPresets}
+      />
       <StatusBar
         projectName={project.manifest.name}
         activePath={project.activePath}

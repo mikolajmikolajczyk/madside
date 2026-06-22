@@ -4,28 +4,6 @@
   height: 100vh;
 }
 
-.app__body {
-  flex: 1;
-  display: grid;
-  /* explorer | splitter | main | splitter | side */
-  grid-template-columns: var(--explorer-w, 220px) auto 1fr auto var(--side-w, 480px);
-  min-height: 0;
-}
-
-.app__main {
-  display: grid;
-  grid-template-rows: 1fr auto;
-  min-height: 0;
-  min-width: 0;
-}
-
-.app__side {
-  display: grid;
-  grid-template-rows: auto 1fr;
-  min-height: 0;
-  min-width: 0;
-  border-left: 1px solid var(--border-default);
-}
 
 /* Directional pane focus (#27): a subtle inset ring marks the active region so
    you can see where Alt+Shift+Arrow landed. :focus-within keeps it in sync with
