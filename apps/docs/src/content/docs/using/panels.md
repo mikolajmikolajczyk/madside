@@ -1,19 +1,27 @@
 ---
 title: Panels
-description: Registers, memory, output, and machine-specific viewers.
+description: Registers, memory, variables, output, and machine-specific viewers.
 sidebar:
   order: 6
 ---
 
-The debug column (the right-hand side panel, below the emulator) is a stack of **panels**. madside ships three built-in panels and lets machine plugins add their own.
+The workbench is a **dockable layout** (powered by Dockview): every panel — the
+editor, the emulator, and each debug panel — is a draggable surface you can
+re-dock, split, float, or hide. Toggle any panel from the **View** menu, drag a
+tab to move it, or save your arrangement as a named preset. The layout is
+serialized and restored across reloads. madside ships several built-in panels and
+lets machine plugins add their own.
 
 ## Built-in panels
 
-- **Registers** — CPU registers and condition flags, descriptor-driven so they render correctly per machine. See [Debugging](/docs/using/debugging/#registers-and-flags).
+- **Registers** — CPU registers and condition flags, descriptor-driven so they render correctly per machine (6502 for Atari/NES/C64, Z80 for the ZX Spectrum). See [Debugging](/docs/using/debugging/#registers-and-flags).
 - **Memory** — a hex + ASCII dump with a base-address input, cursor following, and named memory regions. See [the memory viewer](/docs/using/debugging/#the-memory-viewer).
-- **Output** — the toolchain's stdout/stderr with an OK / ERR tag. This panel is shown below the editor rather than in the debug column. The last build's output is persisted, so it restores after a page reload rather than going blank. See [Building](/docs/using/building/#the-output-panel).
+- **Variables** — debugger-style variable inspection. With a C build it shows each global typed, decodes its live value, and expands `struct` / array / pointer into a tree; you can add **watch expressions** (`pos.x`, `*ptr`, `arr[3]`, `p->next`). Without type info (assembly builds) it falls back to a flat symbol-table list. See [Variables](/docs/using/debugging/#variables).
+- **Output** — the toolchain's stdout/stderr with an OK / ERR tag. The last build's output is persisted, so it restores after a page reload rather than going blank. See [Building](/docs/using/building/#the-output-panel).
 
-All three refresh on their own from build and debug events — there's nothing to wire up.
+They refresh on their own from build and debug events — there's nothing to wire up.
+
+> **Outline** and **References** are LSP-driven editor surfaces (not panel plugins) — also dockable from the View menu. See [the editor](/docs/using/editor/).
 
 ## Machine-specific panels
 
@@ -27,7 +35,7 @@ The panels that appear (and their order) are resolved like this:
 2. Otherwise the active machine's default panel list is used.
 3. Otherwise it falls back to **Registers** + **Memory**.
 
-A panel id that has no registered plugin is skipped, and the **Output** panel is always rendered below the editor rather than in the column. So, for example, an Atari project shows Registers and Memory in the column with Output below the editor, while an NES project additionally shows the PPU viewer.
+A panel id with no registered plugin is skipped. So an Atari project shows Registers / Memory / Variables / Output (+ Asset), while an NES project additionally shows the PPU viewer. See the [per-machine default panels](/docs/reference/machines/#default-panels).
 
 To pin a specific set, add a `panels` array to your manifest:
 
@@ -38,6 +46,6 @@ To pin a specific set, add a `panels` array to your manifest:
   "machine": "nes",
   "toolchain": "mads",
   "main": "src/nes-hello.a65",
-  "panels": ["registers", "memory", "ppu", "output"]
+  "panels": ["registers", "memory", "variables", "ppu", "output"]
 }
 ```

@@ -77,7 +77,7 @@ const binToIncbin: ConverterModule = {
 export default binToIncbin
 ```
 
-Built-ins live under `src/plugins/converters/builtins/` and are listed in that pack's `BUILTINS` array.
+Built-ins live under `packages/converters/builtins/` and are listed in that pack's `BUILTINS` array.
 
 ## Project-local converters
 

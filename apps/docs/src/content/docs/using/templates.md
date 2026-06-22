@@ -16,9 +16,13 @@ madside ships with:
 - **NES — Hello (background colour)** (`nes-hello`) — a canonical NES warmup (two VBlank waits) in MADS assembly that sets the universal background colour and enables rendering, emitting an NROM iNES ROM.
 - **NES — Hello (C, cc65)** (`nes-c-hello`) — an NES program in C, linked with ld65 against the bundled NES runtime into an iNES ROM.
 - **NES — APU Hello (square-wave tone)** (`nes-apu-hello`) — programs the NES APU pulse channel to play a steady tone; MADS assembly, no graphics.
+- **C64 — Hello World (MADS)** (`c64-hello`) — a minimal Commodore 64 program in MADS assembly.
+- **C64 — Hello (C, cc65)** (`c64-c-hello`) — a C64 program in C, linked with cc65 into a `.prg`.
+- **ZX Spectrum — Hello World (z80asm)** (`zx-asm-hello`) — a minimal ZX Spectrum program in z80 assembly, built with z88dk.
+- **ZX Spectrum — Hello (C, z88dk)** (`zx-c-hello`) — a ZX Spectrum program in C: sccz80 compiles it and z80asm/appmake produce a `.sna`.
 - **Empty project** (`empty`) — a blank project you fill in yourself.
 
-The C templates use the **cc65** toolchain (cc65 → ca65 → ld65, all in the browser); the rest use **mads**.
+The cc65 C templates use the **cc65** toolchain (cc65 → ca65 → ld65); the ZX C template uses **z88dk** (sccz80 → z80asm); the assembly templates use **mads** (6502) or **z88dk** (z80) — all in the browser.
 
 ## Starting from a template
 

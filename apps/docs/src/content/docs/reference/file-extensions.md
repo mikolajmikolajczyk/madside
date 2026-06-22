@@ -7,8 +7,9 @@ sidebar:
 
 ## Source extensions
 
-madside ships two toolchains: `mads` (Atari assembly) and `cc65` (C + ca65 +
-ld65). Each declares the extensions it accepts as input.
+madside ships three toolchains: `mads` (6502 assembly), `cc65` (C + ca65 + ld65,
+6502), and `z88dk` (C + z80asm, z80). Each declares the extensions it accepts as
+input.
 
 ### Assembly (MADS)
 
@@ -39,6 +40,19 @@ as input:
 The editor additionally treats `.cc` / `.cpp` / `.hpp` (and `.cxx` / `.hh` for
 formatting) as C/C++ sources for syntax highlighting and clang-format.
 
+### C and z80 assembly (z88dk)
+
+The `z88dk` toolchain (sccz80 C compiler + z80asm assembler) targets the ZX
+Spectrum and accepts:
+
+| Extension | Handled by |
+|-----------|-----------|
+| `.c` | `z88dk` toolchain (C source) |
+| `.h` | `z88dk` toolchain (C header) |
+| `.asm` | `z88dk` toolchain (z80 assembly source) |
+| `.s` | `z88dk` toolchain (z80 assembly source) |
+| `.inc` | `z88dk` toolchain (include) |
+
 ## Output extensions
 
 The build output extension is set by the toolchain and the target machine's
@@ -48,13 +62,17 @@ media table.
 |-----------|---------|-------|
 | `.xex` | Atari (`atari-xl`) | Atari default media format. `mads` `outputExt`; also produced by `cc65` targeting `atari`. |
 | `.nes` | NES (`nes`) | iNES image; NES default media format. `cc65` `outputExt`; also produced by `mads` (NROM iNES). |
+| `.prg` | C64 (`c64`) | Commodore PRG (load-address-prefixed). Produced by `cc65` targeting `c64`. |
+| `.sna` | ZX Spectrum (`zx-spectrum`) | 48K snapshot. `z88dk` `outputExt`. |
 
 The `cc65` toolchain's declared `outputExt` is `nes`, but the real extension is
-picked from the active machine's target: `nes` for the NES, `xex` for the Atari.
+picked from the active machine's target: `nes` for the NES, `xex` for the Atari,
+`prg` for the C64.
 
 The Atari machine can also load these media formats: `.atr` (disk image),
 `.car` / `.rom` / `.bin` (cartridge), `.cas` (cassette). The Atari extension
-hints map `.exe` / `.com` / `.obx` → `xex` as well.
+hints map `.exe` / `.com` / `.obx` → `xex` as well. The ZX Spectrum additionally
+accepts `.tap` / `.tzx` (tape), `.z80` (snapshot), and `.scr` (screen dump).
 
 ## Asset extensions
 

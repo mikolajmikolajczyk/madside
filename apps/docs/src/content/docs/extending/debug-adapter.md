@@ -7,7 +7,7 @@ sidebar:
 
 A **debug adapter** bridges a CPU-agnostic `DebugTarget` to a specific run backend. The debugger UI (register panel, memory panel, step controls) renders identically across any machine — the register/flag *names* and the step/breakpoint/read/write *primitives* come from the adapter.
 
-Debug adapters are **built-in only**. The 6502 reference impl is `src/plugins/debug-atari-6502/`, which exports reusable descriptor tables.
+Debug adapters are **built-in only**. The 6502 reference impl is `packages/debug-atari-6502/`, which exports reusable descriptor tables.
 
 ## The contract
 

@@ -79,7 +79,7 @@ plugins.register({ plugin: { ...ticksPanel, kind: 'panel' }, source: { origin: '
 
 Panels are resolved via `manifest.panels` → the machine's `defaultPanels` → a fallback set. Adding one is a module + a manifest entry; the debugger host iterates the list and renders a slot per id with zero panel-specific code.
 
-Placement is driven by `slot`. Omit it (or set `'debug'`) and the panel lands in the movable debug column; set `'output'` and it goes into the fixed full-width slot above the editor — that's how the built-in **Output** panel (`src/plugins/panel-output/`) is placed. No panel id is special-cased; the host places each panel purely by its slot.
+Placement is driven by `slot`. Omit it (or set `'debug'`) and the panel lands in the movable debug column; set `'output'` and it goes into the fixed full-width slot above the editor — that's how the built-in **Output** panel (`packages/panel-output/`) is placed. No panel id is special-cased; the host places each panel purely by its slot.
 
 ## Hello-world — vanilla mount
 
@@ -130,7 +130,7 @@ For the run lifecycle specifically, the host hook is `useRunStatus()` (from `@ui
 | `project:switched` | Active project changed |
 | `file:changed` | File-tree write |
 
-See `@ports/event-bus.ts` for the complete typed map, and the architecture guide for [the sync rule in context](/docs/extending/architecture/#the-serviceui-sync-rule-adr-0007). Reference implementations: `src/plugins/panel-registers/` and `src/plugins/panel-memory/`.
+See `@ports/event-bus.ts` for the complete typed map, and the architecture guide for [the sync rule in context](/docs/extending/architecture/#the-serviceui-sync-rule-adr-0007). Reference implementations: `packages/panel-registers/` and `packages/panel-memory/`.
 
 ## Memory spaces
 

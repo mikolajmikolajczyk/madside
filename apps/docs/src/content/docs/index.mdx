@@ -1,26 +1,32 @@
 ---
 title: madside
-description: In-browser IDE for retro hardware — write, build, run, and debug Atari 8-bit and NES programs in assembly or C, entirely in the browser.
+description: In-browser IDE for retro hardware — write, build, run, and debug Atari 8-bit, NES, C64, and ZX Spectrum programs in assembly or C, entirely in the browser.
 ---
 
-**madside** is an in-browser IDE for retro hardware. Write 6502 assembly or C, build it, run it on an emulator, and debug it with breakpoints, a register view, and a memory inspector — all in the browser, with nothing to install.
+**madside** is an in-browser IDE for retro hardware. Write 6502 / Z80 assembly or C, build it, run it on an emulator, and debug it with breakpoints, a register view, a memory inspector, and a typed variables panel — all in the browser, with nothing to install.
 
-It currently targets two machines:
+It currently targets four machines:
 
 - **Atari 8-bit** (800XL / 130XE) — builds to `.xex`, running on the Altirra core.
 - **NES** — builds to an `.nes` iNES ROM, running on the jsnes core.
+- **Commodore 64** — builds to a `.prg`, running on the Chips `c64-core`.
+- **ZX Spectrum 48K** — builds to a `.sna`, running on the Chips `zx-core`.
 
-Two toolchains ship, both compiled to WebAssembly:
+Three toolchains ship, all compiled to WebAssembly:
 
-- **MADS** — the Mad-Assembler, a 6502 macro assembler for Atari 8-bit.
-- **cc65** — the cc65 C compiler with its ca65 assembler and ld65 linker, targeting **both** NES and Atari. Write C (or ca65 assembly) and it links against the bundled cc65 runtime for the active machine.
+- **MADS** — the Mad-Assembler, a 6502 macro assembler.
+- **cc65** — the cc65 C compiler with its ca65 assembler and ld65 linker, targeting the 6502 machines (NES, Atari, C64). Write C (or ca65 assembly) and it links against the bundled cc65 runtime for the active machine.
+- **z88dk** — the sccz80 C compiler with the z80asm assembler, targeting the ZX Spectrum.
+
+C editing is backed by an in-repo **language server** (`@madside/lsp-*`): a language-agnostic core with per-dialect engines for cc65 (6502) and sccz80/z88dk (z80), giving completion, hover, go-to-definition, references, rename, and diagnostics.
 
 Everything beyond the editor is a **plugin**: machines, toolchains, emulators, debug adapters, panels, file converters, and editors. Adding a new retro platform doesn't touch the workbench — it ships as a set of plugins.
 
 ## What you can do
 
 - Start from a **template** or pick a guided **course**, then edit, build, and run.
-- Set source-level **breakpoints**, step by instruction or by frame, and watch registers, flags, and memory update.
+- Set source-level **breakpoints**, step by instruction or by frame, and watch registers, flags, memory, and typed **variables** (with a struct/array/pointer tree + watch expressions on C builds).
+- Rearrange the workspace freely — every panel is **dockable** (drag, float, hide, save presets).
 - Inspect machine-specific state — the NES build ships a **PPU viewer** (pattern tables + palette).
 - Convert assets (images, CSV, binaries) into assembler data with the **asset pipeline**.
 - Keep your work in the browser (IndexedDB), snapshot it automatically, and export/import projects as ZIP.

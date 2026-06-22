@@ -26,23 +26,25 @@ The completion vocabulary follows the project's machine and toolchain, so it cha
 
 ## C/C++ editing
 
-cc65 projects can mix assembly with C. Open a `.c` / `.h` / `.cc` / `.cpp` / `.hpp` file and the editor switches to C syntax highlighting (powered by CodeMirror's `lang-cpp`) and turns on C-specific completion, hover, and formatting.
+C projects (cc65 for the 6502 machines, z88dk for the ZX Spectrum) can mix assembly with C. Open a `.c` / `.h` / `.cc` / `.cpp` / `.hpp` file and the editor switches to C syntax highlighting (powered by CodeMirror's `lang-cpp`) and turns on the C language features below.
 
-:::note
-There's no clangd or language server behind this — completion and hover are built from a **curated** cc65 standard-library list plus a lightweight scan of your project's own files. They're a helpful shortcut, not a full semantic analysis, so they won't catch every symbol or type error.
-:::
+C intelligence is served by an **in-repo language server** — `@madside/lsp-*`, running in a Web Worker over the Language Server Protocol. It's a language-agnostic core with per-dialect engines: cc65 for the 6502 targets and sccz80/z88dk for the ZX Spectrum. It's a lightweight static analysis (parse + index, not a full type checker), so it won't catch every type error, but it gives real completion, hover, go-to-definition, find-references, rename, semantic highlighting, and diagnostics.
 
 ### Autocomplete and headers
 
 C completion is drawn from three sources:
 
-- **cc65 standard library** — a curated slice of the common surface: the `conio.h` text console (`clrscr`, `cputs`, `cputc`, `gotoxy`, `cgetc`, `textcolor`, …), plus pieces of `string.h` (`memcpy`, `strlen`, …), `stdlib.h` (`malloc`, `rand`, …), and the `stdint.h` fixed-width types (`uint8_t`, `int16_t`, …). Accepting one of these **auto-adds the right `#include`** if it's missing — pick `clrscr` and `#include <conio.h>` is inserted after your last existing include (or at the top of the file).
-- **Your project's own symbols** — every `.c` / `.h` in the project is scanned for its top-level functions, `#define` macros, and `typedef`d types, so a function defined in `helper.c` completes while you're editing `main.c`.
+- **Standard library** — the active dialect's headers (cc65 or z88dk). For cc65: the `conio.h` text console (`clrscr`, `cputs`, `cputc`, `gotoxy`, `cgetc`, `textcolor`, …), `string.h` (`memcpy`, `strlen`, …), `stdlib.h` (`malloc`, `rand`, …), and the `stdint.h` fixed-width types (`uint8_t`, `int16_t`, …). Accepting one **auto-adds the right `#include`** if it's missing — pick `clrscr` and `#include <conio.h>` is inserted after your last existing include (or at the top of the file).
+- **Your project's own symbols** — every `.c` / `.h` in the project is indexed for its functions, `#define` macros, and `typedef`d types, so a function defined in `helper.c` completes while you're editing `main.c`.
 - **The current file** — definitions in the buffer you're editing, even before you save.
+
+### Navigation
+
+Beyond completion the server provides **go-to-definition** (Ctrl-click or F12), **find-references**, **rename symbol**, and an **Outline** + **References** surface (dockable from the View menu).
 
 ### Hover
 
-Hover a cc65 library symbol to see its signature, the header that declares it (`#include <conio.h>`), and a one-line description. Hover one of your project's own symbols and the tooltip shows its kind (function / macro / type) and the file it's defined in.
+Hover a library symbol to see its signature, the header that declares it (`#include <conio.h>`), and a one-line description. Hover one of your project's own symbols and the tooltip shows its kind (function / macro / type) and the file it's defined in.
 
 ### Formatting
 

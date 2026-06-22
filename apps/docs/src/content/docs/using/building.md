@@ -5,14 +5,15 @@ sidebar:
   order: 3
 ---
 
-madside builds your project with a 6502 toolchain selected by the project's `toolchain` id in `project.json`. By default the build runs when you save or press Run — there's no separate "compile" step to remember, and large projects don't recompile on every keystroke.
+madside builds your project with a toolchain selected by the project's `toolchain` id in `project.json`. By default the build runs when you save or press Run — there's no separate "compile" step to remember, and large projects don't recompile on every keystroke.
 
 ## Toolchains
 
-Two toolchains ship today; the active one is set by `toolchain` in `project.json`:
+Three toolchains ship today; the active one is set by `toolchain` in `project.json`:
 
-- **MADS** — the Mad Assembler, for Atari 8-bit assembly (`.asm` / `.a65` / `.inc`). One pass produces the binary, a source map, and a label table.
-- **cc65** — the cc65 C compiler plus the ca65 assembler and ld65 linker, for C and ca65 assembly (`.c` / `.s` / `.asm` / `.h` / `.inc`). Each `.c` is compiled to assembly with cc65, every assembly file is assembled to an object with ca65, and ld65 links the objects against the target's bundled runtime library and config into the final binary (`.nes` for NES, `.xex` for Atari). The bundled C runtime and headers are mounted read-only for the active machine — they show up in the Files panel's system view.
+- **MADS** — the Mad Assembler, for 6502 assembly (`.asm` / `.a65` / `.inc`). One pass produces the binary, a source map, and a label table.
+- **cc65** — the cc65 C compiler plus the ca65 assembler and ld65 linker, for C and ca65 assembly (`.c` / `.s` / `.asm` / `.h` / `.inc`) on the 6502 machines. Each `.c` is compiled to assembly with cc65, every assembly file is assembled to an object with ca65, and ld65 links the objects against the target's bundled runtime library and config into the final binary (`.nes` for NES, `.xex` for Atari, `.prg` for C64). The bundled C runtime and headers are mounted read-only for the active machine — they show up in the Files panel's system view.
+- **z88dk** — the sccz80 C compiler plus the z80asm assembler, for C and z80 assembly (`.c` / `.asm` / `.s` / `.h` / `.inc`) targeting the ZX Spectrum (→ `.sna`).
 
 ## Build trigger
 

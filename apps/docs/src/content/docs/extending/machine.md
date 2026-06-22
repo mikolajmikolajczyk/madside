@@ -7,7 +7,7 @@ sidebar:
 
 A **machine plugin** describes target hardware so the workbench stays machine-agnostic: display dimensions, audio rate, input layout, the memory map, a media-format dispatch table, and an opaque hardware-config bag. Everything that would otherwise calcify as Atari-specific constants lives here instead.
 
-Machine plugins are **built-in only**. The Atari-XL reference impl is `src/plugins/machine-atari-xl/`; NES is `src/plugins/machine-nes/`.
+Machine plugins are **built-in only**. Reference impls live as workspace packages: `packages/machine-atari-xl/`, `packages/machine-nes/`, `packages/machine-c64/`, and `packages/machine-zx/` (ZX Spectrum).
 
 ## The contract
 
@@ -15,7 +15,7 @@ Source: `@ports/plugin-machine.ts`.
 
 ```ts
 interface MachinePlugin {
-  readonly id: string            // 'atari-xl', 'nes', …
+  readonly id: string            // 'atari-xl', 'nes', 'c64', 'zx-spectrum', …
   readonly name: string
   readonly cpu: CpuId            // 'mos6502' | 'mos6510' | 'ricoh-2a03' | string
   readonly memoryMap: MemoryRegion[]

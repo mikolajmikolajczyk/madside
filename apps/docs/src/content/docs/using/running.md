@@ -5,7 +5,7 @@ sidebar:
   order: 4
 ---
 
-Pressing **Run** boots your assembled binary in the in-browser emulator (Altirra for Atari, jsnes for NES). The emulator panel sits in the right-hand column; click its screen to give it keyboard focus, then type to send keys to the machine.
+Pressing **Run** boots your assembled binary in the in-browser emulator — Altirra for Atari, jsnes for NES, and Chips cores for the C64 (`c64-core`) and ZX Spectrum (`zx-core`). The emulator is a dockable panel; click its screen to give it keyboard focus, then type to send keys to the machine.
 
 ## Run controls
 

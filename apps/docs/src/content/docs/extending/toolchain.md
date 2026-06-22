@@ -5,7 +5,7 @@ sidebar:
   order: 7
 ---
 
-A **toolchain plugin** wraps an assembler or compiler so `BuildService` stays machine-agnostic. The build is dispatched by the project's `manifest.toolchain` id. MADS (`src/plugins/toolchain-mads/`, Atari assembly) and cc65 (`src/plugins/toolchain-ca65/`, C + ca65 + ld65 for NES and Atari) are the two reference impls.
+A **toolchain plugin** wraps an assembler or compiler so `BuildService` stays machine-agnostic. The build is dispatched by the project's `manifest.toolchain` id. Three reference impls ship: MADS (`packages/toolchain-mads/`, 6502 assembly), cc65 (`packages/toolchain-ca65/`, C + ca65 + ld65 for NES / Atari / C64), and z88dk (`packages/toolchain-z88dk/`, C + z80asm for the ZX Spectrum).
 
 Toolchain plugins are **built-in only**. The wasm tools run over WASI on the page (no worker — main-thread per ADR-0003), so keep `build` pure (no DOM access).
 
@@ -43,6 +43,7 @@ interface ToolchainBuildOutput {
   stderr: string
   sourceMap?: SourceMap        // pre-parsed (see below)
   labels?: Map<string, number> // pre-parsed name → address
+  debugInfo?: DebugInfo        // optional typed-symbol model (see below)
   extras?: Record<string, unknown>  // pass-through (raw listing text, etc.)
   exitCode: number             // 0 on success; non-zero on failure (contract)
 }
@@ -51,6 +52,29 @@ interface ToolchainBuildOutput {
 `files` carries every file the toolchain might need — sources, includes, generated asset overlays. Your plugin filters by its own `inputExt`. Build the entry point named by `main` and return the binary.
 
 **The plugin owns parsing.** The workbench never reads raw `.lst` / `.lab` / `.sym` text — you pre-parse into `sourceMap` + `labels` and the UI consumes those directly.
+
+### `debugInfo` — typed symbols for the Variables panel
+
+`labels` alone (name → address) drives the flat Variables view. To get the
+**typed** view — globals decoded by type, expandable `struct` / array / pointer
+trees — emit the optional `DebugInfo` model (`@ports`):
+
+```ts
+interface DebugInfo {
+  symbols: DebugSymbol[]   // { name, location: { addr }, type: DebugType }
+}
+// DebugType is language-neutral: scalar (bytes/signed/endian/repr) |
+// pointer | array | struct | union | enum | unknown.
+```
+
+It is **language-agnostic by design** (ADR-0011): the Variables panel reads this
+model and never imports your language package. The toolchain owns the join — it
+pairs its own symbol addresses with types from whatever source fits. The cc65
+toolchain, for example, joins `.dbg` addresses with C types resolved by the in-repo
+`@madside/lsp-c` engine. Omit `debugInfo` and the panel falls back to the flat
+`labels` view; emit it and globals become a typed tree. (A frame/locals contract
+exists too — `DebugFrame` / `DebugScope` — but populating locals needs a real frame
+pointer, so it's not wired for the frameless cc65 ABI yet.)
 
 ## Hello-world
 
