@@ -215,7 +215,7 @@ export default function App() {
     toolchainLanguage,
   );
 
-  // Keep the cc65-intel LSP worker's open `.c`/`.h` set in sync with the whole
+  // Keep the C language server worker's open `.c`/`.h` set in sync with the whole
   // project so cross-file C resolution sees every translation unit (#70).
   useProjectCDocuments(
     project.loaded ? project.files : null,

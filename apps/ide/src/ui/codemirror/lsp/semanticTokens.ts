@@ -2,7 +2,7 @@ import { ViewPlugin, Decoration, EditorView, type DecorationSet, type ViewUpdate
 import { StateField, StateEffect, RangeSetBuilder, type Extension } from "@codemirror/state";
 import { cc65SemanticTokensFull } from "./client";
 
-// LSP semantic-token overlay (#72). The cc65-intel server resolves each
+// LSP semantic-token overlay (#72). The C language server resolves each
 // identifier to a *semantic* role the lezer lexer can't see — a macro vs a
 // variable, a type vs a function, a struct field — and we paint those spans on
 // top of the syntactic highlight. Token-type order matches the server legend.
@@ -76,7 +76,7 @@ const plugin = ViewPlugin.fromClass(
   },
 );
 
-/** CodeMirror extension: paint cc65-intel semantic tokens over the active C
+/** CodeMirror extension: paint LSP semantic tokens over the active C
  *  buffer. Degrades silently to no overlay on transport failure. */
 export function cc65SemanticTokens(): Extension {
   return [tokenField, plugin];

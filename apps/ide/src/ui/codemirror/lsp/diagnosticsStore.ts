@@ -1,7 +1,7 @@
 import type { BuildDiagnostic } from "@ports";
 
 // Worker-free store for the LSP's analysis-driven semantic diagnostics (#77).
-// The cc65-intel server pushes textDocument/publishDiagnostics on every edit;
+// The C language server pushes textDocument/publishDiagnostics on every edit;
 // the (lazy, worker-heavy) LSP client writes them here, and the app reads +
 // merges them with its own build diagnostics. Keeping the store separate lets
 // the app subscribe without statically importing the worker client.

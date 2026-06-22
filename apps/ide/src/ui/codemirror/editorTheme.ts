@@ -150,7 +150,7 @@ export const editorTheme = EditorView.theme(
       maxHeight: "200px",
     },
     // LSP semantic tokens (#72) — painted over the lexical highlight, so these
-    // win where the cc65-intel server resolves a real role the lexer can't see
+    // win where the C language server resolves a real role the lexer can't see
     // (a macro vs a plain identifier, a struct field, a function). `!important`
     // beats the syntaxHighlighting span colour on the same range.
     // Target the mark span AND any nested lezer-highlight span (`… *`) so the
@@ -187,7 +187,7 @@ export const editorTheme = EditorView.theme(
 // peach), so tags are grouped by role: keywords mint, types + preprocessor
 // peach, literals + constants amber, strings coral, functions bright, operators
 // dimmed. Covers the full lezer-cpp tag set so C reads richly — distinct from
-// the future LSP semantic-token highlighting (cc65-intel #72), which is an
+// the future LSP semantic-token highlighting (#72), which is an
 // analysis-driven overlay, not a replacement for this lexical pass.
 export const editorHighlight = HighlightStyle.define([
   { tag: [t.lineComment, t.blockComment, t.comment], color: "var(--text-tertiary)", fontStyle: "italic" },

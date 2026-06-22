@@ -1,4 +1,4 @@
-// cc65 sysroot headers for the C LSP. The cc65-intel engine indexes these to
+// cc65 sysroot headers for the C LSP. The C language server indexes these to
 // offer stdlib completion (conio/stdlib) + hardware register structs (VIC/SID),
 // and to drive auto-`#include`. The host (madside) reads them from the mounted
 // sysroot zip (VFS) and hands them to the LSP via `initializationOptions`.
@@ -17,7 +17,7 @@ const decoder = new TextDecoder()
 // Predefined macros cc65 sets per `-t` target. The LSP needs them to resolve
 // the preprocessor target gating (`<target.h>` → `#if defined(__C64__)` →
 // c64.h, not agat.h) so cross-target completion noise + false redefinition
-// diagnostics go away (cc65-intel #30). CBM machines need the `__CBM__` family
+// diagnostics go away (#30). CBM machines need the `__CBM__` family
 // macro too — the chain is target.h →(__CBM__)→ cbm.h →(__C64__)→ c64.h. This
 // is the only cc65-specific knowledge the host adds; the engine stays
 // target-agnostic (it just evaluates `#if defined(X)`).

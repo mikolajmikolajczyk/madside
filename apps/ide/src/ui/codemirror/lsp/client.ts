@@ -212,7 +212,7 @@ function applyWithEdits(label: string, edits: LspTextEdit[]) {
   }
 }
 
-/** CodeMirror completion source backed by the cc65-intel LSP. Any transport
+/** CodeMirror completion source backed by the C language server. Any transport
  *  failure (worker crash, init error) degrades to "no completions" rather than
  *  surfacing an error in the editor. */
 export async function cc65LspComplete(ctx: CompletionContext): Promise<CompletionResult | null> {
@@ -274,7 +274,7 @@ function renderHover(markdown: string): HTMLElement {
   return dom
 }
 
-/** CodeMirror hover source backed by the cc65-intel LSP. Transport failures
+/** CodeMirror hover source backed by the C language server. Transport failures
  *  degrade to "no tooltip". */
 export const cc65LspHover = hoverTooltip(async (view, pos): Promise<Tooltip | null> => {
   try {

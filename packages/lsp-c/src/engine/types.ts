@@ -1,5 +1,5 @@
-// Public data contract for cc65-intel/core. Pure data — NO CodeMirror, NO LSP,
-// NO DOM. Positions are character offsets into the source text; line/column
+// Public data contract for the @madside/lsp-c engine. Pure data — NO CodeMirror,
+// NO LSP, NO DOM. Positions are character offsets into the source text; line/column
 // conversion is a transport concern (the LSP/editor adapter), deliberately kept
 // out of the engine so the same core serves a CodeMirror client and an LSP
 // server unchanged.

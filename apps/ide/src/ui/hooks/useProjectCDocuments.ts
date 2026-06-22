@@ -8,7 +8,7 @@ interface ProjectFile {
 const dec = new TextDecoder();
 const C_RE = /\.(c|h)$/i;
 
-/** Keep the cc65-intel LSP worker's open-document set in sync with the
+/** Keep the C language server worker's open-document set in sync with the
  *  project's `.c`/`.h` files (#70). The editor only ever holds the focused
  *  buffer, but cross-file resolution needs every translation unit open — so the
  *  app, which owns all files, drives the sync. Lazy-imports the LSP client so a

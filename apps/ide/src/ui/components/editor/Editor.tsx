@@ -83,8 +83,8 @@ async function loadLanguagePack(
     const { json } = await import("@codemirror/lang-json");
     return [json()];
   }
-  // C / C++ sources (cc65 projects). Completion + hover come from the cc65-intel
-  // LSP running in a Web Worker (#63): member completion, cc65 stdlib + register
+  // C / C++ sources (cc65 projects). Completion + hover come from the in-repo
+  // C language server running in a Web Worker (#63): member completion, cc65 stdlib + register
   // structs (from the sysroot headers we feed it), and auto-#include.
   if (/\.(c|h|cc|cpp|hpp)$/.test(lower)) {
     const [{ cpp }, { autocompletion }, lsp, { cc65SemanticTokens }, { cc65SignatureHelpTooltip }, { cc65SysrootHeaders, cc65TargetDefines }] = await Promise.all([

@@ -3,7 +3,7 @@ import { isCFile } from "@ui/codemirror";
 import type { OutlineItem } from "../../codemirror/lsp/client";
 import "./OutlinePanel.css";
 
-// LSP SymbolKind → a short tag (cc65-intel emits Function/Struct/Enum/Class
+// LSP SymbolKind → a short tag (the C language server emits Function/Struct/Enum/Class
 // (typedef)/Variable/Constant/Field). Anything else falls back to a dot.
 const KIND_TAG: Record<number, string> = {
   5: "type", // Class — typedef
