@@ -1,0 +1,59 @@
+.dockspike {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  background: var(--bg-primary, #1a1a1a);
+  color: var(--text-primary, #eee);
+}
+
+.dockspike__bar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 6px 12px;
+  border-bottom: 1px solid var(--border-default, #333);
+  font-size: 12px;
+  flex-wrap: wrap;
+}
+
+.dockspike__title { font-weight: 600; }
+.dockspike__hint { color: var(--text-tertiary, #888); margin-right: auto; }
+
+.dockspike__toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  cursor: pointer;
+  user-select: none;
+}
+
+.dockspike__reset {
+  background: var(--bg-tertiary, #2a2a2a);
+  color: inherit;
+  border: 1px solid var(--border-default, #333);
+  border-radius: 3px;
+  padding: 2px 8px;
+  cursor: pointer;
+}
+.dockspike__reset:hover { background: var(--bg-secondary, #222); }
+
+.dockspike__view { flex: 1; }
+
+.dockspike__panel,
+.dockspike__placeholder {
+  height: 100%;
+  overflow: auto;
+}
+
+.dockspike__placeholder {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-tertiary, #888);
+  font-family: var(--font-mono, monospace);
+}
+
+.dockspike__missing {
+  padding: 12px;
+  color: var(--accent-coral, #e57);
+}
