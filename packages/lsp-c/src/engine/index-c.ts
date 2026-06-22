@@ -191,6 +191,18 @@ function fnNameNode(declarator: SyntaxNode): SyntaxNode | null {
   return declarator.getChild('Identifier')
 }
 
+/** The named `FunctionDeclarator` of a function definition / prototype, or null
+ *  when `node` doesn't declare a plain function. Descends through a pointer-return
+ *  wrapper — Lezer nests the declarator under a `PointerDeclarator` for `char
+ *  *f()` (`PointerDeclarator(FunctionDeclarator(id))`), so a direct `getChild`
+ *  misses it (#137). Requires a DIRECT `Identifier` child so a function-pointer
+ *  *variable* (`int (*fp)(void)`, whose `FunctionDeclarator` wraps a parenthesized
+ *  pointer, not an identifier) is NOT mistaken for a function. */
+function funcDeclarator(node: SyntaxNode): SyntaxNode | null {
+  const d = node.getChild('FunctionDeclarator') ?? deepChild(node, 'FunctionDeclarator')
+  return d && d.getChild('Identifier') ? d : null
+}
+
 /** Each parameter of a `FunctionDeclarator`, as written (whitespace collapsed),
  *  for signature help. A lone `void` parameter list is normalised to `[]`. */
 function paramsOf(declarator: SyntaxNode, text: string): string[] {
@@ -279,7 +291,7 @@ function collectSymbols(
   // locals inside function bodies don't leak into identifier completion).
   for (let n = root.firstChild; n; n = n.nextSibling) {
     if (n.name === 'FunctionDefinition') {
-      const decl = n.getChild('FunctionDeclarator')
+      const decl = funcDeclarator(n)
       const id = decl ? fnNameNode(decl) : null
       if (id && decl) {
         add({
@@ -295,7 +307,7 @@ function collectSymbols(
       continue
     }
     if (n.name !== 'Declaration') continue
-    const fnDecl = n.getChild('FunctionDeclarator')
+    const fnDecl = funcDeclarator(n)
     if (fnDecl) {
       const id = fnNameNode(fnDecl)
       if (id) {

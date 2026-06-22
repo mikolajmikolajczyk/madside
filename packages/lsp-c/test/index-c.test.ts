@@ -44,3 +44,38 @@ describe('indexC — type extraction', () => {
     expect(idx.types.get('T')?.fields[0]?.name).toBe('first')
   })
 })
+
+// #137 — pointer-returning functions must reach the symbol table. The Lezer tree
+// nests the FunctionDeclarator under a PointerDeclarator for a pointer return, so
+// a direct getChild misses it; a function-pointer *variable* must stay a variable.
+describe('indexC — function declarator shapes (#137)', () => {
+  it('indexes a pointer-returning function definition', () => {
+    const idx = indexC([{ path: 'm.c', text: 'char *get_name(int id) { return 0; }' }])
+    expect(idx.symbols.get('get_name')?.kind).toBe('function')
+    expect(idx.symbols.get('get_name')?.params).toEqual(['int id'])
+  })
+
+  it('indexes a pointer-returning function prototype (not as a variable)', () => {
+    const idx = indexC([{ path: 'm.c', text: 'void *malloc(unsigned n);' }])
+    expect(idx.symbols.get('malloc')?.kind).toBe('function')
+  })
+
+  it('indexes a struct-pointer-returning function', () => {
+    const idx = indexC([{ path: 'm.c', text: 'struct Node *head(void) { return 0; }' }])
+    expect(idx.symbols.get('head')?.kind).toBe('function')
+  })
+
+  it('does NOT mistake a function-pointer variable for a function', () => {
+    // `int (*handler)(int a)` has a top-level FunctionDeclarator wrapping a
+    // ParenthesizedDeclarator (no direct Identifier), so it must not be indexed
+    // as a function. (It isn't indexed as a variable either — declaredVars
+    // doesn't model fp-declarators — a separate pre-existing limitation.)
+    const idx = indexC([{ path: 'm.c', text: 'int (*handler)(int a);' }])
+    expect(idx.symbols.get('handler')?.kind).not.toBe('function')
+  })
+
+  it('plain (non-pointer) functions keep working', () => {
+    const idx = indexC([{ path: 'm.c', text: 'int plain(void) { return 0; }' }])
+    expect(idx.symbols.get('plain')?.kind).toBe('function')
+  })
+})
