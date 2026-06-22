@@ -23,7 +23,8 @@
     "packages/converters/src/**/*",
     "packages/editors/src/**/*",
     "packages/theme-dark/src/**/*",
-    "packages/theme-light/src/**/*"
+    "packages/theme-light/src/**/*",
+    "packages/workbench-core/src/**/*"
   ],
   "references": [
     { "path": "./tsconfig.core.json" },

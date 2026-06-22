@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { createCommandRegistry } from '@services'
+import { createCommandRegistry } from '@madside/workbench-core'
 import { eventToShortcut, fuzzyFilter, visibleCommands, type ShortcutEvent } from '@ui/commands'
 import type { Command } from '@ports'
 

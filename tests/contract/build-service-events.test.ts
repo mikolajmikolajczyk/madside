@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { createBuildService, createEventBus, type ToolchainAssembleFn } from '@services'
+import { createBuildService, createEventBus, type ToolchainAssembleFn } from '@madside/workbench-core'
 import { MANIFEST_VERSION, type ProjectManifestV2, type WorkbenchEvents } from '@ports'
 
 // BuildService event surface. Regression cover for the dogfooding fix where a

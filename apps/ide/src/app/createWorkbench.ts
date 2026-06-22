@@ -27,7 +27,7 @@ import {
   type RunBackendFactory,
   type ToolchainAssembleFn,
   type ToolchainResolverFn,
-} from '@services'
+} from '@madside/workbench-core'
 import { runRecipes, setConverterLoaderFactory } from '@madside/converters'
 import { setEditorLoaderFactory } from '@madside/editors'
 import { createPluginLoader } from '@adapters'

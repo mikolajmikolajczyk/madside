@@ -8,8 +8,7 @@
 
 import { describe, expect, it } from 'vitest'
 import { assertExactlyOneEvent, assertNoEvent } from '@ports/test'
-import { createEventBus } from '@services/event-bus'
-import { createRunService, type RunBackendFactory } from '@services/run-service'
+import { createEventBus, createRunService, type RunBackendFactory } from '@madside/workbench-core'
 import type { EventBus, RunBackend, RunService, RunStatus } from '@ports'
 
 function fakeBackend(loadOverride?: () => void): RunBackend {

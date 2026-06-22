@@ -24,8 +24,6 @@ export default defineConfig({
       { find: /^@madside\/(.+)$/, replacement: r('../../packages/$1') },
       { find: /^@adapters$/,   replacement: r('./src/adapters') },
       { find: /^@adapters\//,  replacement: r('./src/adapters/') },
-      { find: /^@services$/,   replacement: r('./src/services') },
-      { find: /^@services\//,  replacement: r('./src/services/') },
       { find: /^@app$/,        replacement: r('./src/app') },
       { find: /^@app\//,       replacement: r('./src/app/') },
       { find: /^@ui$/,         replacement: r('./src/ui') },

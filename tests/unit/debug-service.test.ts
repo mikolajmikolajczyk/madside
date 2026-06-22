@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest'
-import { createDebugService, createEventBus } from '@services'
+import { createDebugService, createEventBus } from '@madside/workbench-core'
 import type { DebugAdapterPlugin, DebugTarget, RunBackend, RunService } from '@ports'
 
 // Direct DebugService unit test (ADR-0005 Layer-2). nes-bp.test.ts drives the

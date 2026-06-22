@@ -234,6 +234,9 @@ importers:
       '@madside/wasm-z88dk':
         specifier: workspace:*
         version: link:../../packages/wasm-z88dk
+      '@madside/workbench-core':
+        specifier: workspace:*
+        version: link:../../packages/workbench-core
       '@radix-ui/react-context-menu':
         specifier: ^2.2.16
         version: 2.3.0(@types/react-dom@19.2.3(@types/react@19.2.17))(@types/react@19.2.17)(react-dom@19.2.7(react@19.2.7))(react@19.2.7)
@@ -523,6 +526,12 @@ importers:
   packages/wasm-mads: {}
 
   packages/wasm-z88dk: {}
+
+  packages/workbench-core:
+    dependencies:
+      '@madside/ports':
+        specifier: workspace:*
+        version: link:../ports
 
 packages:
 

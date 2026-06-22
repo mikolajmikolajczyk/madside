@@ -47,6 +47,10 @@ const elementTypes = [
     { type: 'plugins', pattern: `packages/${pkg}/src/*`, mode: 'folder' },
     { type: 'plugins', pattern: `packages/${pkg}/src/*.{ts,tsx}`, mode: 'file' },
   ]),
+  // The headless workbench engine is a package now (#123) but stays the
+  // 'services' layer — ui may import it (useAutoAssemble), which 'plugins' forbids.
+  { type: 'services', pattern: 'packages/workbench-core/src/*', mode: 'folder' },
+  { type: 'services', pattern: 'packages/workbench-core/src/*.{ts,tsx}', mode: 'file' },
 ]
 
 // allow[X] = which layers X may import. Mirror of ADR-0002's table.

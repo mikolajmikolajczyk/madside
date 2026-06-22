@@ -1,9 +1,9 @@
 import { beforeEach, describe, expect, it } from 'vitest'
 import {
   createAssetPipelineService,
+  createEventBus,
   type RecipeRunnerResultLike,
-} from '@services'
-import { createEventBus } from '@services'
+} from '@madside/workbench-core'
 import type { AssetPipelineInput, Recipe } from '@ports'
 
 describe('AssetPipelineService.runAffected', () => {

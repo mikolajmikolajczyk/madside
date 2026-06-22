@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { DEFAULT_DEBOUNCE_MS } from "@services";
+import { DEFAULT_DEBOUNCE_MS } from "@madside/workbench-core";
 import { errorMessage } from "@ports";
 import type {
   BuildDiagnostic,

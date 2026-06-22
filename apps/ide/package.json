@@ -45,6 +45,7 @@
     "@madside/toolchain-ca65": "workspace:*",
     "@madside/toolchain-mads": "workspace:*",
     "@madside/toolchain-z88dk": "workspace:*",
+    "@madside/workbench-core": "workspace:*",
     "@madside/wasm-altirra": "workspace:*",
     "@madside/wasm-cc65": "workspace:*",
     "@madside/wasm-chips": "workspace:*",

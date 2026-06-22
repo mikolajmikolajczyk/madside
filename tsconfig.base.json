@@ -28,8 +28,6 @@
       "@ports/*":    ["./packages/ports/src/*"],
       "@adapters":   ["./apps/ide/src/adapters"],
       "@adapters/*": ["./apps/ide/src/adapters/*"],
-      "@services":   ["./apps/ide/src/services"],
-      "@services/*": ["./apps/ide/src/services/*"],
       "@app":        ["./apps/ide/src/app"],
       "@app/*":      ["./apps/ide/src/app/*"],
       "@ui":         ["./apps/ide/src/ui"],

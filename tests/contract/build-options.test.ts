@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { createBuildService, createEventBus, type ToolchainAssembleFn } from '@services'
+import { createBuildService, createEventBus, type ToolchainAssembleFn } from '@madside/workbench-core'
 import { MANIFEST_VERSION, type ProjectManifestV2 } from '@ports'
 
 // Manifest build options reach the toolchain (issue 04bdb5a, #51). BuildService
