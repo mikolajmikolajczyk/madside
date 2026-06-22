@@ -29,7 +29,7 @@ export type {
 } from './types'
 
 export { parseC } from './parse'
-export { indexC } from './index-c'
+export { indexC, functionLocals } from './index-c'
 export { completeAt } from './complete'
 export { hoverAt } from './hover'
 export { definitionAt } from './definition'

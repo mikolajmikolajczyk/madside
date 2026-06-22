@@ -5,6 +5,7 @@ import type {
   CLocation,
   CSymbol,
   CType,
+  DType,
   ExtraDecls,
   IndexOptions,
   SourceFile,
@@ -319,6 +320,41 @@ function collectSymbols(
       add({ label: v.name, kind: 'global', file, loc, ...(type ? { type } : {}), dtype: v.dtype, ...hdr })
     }
   }
+}
+
+/** The local variables of a function definition — its parameters + every
+ *  declaration in its body (block-nested ones folded in, matching how cc65
+ *  groups autos) — each with its structured `DType` (#131). Names only; the
+ *  caller resolves `DType` → laid-out type via `resolveType`, and joins these
+ *  against the toolchain's frame offsets by name. Returns `[]` if the function
+ *  isn't defined in `text`. First declarator of a shadowed name wins. */
+export function functionLocals(text: string, funcName: string, decorators?: RegExp): { name: string; dtype: DType }[] {
+  const root = parseC(text, decorators).topNode
+  const out: { name: string; dtype: DType }[] = []
+  const seen = new Set<string>()
+  const take = (decl: SyntaxNode): void => {
+    for (const v of declaredVars(decl, text)) {
+      if (seen.has(v.name)) continue
+      seen.add(v.name)
+      out.push({ name: v.name, dtype: v.dtype })
+    }
+  }
+  for (let n = root.firstChild; n; n = n.nextSibling) {
+    if (n.name !== 'FunctionDefinition') continue
+    const decl = n.getChild('FunctionDeclarator')
+    const id = decl ? fnNameNode(decl) : null
+    if (!decl || !id || slice(text, id) !== funcName) continue
+    const list = decl.getChild('ParameterList')
+    if (list) for (let p = list.firstChild; p; p = p.nextSibling) {
+      if (p.name === 'ParameterDeclaration') take(p)
+    }
+    const body = n.getChild('CompoundStatement')
+    if (body) walk(body, (d) => {
+      if (d.name === 'Declaration' && !d.getChild('FunctionDeclarator')) take(d)
+    })
+    break
+  }
+  return out
 }
 
 export function indexC(files: SourceFile[], opts: IndexOptions = {}): CIndex {
