@@ -140,7 +140,7 @@
   - **Variables panel epic (#121)** — Phase 1 globals → DebugInfo port (ADR-0011, #129/#130) → typed tree + watch (#132). Locals deferred (cc65 ABI, ADR-0012); z80-via-IX path #136 gated on #135.
   - **`@madside/lsp-z80`** (#114) — sccz80/z88dk ZX Spectrum C server on the agnostic core; `@madside/lsp-c` carved MIT (ADR-0009 epic #110 closed).
   - **Private package extractions** (#123 workbench-core, #125 storage-idb) — clean ADR-0002 layers without publish; #64 reframed (publish gate vs private modularization).
-  - Outline / References as own dock panels (#120). Themes-as-plugins scoped as issue #118 (not built).
+  - Outline / References as own dock panels (#120). **Themes-as-plugins shipped (#118)** — `ThemePlugin` contract + `@madside/theme-{dark,light}`, applied as `--*` CSS tokens (Dockview chrome maps `--dv-*` onto them).
 - `milestone:v1.0.0` — first post-docs major release; TBD
 - `milestone:backlog` — Altirra bindings.cpp split (cd90f9d), per-step display refresh research (c309619). IDB schema migration framework shipped (`migrations.ts`): v3 courses store, v4 builds store (#62); BP Map/Record drift test shipped.
 - **Infra epic 70269cc** (no milestone, separate clock) — GitHub mirror (edbc165), VPS hosting (efc75d1)

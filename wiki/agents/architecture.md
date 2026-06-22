@@ -38,7 +38,7 @@ packages/                # workspace libraries (each: src/ + package.json)
     plugin-emulator.ts   # EmulatorPlugin contract — createBackend(): RunBackend
     plugin-converter.ts  # ConverterModule (Phase 7)
     plugin-editor.ts     # EditorModule (Phase 11 — folded into PanelPlugin via editorToPanel)
-    plugin-theme.ts      # ThemePlugin contract — ThemeTokens / ThemeTokenName (themes-as-plugins seam, #118)
+    plugin-theme.ts      # ThemePlugin contract — ThemeTokens / ThemeTokenName (themes-as-plugins, #118; impls @madside/theme-{dark,light})
     debug-info.ts        # DebugInfo port (ADR-0011) — typed-symbol model + DebugFrame/DebugScope/DebugLocal frame contract (ADR-0012, #131)
     cpu.ts               # Cpu6502State — shared 6502 register snapshot
     services/            # Build/Run/Debug/AssetPipeline contracts
@@ -72,8 +72,10 @@ packages/                # workspace libraries (each: src/ + package.json)
   panel-output/          # PanelPlugin v0.7.0 — build stdout/stderr + OK/ERR tag
   panel-ppu/             # PanelPlugin (v0.8.0) — NES PPU pattern tables + palette; supports() gated on the 'ppu' memory space
   panel-variables/       # PanelPlugin (#121) — debugger Variables: typed globals + struct/array/pointer tree + watch; reads the @ports DebugInfo model (never a language pkg, ADR-0011). src/{VariablesPanel.tsx,decode.ts,watch-eval.ts}
-  converters/            # asset converters (Phase 7) — src/{recipeEngine,registry}.ts + src/builtins/
+  converters/            # asset converters (Phase 7) — src/{recipeEngine,registry}.ts + src/builtins/ (bin-to-incbin, csv-to-data)
   editors/               # plugin file editors (Phase 11) + editorToPanel bridge — src/registry.ts + src/builtins/
+  theme-dark/            # ThemePlugin (#118) — dark palette (ThemeTokens → --* CSS vars)
+  theme-light/           # ThemePlugin (#118) — light palette
 
   # --- workbench services + storage, extracted to private workspace packages (#123/#125) ---
   workbench-core/        # @madside/workbench-core — Build/Run/Debug/AssetPipeline services + EventBus/CommandRegistry/PluginRegistry impls + event-bus-logger (was apps/ide/src/services/). DI'd via *ServiceDeps.
