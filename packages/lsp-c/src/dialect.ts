@@ -5,6 +5,8 @@
 // profile into a @madside/lsp-core LanguageProvider. The engine itself knows no
 // dialect — everything dialect-specific lives here (ADR-0009).
 
+import type { ExtraDecls } from './engine'
+
 export interface CDialect {
   /** Calling-convention macros blanked (offset-preserving) before parsing, so a
    *  declaration carrying one still indexes. cc65: `__fastcall__`/`__cdecl__`.
@@ -21,4 +23,8 @@ export interface CDialect {
   completionTriggers?: string[]
   /** Signature-help trigger characters. Defaults to `['(', ',']`. */
   signatureTriggers?: string[]
+  /** Extractor for functions the C grammar can't see because they're declared
+   *  via a macro (z88dk's `__ZPROTO*(...)` prototypes). Returns each function so
+   *  the engine indexes it alongside the parsed declarations. Omit for plain C. */
+  extraDecls?: ExtraDecls
 }

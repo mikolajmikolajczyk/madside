@@ -5,6 +5,7 @@ import type {
   CLocation,
   CSymbol,
   CType,
+  ExtraDecls,
   IndexOptions,
   SourceFile,
 } from './types'
@@ -201,11 +202,28 @@ function collectSymbols(
   into: Map<string, CSymbol>,
   header?: string,
   decorators?: RegExp,
+  extraDecls?: ExtraDecls,
 ): void {
   const root = parseC(text, decorators).topNode
   const hdr = header ? { header } : {}
   const add = (s: CSymbol): void => {
     if (!into.has(s.label)) into.set(s.label, s)
+  }
+
+  // Macro-defined declarations the C grammar can't see (z88dk `__ZPROTO*`). The
+  // dialect pulls them straight from the text; index them as functions.
+  if (extraDecls) {
+    for (const d of extraDecls(text)) {
+      add({
+        label: d.name,
+        kind: 'function',
+        file,
+        detail: d.detail,
+        params: d.params,
+        loc: { uri, start: d.offset, end: d.offset + d.name.length },
+        ...hdr,
+      })
+    }
   }
 
   // `#define NAME …`. cc65 exposes hardware registers as `#define VIC
@@ -297,6 +315,7 @@ export function indexC(files: SourceFile[], opts: IndexOptions = {}): CIndex {
   const index: CIndex = { types: new Map(), symbols: new Map(), aliases: new Map() }
   const sysroot = opts.sysrootHeaders ?? []
   const decorators = opts.decorators
+  const extraDecls = opts.extraDecls
 
   // Legacy path (#30): no target defines → index every sysroot header flat, no
   // preprocessor. Kept for back-compat with hosts that don't pass `defines`.
@@ -306,12 +325,12 @@ export function indexC(files: SourceFile[], opts: IndexOptions = {}): CIndex {
     for (const f of sysroot) {
       const file = basename(f.path)
       collectTypes(f.text, file, f.path, index.types, index.aliases, decorators)
-      collectSymbols(f.text, file, f.path, index.symbols, file, decorators)
+      collectSymbols(f.text, file, f.path, index.symbols, file, decorators, extraDecls)
     }
     for (const f of files) {
       const file = basename(f.path)
       collectTypes(f.text, file, f.path, index.types, index.aliases, decorators)
-      collectSymbols(f.text, file, f.path, index.symbols, undefined, decorators)
+      collectSymbols(f.text, file, f.path, index.symbols, undefined, decorators, extraDecls)
     }
     return index
   }
@@ -330,7 +349,7 @@ export function indexC(files: SourceFile[], opts: IndexOptions = {}): CIndex {
   // decorators) and clone it; each reindex then only parses the (small) project
   // files on top. Keyed off the sysroot array identity — the host hands back the
   // same cached array per target, so this hits after the first build.
-  const sysrootIndex = getSysrootIndex(sysroot, defines, decorators)
+  const sysrootIndex = getSysrootIndex(sysroot, defines, decorators, extraDecls)
   const index2: CIndex = {
     types: new Map(sysrootIndex.types),
     symbols: new Map(sysrootIndex.symbols),
@@ -343,7 +362,7 @@ export function indexC(files: SourceFile[], opts: IndexOptions = {}): CIndex {
     const file = basename(f.path)
     const { stripped } = preprocess(f.text, defines)
     collectTypes(stripped, file, f.path, index2.types, index2.aliases, decorators)
-    collectSymbols(stripped, file, f.path, index2.symbols, undefined, decorators)
+    collectSymbols(stripped, file, f.path, index2.symbols, undefined, decorators, extraDecls)
   }
   return index2
 }
@@ -392,6 +411,7 @@ function getSysrootIndex(
   sysroot: SourceFile[],
   defines: Record<string, string>,
   decorators?: RegExp,
+  extraDecls?: ExtraDecls,
 ): SysrootIndex {
   const key = `${sysrootSig(sysroot)} ${variantKey(defines, decorators)}`
   const hit = indexBySig.get(key)
@@ -441,7 +461,7 @@ function getSysrootIndex(
   for (const [name, e] of byName) {
     if (!reached.has(name)) continue
     collectTypes(e.pp.stripped, name, e.src.path, out.types, out.aliases, decorators)
-    collectSymbols(e.pp.stripped, name, e.src.path, out.symbols, name, decorators)
+    collectSymbols(e.pp.stripped, name, e.src.path, out.symbols, name, decorators, extraDecls)
   }
   indexBySig.set(key, out)
   return out

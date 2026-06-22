@@ -106,13 +106,14 @@ function includeInsert(text: string, header: string): { offset: number; newText:
 /** Build a @madside/lsp-core LanguageProvider for the C dialect `dialect`. */
 export function createCProvider(dialect: CDialect): LanguageProvider {
   const decorators = dialect.decorators
+  const extraDecls = dialect.extraDecls
   let sysrootHeaders: SourceFile[] = []
   let defines: Record<string, string> | undefined
   let files: SourceFile[] = []
-  let index: CIndex = indexC([], { decorators })
+  let index: CIndex = indexC([], { decorators, extraDecls })
 
   const rebuild = (): void => {
-    index = indexC(files, { sysrootHeaders, defines, decorators })
+    index = indexC(files, { sysrootHeaders, defines, decorators, extraDecls })
   }
 
   return {

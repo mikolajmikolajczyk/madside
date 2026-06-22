@@ -14,6 +14,8 @@ export type {
   CompletionItem,
   HoverInfo,
   IndexOptions,
+  ExtraDecls,
+  ExtraDecl,
   CDiagnostic,
   CDiagnosticSeverity,
   CSemanticDiagnostic,

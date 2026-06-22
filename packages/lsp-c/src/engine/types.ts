@@ -167,4 +167,20 @@ export interface IndexOptions {
    *  `__fastcall__`/`__cdecl__`). Threaded into every parse so the declarations
    *  carrying them still index. Absent ⇒ blank nothing (plain C). */
   decorators?: RegExp
+  /** Dialect extractor for declarations the C grammar can't see — functions
+   *  defined via macros (z88dk's `__ZPROTO*(...)` prototypes). Run per indexed
+   *  file; its results are added as function symbols alongside the parsed ones. */
+  extraDecls?: ExtraDecls
+}
+
+/** Pull macro-defined function declarations out of a header's text (the parser
+ *  can't expand macros). Returns each function's name, a one-line detail, its
+ *  parameter list, and the offset to anchor go-to-definition at. */
+export type ExtraDecls = (text: string) => ExtraDecl[]
+export interface ExtraDecl {
+  name: string
+  detail: string
+  params: string[]
+  /** Character offset of the declaration (for go-to-definition). */
+  offset: number
 }
