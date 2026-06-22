@@ -5,6 +5,7 @@
 
 export type {
   SourceFile,
+  DType,
   CSymbolKind,
   CLocation,
   CField,
@@ -39,3 +40,12 @@ export { documentSymbols } from './outline'
 export { findReferences, referencesAt } from './references'
 export { renameAt, prepareRenameAt } from './rename'
 export { semanticTokens } from './tokens'
+export {
+  resolveType,
+  typeOfSymbol,
+  sizeOf,
+  CC65_SIZES,
+  type CPrimitiveSizes,
+  type ResolvedType,
+  type ResolvedField,
+} from './typeinfo'

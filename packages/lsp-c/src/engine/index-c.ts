@@ -11,7 +11,7 @@ import type {
 } from './types'
 import { preprocess, type PreprocessResult } from './preprocess'
 import { parseC, stripDecorators } from './parse'
-import { declTypeName, declaredIds, deepChild, slice, walk } from './ast'
+import { declTypeName, declaredVars, deepChild, slice, walk } from './ast'
 
 // Build a project index from source files by walking each file's Lezer tree:
 // the type table (struct / union / typedef → fields) and the top-level symbol
@@ -55,9 +55,13 @@ function fieldsOf(list: SyntaxNode, text: string, uri: string): CField[] {
   const out: CField[] = []
   for (let decl = list.firstChild; decl; decl = decl.nextSibling) {
     if (decl.name !== 'FieldDeclaration') continue
-    const id = deepChild(decl, 'FieldIdentifier')
-    if (!id) continue
-    out.push({ name: slice(text, id), type: fieldType(decl, text), loc: locOf(uri, id) })
+    // String type (per-declaration) drives completion's member resolution; the
+    // per-declarator dtype (#129) drives exact debug layout. declaredVars emits
+    // every field (`int a, b;` → both), each with its own pointer/array shape.
+    const typeStr = fieldType(decl, text)
+    for (const v of declaredVars(decl, text)) {
+      out.push({ name: v.name, type: typeStr, dtype: v.dtype, loc: { uri, start: v.from, end: v.to } })
+    }
   }
   return out
 }
@@ -146,14 +150,18 @@ function collectTypes(
       const spec = n.getChild('StructSpecifier') ?? n.getChild('UnionSpecifier')
       const directIds = ids.map((id) => slice(text, id))
       const specTag = spec?.getChild('TypeIdentifier')
-      const underlying = specTag ? slice(text, specTag) : directIds[0]
+      // `typedef unsigned char u8;` — the underlying is a primitive/sized type,
+      // not a named one, and the lone TypeIdentifier is the alias (#129).
+      const prim = n.getChild('PrimitiveType') ?? n.getChild('SizedTypeSpecifier')
+      const primText = prim ? slice(text, prim).replace(/\s+/g, ' ').trim() : undefined
+      const underlying = specTag ? slice(text, specTag) : primText ?? directIds[0]
       const ptr = n.getChild('PointerDeclarator')
       let alias: string | undefined
       if (ptr) {
         const a = deepChild(ptr, 'TypeIdentifier') ?? deepChild(ptr, 'Identifier')
         alias = a ? slice(text, a) : undefined
       } else {
-        alias = spec ? directIds[directIds.length - 1] : directIds[1]
+        alias = spec ? directIds[directIds.length - 1] : primText ? directIds[0] : directIds[1]
       }
       if (alias && underlying && alias !== underlying && !aliasInto.has(alias)) {
         aliasInto.set(alias, underlying)
@@ -302,11 +310,13 @@ function collectSymbols(
       }
       continue
     }
-    // Every declarator of the declaration (`struct Foo a, b;` → a and b).
+    // Every declarator of the declaration (`struct Foo a, b;` → a and b). The
+    // string type drives completion; the per-declarator dtype (#129) drives
+    // exact debug layout (no pointer/array bleed across declarators).
     const type = declTypeName(n, text)
-    for (const id of declaredIds(n, text)) {
-      const loc: CLocation = { uri, start: id.from, end: id.to }
-      add({ label: id.name, kind: 'global', file, loc, ...(type ? { type } : {}), ...hdr })
+    for (const v of declaredVars(n, text)) {
+      const loc: CLocation = { uri, start: v.from, end: v.to }
+      add({ label: v.name, kind: 'global', file, loc, ...(type ? { type } : {}), dtype: v.dtype, ...hdr })
     }
   }
 }

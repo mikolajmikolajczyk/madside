@@ -1,4 +1,5 @@
 import type { SyntaxNode } from '@lezer/common'
+import type { DType } from './types'
 import { parseC } from './parse'
 
 // Shared Lezer-tree helpers used by the indexer, the completer, and hover.
@@ -74,6 +75,111 @@ export function declTypeName(decl: SyntaxNode, text: string): string {
   }
   const id = decl.getChild('TypeIdentifier')
   return id ? slice(text, id) : ''
+}
+
+/** The written type-spec text of a declaration — primitive / sized / struct /
+ *  union / enum / typedef — WITHOUT any declarator (pointer/array). The base for
+ *  `buildDType`. `struct Foo`/`enum E` keep the keyword (typeKey strips it). */
+export function baseSpecText(decl: SyntaxNode, text: string): string {
+  const spec =
+    decl.getChild('StructSpecifier') ??
+    decl.getChild('UnionSpecifier') ??
+    decl.getChild('EnumSpecifier')
+  const node =
+    spec ??
+    decl.getChild('PrimitiveType') ??
+    decl.getChild('SizedTypeSpecifier') ??
+    decl.getChild('TypeIdentifier')
+  if (!node) return ''
+  if (spec) {
+    const tag = spec.getChild('TypeIdentifier')
+    const kw = node.name === 'UnionSpecifier' ? 'union' : node.name === 'EnumSpecifier' ? 'enum' : 'struct'
+    return tag ? `${kw} ${slice(text, tag)}` : ''
+  }
+  return slice(text, node).replace(/\s+/g, ' ').trim()
+}
+
+// Numeric size of an ArrayDeclarator (`[10]`), or 0 when absent/non-literal
+// (`[]`, VLA) — a 0-count array decodes to nothing, never mis-sized.
+function arrayCount(node: SyntaxNode, text: string): number {
+  const num = node.getChild('Number')
+  if (!num) return 0
+  const n = Number(slice(text, num))
+  return Number.isFinite(n) && n >= 0 ? n : 0
+}
+
+// The declarator child that wraps the identifier (skips the type spec children).
+function innerDeclarator(node: SyntaxNode): SyntaxNode | null {
+  for (let ch = node.firstChild; ch; ch = ch.nextSibling) {
+    if (
+      ch.name === 'Identifier' ||
+      ch.name === 'PointerDeclarator' ||
+      ch.name === 'ArrayDeclarator' ||
+      ch.name === 'FieldIdentifier'
+    ) {
+      return ch
+    }
+  }
+  return null
+}
+
+/** Build a structured DType from a declarator node, reading C declarators
+ *  outside-in (`int *a[10]` = ArrayDeclarator(PointerDeclarator(id)) = array of
+ *  pointers). Anything not plainly base/pointer/array (parenthesized, function
+ *  declarators) yields a `base:'?'` so the resolver returns `unknown` — raw,
+ *  never silently wrong. */
+export function buildDType(node: SyntaxNode | null, base: DType, text: string): DType {
+  if (!node) return base
+  switch (node.name) {
+    case 'Identifier':
+    case 'FieldIdentifier':
+      return base
+    case 'InitDeclarator':
+      return buildDType(innerDeclarator(node), base, text)
+    case 'PointerDeclarator':
+      return { k: 'ptr', to: buildDType(innerDeclarator(node), base, text) }
+    case 'ArrayDeclarator': {
+      // Lezer nests `a[2][3]` as Array(3, Array(2, id)) — the inner C dimension
+      // outermost. Gather the dim chain, then fold so the leftmost `[2]` ends up
+      // the OUTER array (`array 2 of array 3`).
+      const dims: number[] = []
+      let cur: SyntaxNode | null = node
+      while (cur && cur.name === 'ArrayDeclarator') {
+        dims.push(arrayCount(cur, text))
+        cur = innerDeclarator(cur)
+      }
+      let t = buildDType(cur, base, text)
+      for (const count of dims) t = { k: 'array', count, of: t }
+      return t
+    }
+    default:
+      return { k: 'base', text: '?' }
+  }
+}
+
+/** Every declared identifier of a `Declaration`/`FieldDeclaration` with its
+ *  structured type (#129) — exact pointer/array per declarator, no bleed. */
+export function declaredVars(
+  decl: SyntaxNode,
+  text: string,
+): { name: string; from: number; to: number; dtype: DType }[] {
+  const base: DType = { k: 'base', text: baseSpecText(decl, text) }
+  const out: { name: string; from: number; to: number; dtype: DType }[] = []
+  for (let ch = decl.firstChild; ch; ch = ch.nextSibling) {
+    const isDeclr =
+      ch.name === 'Identifier' ||
+      ch.name === 'FieldIdentifier' ||
+      ch.name === 'PointerDeclarator' ||
+      ch.name === 'ArrayDeclarator' ||
+      ch.name === 'InitDeclarator'
+    if (!isDeclr) continue
+    const id = ch.name === 'Identifier' || ch.name === 'FieldIdentifier'
+      ? ch
+      : deepChild(ch, 'Identifier') ?? deepChild(ch, 'FieldIdentifier')
+    if (!id) continue
+    out.push({ name: slice(text, id), from: id.from, to: id.to, dtype: buildDType(ch, base, text) })
+  }
+  return out
 }
 
 // A declarator wrapping the declared identifier: pointer / array / init.

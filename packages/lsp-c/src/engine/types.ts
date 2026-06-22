@@ -10,6 +10,16 @@ export interface SourceFile {
   text: string
 }
 
+/** Structured declared type, built per-declarator from the AST so pointer/array
+ *  shape is exact (no marker bleed across `int x, *p;`, array sizes captured for
+ *  correct struct layout). `base.text` is the written type spec (`int`,
+ *  `unsigned char`, `Foo`, `struct Foo`); the resolver (#129) turns it into a
+ *  laid-out type. Drives debug-info type introspection, not completion. */
+export type DType =
+  | { k: 'base'; text: string }
+  | { k: 'ptr'; to: DType }
+  | { k: 'array'; count: number; of: DType }
+
 export type CSymbolKind = 'function' | 'macro' | 'type' | 'global' | 'field'
 
 /** Where a definition lives: the source file's path (as given to `indexC`, the
@@ -25,6 +35,8 @@ export interface CField {
   name: string
   /** The field's type name as written, so nested `a.b.c` can resolve. */
   type: string
+  /** Structured type for debug-info layout (#129) — exact pointer/array shape. */
+  dtype?: DType
   /** Definition location of the field's declarator (go-to-definition). */
   loc?: CLocation
 }
@@ -45,6 +57,8 @@ export interface CSymbol {
   kind: CSymbolKind
   /** Declared type name when known (globals/locals) — drives member resolution. */
   type?: string
+  /** Structured type for debug-info layout (#129) — exact pointer/array shape. */
+  dtype?: DType
   /** One-line signature/detail for completion + hover. */
   detail?: string
   /** For functions: each parameter as written (drives signature help). A lone
