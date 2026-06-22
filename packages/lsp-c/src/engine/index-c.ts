@@ -21,6 +21,14 @@ import { declTypeName, declaredIds, deepChild, slice, walk } from './ast'
 
 const basename = (path: string): string => path.split('/').pop() ?? path
 
+// A sysroot header's include-relative key: its path with the `include/` mount
+// prefix stripped (`include/arch/zx/spectrum.h` → `arch/zx/spectrum.h`). Matches
+// what a `#include <…>` directive names, so resolution is by full relative path,
+// not basename — which collides across z88dk's mirrored header trees.
+const relInclude = (path: string): string => path.replace(/^(\.\/)?include\//, '')
+// Normalise a directive's include name (drop a leading `./`) for lookup.
+const incKey = (name: string): string => name.replace(/^\.\//, '')
+
 // A cc65 register-macro body's pointer cast: `(struct __vic2*)` / `(union x *)`.
 // The captured tag is the struct/union the macro instance has.
 const REGISTER_CAST = /\(\s*(?:struct|union)\s+(\w+)\s*\*\s*\)/
@@ -340,10 +348,32 @@ export function indexC(files: SourceFile[], opts: IndexOptions = {}): CIndex {
   return index2
 }
 
-// Cached sysroot index per (sysroot array, defines + decorators). WeakMap on the
-// array so a dropped sysroot is GC'd; inner Map keys the variant.
+// Cached sysroot index, keyed by sysroot CONTENT (not array identity). The LSP
+// runs in a Web Worker, so the host's sysroot array is re-serialized over
+// postMessage on every configure — a new array each time. An identity (WeakMap)
+// cache would miss every push and re-parse the ~825 ZX headers (the "still slow"
+// report). A content signature (per-header path + length) hits across those
+// copies; the signature itself is memoized per array so it's computed once.
 type SysrootIndex = { types: Map<string, CType>; symbols: Map<string, CSymbol>; aliases: Map<string, string> }
-const sysrootCache = new WeakMap<SourceFile[], Map<string, SysrootIndex>>()
+const sigCache = new WeakMap<SourceFile[], string>()
+const indexBySig = new Map<string, SysrootIndex>()
+
+// djb2 — cheap, enough to key immutable sysroot content.
+function hashStr(s: string): string {
+  let h = 5381
+  for (let i = 0; i < s.length; i++) h = (h * 33) ^ s.charCodeAt(i)
+  return (h >>> 0).toString(36)
+}
+
+function sysrootSig(sysroot: SourceFile[]): string {
+  const cached = sigCache.get(sysroot)
+  if (cached) return cached
+  let acc = String(sysroot.length)
+  for (const f of sysroot) acc += `|${f.path}:${f.text.length}`
+  const sig = hashStr(acc)
+  sigCache.set(sysroot, sig)
+  return sig
+}
 
 function variantKey(defines: Record<string, string>, decorators?: RegExp): string {
   const d = Object.keys(defines)
@@ -363,17 +393,19 @@ function getSysrootIndex(
   defines: Record<string, string>,
   decorators?: RegExp,
 ): SysrootIndex {
-  let byVariant = sysrootCache.get(sysroot)
-  if (!byVariant) {
-    byVariant = new Map()
-    sysrootCache.set(sysroot, byVariant)
-  }
-  const key = variantKey(defines, decorators)
-  const hit = byVariant.get(key)
+  const key = `${sysrootSig(sysroot)} ${variantKey(defines, decorators)}`
+  const hit = indexBySig.get(key)
   if (hit) return hit
 
+  // Key headers + resolve `#include`s by their include-relative path, NOT
+  // basename: z88dk's sysroot mirrors the same basenames across deep trees (5×
+  // `stdio.h` under include/ + include/_DEVELOPMENT/{sccz80,sdcc,clang,proto}/,
+  // 126 colliding basenames), so basename keying dropped the real
+  // include/stdio.h (and its `printf`) for whichever variant sorted last. The
+  // header path is `include/<name>` and a directive is `#include <name>`, so the
+  // key is the path with the `include/` mount prefix stripped.
   const byName = new Map<string, { src: SourceFile; pp: PreprocessResult }>()
-  for (const h of sysroot) byName.set(basename(h.path), { src: h, pp: preprocess(h.text, defines) })
+  for (const h of sysroot) byName.set(relInclude(h.path), { src: h, pp: preprocess(h.text, defines) })
 
   // A header included only through an *inactive* conditional is a candidate
   // other-target header (agat.h / apple2.h on a C64 build); keep it only if a
@@ -381,7 +413,7 @@ function getSysrootIndex(
   // not a flat tally (an excluded header's own includes must not rescue it).
   const inactiveSet = new Set<string>()
   for (const { pp } of byName.values()) {
-    for (const inc of pp.includes) if (!inc.active) inactiveSet.add(basename(inc.name))
+    for (const inc of pp.includes) if (!inc.active) inactiveSet.add(incKey(inc.name))
   }
 
   const reached = new Set<string>()
@@ -396,7 +428,7 @@ function getSysrootIndex(
   for (const pp of queue) {
     for (const inc of pp.includes) {
       if (!inc.active) continue
-      const name = basename(inc.name)
+      const name = incKey(inc.name)
       if (reached.has(name)) continue
       const target = byName.get(name)
       if (!target) continue
@@ -411,6 +443,6 @@ function getSysrootIndex(
     collectTypes(e.pp.stripped, name, e.src.path, out.types, out.aliases, decorators)
     collectSymbols(e.pp.stripped, name, e.src.path, out.symbols, name, decorators)
   }
-  byVariant.set(key, out)
+  indexBySig.set(key, out)
   return out
 }
