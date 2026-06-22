@@ -60,3 +60,26 @@
 .dockview-theme-madside .tab.active-tab {
   box-shadow: inset 0 -2px 0 var(--accent-mint);
 }
+
+/* Touch tuning — on coarse pointers (tablets) bump tab height for fat-finger
+   tap targets, widen the sash hit area so panes are easy to resize, and stop
+   tab drags from scroll-hijacking. */
+@media (pointer: coarse) {
+  .dockview-theme-madside {
+    --dv-tabs-and-actions-container-height: 40px;
+    --dv-tab-font-size: 13px;
+  }
+  .dockview-theme-madside .dv-tab {
+    padding: 0 14px;
+    touch-action: none;
+  }
+  /* The sash is a thin divider; pad its grabbable area without moving layout. */
+  .dockview-theme-madside .dv-sash {
+    --dv-sash-size: 12px;
+  }
+  .dockview-theme-madside .dv-sash::before {
+    content: "";
+    position: absolute;
+    inset: -6px;
+  }
+}

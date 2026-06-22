@@ -54,7 +54,15 @@ export interface MenuBarProps {
   viewMenu?: {
     panels: { id: string; title: string; open: boolean }[];
     onToggle: (id: string) => void;
+    onFloat: (id: string) => void;
     onReset: () => void;
+    builtinLayouts: string[];
+    onBuiltinLayout: (name: string) => void;
+    userPresets: string[];
+    onUserPreset: (name: string) => void;
+    onDeletePreset: (name: string) => void;
+    onSavePreset: () => void;
+    onCopyLayout: () => void;
   };
 }
 
@@ -138,6 +146,68 @@ export function MenuBar(p: MenuBarProps) {
                 {panel.title}
               </MenuCheckboxItem>
             ))}
+            <MenuSeparator />
+            <MenuSub>
+              <MenuSubTrigger data-testid="menu.view.float">Float panel</MenuSubTrigger>
+              <MenuSubContent>
+                {p.viewMenu.panels.filter((panel) => panel.open).map((panel) => (
+                  <MenuItem
+                    key={panel.id}
+                    data-testid={`menu.view.float.${panel.id}`}
+                    onSelect={() => p.viewMenu?.onFloat(panel.id)}
+                  >
+                    {panel.title}
+                  </MenuItem>
+                ))}
+              </MenuSubContent>
+            </MenuSub>
+            <MenuSub>
+              <MenuSubTrigger data-testid="menu.view.layout">Layout preset</MenuSubTrigger>
+              <MenuSubContent>
+                <MenuLabel>Built-in</MenuLabel>
+                {p.viewMenu.builtinLayouts.map((name) => (
+                  <MenuItem
+                    key={`builtin-${name}`}
+                    data-testid={`menu.view.layout.builtin.${name}`}
+                    onSelect={() => p.viewMenu?.onBuiltinLayout(name)}
+                  >
+                    {name}
+                  </MenuItem>
+                ))}
+                <MenuSeparator />
+                {p.viewMenu.userPresets.length > 0 && <MenuLabel>Saved</MenuLabel>}
+                {p.viewMenu.userPresets.map((name) => (
+                  <MenuItem
+                    key={`user-${name}`}
+                    data-testid={`menu.view.layout.user.${name}`}
+                    onSelect={() => p.viewMenu?.onUserPreset(name)}
+                  >
+                    {name}
+                  </MenuItem>
+                ))}
+                {p.viewMenu.userPresets.length > 0 && <MenuSeparator />}
+                <MenuItem data-testid="menu.view.layout.save" onSelect={p.viewMenu.onSavePreset}>Save current layout…</MenuItem>
+                {p.viewMenu.userPresets.length > 0 && (
+                  <MenuSub>
+                    <MenuSubTrigger data-testid="menu.view.layout.delete">Delete preset</MenuSubTrigger>
+                    <MenuSubContent>
+                      {p.viewMenu.userPresets.map((name) => (
+                        <MenuItem
+                          key={`del-${name}`}
+                          data-testid={`menu.view.layout.delete.${name}`}
+                          danger
+                          onSelect={() => p.viewMenu?.onDeletePreset(name)}
+                        >
+                          {name}
+                        </MenuItem>
+                      ))}
+                    </MenuSubContent>
+                  </MenuSub>
+                )}
+                <MenuSeparator />
+                <MenuItem data-testid="menu.view.layout.copy" onSelect={p.viewMenu.onCopyLayout}>Copy layout JSON</MenuItem>
+              </MenuSubContent>
+            </MenuSub>
             <MenuSeparator />
             <MenuItem data-testid="menu.view.reset" onSelect={p.viewMenu.onReset}>Reset layout</MenuItem>
           </MenuContent>

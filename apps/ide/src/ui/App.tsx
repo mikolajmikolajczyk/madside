@@ -9,7 +9,7 @@ import { DebugBar } from "./components/layout/DebugBar";
 import { StatusBar } from "./components/layout/StatusBar";
 import { Explorer } from "./components/project/Explorer";
 import type { ReadOnlyMount } from "./components/project/FileTree";
-import { DockLayout, type DockPanelMeta, type DockControls } from "./dock/DockLayout";
+import { DockLayout, builtinLayoutNames, type DockPanelMeta, type DockControls } from "./dock/DockLayout";
 import { SystemFileView } from "./components/editor/SystemFileView";
 import { Splitter } from "./components/layout/Splitter";
 const Editor = lazy(() => import("./components/editor/Editor").then((m) => ({ default: m.Editor })));
@@ -226,6 +226,8 @@ export default function App() {
   // Dockview layout (behind VITE_MADSIDE_DOCKVIEW) — open-panel ids drive the
   // MenuBar View menu checkmarks; the imperative handle drives toggle/reset.
   const [dockOpenIds, setDockOpenIds] = useState<string[]>([]);
+  const [dockUserPresets, setDockUserPresets] = useState<string[]>([]);
+  const [savePresetOpen, setSavePresetOpen] = useState(false);
   const dockControlsRef = useRef<DockControls | null>(null);
 
   const projectLabels = useProjectLabels(
@@ -963,20 +965,31 @@ export default function App() {
   for (const d of debugSurfaces) dockSurfaces[d.id] = d.node;
 
   const dockPanels: DockPanelMeta[] = [
-    { id: "files", title: "Files", group: "left" },
-    { id: "editor", title: "Editor", group: "center" },
-    { id: "emulator", title: "Emulator", group: "right" },
-    ...debugSurfaces.map((d) => ({ id: d.id, title: d.title, group: "right-tabs" as const })),
-    ...(outputSurface ? [{ id: "output", title: "Output", group: "bottom" as const }] : []),
+    { id: "files", title: "Files" },
+    { id: "editor", title: "Editor" },
+    { id: "emulator", title: "Emulator" },
+    ...debugSurfaces.map((d) => ({ id: d.id, title: d.title })),
+    ...(outputSurface ? [{ id: "output", title: "Output" }] : []),
   ];
 
-  // View menu (only in dock mode) — toggle panels + reset, driven by the
-  // DockLayout imperative handle; checkmarks track the open-panel ids.
+  // View menu (only in dock mode) — toggle panels + float + user presets +
+  // reset, driven by the DockLayout imperative handle; checkmarks track open ids.
   const viewMenu = useDock
     ? {
         panels: dockPanels.map((p) => ({ id: p.id, title: p.title, open: dockOpenIds.includes(p.id) })),
         onToggle: (id: string) => dockControlsRef.current?.toggle(id),
+        onFloat: (id: string) => dockControlsRef.current?.float(id),
         onReset: () => dockControlsRef.current?.reset(),
+        builtinLayouts: builtinLayoutNames,
+        onBuiltinLayout: (name: string) => dockControlsRef.current?.applyBuiltin(name),
+        userPresets: dockUserPresets,
+        onUserPreset: (name: string) => dockControlsRef.current?.applyUserPreset(name),
+        onDeletePreset: (name: string) => dockControlsRef.current?.deletePreset(name),
+        onSavePreset: () => setSavePresetOpen(true),
+        onCopyLayout: () => {
+          const json = dockControlsRef.current?.exportLayout() ?? "{}";
+          void navigator.clipboard?.writeText(json);
+        },
       }
     : undefined;
 
@@ -1046,6 +1059,7 @@ export default function App() {
           panels={dockPanels}
           controlsRef={dockControlsRef}
           onOpenChange={setDockOpenIds}
+          onPresetsChange={setDockUserPresets}
         />
       ) : (
         <div
@@ -1089,6 +1103,19 @@ export default function App() {
         confirmLabel="Rename"
         onCancel={() => setRenameReq(null)}
         onConfirm={applyRename}
+      />
+      <TextPromptDialog
+        open={savePresetOpen}
+        title="Save layout preset"
+        description="Captures the current panel arrangement under this name."
+        placeholder="My layout"
+        initial=""
+        confirmLabel="Save"
+        onCancel={() => setSavePresetOpen(false)}
+        onConfirm={(name) => {
+          setSavePresetOpen(false);
+          if (name.trim()) dockControlsRef.current?.saveCurrentAs(name.trim());
+        }}
       />
       <TextPromptDialog
         open={dialog === "renameProject"}
