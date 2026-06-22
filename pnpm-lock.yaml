@@ -204,6 +204,12 @@ importers:
       '@madside/panel-registers':
         specifier: workspace:*
         version: link:../../packages/panel-registers
+      '@madside/storage-idb':
+        specifier: workspace:*
+        version: link:../../packages/storage-idb
+      '@madside/storage-shared':
+        specifier: workspace:*
+        version: link:../../packages/storage-shared
       '@madside/theme-dark':
         specifier: workspace:*
         version: link:../../packages/theme-dark
@@ -258,9 +264,6 @@ importers:
       fflate:
         specifier: ^0.8.3
         version: 0.8.3
-      idb:
-        specifier: ^8.0.3
-        version: 8.0.3
       jsnes:
         specifier: 2.1.0
         version: 2.1.0
@@ -459,6 +462,27 @@ importers:
       '@madside/core':
         specifier: workspace:*
         version: link:../core
+
+  packages/storage-idb:
+    dependencies:
+      '@madside/core':
+        specifier: workspace:*
+        version: link:../core
+      '@madside/ports':
+        specifier: workspace:*
+        version: link:../ports
+      '@madside/storage-shared':
+        specifier: workspace:*
+        version: link:../storage-shared
+      idb:
+        specifier: ^8.0.3
+        version: 8.0.3
+
+  packages/storage-shared:
+    dependencies:
+      '@madside/ports':
+        specifier: workspace:*
+        version: link:../ports
 
   packages/theme-dark:
     dependencies:

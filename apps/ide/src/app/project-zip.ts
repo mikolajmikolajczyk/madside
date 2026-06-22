@@ -6,7 +6,7 @@
 import { unzipSync, zipSync } from "fflate";
 import { MANIFEST_VERSION, parseProjectManifest } from "@ports";
 import type { ProjectManifestV2 as Manifest, ProjectRow, StorageBackend } from "@ports";
-import { MANIFEST_PATH, serializeManifest, uniquify } from "@adapters/storage-shared";
+import { MANIFEST_PATH, serializeManifest, uniquify } from "@madside/storage-shared";
 
 const enc = new TextEncoder();
 const dec = new TextDecoder();

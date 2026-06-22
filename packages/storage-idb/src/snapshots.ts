@@ -4,7 +4,7 @@
 
 import { getDB } from "./db";
 import { sha256Hex } from "@core/hash";
-import { AUTO_KEEP, diffSnapshots, newSnapshotId, sameTree } from "../storage-shared";
+import { AUTO_KEEP, diffSnapshots, newSnapshotId, sameTree } from "@madside/storage-shared";
 import type { SnapshotDiff, SnapshotInput, SnapshotMeta } from "@ports";
 
 // Canonical shapes live in @ports/storage; re-export so `@adapters/storage-idb`

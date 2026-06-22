@@ -12,7 +12,7 @@ import {
   removeRemoteCourse,
   validateCourseFiles,
 } from '@app'
-import { __resetDb, createIdbStorage, listInstalledCourses } from '@adapters/storage-idb'
+import { __resetDb, createIdbStorage, listInstalledCourses } from '@madside/storage-idb'
 
 const storage = createIdbStorage()
 

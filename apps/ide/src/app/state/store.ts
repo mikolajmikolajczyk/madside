@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { createFileSaver, type FileSaver } from "./file-saver";
 import { exportProjectZip, importProjectZip } from "../project-zip";
-import { MANIFEST_PATH } from "@adapters/storage-idb";
+import { MANIFEST_PATH } from "@madside/storage-idb";
 import { errorMessage, parseProjectManifest } from "@ports";
 import type { EventBus, FileRow, ProjectManifestV2 as Manifest, ProjectRow, SnapshotMeta, StorageBackend } from "@ports";
 

@@ -3,7 +3,7 @@
 import { parseProjectManifest, StorageError } from "@ports";
 import type { LoadedProject } from "@ports";
 import { getDB } from "./db";
-import { MANIFEST_PATH, isProjectRow, newProjectId, serializeManifest, uniquify } from "../storage-shared";
+import { MANIFEST_PATH, isProjectRow, newProjectId, serializeManifest, uniquify } from "@madside/storage-shared";
 import type { Manifest, ProjectRow } from "./types";
 
 const enc = new TextEncoder();

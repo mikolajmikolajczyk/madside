@@ -3,7 +3,7 @@
 // never the raw adapter functions — so a future backend (remote sync, OPFS /
 // File System Access) is a one-line swap here.
 
-import { createIdbStorage } from "@adapters/storage-idb";
+import { createIdbStorage } from "@madside/storage-idb";
 import type { SnapshotDiff, SnapshotMeta, StorageBackend } from "@ports";
 
 export const storage: StorageBackend = createIdbStorage();

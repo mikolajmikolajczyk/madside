@@ -51,6 +51,14 @@ const elementTypes = [
   // 'services' layer — ui may import it (useAutoAssemble), which 'plugins' forbids.
   { type: 'services', pattern: 'packages/workbench-core/src/*', mode: 'folder' },
   { type: 'services', pattern: 'packages/workbench-core/src/*.{ts,tsx}', mode: 'file' },
+  // The IDB storage backend is a package now (#125) but stays the 'adapters'
+  // layer — only @app (the storage singleton) wires it; ui goes through the port.
+  { type: 'adapters', pattern: 'packages/storage-idb/src/*', mode: 'folder' },
+  { type: 'adapters', pattern: 'packages/storage-idb/src/*.{ts,tsx}', mode: 'file' },
+  // Shared persistence helpers (#125) — extracted alongside storage-idb so the
+  // idb + memory backends share them; 'adapters' layer.
+  { type: 'adapters', pattern: 'packages/storage-shared/src/*', mode: 'folder' },
+  { type: 'adapters', pattern: 'packages/storage-shared/src/*.{ts,tsx}', mode: 'file' },
 ]
 
 // allow[X] = which layers X may import. Mirror of ADR-0002's table.

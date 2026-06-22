@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, it } from 'vitest'
 import 'fake-indexeddb/auto'
 import { lessonNav, openLesson } from '@app/course-project'
 import { addRemoteCourse, removeRemoteCourse } from '@app'
-import { __resetDb, createIdbStorage, loadProject, saveFile, textToBytes } from '@adapters/storage-idb'
+import { __resetDb, createIdbStorage, loadProject, saveFile, textToBytes } from '@madside/storage-idb'
 import type { InstalledCourseRow } from '@ports'
 
 const storage = createIdbStorage()

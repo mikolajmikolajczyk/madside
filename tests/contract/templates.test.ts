@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it } from 'vitest'
 import 'fake-indexeddb/auto'
 import { createBlankProject, getTemplateManifestText, instantiateTemplate, listTemplates } from '@app/templates'
-import { __resetDb, createIdbStorage, loadProject } from '@adapters/storage-idb'
+import { __resetDb, createIdbStorage, loadProject } from '@madside/storage-idb'
 
 const storage = createIdbStorage()
 

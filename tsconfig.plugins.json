@@ -24,7 +24,9 @@
     "packages/editors/src/**/*",
     "packages/theme-dark/src/**/*",
     "packages/theme-light/src/**/*",
-    "packages/workbench-core/src/**/*"
+    "packages/workbench-core/src/**/*",
+    "packages/storage-idb/src/**/*",
+    "packages/storage-shared/src/**/*"
   ],
   "references": [
     { "path": "./tsconfig.core.json" },

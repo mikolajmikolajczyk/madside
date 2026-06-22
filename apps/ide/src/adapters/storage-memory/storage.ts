@@ -26,7 +26,7 @@ import {
   sameTree,
   serializeManifest,
   uniquify,
-} from "../storage-shared";
+} from "@madside/storage-shared";
 
 const enc = new TextEncoder();
 const dec = new TextDecoder();

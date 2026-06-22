@@ -5,7 +5,7 @@
 // Templates menu + the first-run welcome picker list them; picking one
 // instantiates a fresh project into storage.
 
-import { MANIFEST_PATH, textToBytes } from '@adapters/storage-idb'
+import { MANIFEST_PATH, textToBytes } from '@madside/storage-idb'
 import type { ProjectManifestV2 as Manifest, ProjectRow, StorageBackend } from '@ports'
 
 /** Picker-facing descriptor, parsed from each template's template.json. */

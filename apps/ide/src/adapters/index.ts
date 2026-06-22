@@ -1,5 +1,4 @@
 export * as emu from './emu'
 export * as logger from './logger'
-export * as storageIdb from './storage-idb'
 export * as storageMemory from './storage-memory'
 export { createPluginLoader } from './plugin-loader'

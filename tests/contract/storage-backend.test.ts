@@ -3,7 +3,7 @@ import 'fake-indexeddb/auto'
 import type { ProjectManifestV2 } from '@ports'
 import { sha256Hex } from '@core/hash'
 import { createMemoryStorage } from '@adapters/storage-memory'
-import { __resetDb, createIdbStorage } from '@adapters/storage-idb'
+import { __resetDb, createIdbStorage } from '@madside/storage-idb'
 import { assertStorageBackend } from './storage-backend.harness'
 
 async function wipeIdb(): Promise<void> {

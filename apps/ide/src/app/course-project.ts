@@ -8,7 +8,7 @@
 // purely from the active project — no separate global state to persist or keep
 // in sync.
 
-import { MANIFEST_PATH, textToBytes } from '@adapters/storage-idb'
+import { MANIFEST_PATH, textToBytes } from '@madside/storage-idb'
 import type { ProjectManifestV2 as Manifest, StorageBackend } from '@ports'
 import { getCourse, getLesson, isProjectPluginPath } from './courses'
 

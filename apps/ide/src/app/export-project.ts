@@ -6,7 +6,7 @@
 // renders ABOVE <WorkbenchProvider>, so it can't read `workbench.storage` (the
 // thing that may have crashed). It instantiates the default IDB backend directly.
 
-import { createIdbStorage } from "@adapters/storage-idb";
+import { createIdbStorage } from "@madside/storage-idb";
 import { exportProjectZip } from "./project-zip";
 
 function activeProjectId(): string | undefined {
