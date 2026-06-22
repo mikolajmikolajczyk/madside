@@ -48,7 +48,7 @@
   --dv-sash-color: transparent;
   --dv-active-sash-color: var(--accent-mint);
   --dv-icon-hover-background-color: var(--bg-tertiary);
-  --dv-drag-over-background-color: rgba(124, 214, 184, 0.18);
+  --dv-drag-over-background-color: color-mix(in srgb, var(--accent-mint) 18%, transparent);
   --dv-drag-over-border-color: var(--accent-mint);
   --dv-context-menu-background-color: var(--bg-secondary);
   --dv-context-menu-color: var(--text-primary);

@@ -60,6 +60,6 @@
 .memview__row { white-space: pre; }
 .memview__addr { color: var(--text-quaternary); }
 .memview__cell--hi {
-  background: rgba(74, 222, 128, 0.25);
+  background: color-mix(in srgb, var(--accent-mint) 25%, transparent);
   color: var(--accent-mint);
 }

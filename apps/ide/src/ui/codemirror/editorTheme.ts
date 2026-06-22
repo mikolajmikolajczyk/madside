@@ -22,9 +22,9 @@ export const editorTheme = EditorView.theme(
       border: "none",
       borderRight: "1px solid var(--border-default)",
     },
-    ".cm-selectionBackground, .cm-content ::selection, ::selection": { backgroundColor: "rgba(74, 222, 128, 0.25) !important" },
-    "&.cm-focused .cm-selectionBackground": { backgroundColor: "rgba(74, 222, 128, 0.35) !important" },
-    ".cm-pcLine": { backgroundColor: "rgba(0, 200, 150, 0.18)" },
+    ".cm-selectionBackground, .cm-content ::selection, ::selection": { backgroundColor: "color-mix(in srgb, var(--accent-mint) 25%, transparent) !important" },
+    "&.cm-focused .cm-selectionBackground": { backgroundColor: "color-mix(in srgb, var(--accent-mint) 35%, transparent) !important" },
+    ".cm-pcLine": { backgroundColor: "color-mix(in srgb, var(--accent-mint) 18%, transparent)" },
     ".cm-bpGutter": {
       width: "16px",
       cursor: "pointer",

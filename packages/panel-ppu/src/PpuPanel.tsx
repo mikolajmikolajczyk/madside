@@ -120,7 +120,7 @@ export function PpuPanel({ ctx }: { ctx: PanelContext }) {
             <div
               key={i}
               title={`$${hex(0x3f00 + i, 4)} = $${hex(idx, 2)}`}
-              style={{ background: css, aspectRatio: '1', borderTop: i === 16 ? '2px solid var(--fg, #888)' : undefined }}
+              style={{ background: css, aspectRatio: '1', borderTop: i === 16 ? '2px solid var(--border-muted)' : undefined }}
             />
           )
         })}
