@@ -3,6 +3,7 @@ import type { PanelContext, PanelFile, PanelPlugin, ProjectManifestV2 } from '@p
 import { useWorkbench } from '@app'
 import { useActiveMachine } from '../hooks/useActiveMachine'
 import { Boundary } from './ui/Boundary'
+import './debug/panel-styles.css'
 
 interface Props {
   panel: PanelPlugin

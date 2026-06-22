@@ -1,0 +1,101 @@
+/* Shared styles for the built-in debug PanelPlugins (registers / memory /
+   output). These classes are used by the panel packages (@madside/panel-*) but
+   the CSS lives app-side; loaded via PanelSlot, the universal panel host. The
+   legacy `.debug` column container is gone — dockview owns panel layout now. */
+
+.debug__panel {
+  background: var(--bg-secondary);
+  padding: 8px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+}
+
+.debug__title {
+  border-bottom: 1px solid var(--border-default);
+  padding-bottom: 4px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.debug__follow-badge {
+  margin-left: auto;
+  background: transparent;
+  border: 1px solid var(--border-default);
+  color: var(--accent-mint);
+  font-family: var(--font-mono);
+  font-size: 10px;
+  padding: 1px 6px;
+  cursor: pointer;
+  border-radius: 2px;
+}
+.debug__follow-badge:hover {
+  background: var(--bg-tertiary);
+}
+
+.debug__base {
+  background: transparent;
+  border: 1px solid var(--border-default);
+  color: var(--accent-mint);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  padding: 1px 4px;
+  width: 5ch;
+  text-transform: uppercase;
+}
+.debug__base:focus {
+  outline: none;
+  border-color: var(--accent-mint);
+}
+.debug__base:disabled {
+  color: var(--text-tertiary);
+  border-color: transparent;
+}
+
+.debug__rows {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 2px 12px;
+}
+
+.reg {
+  display: flex;
+  gap: 6px;
+  font-size: 12px;
+}
+.reg__label { color: var(--text-tertiary); width: 22px; }
+.reg__val   { color: var(--accent-mint); }
+
+.debug__flags {
+  display: flex;
+  gap: 4px;
+}
+.flag {
+  font-size: 11px;
+  padding: 2px 5px;
+  border: 1px solid var(--border-default);
+  border-radius: 3px;
+  color: var(--text-quaternary);
+}
+.flag--on {
+  color: var(--accent-mint);
+  border-color: var(--accent-mint);
+}
+
+.debug__panel--memory { min-width: 0; }
+.memview {
+  margin: 0;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--text-secondary);
+  white-space: pre;
+  overflow: auto;
+}
+.memview__row { white-space: pre; }
+.memview__addr { color: var(--text-quaternary); }
+.memview__cell--hi {
+  background: rgba(74, 222, 128, 0.25);
+  color: var(--accent-mint);
+}
