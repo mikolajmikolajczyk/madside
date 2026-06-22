@@ -84,7 +84,7 @@ export const machineC64: MachinePlugin = {
     },
   },
 
-  defaultPanels: ['memory', 'registers', 'output'],
+  defaultPanels: ['memory', 'registers', 'variables', 'output'],
   compatibleToolchains: ['cc65', 'mads'],
   compatibleEmulators: ['chips-c64'],
   // C64 is a 6502-family CPU (6510); the generic Atari 6502 debug adapter is

@@ -69,7 +69,7 @@ export const machineZx: MachinePlugin = {
     },
   },
 
-  defaultPanels: ['memory', 'registers', 'output'],
+  defaultPanels: ['memory', 'registers', 'variables', 'output'],
   compatibleToolchains: ['z88dk'],
   compatibleEmulators: ['zx-chips'],
   // ZX is a Z80 — a different ISA from the 6502 family, so it needs the labelled

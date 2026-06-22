@@ -16,6 +16,7 @@ import { registersPanel } from '@madside/panel-registers'
 import { memoryPanel } from '@madside/panel-memory'
 import { outputPanel } from '@madside/panel-output'
 import { ppuPanel } from '@madside/panel-ppu'
+import { variablesPanel } from '@madside/panel-variables'
 import { darkTheme } from '@madside/theme-dark'
 import { lightTheme } from '@madside/theme-light'
 
@@ -53,6 +54,7 @@ export const builtinPlugins: readonly PluginBase[] = [
   memoryPanel,
   outputPanel,
   ppuPanel,
+  variablesPanel,
   // themes (#118)
   darkTheme,
   lightTheme,

@@ -43,7 +43,7 @@ const DEFAULT_LAYOUT = {
               data: [
                 { type: 'leaf', data: { views: ['emulator'], activeView: 'emulator', id: '1' }, size: 395 },
                 { type: 'leaf', data: { views: ['panel:memory'], activeView: 'panel:memory', id: '4' }, size: 307 },
-                { type: 'leaf', data: { views: ['panel:registers'], activeView: 'panel:registers', id: '3' }, size: 352 },
+                { type: 'leaf', data: { views: ['panel:registers', 'panel:variables'], activeView: 'panel:registers', id: '3' }, size: 352 },
               ],
               size: 471,
             },
@@ -67,6 +67,7 @@ const DEFAULT_LAYOUT = {
     output: { id: 'output', contentComponent: 'surface', params: { id: 'output' }, title: 'Output' },
     'panel:registers': { id: 'panel:registers', contentComponent: 'surface', params: { id: 'panel:registers' }, title: 'Registers' },
     'panel:memory': { id: 'panel:memory', contentComponent: 'surface', params: { id: 'panel:memory' }, title: 'Memory' },
+    'panel:variables': { id: 'panel:variables', contentComponent: 'surface', params: { id: 'panel:variables' }, title: 'Variables' },
   },
   activeGroup: '13',
 } as const
@@ -87,7 +88,7 @@ const TABLET_LAYOUT = {
               data: [
                 { type: 'leaf', data: { views: ['emulator'], activeView: 'emulator', id: '1' }, size: 437 },
                 { type: 'leaf', data: { views: ['panel:memory'], activeView: 'panel:memory', id: '4' }, size: 265 },
-                { type: 'leaf', data: { views: ['panel:registers'], activeView: 'panel:registers', id: '3' }, size: 352 },
+                { type: 'leaf', data: { views: ['panel:registers', 'panel:variables'], activeView: 'panel:registers', id: '3' }, size: 352 },
               ],
               size: 687,
             },
@@ -110,6 +111,7 @@ const TABLET_LAYOUT = {
     emulator: { id: 'emulator', contentComponent: 'surface', params: { id: 'emulator' }, title: 'Emulator' },
     'panel:memory': { id: 'panel:memory', contentComponent: 'surface', params: { id: 'panel:memory' }, title: 'Memory' },
     'panel:registers': { id: 'panel:registers', contentComponent: 'surface', params: { id: 'panel:registers' }, title: 'Registers' },
+    'panel:variables': { id: 'panel:variables', contentComponent: 'surface', params: { id: 'panel:variables' }, title: 'Variables' },
     output: { id: 'output', contentComponent: 'surface', params: { id: 'output' }, title: 'Output' },
   },
   activeGroup: '13',

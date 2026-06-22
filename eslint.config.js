@@ -28,7 +28,7 @@ const pluginPackages = [
   'machine-atari-xl', 'machine-c64', 'machine-nes', 'machine-zx',
   'emulator-c64-chips', 'emulator-nes-jsnes', 'emulator-zx-chips',
   'debug-atari-6502', 'debug-zx-z80',
-  'panel-memory', 'panel-output', 'panel-ppu', 'panel-registers',
+  'panel-memory', 'panel-output', 'panel-ppu', 'panel-registers', 'panel-variables',
   'converters', 'editors',
   'theme-dark', 'theme-light',
 ]

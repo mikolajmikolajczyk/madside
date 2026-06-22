@@ -1,0 +1,63 @@
+/* Variables panel (#121). Self-contained with the package; colours from host
+   design tokens. Shares the debug__panel/title chrome convention. */
+
+.debug__panel {
+  background: var(--bg-secondary);
+  padding: 8px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+  min-height: 0;
+}
+.debug__title {
+  border-bottom: 1px solid var(--border-default);
+  padding-bottom: 4px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.vars__filter {
+  margin-left: auto;
+  background: transparent;
+  border: 1px solid var(--border-default);
+  color: var(--text-primary);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  padding: 1px 6px;
+  width: 12ch;
+}
+.vars__filter:focus { outline: none; border-color: var(--accent-mint); }
+
+.vars__empty,
+.vars__more {
+  color: var(--text-tertiary);
+  font-size: 11px;
+  padding: 4px 0;
+}
+
+.vars__rows {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  overflow: auto;
+  min-height: 0;
+}
+.vars__row {
+  display: grid;
+  grid-template-columns: 1fr auto auto auto;
+  gap: 10px;
+  align-items: baseline;
+  font-family: var(--font-mono);
+  font-size: 12px;
+}
+.vars__name {
+  color: var(--text-primary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.vars__addr { color: var(--text-quaternary); }
+.vars__val { color: var(--accent-mint); }
+.vars__val--word { color: var(--text-secondary); }
