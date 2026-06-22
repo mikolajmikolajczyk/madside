@@ -1,7 +1,5 @@
-/* Shared styles for the built-in debug PanelPlugins (registers / memory /
-   output). These classes are used by the panel packages (@madside/panel-*) but
-   the CSS lives app-side; loaded via PanelSlot, the universal panel host. The
-   legacy `.debug` column container is gone — dockview owns panel layout now. */
+/* Styles for the memory panel. Self-contained with the package (cf.
+   panel-output's Output.css); colours come from host design tokens. */
 
 .debug__panel {
   background: var(--bg-secondary);
@@ -11,7 +9,7 @@
   gap: 6px;
   min-width: 0;
 }
-
+.debug__panel--memory { min-width: 0; }
 .debug__title {
   border-bottom: 1px solid var(--border-default);
   padding-bottom: 4px;
@@ -31,9 +29,7 @@
   cursor: pointer;
   border-radius: 2px;
 }
-.debug__follow-badge:hover {
-  background: var(--bg-tertiary);
-}
+.debug__follow-badge:hover { background: var(--bg-tertiary); }
 
 .debug__base {
   background: transparent;
@@ -45,46 +41,9 @@
   width: 5ch;
   text-transform: uppercase;
 }
-.debug__base:focus {
-  outline: none;
-  border-color: var(--accent-mint);
-}
-.debug__base:disabled {
-  color: var(--text-tertiary);
-  border-color: transparent;
-}
+.debug__base:focus { outline: none; border-color: var(--accent-mint); }
+.debug__base:disabled { color: var(--text-tertiary); border-color: transparent; }
 
-.debug__rows {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 2px 12px;
-}
-
-.reg {
-  display: flex;
-  gap: 6px;
-  font-size: 12px;
-}
-.reg__label { color: var(--text-tertiary); width: 22px; }
-.reg__val   { color: var(--accent-mint); }
-
-.debug__flags {
-  display: flex;
-  gap: 4px;
-}
-.flag {
-  font-size: 11px;
-  padding: 2px 5px;
-  border: 1px solid var(--border-default);
-  border-radius: 3px;
-  color: var(--text-quaternary);
-}
-.flag--on {
-  color: var(--accent-mint);
-  border-color: var(--accent-mint);
-}
-
-.debug__panel--memory { min-width: 0; }
 .memview {
   margin: 0;
   font-family: var(--font-mono);

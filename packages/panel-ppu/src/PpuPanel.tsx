@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import type { PanelContext } from '@ports'
 import { hex } from '@core/hex'
+import './PpuPanel.css'
 
 // PPU viewer. Reads the machine's 'ppu' + 'oam' memory spaces (declared in
 // MachinePlugin.memorySpaces, served by the backend's readMem) and renders the

@@ -1,0 +1,19 @@
+/* Shared panel chrome for the PPU panel. Self-contained with the package (cf.
+   panel-output's Output.css); colours come from host design tokens. The
+   ppu__palette / ppu__pattern layout is component-local inline styling. */
+
+.debug__panel {
+  background: var(--bg-secondary);
+  padding: 8px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+}
+.debug__title {
+  border-bottom: 1px solid var(--border-default);
+  padding-bottom: 4px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}

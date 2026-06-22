@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import type { FlagState, PanelContext, RegState } from '@ports'
 import { hex } from '@core/hex'
+import './RegistersPanel.css'
 
 interface CpuSnapshot {
   regs: RegState

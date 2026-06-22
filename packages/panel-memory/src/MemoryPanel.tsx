@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react'
 import type { MemoryRegion, PanelContext } from '@ports'
 import { hex } from '@core/hex'
+import './MemoryPanel.css'
 
 interface MemoryUiData {
   base: number

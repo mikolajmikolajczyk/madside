@@ -1,0 +1,47 @@
+/* Styles for the registers panel. Self-contained with the package (cf.
+   panel-output's Output.css); colours come from host design tokens. */
+
+.debug__panel {
+  background: var(--bg-secondary);
+  padding: 8px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+}
+.debug__title {
+  border-bottom: 1px solid var(--border-default);
+  padding-bottom: 4px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.debug__rows {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 2px 12px;
+}
+.reg {
+  display: flex;
+  gap: 6px;
+  font-size: 12px;
+}
+.reg__label { color: var(--text-tertiary); width: 22px; }
+.reg__val   { color: var(--accent-mint); }
+
+.debug__flags {
+  display: flex;
+  gap: 4px;
+}
+.flag {
+  font-size: 11px;
+  padding: 2px 5px;
+  border: 1px solid var(--border-default);
+  border-radius: 3px;
+  color: var(--text-quaternary);
+}
+.flag--on {
+  color: var(--accent-mint);
+  border-color: var(--accent-mint);
+}
