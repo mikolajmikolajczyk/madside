@@ -139,6 +139,8 @@ export interface DockControls {
   float: (id: string) => void
   /** Bring a panel's tab to the front (if it's open). */
   focusPanel: (id: string) => void
+  /** Ensure a panel is open or closed (idempotent), for condition-driven panels. */
+  setPanelOpen: (id: string, open: boolean) => void
   /** Capture the current arrangement as a named user preset. */
   saveCurrentAs: (name: string) => void
   /** Restore a saved user preset by name. */
@@ -281,6 +283,18 @@ export function DockLayout({ surfaces, panels, controlsRef, onOpenChange, onPres
     apiRef.current?.getPanel(id)?.api.setActive()
   }, [])
 
+  const setPanelOpen = useCallback((id: string, open: boolean) => {
+    const api = apiRef.current
+    if (!api) return
+    const existing = api.getPanel(id)
+    if (open && !existing) {
+      const m = panelsRef.current.find((p) => p.id === id)
+      if (m) api.addPanel({ id: m.id, component: 'surface', title: m.title, params: { id: m.id } })
+    } else if (!open && existing) {
+      existing.api.close()
+    }
+  }, [])
+
   const reportPresets = useCallback(() => {
     onPresetsChange?.(Object.keys(loadPresets()).sort())
   }, [onPresetsChange])
@@ -318,10 +332,10 @@ export function DockLayout({ surfaces, panels, controlsRef, onOpenChange, onPres
   // Publish the imperative handle for the View menu.
   useEffect(() => {
     if (controlsRef) {
-      controlsRef.current = { toggle, reset, applyBuiltin, float, focusPanel, saveCurrentAs, applyUserPreset, deletePreset, exportLayout }
+      controlsRef.current = { toggle, reset, applyBuiltin, float, focusPanel, setPanelOpen, saveCurrentAs, applyUserPreset, deletePreset, exportLayout }
     }
     return () => { if (controlsRef) controlsRef.current = null }
-  }, [controlsRef, toggle, reset, applyBuiltin, float, focusPanel, saveCurrentAs, applyUserPreset, deletePreset, exportLayout])
+  }, [controlsRef, toggle, reset, applyBuiltin, float, focusPanel, setPanelOpen, saveCurrentAs, applyUserPreset, deletePreset, exportLayout])
 
   // Surface the saved-preset names to the View menu on mount.
   useEffect(() => { reportPresets() }, [reportPresets])

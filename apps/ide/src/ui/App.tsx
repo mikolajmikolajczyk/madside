@@ -228,6 +228,21 @@ export default function App() {
   const [savePresetOpen, setSavePresetOpen] = useState(false);
   const dockControlsRef = useRef<DockControls | null>(null);
 
+  // The course panel (#127) is condition-driven: open + focus it while the
+  // project is a course, close it otherwise. Keyed on id/lesson so switching
+  // lessons re-focuses. Gated on dockOpenIds so it also fires once the dock is
+  // ready (the controls ref may be unset on the first render).
+  const courseKey = project.loaded && project.manifest.course
+    ? `${project.manifest.course.id}/${project.manifest.course.lesson}`
+    : null;
+  useEffect(() => {
+    const c = dockControlsRef.current;
+    if (!c) return;
+    const isOpen = dockOpenIds.includes("course");
+    if (courseKey !== null && !isOpen) { c.setPanelOpen("course", true); c.focusPanel("course"); }
+    else if (courseKey === null && isOpen) c.setPanelOpen("course", false);
+  }, [courseKey, dockOpenIds]);
+
   // Theme (#118) — registered ThemePlugins; apply the selected palette's tokens
   // to :root and persist the choice. Default 'dark' (matches base tokens.css).
   const themes = useMemo(() => workbench.plugins.list<ThemePlugin>('theme'), [workbench.plugins]);
@@ -800,44 +815,40 @@ export default function App() {
 
   // Body content surfaces — each becomes a dockview panel (DockLayout). The
   // toolbar (MenuBar/DebugBar/StatusBar) stays fixed chrome around it.
-  const filesSurface = (() => {
-    const explorerEl = (
-      <Explorer
-        files={project.files}
-        active={viewSystemFile ? "" : project.activePath}
-        mainPath={project.manifest.main}
-        onSelect={(p) => { setViewSystemFile(null); project.setActivePath(p); }}
-        onCreateFile={project.createFile}
-        onImportFile={project.createFile}
-        onCreateFolder={project.createFolder}
-        onRenameFile={project.renameFile}
-        onRenameFolder={project.renameFolder}
-        onDeleteFile={project.deleteFile}
-        onDeleteFolder={project.deleteFolder}
-        onDuplicateFile={project.duplicateFile}
-        onSetMain={project.setMainFile}
-        readOnlyMounts={readOnlyMounts}
+  const filesSurface = (
+    <Explorer
+      files={project.files}
+      active={viewSystemFile ? "" : project.activePath}
+      mainPath={project.manifest.main}
+      onSelect={(p) => { setViewSystemFile(null); project.setActivePath(p); }}
+      onCreateFile={project.createFile}
+      onImportFile={project.createFile}
+      onCreateFolder={project.createFolder}
+      onRenameFile={project.renameFile}
+      onRenameFolder={project.renameFolder}
+      onDeleteFile={project.deleteFile}
+      onDeleteFolder={project.deleteFolder}
+      onDuplicateFile={project.duplicateFile}
+      onSetMain={project.setMainFile}
+      readOnlyMounts={readOnlyMounts}
+    />
+  );
+
+  // Course lesson + checks — its own dock panel (#127), present only while the
+  // project is a course, so its View-menu toggle shows only then.
+  const course = project.loaded ? project.manifest.course : undefined;
+  const courseSurface = course ? (
+    <Suspense fallback={<div className="app__loading">loading lesson…</div>}>
+      <CoursePanel
+        courseId={course.id}
+        lessonId={course.lesson}
+        onOpenLesson={(c, l) => { void handleOpenLesson(c, l); }}
+        onCheck={handleCheck}
+        onRefresh={handleRefreshCourse}
+        onReset={handleResetLesson}
       />
-    );
-    const course = project.manifest.course;
-    if (!course) return explorerEl;
-    // Files + lesson stacked; Outline and References are their own panels (#120).
-    return (
-      <div className="app__explorer-col">
-        {explorerEl}
-        <Suspense fallback={<div className="app__loading">loading lesson…</div>}>
-          <CoursePanel
-            courseId={course.id}
-            lessonId={course.lesson}
-            onOpenLesson={(c, l) => { void handleOpenLesson(c, l); }}
-            onCheck={handleCheck}
-            onRefresh={handleRefreshCourse}
-            onReset={handleResetLesson}
-          />
-        </Suspense>
-      </div>
-    );
-  })();
+    </Suspense>
+  ) : null;
 
   // Outline of the active C file (#76) — its own dock panel (#120). Empty state
   // for non-C / system files so the panel reads sensibly when idle.
@@ -968,6 +979,7 @@ export default function App() {
     outline: outlineSurface,
     references: referencesSurface,
     emulator: emulatorSurface,
+    ...(courseSurface ? { course: courseSurface } : {}),
     ...(outputSurface ? { output: outputSurface } : {}),
   };
   for (const d of debugSurfaces) dockSurfaces[d.id] = d.node;
@@ -978,6 +990,7 @@ export default function App() {
     { id: "outline", title: "Outline" },
     { id: "references", title: "References" },
     { id: "emulator", title: "Emulator" },
+    ...(courseSurface ? [{ id: "course", title: "Course" }] : []),
     ...debugSurfaces.map((d) => ({ id: d.id, title: d.title })),
     ...(outputSurface ? [{ id: "output", title: "Output" }] : []),
   ];
