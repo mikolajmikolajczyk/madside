@@ -8,8 +8,9 @@ const ROW = 16
 // rows so a very tall panel can't request a huge readMemory.
 const FALLBACK_ROW_H = 15
 const MAX_ROWS = 4096 / ROW
-// Wheel pixels per row stepped — accumulated so mouse + trackpad feel the same.
+// Pixels per row stepped — accumulated so wheel + trackpad + touch-drag match.
 const WHEEL_PX_PER_ROW = 24
+const TOUCH_PX_PER_ROW = 20
 const ADDR_MAX = 0xffff
 
 interface MemoryUiData {
@@ -58,27 +59,50 @@ export function MemoryPanel({ ctx }: { ctx: PanelContext }) {
 
   const length = data?.length ?? rowCount * ROW
 
-  // Scroll the view through memory: the wheel walks `base` a row at a time (#119
-  // follow-up). Accumulated by pixels so a mouse notch and a trackpad swipe step
-  // the same. Routed through onBaseChange, so it also disengages cursor-follow.
-  // Native non-passive listener — React's onWheel is passive, so preventDefault
-  // (stop the page/dock from scrolling) wouldn't take.
-  const wheelAccum = useRef(0)
+  // Scroll the view through memory: wheel + touch-drag walk `base` a row at a
+  // time (#119). Accumulated by pixels so mouse / trackpad / finger match.
+  // Routed through onBaseChange, so it also disengages cursor-follow. Native
+  // non-passive listeners — React's handlers are passive, so preventDefault
+  // (stop the page/dock from scrolling) wouldn't take. `base` is read via a ref
+  // so a continuous touch drag isn't broken by the effect re-binding each step.
+  const baseRef = useRef(base)
+  useEffect(() => { baseRef.current = base }, [base])
+  const scrollAccum = useRef(0)
   useEffect(() => {
     const el = viewRef.current
     if (!el || !onBaseChange) return
-    const onWheel = (e: WheelEvent) => {
-      e.preventDefault()
-      wheelAccum.current += e.deltaY
-      const step = Math.trunc(wheelAccum.current / WHEEL_PX_PER_ROW)
+    const walk = (deltaPx: number, pxPerRow: number) => {
+      scrollAccum.current += deltaPx
+      const step = Math.trunc(scrollAccum.current / pxPerRow)
       if (step === 0) return
-      wheelAccum.current -= step * WHEEL_PX_PER_ROW
-      const next = Math.max(0, Math.min(ADDR_MAX, base + step * ROW))
-      if (next !== base) onBaseChange(next)
+      scrollAccum.current -= step * pxPerRow
+      const cur = baseRef.current
+      const next = Math.max(0, Math.min(ADDR_MAX, cur + step * ROW))
+      if (next !== cur) onBaseChange(next)
     }
+    const onWheel = (e: WheelEvent) => { e.preventDefault(); walk(e.deltaY, WHEEL_PX_PER_ROW) }
+    // Touch-drag: finger up (clientY decreases) reveals higher addresses.
+    let touchY: number | null = null
+    const onTouchStart = (e: TouchEvent) => { touchY = e.touches[0]?.clientY ?? null; scrollAccum.current = 0 }
+    const onTouchMove = (e: TouchEvent) => {
+      if (touchY === null) return
+      const y = e.touches[0]?.clientY ?? touchY
+      e.preventDefault()
+      walk(touchY - y, TOUCH_PX_PER_ROW)
+      touchY = y
+    }
+    const onTouchEnd = () => { touchY = null }
     el.addEventListener('wheel', onWheel, { passive: false })
-    return () => el.removeEventListener('wheel', onWheel)
-  }, [base, onBaseChange])
+    el.addEventListener('touchstart', onTouchStart, { passive: false })
+    el.addEventListener('touchmove', onTouchMove, { passive: false })
+    el.addEventListener('touchend', onTouchEnd)
+    return () => {
+      el.removeEventListener('wheel', onWheel)
+      el.removeEventListener('touchstart', onTouchStart)
+      el.removeEventListener('touchmove', onTouchMove)
+      el.removeEventListener('touchend', onTouchEnd)
+    }
+  }, [onBaseChange])
 
   useEffect(() => {
     let cancelled = false

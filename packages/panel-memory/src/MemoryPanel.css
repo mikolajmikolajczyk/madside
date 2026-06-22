@@ -54,6 +54,8 @@
   /* Fill the panel so the dump's row count tracks the available height (#119). */
   flex: 1;
   min-height: 0;
+  /* Touch-drag scrolls memory ourselves (#119) — don't let the browser pan. */
+  touch-action: none;
 }
 .memview__row { white-space: pre; }
 .memview__addr { color: var(--text-quaternary); }
