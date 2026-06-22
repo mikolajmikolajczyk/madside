@@ -1,6 +1,6 @@
 # ADR-0008: App-wide virtual filesystem (mount layer)
 
-- **Status:** Proposed
+- **Status:** Accepted
 - **Date:** 2026-06-17
 - **Deciders:** Mikołaj
 - **Tags:** architecture, foundation, filesystem, plugins
