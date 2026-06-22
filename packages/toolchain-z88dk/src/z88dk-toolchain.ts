@@ -1,5 +1,6 @@
 import type { BuildDiagnostic, ToolchainBuildOutput, ToolchainPlugin } from '@ports'
-import { buildZ88dk, buildZ88dkC, type Z88dkFile, type Z88dkOptions } from './wasm/z88dk-wasm'
+import type { VfsProvider } from '@core/vfs'
+import { buildZ88dk, buildZ88dkC, sysrootFor, type Z88dkFile, type Z88dkOptions } from './wasm/z88dk-wasm'
 
 /** Validate the z88dk slice of `manifest.build.options`. The manifest passes the
  *  bag through untyped — the toolchain owns its schema. */
@@ -91,6 +92,14 @@ export const z88dkToolchain: ToolchainPlugin = {
       { label: 'macro', detail: 'z80asm macro', template: 'macro ${1:name}\n        ${2:; body}\nendm\n' },
       { label: 'defb', detail: 'define bytes', template: 'defb ${1:0}\n' },
     ],
+  },
+
+  // The bundled +zx C runtime + headers (read-only) the build mounts. Surfacing
+  // the same provider here lets the file tree's system view (#50, ADR-0008) show
+  // exactly what links — what a C source may #include — same as cc65/NES.
+  sysroot(machine?: string): VfsProvider | undefined {
+    const target = targetFor(machine)
+    return target ? sysrootFor(target) : undefined
   },
 
   async build(input): Promise<ToolchainBuildOutput> {
