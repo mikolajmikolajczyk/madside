@@ -39,7 +39,15 @@ interface SourceFile {
 /** Build the typed-symbol model for a cc65 C build. `files` are the build
  *  inputs; `labels` is the parsed `.dbg` symbol table (cc65-mangled names →
  *  address). Only globals lsp-c can type are emitted — the rest stay raw in
- *  `labels`. */
+ *  `labels`.
+ *
+ *  NOTE — locals are deliberately NOT surfaced (#131, ADR-0012). cc65 has no
+ *  frame pointer: C autos live on a software stack via the moving `c_sp`, and
+ *  `.dbg` offsets are relative to a fixed compile-time frame register whose live
+ *  delta isn't recorded — so a local's runtime address can't be resolved
+ *  reliably at an arbitrary PC. The frame foundation exists (parseDbg `scopes`,
+ *  lsp-c `functionLocals`, the @ports DebugFrame/DebugScope contract) for a
+ *  target with a real frame pointer (sccz80 IX, gated on #135). */
 export function buildCc65DebugInfo(files: readonly SourceFile[], labels: Map<string, number>): DebugInfo {
   const dec = new TextDecoder()
   const sources = files

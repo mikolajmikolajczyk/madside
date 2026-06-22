@@ -45,9 +45,24 @@ function parseFields(s: string): Map<string, string> {
   return out
 }
 
+/** A raw cc65 function scope from the `.dbg`: its asm label name (`_add`), its
+ *  PC range, and the frame-relative auto locals in it (block-nested autos folded
+ *  in). Types are NOT here — cc65 emits `type=0` for csym; the toolchain joins
+ *  types from `@madside/lsp-c` (#131). Offsets are relative to `c_sp` (#131). */
+export interface DbgScope {
+  /** Asm-level name as emitted by cc65, e.g. `_add` (demangled by the caller). */
+  name: string
+  start: number
+  end: number
+  locals: { name: string; offset: number }[]
+}
+
 export interface ParsedDbg {
   sourceMap: SourceMap
   labels: Map<string, number>
+  /** Per-function frames + locals (#131). Empty when the `.dbg` carries no
+   *  `csym`/`scope` records. */
+  scopes: DbgScope[]
 }
 
 /** Parse a cc65 `.dbg` into a SourceMap + labels. `projectFiles` are the build's
@@ -66,6 +81,13 @@ export function parseDbg(text: string, projectFiles: readonly string[]): ParsedD
   interface LineRec { file: number; line: number; spanIds: number[] }
   const lines: LineRec[] = []
   const labels = new Map<string, number>()
+  // Frame info (#131): all sym addresses by id (to resolve a scope → its code
+  // address), the C scopes, and the auto (stack) C-symbols within them.
+  const symVal = new Map<number, number>()
+  interface ScopeRec { id: number; name: string; size: number; sym: number; parent: number; isFunc: boolean }
+  const scopeRecs: ScopeRec[] = []
+  interface CsymRec { name: string; scope: number; offset: number }
+  const autoCsyms: CsymRec[] = []
 
   for (const raw of text.split('\n')) {
     const tab = raw.indexOf('\t')
@@ -92,9 +114,32 @@ export function parseDbg(text: string, projectFiles: readonly string[]): ParsedD
         break
       }
       case 'sym': {
-        if (f.get('type') !== 'lab') break
         const val = f.get('val')
-        if (val != null) labels.set(f.get('name') ?? '', num(val))
+        if (val == null) break
+        const v = num(val)
+        symVal.set(num(f.get('id')), v)
+        if (f.get('type') === 'lab') labels.set(f.get('name') ?? '', v)
+        break
+      }
+      case 'scope': {
+        scopeRecs.push({
+          id: num(f.get('id')),
+          name: f.get('name') ?? '',
+          size: num(f.get('size')),
+          sym: num(f.get('sym')),       // NaN when the scope has no label
+          parent: num(f.get('parent')), // NaN at module top level
+          isFunc: f.get('type') === 'scope',
+        })
+        break
+      }
+      case 'csym': {
+        // C stack locals carry sc=auto; `offs` is omitted when zero.
+        if (f.get('sc') !== 'auto') break
+        autoCsyms.push({
+          name: f.get('name') ?? '',
+          scope: num(f.get('scope')),
+          offset: num(f.get('offs') ?? '0') || 0,
+        })
         break
       }
     }
@@ -130,5 +175,37 @@ export function parseDbg(text: string, projectFiles: readonly string[]): ParsedD
     lineToAddrs.set(file, allMap)
   }
 
-  return { sourceMap: { addrToLoc, locToAddr, lineToAddrs }, labels }
+  // Build per-function frames (#131): map each auto local to the function scope
+  // that encloses it (folding block-nested scopes into their function), then
+  // resolve the function's PC range from its label sym.
+  const scopeById = new Map<number, ScopeRec>()
+  for (const s of scopeRecs) scopeById.set(s.id, s)
+  const enclosingFunc = (id: number): ScopeRec | undefined => {
+    let cur = scopeById.get(id)
+    const seen = new Set<number>()
+    while (cur && !seen.has(cur.id)) {
+      if (cur.isFunc && cur.name) return cur
+      seen.add(cur.id)
+      cur = Number.isNaN(cur.parent) ? undefined : scopeById.get(cur.parent)
+    }
+    return undefined
+  }
+  const localsByFunc = new Map<number, { name: string; offset: number }[]>()
+  for (const c of autoCsyms) {
+    const fn = enclosingFunc(c.scope)
+    if (!fn) continue
+    const list = localsByFunc.get(fn.id) ?? []
+    list.push({ name: c.name, offset: c.offset })
+    localsByFunc.set(fn.id, list)
+  }
+  const scopes: DbgScope[] = []
+  for (const s of scopeRecs) {
+    if (!s.isFunc || !s.name) continue
+    const start = symVal.get(s.sym)
+    const locals = localsByFunc.get(s.id)
+    if (start == null || !locals || locals.length === 0) continue
+    scopes.push({ name: s.name, start, end: start + s.size, locals })
+  }
+
+  return { sourceMap: { addrToLoc, locToAddr, lineToAddrs }, labels, scopes }
 }

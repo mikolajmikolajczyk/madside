@@ -15,6 +15,18 @@ const DBG = [
   'line\tid=2,file=1,line=99,type=0,span=0',
   'sym\tid=0,name="_main",addrsize=absolute,scope=0,def=0,val=0x8000,seg=0,type=lab',
   'sym\tid=1,name="FOO",val=0x10,type=equ',
+  // Frame info (#131): a function scope, its auto locals (offs omitted ⇒ 0),
+  // a block-nested scope whose autos fold into the function, plus a static csym
+  // (ignored — not a stack local) and the c_sp frame pointer.
+  'scope\tid=0,name="",mod=0,size=143,span=79',
+  'scope\tid=1,name="_main",mod=0,type=scope,size=27,parent=0,sym=0,span=15',
+  'scope\tid=2,name="",mod=0,type=scope,size=5,parent=1,span=16',
+  'csym\tid=0,name="main",scope=1,type=0,sc=static,sym=0',
+  'csym\tid=1,name="a",scope=1,type=0,sc=auto,offs=2',
+  'csym\tid=2,name="b",scope=1,type=0,sc=auto',
+  'csym\tid=3,name="sum",scope=1,type=0,sc=auto,offs=-2',
+  'csym\tid=4,name="blk",scope=2,type=0,sc=auto,offs=-4',
+  'sym\tid=99,name="c_sp",addrsize=zeropage,size=2,scope=0,val=0x82,seg=0,type=lab',
 ].join('\n')
 
 describe('parseDbg', () => {
@@ -50,5 +62,23 @@ describe('parseDbg', () => {
   it('collects labels (type=lab) and ignores equates', () => {
     expect(labels.get('_main')).toBe(0x8000)
     expect(labels.has('FOO')).toBe(false)
+    expect(labels.get('c_sp')).toBe(0x82) // frame pointer (#131)
+  })
+
+  it('extracts function frames with auto locals (#131)', () => {
+    const { scopes } = parseDbg(DBG, ['src/main.c'])
+    expect(scopes).toHaveLength(1)
+    const fn = scopes[0]!
+    expect(fn.name).toBe('_main')
+    expect(fn.start).toBe(0x8000)
+    expect(fn.end).toBe(0x8000 + 27)
+    // a/b/sum from the function scope + blk folded up from the block scope;
+    // the static csym `main` is excluded. Omitted offs ⇒ 0.
+    expect(fn.locals).toEqual([
+      { name: 'a', offset: 2 },
+      { name: 'b', offset: 0 },
+      { name: 'sum', offset: -2 },
+      { name: 'blk', offset: -4 },
+    ])
   })
 })
