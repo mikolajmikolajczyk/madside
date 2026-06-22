@@ -33,6 +33,7 @@ export type {
   ProjectPluginSource,
 } from './plugin-loader'
 export type { ThemePlugin, ThemeTokens, ThemeTokenName } from './plugin-theme'
+export type { DebugInfo, DebugSymbol, DebugType, DebugField, DebugLocation } from './debug-info'
 
 // Plugin contracts
 export type {

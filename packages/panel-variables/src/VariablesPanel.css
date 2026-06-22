@@ -59,5 +59,6 @@
   white-space: nowrap;
 }
 .vars__addr { color: var(--text-quaternary); }
-.vars__val { color: var(--accent-mint); }
+.vars__type { color: var(--accent-peach); white-space: nowrap; }
+.vars__val { color: var(--accent-mint); white-space: nowrap; }
 .vars__val--word { color: var(--text-secondary); }

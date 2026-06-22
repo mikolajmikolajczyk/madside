@@ -5,6 +5,7 @@ import type {
   BuildOptions,
   BuildResult,
   BuildService,
+  DebugInfo,
   EventBus,
   Logger,
   Recipe,
@@ -36,6 +37,8 @@ export interface ToolchainAssembleResult {
   stderr: string
   sourceMap?: SourceMap
   labels?: Map<string, number>
+  /** Typed-symbol model for the debugger (ADR-0011, #130). */
+  debugInfo?: DebugInfo
   /** Parsed error/warning locations (#29). Present on success too (warnings). */
   diagnostics?: BuildDiagnostic[]
   /** Toolchain-specific extras forwarded to BuildResult.extras unchanged. */
@@ -168,6 +171,7 @@ export function createBuildService(deps: BuildServiceDeps): BuildService {
         stderr: assembleResult.stderr,
         sourceMap: assembleResult.sourceMap,
         labels: assembleResult.labels,
+        debugInfo: assembleResult.debugInfo,
         diagnostics: assembleResult.diagnostics,
         extras: assembleResult.extras,
       }

@@ -4,6 +4,7 @@
 
 import type { SourceMap } from './source-map'
 import type { BuildDiagnostic } from './diagnostics'
+import type { DebugInfo } from './debug-info'
 import type { PluginBase } from './plugin-registry'
 import type { VfsProvider } from '@core/vfs'
 
@@ -43,6 +44,11 @@ export interface ToolchainBuildOutput {
   /** Parsed label dump — `name → address`. Toolchain plugin owns the parse so
    *  the workbench never sees raw `.lab` / `.sym` text. */
   labels?: Map<string, number>
+  /** Typed-symbol model for the debugger (ADR-0011). The toolchain joins its
+   *  addresses with types (C: via @madside/lsp-c) behind this port; absent for
+   *  toolchains without type info (the Variables panel shows those raw from
+   *  `labels`). */
+  debugInfo?: DebugInfo
   /** Parsed error/warning locations (#29). Present on success too (warnings).
    *  Toolchain plugin parses its own diagnostic format. */
   diagnostics?: BuildDiagnostic[]

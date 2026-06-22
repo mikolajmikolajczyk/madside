@@ -13,6 +13,7 @@
 import type { ProjectManifestV2 } from './project-manifest'
 import type { SourceMap } from './source-map'
 import type { BuildDiagnostic } from './diagnostics'
+import type { DebugInfo } from './debug-info'
 
 // === domain shapes ===
 
@@ -146,6 +147,7 @@ export interface StoredBuild {
   binary?: Uint8Array
   sourceMap?: SourceMap
   labels?: Map<string, number>
+  debugInfo?: DebugInfo
   diagnostics?: BuildDiagnostic[]
   stdout: string
   stderr: string

@@ -6,6 +6,7 @@ import type { BuildError, Result } from '../errors'
 import type { ProjectManifestV2 } from '../project-manifest'
 import type { ProjectFile } from '../storage'
 import type { SourceMap } from '../source-map'
+import type { DebugInfo } from '../debug-info'
 import type { BuildDiagnostic } from '../diagnostics'
 
 export interface BuildOptions {
@@ -24,6 +25,8 @@ export interface BuildResult {
   sourceMap?: SourceMap
   /** Parsed label dump — `name → address`. Toolchain plugin owns the parse. */
   labels?: Map<string, number>
+  /** Typed-symbol model for the debugger (ADR-0011, #130). */
+  debugInfo?: DebugInfo
   /** Error/warning locations the editor marks inline (#29). */
   diagnostics?: BuildDiagnostic[]
   /** Toolchain-specific extras (e.g. raw listing for download). */

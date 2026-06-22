@@ -429,8 +429,8 @@ export default function App() {
       onResumeFollow,
     },
     output: outputData,
-    variables: { labels: result?.labels },
-  }), [memBase, onMemBaseChange, cursorHighlight, outputData, memBaseTouched, onResumeFollow, result?.labels]);
+    variables: { labels: result?.labels, debugInfo: result?.debugInfo },
+  }), [memBase, onMemBaseChange, cursorHighlight, outputData, memBaseTouched, onResumeFollow, result?.labels, result?.debugInfo]);
 
   const pcLine = useMemo(() => {
     // During run the PC moves too fast to track in the editor — hide

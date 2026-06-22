@@ -2,6 +2,7 @@ import type { BuildDiagnostic, ToolchainBuildOutput, ToolchainPlugin } from '@po
 import type { VfsProvider } from '@core/vfs'
 import { buildCc65, sysrootFor, type Cc65File, type Cc65Options } from './wasm/cc65-wasm'
 import { parseDbg } from './cc65-dbg'
+import { buildCc65DebugInfo } from './cc65-debuginfo'
 
 /** Validate the cc65 slice of `manifest.build.options` (#51). The manifest
  *  passes the bag through untyped — the toolchain owns its schema. */
@@ -152,11 +153,15 @@ export const cc65Toolchain: ToolchainPlugin = {
     // gets PC-line highlight, gutter addresses, and line breakpoints — on C
     // lines too (#49). Keyed by the project's own source paths.
     const parsed = r.dbg ? parseDbg(r.dbg, files.map((f) => f.path)) : undefined
+    // Typed-symbol model for the Variables panel (#130): join the .dbg addresses
+    // with C types from lsp-c, behind the @ports DebugInfo port.
+    const debugInfo = parsed?.labels ? buildCc65DebugInfo(input.files, parsed.labels) : undefined
     return {
       ok: true,
       binary: r.binary,
       sourceMap: parsed?.sourceMap,
       labels: parsed?.labels,
+      debugInfo,
       stdout: r.stdout,
       stderr: r.stderr,
       diagnostics,

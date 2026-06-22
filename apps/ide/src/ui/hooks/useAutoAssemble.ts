@@ -6,6 +6,7 @@ import type {
   BuildInput,
   BuildResult,
   BuildService,
+  DebugInfo,
   ProjectManifestV2,
   SourceMap,
   StorageBackend,
@@ -33,6 +34,7 @@ const toStored = (o: AutoAssembleOutcome): StoredBuild => ({
   binary: o.xex,
   sourceMap: o.sourceMap,
   labels: o.labels,
+  debugInfo: o.debugInfo,
   diagnostics: o.diagnostics,
   stdout: o.stdout,
   stderr: o.stderr,
@@ -45,6 +47,7 @@ export const outcomeFromStored = (b: StoredBuild): AutoAssembleOutcome => ({
   xex: b.binary,
   sourceMap: b.sourceMap,
   labels: b.labels,
+  debugInfo: b.debugInfo,
   diagnostics: b.diagnostics,
   stdout: b.stdout,
   stderr: b.stderr,
@@ -59,6 +62,8 @@ export interface AutoAssembleOutcome {
   xex?: Uint8Array;
   sourceMap?: SourceMap;
   labels?: Map<string, number>;
+  /** Typed-symbol model for the Variables panel (#130). */
+  debugInfo?: DebugInfo;
   /** Inline error/warning markers for the editor (#29). */
   diagnostics?: BuildDiagnostic[];
   stdout: string;
@@ -81,6 +86,7 @@ const toOutcome = (r: BuildResult): AutoAssembleOutcome => ({
   xex: r.binary,
   sourceMap: r.sourceMap,
   labels: r.labels,
+  debugInfo: r.debugInfo,
   diagnostics: r.diagnostics,
   stdout: r.stdout,
   stderr: r.stderr,
