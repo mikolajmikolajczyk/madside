@@ -81,13 +81,21 @@ export async function cSysrootHeaders(machine?: string): Promise<SourceFile[]> {
   const cc65 = cc65TargetFor(machine)
   if (cc65) return headersFrom(`cc65:${cc65}`, cc65SysrootFor(cc65))
   const z88dk = z88dkTargetFor(machine)
-  if (z88dk) return headersFrom(`z88dk:${z88dk}`, z88dkSysrootFor(z88dk))
+  // Skip the z88dk `_DEVELOPMENT/` subtree: it's the "new clib" (sdcc/clang/proto
+  // mirrors) and duplicates every classic header's basename (5× stdio.h, …). The
+  // classic sccz80 +zx path (what the toolchain builds) uses the top-level
+  // include/ headers — feeding the mirrors makes completion offer + auto-`#include`
+  // a wrong path like `<_DEVELOPMENT/clang/stdio.h>`.
+  if (z88dk) {
+    return headersFrom(`z88dk:${z88dk}`, z88dkSysrootFor(z88dk), (p) => p.includes('/_DEVELOPMENT/'))
+  }
   return []
 }
 
 async function headersFrom(
   key: string,
   provider: SysrootProvider | undefined,
+  exclude?: (path: string) => boolean,
 ): Promise<SourceFile[]> {
   if (!provider) return []
   const cached = cache.get(key)
@@ -96,6 +104,7 @@ async function headersFrom(
   const headers: SourceFile[] = []
   for (const path of await provider.list('include')) {
     if (!path.endsWith('.h')) continue
+    if (exclude?.(path)) continue
     const bytes = await provider.read(path)
     if (bytes) headers.push({ path, text: decoder.decode(bytes) })
   }

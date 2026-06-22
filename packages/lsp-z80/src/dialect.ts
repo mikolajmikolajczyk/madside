@@ -8,11 +8,15 @@ import type { CDialect } from '@madside/lsp-c'
 // `z88dk/buildOutput` notification.
 export const z80Dialect: CDialect = {
   // z88dk decorates declarations heavily (__LIB__ 6k×, __smallc 4k×, the
-  // __z88dk_* calling conventions, __sfr/__at port qualifiers, …) — blank them
-  // so the C grammar parses the underlying declaration. __preserves_regs(...) and
-  // __at(...) carry args, so consume their parens too.
+  // __z88dk_* calling conventions, __sfr/__at port qualifiers, …) — blank them so
+  // the C grammar parses the underlying declaration. The arg-carrying ones
+  // (__preserves_regs(…), __at(…)) consume their parens too. __ZPROTO*(…) are
+  // macro-defined prototypes the parser can't understand AND, left in, they
+  // desync Lezer's recovery so the *next* real declarations (printf/fprintf/…)
+  // go unindexed — so blank the whole call. (Cost: the handful of functions only
+  // declared via __ZPROTO, e.g. fread/fwrite, aren't offered. Acceptable.)
   decorators:
-    /\b(?:__LIB__|__smallc|__z88dk_fastcall|__z88dk_callee|__z88dk_params_offset|__z88dk_saveframe|__z88dk_sdccdecl|__vasmallc|__naked|__critical|__banked|__nonbanked|__sfr|__CALLEE__|__FASTCALL__|__stdc|fastcall|callee)\b|__preserves_regs\s*\([^)]*\)|__at\s*\([^)]*\)/g,
+    /\b(?:__LIB__|__smallc|__z88dk_fastcall|__z88dk_callee|__z88dk_deprecated|__z88dk_sdccdecl|__z88dk_params_offset|__z88dk_saveframe|__SAVEFRAME__|__vasmallc|__naked|__critical|__banked|__nonbanked|__sfr|__ROM__|__CALLEE__|__FASTCALL__|__stdc|fastcall|callee)\b|__preserves_regs\s*\([^)]*\)|__at\s*\([^)]*\)|__ZPROTO\w*\s*\([^)]*\)/g,
   diagnosticSource: 'z88dk-intel',
   buildDiagnosticSource: 'z88dk',
   buildOutputNotification: 'z88dk/buildOutput',
