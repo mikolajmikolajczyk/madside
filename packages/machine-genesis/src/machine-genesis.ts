@@ -22,7 +22,8 @@ export const machineGenesis: MachinePlugin = {
     width: 320,
     height: 224,
     fps: 60,
-    pixelFormat: 'rgba8888',
+    // gpgx renders 0xAARRGGBB (USE_32BPP_RENDERING) — the xrgb8888 blit path.
+    pixelFormat: 'xrgb8888',
   },
 
   audio: {
@@ -77,9 +78,10 @@ export const machineGenesis: MachinePlugin = {
 
   defaultPanels: ['memory', 'registers', 'variables', 'output'],
   compatibleToolchains: ['clownassembler'],
-  // Planned Phase-A pieces (#145) — resolved through the PluginRegistry at runtime;
-  // listing their ids before they ship is just a hint, not a hard dependency.
-  compatibleEmulators: ['genesis-musashi'],
+  // gpgx (full system: VDP/sound/Z80/IO) is the primary backend (#145, Phase B);
+  // genesis-musashi (headless CPU + flat bus) stays as a fallback. Resolved
+  // through the PluginRegistry at runtime — first available wins.
+  compatibleEmulators: ['genesis-gpgx', 'genesis-musashi'],
   compatibleDebugAdapters: ['m68k-debug'],
 
   // Common Genesis equates injected into new clownassembler projects (asm68k

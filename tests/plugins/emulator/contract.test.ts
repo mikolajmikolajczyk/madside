@@ -5,6 +5,7 @@ import { assertEmulatorPlugin } from '@ports/test'
 import { jsnesEmulator } from '@madside/emulator-nes-jsnes'
 import { chipsC64Emulator } from '@madside/emulator-c64-chips'
 import { genesisMusashiEmulator } from '@madside/emulator-genesis-musashi'
+import { genesisGpgxEmulator } from '@madside/emulator-genesis-gpgx'
 import { altirraEmulator } from '@adapters/emu'
 
 // Built-in emulators satisfy the same EmulatorPlugin contract.
@@ -48,4 +49,28 @@ describe('genesis-musashi satisfies EmulatorPlugin', () => {
   afterAll(() => { if (originalFetch) globalThis.fetch = originalFetch })
 
   it('contract', () => assertEmulatorPlugin(genesisMusashiEmulator))
+})
+
+// gpgx is the full-system wasi reactor — also boots headless (AudioContext is
+// only touched on startAudio, which the round-trip doesn't call). Same fetch shim.
+const GPGX_WASM = fileURLToPath(
+  new URL('../../../packages/wasm-genesis-gpgx/genesis-gpgx.wasm', import.meta.url),
+)
+describe('genesis-gpgx satisfies EmulatorPlugin', () => {
+  let originalFetch: typeof globalThis.fetch | undefined
+  beforeAll(() => {
+    originalFetch = globalThis.fetch
+    globalThis.fetch = (async (input: RequestInfo | URL) => {
+      const url = typeof input === 'string' ? input : input instanceof URL ? input.href : input.url
+      if (url.includes('genesis-gpgx.wasm')) {
+        const bytes = await readFile(GPGX_WASM)
+        return new Response(bytes, { status: 200, headers: { 'content-type': 'application/wasm' } })
+      }
+      if (originalFetch) return originalFetch(input)
+      throw new Error(`unmocked fetch: ${url}`)
+    }) as typeof globalThis.fetch
+  })
+  afterAll(() => { if (originalFetch) globalThis.fetch = originalFetch })
+
+  it('contract', () => assertEmulatorPlugin(genesisGpgxEmulator))
 })

@@ -9,10 +9,12 @@ import { fileURLToPath } from 'node:url'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { clownassemblerToolchain } from '@madside/toolchain-clownassembler'
 import { genesisMusashiEmulator } from '@madside/emulator-genesis-musashi'
+import { genesisGpgxEmulator } from '@madside/emulator-genesis-gpgx'
 import { m68kDebugAdapter } from '@madside/debug-m68k'
 
 const CLOWN_WASM = fileURLToPath(new URL('../../packages/wasm-clownassembler/clownassembler.wasm', import.meta.url))
 const MUSASHI_WASM = fileURLToPath(new URL('../../packages/wasm-musashi/musashi.wasm', import.meta.url))
+const GPGX_WASM = fileURLToPath(new URL('../../packages/wasm-genesis-gpgx/genesis-gpgx.wasm', import.meta.url))
 
 // A minimal Genesis ROM: vector table (SSP, reset PC → start) + code that loads a
 // sentinel into D0 and spins. asm68k syntax (clownassembler).
@@ -35,6 +37,9 @@ describe('Genesis 68000 chain — clownassembler → Musashi → m68k debug', ()
       }
       if (url.includes('musashi.wasm')) {
         return new Response(await readFile(MUSASHI_WASM), { status: 200, headers: { 'content-type': 'application/wasm' } })
+      }
+      if (url.includes('genesis-gpgx.wasm')) {
+        return new Response(await readFile(GPGX_WASM), { status: 200, headers: { 'content-type': 'application/wasm' } })
       }
       if (originalFetch) return originalFetch(input)
       throw new Error(`unmocked fetch: ${url}`)
@@ -68,6 +73,31 @@ describe('Genesis 68000 chain — clownassembler → Musashi → m68k debug', ()
 
     // The debug adapter also reads memory at native 24-bit width: the ROM byte at
     // $8 is the move.l opcode high byte ($20).
+    const mem = await dbg.readMemory(0x8, 1)
+    expect(mem[0]).toBe(0x20)
+  })
+
+  it('runs the same chain on the full-system gpgx backend', async () => {
+    // Same source, but through Genesis Plus GX (VDP/sound/Z80/IO + embedded
+    // Musashi). Validates the Phase-B backend over the identical toolchain +
+    // debug-adapter contracts: assemble → gpgx load_rom_buffer → run a frame →
+    // read D0 + a ROM byte back through m68k-debug.
+    const built = await clownassemblerToolchain.build({
+      projectId: 'genesis-gpgx-it',
+      main: 'src/main.asm',
+      files: [{ path: 'src/main.asm', content: new TextEncoder().encode(SOURCE) }],
+    })
+    expect(built.ok, `assemble failed: ${built.stderr}`).toBe(true)
+
+    const backend = await genesisGpgxEmulator.createBackend()
+    backend.loadMedia('bin', built.binary!)
+    expect(backend.getPC()).toBe(0x8) // entry PC from the reset vector
+
+    const dbg = m68kDebugAdapter.attach(backend)
+    await dbg.stepFrame()
+    const regs = await dbg.readRegisters()
+    expect(regs.d0 >>> 0).toBe(0x0000cafe)
+
     const mem = await dbg.readMemory(0x8, 1)
     expect(mem[0]).toBe(0x20)
   })

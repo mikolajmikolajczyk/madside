@@ -168,6 +168,9 @@ importers:
       '@madside/emulator-c64-chips':
         specifier: workspace:*
         version: link:../../packages/emulator-c64-chips
+      '@madside/emulator-genesis-gpgx':
+        specifier: workspace:*
+        version: link:../../packages/emulator-genesis-gpgx
       '@madside/emulator-genesis-musashi':
         specifier: workspace:*
         version: link:../../packages/emulator-genesis-musashi
