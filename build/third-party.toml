@@ -142,6 +142,17 @@ built_with = "Extracted verbatim from floooh/chips-test's embedded dump; Amstrad
 # === build-time toolchains — the justfile reads these; NOT shipped, NOT in the
 #     table (they compile the artifacts above, they aren't part of the product) ===
 
+[source.clownassembler]
+name       = "clownassembler"
+role       = "Motorola 68000 assembler (asm68k/SN-68k compatible) — Sega Genesis/Mega Drive toolchain (asm-first, #145)"
+upstream   = "https://github.com/Clownacy/clownassembler"
+source     = "https://github.com/Clownacy/clownassembler"
+ref        = "0842de46bfb2db44fbd9e1e3d5cc7e366fb965e5"
+version    = "snapshot (git)"
+license    = "AGPL-3.0-or-later"
+artifact   = "packages/wasm-clownassembler/clownassembler.wasm"
+built_with = "wasi-sdk clang (wasm32-wasip1), single pass — committed flex/bison output (no flex/bison) + wasi-clean (no shm/fork/system/mmap), no patches. See wiki/agents/clownassembler-wasm-build.md."
+
 [builddep.fpc]
 upstream = "https://gitlab.com/freepascal.org/fpc/source.git"
 ref      = "17c002e6460417e6980fcae2affe6e5bbb00bd6a"

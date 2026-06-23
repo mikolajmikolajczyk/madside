@@ -332,3 +332,37 @@ fetch-z88dk-release:
 # Repackage the minimal +zx C sysroot into packages/toolchain-z88dk/src/zx-sysroot.zip.
 package-zx-sysroot:
     bash "{{z88dk_support}}/c-path/build-zx-sysroot.sh" "{{z88dk_sysroot_src}}/z88dk"
+
+# === clownassembler (M68k / Sega Genesis assembler, AGPLv3+) — #145 Phase A ===
+clownasm_build_dir := root / "_notes/clownassembler-wasm-spike/build"
+clownasm_src_dir   := clownasm_build_dir / "clownassembler"
+clownasm_out_dir   := root / "packages/wasm-clownassembler"
+clownasm_support   := support / "clownassembler"
+clownasm_repo      := `python3 ../scripts/third-party.py get source.clownassembler.upstream`
+clownasm_commit    := `python3 ../scripts/third-party.py get source.clownassembler.ref`
+
+# Build clownassembler -> wasm (M68k, asm68k/SN-68k syntax). One clang pass: the
+# generated lexer/parser are committed + the code is wasi-clean, so no flex/bison
+# and no patches. See wiki/agents/clownassembler-wasm-build.md.
+build-clownassembler-wasm: fetch-wasi-sdk clone-clownassembler compile-clownassembler-wasm verify-clownassembler-wasm
+
+clone-clownassembler:
+    if [ ! -d "{{clownasm_src_dir}}/.git" ]; then \
+        git clone "{{clownasm_repo}}" "{{clownasm_src_dir}}"; \
+    fi
+    cd "{{clownasm_src_dir}}" && git fetch origin "{{clownasm_commit}}" && git checkout "{{clownasm_commit}}"
+    cd "{{clownasm_src_dir}}" && git submodule update --init --depth 1 clowncommon
+
+compile-clownassembler-wasm:
+    CLOWNASM="{{clownasm_src_dir}}" WASI_SDK="{{wasi_sdk_dir}}" OUT="{{clownasm_out_dir}}" \
+        bash "{{clownasm_support}}/build-clownassembler.sh"
+    @ls -lh "{{clownasm_out_dir}}/"*.wasm
+
+# Smoke: assemble `move.w #$1234,d0` -> expect bytes 30 3c 12 34.
+verify-clownassembler-wasm:
+    rm -rf /tmp/clownasm-verify && mkdir -p /tmp/clownasm-verify
+    cp "{{clownasm_support}}/smoke.asm" /tmp/clownasm-verify/
+    WASI_DIR=/tmp/clownasm-verify node --no-warnings "{{cc65_assets}}/wasi-run.mjs" \
+        "{{clownasm_out_dir}}/clownassembler.wasm" -i /smoke.asm -o /smoke.bin
+    @echo "smoke.bin bytes (expect 30 3c 12 34):"
+    @xxd /tmp/clownasm-verify/smoke.bin | head -1

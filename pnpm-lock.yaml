@@ -562,6 +562,8 @@ importers:
 
   packages/wasm-chips: {}
 
+  packages/wasm-clownassembler: {}
+
   packages/wasm-mads: {}
 
   packages/wasm-z88dk: {}
