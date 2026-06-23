@@ -222,6 +222,9 @@ importers:
       '@madside/toolchain-ca65':
         specifier: workspace:*
         version: link:../../packages/toolchain-ca65
+      '@madside/toolchain-clownassembler':
+        specifier: workspace:*
+        version: link:../../packages/toolchain-clownassembler
       '@madside/toolchain-mads':
         specifier: workspace:*
         version: link:../../packages/toolchain-mads
@@ -237,6 +240,9 @@ importers:
       '@madside/wasm-chips':
         specifier: workspace:*
         version: link:../../packages/wasm-chips
+      '@madside/wasm-clownassembler':
+        specifier: workspace:*
+        version: link:../../packages/wasm-clownassembler
       '@madside/wasm-mads':
         specifier: workspace:*
         version: link:../../packages/wasm-mads
@@ -525,6 +531,21 @@ importers:
       '@madside/wasm-cc65':
         specifier: workspace:*
         version: link:../wasm-cc65
+
+  packages/toolchain-clownassembler:
+    dependencies:
+      '@bjorn3/browser_wasi_shim':
+        specifier: ^0.4.2
+        version: 0.4.2
+      '@madside/core':
+        specifier: workspace:*
+        version: link:../core
+      '@madside/ports':
+        specifier: workspace:*
+        version: link:../ports
+      '@madside/wasm-clownassembler':
+        specifier: workspace:*
+        version: link:../wasm-clownassembler
 
   packages/toolchain-mads:
     dependencies:

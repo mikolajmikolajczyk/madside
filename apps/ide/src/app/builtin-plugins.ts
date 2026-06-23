@@ -6,6 +6,7 @@ import { machineZx } from '@madside/machine-zx'
 import { madsToolchain } from '@madside/toolchain-mads'
 import { cc65Toolchain } from '@madside/toolchain-ca65'
 import { z88dkToolchain } from '@madside/toolchain-z88dk'
+import { clownassemblerToolchain } from '@madside/toolchain-clownassembler'
 import { jsnesEmulator } from '@madside/emulator-nes-jsnes'
 import { chipsC64Emulator } from '@madside/emulator-c64-chips'
 import { chipsZxEmulator } from '@madside/emulator-zx-chips'
@@ -40,6 +41,7 @@ export const builtinPlugins: readonly PluginBase[] = [
   madsToolchain,
   cc65Toolchain,
   z88dkToolchain,
+  clownassemblerToolchain,
   // emulator backends — createBackend lazy-imports its core, so registration
   // stays cheap; machines name the one they run on via `compatibleEmulators`.
   altirraEmulator,
