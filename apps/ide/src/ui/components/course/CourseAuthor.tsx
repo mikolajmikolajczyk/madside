@@ -2,15 +2,34 @@ import { useEffect, useRef, useState } from "react";
 import {
   AUTHORABLE_MACHINES,
   COURSE_FILE,
+  courseExportFiles,
   courseMetaText,
   lessonSwapRenames,
   listLessons,
   newLessonFiles,
   readCourseMeta,
   readLessonChecks,
+  slugify,
+  validateCourseFiles,
+  zipCourse,
 } from "@app";
 import type { CourseCheck, CourseMeta, LessonInfo } from "@app";
 import "./CourseAuthor.css";
+
+function downloadCourse(files: { path: string; content: string }[], title: string): void {
+  const check = validateCourseFiles(courseExportFiles(files));
+  if (!check.ok) {
+    window.alert(`Course not ready to export: ${check.error}`);
+    return;
+  }
+  const blob = new Blob([zipCourse(files) as BlobPart], { type: "application/zip" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = `${slugify(title) || "course"}.zip`;
+  a.click();
+  URL.revokeObjectURL(url);
+}
 
 // Course Author surface (#139). A structured view over the course-as-project
 // files: phase 1 = course.json metadata; phase 2 = lesson CRUD + reorder +
@@ -37,7 +56,17 @@ export function CourseAuthor({ files, ops }: {
 
   return (
     <div className="course-author">
-      <div className="course-author__title label">Course Author</div>
+      <div className="course-author__title label">
+        <span>Course Author</span>
+        <button
+          type="button"
+          className="course-author__btn"
+          onClick={() => downloadCourse(files, meta.title)}
+          title="Validate + download the course as a .zip (push it to a public GitHub repo to publish)"
+        >
+          ↓ Export .zip
+        </button>
+      </div>
       <MetaForm meta={meta} onSave={(m) => ops.save([{ path: COURSE_FILE, content: courseMetaText(m) }])} />
 
       <div className="course-author__section">
@@ -80,7 +109,7 @@ export function CourseAuthor({ files, ops }: {
       </div>
 
       <p className="course-author__hint">
-        Expand a lesson to edit its text and checks. Starter files live under <code>{"<lesson>/files/"}</code> — edit those in the file tree (a starter-file UI comes next, #139). Use <strong>Course Preview</strong> to see it as a learner does.
+        Expand a lesson to edit its text and checks. Starter files live under <code>{"<lesson>/files/"}</code> — edit those in the file tree. Use <strong>Course Preview</strong> to see it as a learner does, then <strong>Export .zip</strong> and push the contents to a public GitHub repo to publish.
       </p>
     </div>
   );

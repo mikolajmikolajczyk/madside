@@ -1,11 +1,14 @@
 import { describe, expect, it } from "vitest";
+import { unzipSync } from "fflate";
 import { createMemoryStorage } from "@adapters/storage-memory";
 import { validateCourseFiles } from "./courses";
 import {
   AUTHORABLE_MACHINES,
   COURSE_FILE,
+  courseExportFiles,
   courseMetaText,
   createCourseProject,
+  importCourseProject,
   isCourseAuthoring,
   lessonSwapRenames,
   listLessons,
@@ -13,7 +16,9 @@ import {
   readCourseMeta,
   readLessonBody,
   readLessonChecks,
+  rebaseCourseFiles,
   slugify,
+  zipCourse,
   type LessonInfo,
 } from "./course-author";
 
@@ -127,6 +132,70 @@ describe("lessons (phase 2)", () => {
 
   it("newLessonFiles starts at 01 for an empty course", () => {
     expect(newLessonFiles([], "atari-xl")[0]!.path).toBe("lessons/01-new-lesson/lesson.md");
+  });
+
+  it("courseExportFiles keeps course.json + lessons/**, drops container/.gitkeep/generated", () => {
+    const f = [
+      { path: "project.json", content: "{}" },               // authoring container — drop
+      { path: "course.json", content: '{"title":"T"}' },      // keep
+      { path: "lessons/01-intro/lesson.md", content: "# I" }, // keep
+      { path: "lessons/01-intro/files/.gitkeep", content: "" }, // drop
+      { path: "generated/x.asm", content: "x" },              // drop
+    ];
+    expect(courseExportFiles(f).map((x) => x.path)).toEqual([
+      "course.json",
+      "lessons/01-intro/lesson.md",
+    ]);
+  });
+
+  it("rebaseCourseFiles strips a picked-folder prefix; leaves a root zip alone", () => {
+    const folder = [
+      { path: "my-course/course.json", content: "{}" },
+      { path: "my-course/lessons/01-intro/lesson.md", content: "# I" },
+      { path: "my-course/README.md", content: "ignored-but-kept-under-root" },
+      { path: "elsewhere/x", content: "dropped" },
+    ];
+    expect(rebaseCourseFiles(folder).map((f) => f.path)).toEqual([
+      "course.json",
+      "lessons/01-intro/lesson.md",
+      "README.md",
+    ]);
+    const atRoot = [{ path: "course.json", content: "{}" }, { path: "lessons/01-x/lesson.md", content: "x" }];
+    expect(rebaseCourseFiles(atRoot)).toEqual(atRoot);
+  });
+
+  it("importCourseProject round-trips an exported course back into authoring", async () => {
+    const storage = createMemoryStorage();
+    // Author + export a course, then import the exported files back.
+    const made = await createCourseProject(storage, { name: "RT", machine: "c64" });
+    const loaded = await storage.projects.load(made.id);
+    const exported = courseExportFiles(loaded!.files.map((f) => ({ path: f.path, content: dec.decode(f.content) })));
+
+    const imported = await importCourseProject(storage, exported);
+    const back = await storage.projects.load(imported.id);
+    const files = back!.files.map((f) => ({ path: f.path, content: dec.decode(f.content) }));
+
+    expect(isCourseAuthoring(files)).toBe(true);               // course.json present
+    expect(files.some((f) => f.path === "project.json")).toBe(true); // container added
+    expect(readCourseMeta(files)).toMatchObject({ machine: "c64" });
+  });
+
+  it("importCourseProject rejects an invalid course", async () => {
+    const storage = createMemoryStorage();
+    await expect(importCourseProject(storage, [{ path: "course.json", content: "{}" }])).rejects.toThrow();
+  });
+
+  it("zipCourse round-trips to a validateCourseFiles-clean course", async () => {
+    const storage = createMemoryStorage();
+    const row = await createCourseProject(storage, { name: "Z", machine: "atari-xl" });
+    const loaded = await storage.projects.load(row.id);
+    const files = loaded!.files.map((f) => ({ path: f.path, content: dec.decode(f.content) }));
+
+    const zipped = unzipSync(zipCourse(files));
+    const out = Object.entries(zipped).map(([path, bytes]) => ({ path, content: dec.decode(bytes) }));
+    expect(out.some((f) => f.path === "project.json")).toBe(false); // container excluded
+    expect(out.some((f) => f.path === "course.json")).toBe(true);
+    expect(validateCourseFiles(out)).toEqual({ ok: true });
   });
 
   it("readLessonBody / readLessonChecks read a lesson's md + checks", () => {

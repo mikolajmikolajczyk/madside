@@ -458,3 +458,16 @@
   opacity: 0.5;
   cursor: default;
 }
+
+/* Course import row (#139) */
+.welcome__course-import {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-top: 8px;
+}
+.welcome__course-import-label {
+  color: var(--text-tertiary);
+  font-size: 12px;
+}

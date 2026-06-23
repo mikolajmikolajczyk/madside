@@ -1,5 +1,6 @@
-import { useMemo, useState } from "react";
-import { createBlankProject, createCourseProject, getCourse, getTemplateManifestText, installCourseFromGitHub, instantiateTemplate, listTemplates, officialCourseRef, officialCourseSourceId, openLesson, removeRemoteCourse, useWorkbench, type OfficialCourse } from "@app";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { unzipSync } from "fflate";
+import { createBlankProject, createCourseProject, getCourse, getTemplateManifestText, importCourseProject, installCourseFromGitHub, instantiateTemplate, listTemplates, officialCourseRef, officialCourseSourceId, openLesson, rebaseCourseFiles, removeRemoteCourse, useWorkbench, type OfficialCourse } from "@app";
 import { errorMessage, NetworkError } from "@ports";
 import { exportProjectZip } from "@app/project-zip";
 import { useCourses } from "../hooks/useCourses";
@@ -190,6 +191,39 @@ export function Welcome({ onOpen, projects = [], onDeleteProject }: Props) {
       setError(`could not create course: ${errorMessage(e)}`);
       setBusy(null);
     }
+  };
+
+  // Import an existing course into authoring (round-trips with Export). A folder
+  // picker is preferred; a .zip is the fallback. Both rebase onto the course
+  // root (course.json) and wrap with a container project.json (#139).
+  const folderRef = useRef<HTMLInputElement>(null);
+  const zipRef = useRef<HTMLInputElement>(null);
+  useEffect(() => { folderRef.current?.setAttribute("webkitdirectory", ""); }, []);
+
+  const importFiles = async (files: { path: string; content: string }[]) => {
+    setBusy("import");
+    setError(null);
+    try {
+      const row = await importCourseProject(workbench.storage, rebaseCourseFiles(files));
+      onOpen(row.id);
+    } catch (e) {
+      setError(`could not import course: ${errorMessage(e)}`);
+      setBusy(null);
+    }
+  };
+  const onPickFolder = async (list: FileList) => {
+    const files = await Promise.all(
+      [...list].map(async (f) => ({ path: f.webkitRelativePath || f.name, content: await f.text() })),
+    );
+    await importFiles(files);
+  };
+  const onPickZip = async (file: File) => {
+    const raw = unzipSync(new Uint8Array(await file.arrayBuffer()));
+    const dec2 = new TextDecoder();
+    const files = Object.entries(raw)
+      .filter(([n]) => !n.endsWith("/"))
+      .map(([path, bytes]) => ({ path: path.replace(/^\/+/, ""), content: dec2.decode(bytes) }));
+    await importFiles(files);
   };
 
   const pick = async (id: string) => {
@@ -544,6 +578,17 @@ export function Welcome({ onOpen, projects = [], onDeleteProject }: Props) {
             >
               {busy === "course" ? "creating…" : "Author a new course"}
             </button>
+            <div className="welcome__course-import">
+              <span className="welcome__course-import-label">Edit an existing course:</span>
+              <button type="button" className="welcome__add-btn" disabled={busy != null} onClick={() => folderRef.current?.click()} data-testid="welcome.course-import-folder">
+                {busy === "import" ? "importing…" : "Import folder"}
+              </button>
+              <button type="button" className="welcome__add-btn" disabled={busy != null} onClick={() => zipRef.current?.click()} data-testid="welcome.course-import-zip">
+                Import .zip
+              </button>
+              <input ref={folderRef} type="file" multiple hidden onChange={(e) => { if (e.target.files) void onPickFolder(e.target.files); e.target.value = ""; }} />
+              <input ref={zipRef} type="file" accept=".zip" hidden onChange={(e) => { const f = e.target.files?.[0]; if (f) void onPickZip(f); e.target.value = ""; }} />
+            </div>
         {(featured.length > 0 || courses.length > 0) && (
           <CardFilter
             query={courseQuery}

@@ -6,9 +6,10 @@
 // authoring needs no new contract — just a structured view over project files
 // plus normal multi-file writes (project.applyEdits). See issue #139.
 
+import { zipSync } from 'fflate'
 import { MANIFEST_PATH, textToBytes } from '@madside/storage-idb'
 import type { ProjectManifestV2 as Manifest, ProjectRow, StorageBackend } from '@ports'
-import type { CourseCheck, CourseMeta } from './courses'
+import { validateCourseFiles, type CourseCheck, type CourseMeta } from './courses'
 
 /** Root descriptor file whose presence marks a project as a course in authoring. */
 export const COURSE_FILE = 'course.json'
@@ -90,6 +91,48 @@ export async function createCourseProject(
   return storage.projects.create(name, files, container)
 }
 
+// ── Import (#139) — bring an existing course into authoring ───────────────────
+
+/** Rebase a set of files onto the course root: find the shallowest `course.json`
+ *  and strip its directory prefix from every path (dropping anything outside it).
+ *  Handles a picked folder (`my-course/course.json` → `course.json`) and a zip
+ *  already at the root (`course.json` → unchanged). */
+export function rebaseCourseFiles(
+  files: readonly { path: string; content: string }[],
+): { path: string; content: string }[] {
+  const cj = files
+    .filter((f) => f.path === 'course.json' || f.path.endsWith('/course.json'))
+    .sort((a, b) => a.path.length - b.path.length)[0]
+  if (!cj) return files.map((f) => ({ path: f.path, content: f.content }))
+  const root = cj.path.slice(0, cj.path.length - 'course.json'.length) // '' or 'dir/'
+  return files
+    .filter((f) => f.path.startsWith(root))
+    .map((f) => ({ path: f.path.slice(root.length), content: f.content }))
+}
+
+/** Create an authoring project from an existing course's files (course-root-
+ *  relative: course.json + lessons/**). Validates first, then wraps them with a
+ *  container project.json so they load as a normal, editable project — the
+ *  inverse of `zipCourse`/`courseExportFiles`. Throws on an invalid course. */
+export async function importCourseProject(
+  storage: StorageBackend,
+  courseFiles: readonly { path: string; content: string }[],
+  opts?: { name?: string },
+): Promise<ProjectRow> {
+  const v = validateCourseFiles([...courseFiles])
+  if (!v.ok) throw new Error(v.error ?? 'invalid course')
+  const meta = readCourseMeta(courseFiles)
+  const machine = meta && SEED[meta.machine] ? meta.machine : DEFAULT_MACHINE
+  const name = opts?.name?.trim() || meta?.title || 'Imported course'
+  const s = SEED[machine]!
+  const container: Manifest = { version: 2, name, main: s.main, machine, toolchain: s.toolchain }
+  const files = [
+    { path: MANIFEST_PATH, content: textToBytes(json(container)) },
+    ...courseFiles.map((f) => ({ path: f.path, content: textToBytes(f.content) })),
+  ]
+  return storage.projects.create(name, files, container)
+}
+
 // ── Lessons (#139 phase 2) ───────────────────────────────────────────────────
 
 /** A lesson parsed from the authored project's `lessons/<nn>-<slug>/` tree. */
@@ -144,6 +187,31 @@ export function lessonSwapRenames(a: LessonInfo, b: LessonInfo): { from: string;
     { from: b.dir, to: `lessons/${pad(a.n)}-${b.slug}` },
     { from: tmp, to: `lessons/${pad(b.n)}-${a.slug}` },
   ]
+}
+
+// ── Export (#139 phase 5) ────────────────────────────────────────────────────
+
+/** The publishable subset of an authoring project's files — what belongs in a
+ *  course repo: `course.json` + `lessons/**`. Drops the authoring container
+ *  (`project.json`), empty-dir placeholders, and generated output. The result is
+ *  course-root-relative, ready for `validateCourseFiles` + a GitHub repo root. */
+export function courseExportFiles(
+  files: readonly { path: string; content: string }[],
+): { path: string; content: string }[] {
+  return files.filter(
+    (f) =>
+      (f.path === COURSE_FILE || f.path.startsWith('lessons/')) &&
+      !f.path.endsWith('/.gitkeep') &&
+      !f.path.startsWith('generated/'),
+  ).map((f) => ({ path: f.path, content: f.content }))
+}
+
+/** Zip the course's publishable files (course.json at the root + lessons/**) for
+ *  download → push to a public GitHub repo, where learners install it. */
+export function zipCourse(files: readonly { path: string; content: string }[]): Uint8Array {
+  const entries: Record<string, Uint8Array> = {}
+  for (const f of courseExportFiles(files)) entries[f.path] = textToBytes(f.content)
+  return zipSync(entries, { level: 6 })
 }
 
 /** The markdown body of a lesson (its `lesson.md`), or '' if absent. */

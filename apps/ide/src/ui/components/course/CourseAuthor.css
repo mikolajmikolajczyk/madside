@@ -13,6 +13,9 @@
 .course-author__title {
   border-bottom: 1px solid var(--border-default);
   padding-bottom: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
 }
 .course-author__form {
   display: flex;
