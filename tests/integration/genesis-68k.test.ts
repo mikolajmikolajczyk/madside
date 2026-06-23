@@ -59,6 +59,11 @@ describe('Genesis 68000 chain — clownassembler → Musashi → m68k debug', ()
     // The reset vector ($4) points at `start` ($00000008 — after the 8-byte table).
     expect(built.labels?.get('start')).toBe(0x8)
 
+    // Line↔address source map (Phase B): the `move.l` on line 4 emits at $8, and
+    // $8 maps back to it — line-debug can set a breakpoint by line.
+    expect(built.sourceMap?.locToAddr.get('src/main.asm')?.get(4)).toBe(0x8)
+    expect(built.sourceMap?.addrToLoc.get(0x8)).toEqual({ file: 'src/main.asm', line: 4 })
+
     // 2. Emulator: boot Musashi and load the ROM (reset reads SSP/PC from $0/$4).
     const backend = await genesisMusashiEmulator.createBackend()
     backend.loadMedia('bin', built.binary!)

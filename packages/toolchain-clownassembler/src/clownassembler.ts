@@ -1,13 +1,13 @@
 import type { ToolchainBuildOutput, ToolchainPlugin } from "@ports";
 import { assemble, type SourceFile } from "./wasm-clownassembler";
 import { parseListingLabels } from "./labParser";
+import { parseListingSourceMap } from "./sourceMap";
 import { parseClownDiagnostics } from "./diagnostics";
 
 // clownassembler — Clownacy's AGPLv3+ Motorola 68000 assembler (asm68k/SN-68k
-// syntax), the Sega Genesis/Mega Drive toolchain (#145, Phase A). Wraps the
+// syntax), the Sega Genesis/Mega Drive toolchain (#145). Wraps the
 // @madside/wasm-clownassembler blob behind the ToolchainPlugin contract; emits a
-// flat M68k binary + labels parsed from the listing. (A line↔address source map
-// is a follow-up; the contract treats it as optional.)
+// flat M68k binary + labels + a line↔address source map parsed from the listing.
 export const clownassemblerToolchain: ToolchainPlugin = {
   kind: "toolchain",
   id: "clownassembler",
@@ -62,12 +62,14 @@ export const clownassemblerToolchain: ToolchainPlugin = {
     }
 
     const labels = r.listing ? parseListingLabels(r.listing) : undefined;
+    const sourceMap = r.listing ? parseListingSourceMap(r.listing, sources, input.main) : undefined;
     return {
       ok: true,
       binary: r.binary,
       stdout: r.stdout,
       stderr: r.stderr,
       labels,
+      sourceMap,
       diagnostics,
       extras: r.listing ? { lst: r.listing } : undefined,
       exitCode: r.exitCode,
