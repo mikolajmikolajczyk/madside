@@ -366,3 +366,32 @@ verify-clownassembler-wasm:
         "{{clownasm_out_dir}}/clownassembler.wasm" -i /smoke.asm -o /smoke.bin
     @echo "smoke.bin bytes (expect 30 3c 12 34):"
     @xxd /tmp/clownasm-verify/smoke.bin | head -1
+
+# === Musashi 68000 core (Sega Genesis emulator backend, MIT) — #145 Phase A ===
+musashi_build_dir := root / "_notes/musashi-wasm-spike/build"
+musashi_src_dir   := musashi_build_dir / "musashi"
+musashi_out_dir   := root / "packages/wasm-musashi"
+musashi_support   := support / "musashi"
+musashi_repo      := `python3 ../scripts/third-party.py get source.musashi.upstream`
+musashi_commit    := `python3 ../scripts/third-party.py get source.musashi.ref`
+
+# Build the Musashi 68000 core + Genesis system harness -> wasm32 reactor. Host
+# m68kmake generates the opcode tables, then wasi-sdk clang compiles. See
+# wiki/agents/musashi-wasm-build.md.
+build-musashi-wasm: fetch-wasi-sdk clone-musashi compile-musashi-wasm verify-musashi-wasm
+
+clone-musashi:
+    if [ ! -d "{{musashi_src_dir}}/.git" ]; then \
+        git clone "{{musashi_repo}}" "{{musashi_src_dir}}"; \
+    fi
+    cd "{{musashi_src_dir}}" && git fetch origin "{{musashi_commit}}" && git checkout "{{musashi_commit}}"
+
+compile-musashi-wasm:
+    MUSASHI="{{musashi_src_dir}}" WASI_SDK="{{wasi_sdk_dir}}" OUT="{{musashi_out_dir}}" \
+        SCRATCH="{{musashi_build_dir}}/gen" SUPPORT="{{musashi_support}}" \
+        bash "{{musashi_support}}/build-musashi.sh"
+    @ls -lh "{{musashi_out_dir}}/"*.wasm
+
+# Smoke: run a hand-built ROM (move.l #$12345678,d0) and check D0.
+verify-musashi-wasm:
+    node --no-warnings "{{musashi_support}}/smoke.mjs" "{{musashi_out_dir}}/musashi.wasm"

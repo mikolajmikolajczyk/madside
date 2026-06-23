@@ -596,6 +596,8 @@ importers:
 
   packages/wasm-mads: {}
 
+  packages/wasm-musashi: {}
+
   packages/wasm-z88dk: {}
 
   packages/workbench-core:

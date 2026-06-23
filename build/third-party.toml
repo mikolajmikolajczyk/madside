@@ -153,6 +153,18 @@ license    = "AGPL-3.0-or-later"
 artifact   = "packages/wasm-clownassembler/clownassembler.wasm"
 built_with = "wasi-sdk clang (wasm32-wasip1), single pass — committed flex/bison output (no flex/bison) + wasi-clean (no shm/fork/system/mmap), no patches. See wiki/agents/clownassembler-wasm-build.md."
 
+[source.musashi]
+name       = "Musashi (M68000 core)"
+role       = "Motorola 68000 CPU emulator core — Sega Genesis/Mega Drive backend (#145, Phase A)"
+upstream   = "https://github.com/kstenerud/Musashi"
+source     = "https://github.com/kstenerud/Musashi"
+ref        = "313ebf1bd9f4d0d93341eb5ce21fd8a119e9dbdd"
+version    = "snapshot (git)"
+license    = "MIT"
+license_note = "Musashi is MIT. The bundled softfloat/ (FPU) is John R. Hauser's SoftFloat — a permissive custom licence (redistribution allowed with the legal notice, no warranty)."
+artifact   = "packages/wasm-musashi/musashi.wasm"
+built_with = "host cc runs m68kmake to generate the opcode tables, then wasi-sdk clang builds m68kcpu.c + m68kops.c + softfloat/softfloat.c + our musashi-system.c harness as a wasm32 reactor (a setjmp shim stands in for wasi-sdk's SjLj-gated <setjmp.h>). See wiki/agents/musashi-wasm-build.md."
+
 [builddep.fpc]
 upstream = "https://gitlab.com/freepascal.org/fpc/source.git"
 ref      = "17c002e6460417e6980fcae2affe6e5bbb00bd6a"

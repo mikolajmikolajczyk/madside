@@ -25,6 +25,7 @@ Compiled to WebAssembly by `just build-*` and committed as bundle assets. **Sour
 | [Open ROMs (C64 KERNAL/BASIC + charset)](https://github.com/MEGA65/open-roms) | prebuilt images (upstream /bin) | GPL-3.0-or-later | [upstream](https://github.com/MEGA65/open-roms) | Free replacement for the Cloanto-copyright C64 KERNAL/BASIC/CHARGEN — Commodore ROMs not shipped |
 | [ZX Spectrum 48K ROM](https://github.com/floooh/chips-test) | Sinclair 48K (1982) | Amstrad-redistributable (1999 grant: free redistribution for emulation) | [upstream](https://github.com/floooh/chips-test/blob/master/examples/roms/zx-roms.h) | Sinclair ZX Spectrum 48K system ROM — handed to the chips zx core at init |
 | [clownassembler](https://github.com/Clownacy/clownassembler) | snapshot (git) | AGPL-3.0-or-later | [upstream](https://github.com/Clownacy/clownassembler) | Motorola 68000 assembler (asm68k/SN-68k compatible) — Sega Genesis/Mega Drive toolchain (asm-first, #145) |
+| [Musashi (M68000 core)](https://github.com/kstenerud/Musashi) | snapshot (git) | MIT | [upstream](https://github.com/kstenerud/Musashi) | Motorola 68000 CPU emulator core — Sega Genesis/Mega Drive backend (#145, Phase A) |
 
 ## Bundled libraries
 
