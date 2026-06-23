@@ -99,7 +99,7 @@ export function useRunControls({
       return;
     }
     const startPc = cpu?.regs.pc;
-    const start = startPc != null ? sourceMap.addrToLoc.get(startPc & 0xffff) : undefined;
+    const start = startPc != null ? sourceMap.addrToLoc.get(startPc) : undefined;
     const startKey = start ? `${start.file}:${start.line}` : null;
     // Track addresses we've executed *on the start line*: if one repeats, the
     // line loops back on itself (e.g. `while (1) {}`) and there is no "next
@@ -107,7 +107,7 @@ export function useRunControls({
     // (clrscr) isn't tracked, so a library loop still runs through transparently.
     const seenOnStartLine = new Set<number>();
     void workbench.debug.stepLine((pc) => {
-      const a = pc & 0xffff;
+      const a = pc; // native-width PC for source-map lookup (#133/88A)
       const loc = sourceMap.addrToLoc.get(a);
       if (loc == null) return false; // no source — keep running (library)
       if (`${loc.file}:${loc.line}` !== startKey) return true; // reached a new line

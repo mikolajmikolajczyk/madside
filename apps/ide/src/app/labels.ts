@@ -100,7 +100,10 @@ export function scanEquates(content: string): Map<number, number> {
       : /^0x/i.test(lit)
         ? parseInt(lit.slice(2), 16)
         : parseInt(lit, 10)
-    if (!Number.isFinite(addr) || addr < 0 || addr > 0xffff) continue
+    // Forward-compatible 24-bit ceiling (#133/88A), not a hard 16-bit assumption —
+    // admits >64K addresses (e.g. 68000); per-target exact width is #134. 16-bit
+    // machines keep equates ≤0xffff regardless.
+    if (!Number.isFinite(addr) || addr < 0 || addr > 0xff_ffff) continue
     out.set(i + 1, addr)
   }
   return out

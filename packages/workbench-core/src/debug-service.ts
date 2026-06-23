@@ -93,12 +93,15 @@ export function createDebugService(deps: DebugServiceDeps): DebugService {
     },
 
     setBreakpoint(addr) {
-      breakpoints.add(addr & 0xffff)
+      // Addresses flow at native width (ADR-0011, #133/88A) — no 16-bit mask, so
+      // a >64K/24-bit target works; current ≤64K machines are unaffected (their
+      // addresses are already ≤0xffff).
+      breakpoints.add(addr)
       syncBreakpoints()
     },
 
     clearBreakpoint(addr) {
-      breakpoints.delete(addr & 0xffff)
+      breakpoints.delete(addr)
       syncBreakpoints()
     },
 
@@ -115,12 +118,13 @@ export function createDebugService(deps: DebugServiceDeps): DebugService {
     },
 
     async readMemory(addr, len, space) {
-      return requireTarget().readMemory(addr & 0xffff, len, space)
+      // Native-width address + the optional space dimension (ADR-0011, #133).
+      return requireTarget().readMemory(addr, len, space)
     },
 
     async writeMemory(addr, bytes) {
       try {
-        await requireTarget().writeMemory(addr & 0xffff, bytes)
+        await requireTarget().writeMemory(addr, bytes)
       } catch (e) {
         log?.warn('writeMemory rejected by adapter', { addr, len: bytes.length, error: String(e) })
         throw e

@@ -11,7 +11,6 @@ const MAX_ROWS = 4096 / ROW
 // Pixels per row stepped — accumulated so wheel + trackpad + touch-drag match.
 const WHEEL_PX_PER_ROW = 24
 const TOUCH_PX_PER_ROW = 20
-const ADDR_MAX = 0xffff
 
 interface MemoryUiData {
   base: number
@@ -35,6 +34,12 @@ export function MemoryPanel({ ctx }: { ctx: PanelContext }) {
   const base = data?.base ?? 0x2000
   const onBaseChange = data?.onBaseChange
   const memoryMap = ctx.machine.memoryMap
+  // Address ceiling from the machine's memory map (#133/88A) — width-aware, not a
+  // hard 0xffff, so a >64K target navigates its full space. Mirrored into a ref so
+  // the scroll listener reads it without re-binding mid-drag.
+  const addrMax = useMemo(() => memoryMap.reduce((m, r) => Math.max(m, r.end), 0xffff), [memoryMap])
+  const addrMaxRef = useRef(addrMax)
+  useEffect(() => { addrMaxRef.current = addrMax }, [addrMax])
   const [bytes, setBytes] = useState<Uint8Array>(new Uint8Array(0))
 
   // Rows are derived from the panel's available height (#119), not a constant.
@@ -77,7 +82,7 @@ export function MemoryPanel({ ctx }: { ctx: PanelContext }) {
       if (step === 0) return
       scrollAccum.current -= step * pxPerRow
       const cur = baseRef.current
-      const next = Math.max(0, Math.min(ADDR_MAX, cur + step * ROW))
+      const next = Math.max(0, Math.min(addrMaxRef.current, cur + step * ROW))
       if (next !== cur) onBaseChange(next)
     }
     const onWheel = (e: WheelEvent) => { e.preventDefault(); walk(e.deltaY, WHEEL_PX_PER_ROW) }
@@ -136,7 +141,7 @@ export function MemoryPanel({ ctx }: { ctx: PanelContext }) {
     <div className="debug__panel debug__panel--memory">
       <div className="debug__title label">
         <span>Memory @</span>
-        <BaseInput value={base} onChange={onBaseChange} />
+        <BaseInput value={base} onChange={onBaseChange} addrMax={addrMax} />
         {!following && onResumeFollow && (
           <button
             type="button"
@@ -161,8 +166,10 @@ export function MemoryPanel({ ctx }: { ctx: PanelContext }) {
   )
 }
 
-function BaseInput({ value, onChange }: { value: number; onChange?: (addr: number) => void }) {
-  const [text, setText] = useState(() => hex(value, 4))
+function BaseInput({ value, onChange, addrMax }: { value: number; onChange?: (addr: number) => void; addrMax: number }) {
+  // Hex width follows the address ceiling (#133/88A): 4 digits at ≤64K, 6 at 24-bit.
+  const digits = Math.max(4, addrMax.toString(16).length)
+  const [text, setText] = useState(() => hex(value, digits))
   // Reset the editable text when the base address changes externally (cursor
   // follow). Adjust-during-render with a previous-value marker — the React-
   // recommended alternative to a sync setState in an effect (#28); keeps input
@@ -170,12 +177,12 @@ function BaseInput({ value, onChange }: { value: number; onChange?: (addr: numbe
   const [prevValue, setPrevValue] = useState(value)
   if (value !== prevValue) {
     setPrevValue(value)
-    setText(hex(value, 4))
+    setText(hex(value, digits))
   }
   const commit = (s: string) => {
     const n = parseInt(s, 16)
-    if (!isNaN(n)) onChange?.(n & 0xffff)
-    else setText(hex(value, 4))
+    if (!isNaN(n)) onChange?.(Math.max(0, Math.min(addrMax, n)))
+    else setText(hex(value, digits))
   }
   return (
     <input

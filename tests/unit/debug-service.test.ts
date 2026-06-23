@@ -59,19 +59,20 @@ function setup(backend: RunBackend | null = backendToken()) {
 }
 
 describe('DebugService', () => {
-  it('masks breakpoint addresses to 16 bits', () => {
+  it('keeps breakpoint addresses at native width (#133/88A — no 16-bit mask)', () => {
     const { svc, target } = setup()
-    svc.setBreakpoint(0x10005) // overflows the 16-bit bus
-    expect([...svc.breakpoints()]).toEqual([5])
-    expect(target.bpCalls.at(-1)).toEqual([5])
+    svc.setBreakpoint(0x10005) // a >64K address (e.g. 68000) survives intact
+    expect([...svc.breakpoints()]).toEqual([0x10005])
+    expect(target.bpCalls.at(-1)).toEqual([0x10005])
   })
 
-  it('clearBreakpoint removes the masked address', () => {
-    const { svc, target } = setup()
-    svc.setBreakpoint(0x0005)
-    svc.clearBreakpoint(0x10005) // same masked addr
+  it('clearBreakpoint removes the exact (unmasked) address — no 16-bit aliasing', () => {
+    const { svc } = setup()
+    svc.setBreakpoint(0x10005)
+    svc.clearBreakpoint(0x0005) // would have aliased under masking; must not now
+    expect([...svc.breakpoints()]).toEqual([0x10005])
+    svc.clearBreakpoint(0x10005)
     expect([...svc.breakpoints()]).toEqual([])
-    expect(target.bpCalls.at(-1)).toEqual([])
   })
 
   it('stepFrame clears the BP set, advances, then restores it', async () => {
@@ -125,9 +126,9 @@ describe('DebugService', () => {
     await expect(svc.registers()).rejects.toThrow(/before RunService\.boot/)
   })
 
-  it('masks readMemory addresses to 16 bits', async () => {
+  it('passes readMemory addresses through at native width + space (#133/88A)', async () => {
     const { svc, target } = setup()
     await svc.readMemory(0x10003, 4, 'cpu')
-    expect(target.readMemory).toHaveBeenCalledWith(3, 4, 'cpu')
+    expect(target.readMemory).toHaveBeenCalledWith(0x10003, 4, 'cpu')
   })
 })

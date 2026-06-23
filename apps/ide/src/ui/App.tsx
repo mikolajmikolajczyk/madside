@@ -481,7 +481,7 @@ export default function App() {
     // the marker. It reappears on pause / step / BP hit.
     if (running) return null;
     if (!sourceMap || !cpu) return null;
-    const loc = sourceMap.addrToLoc.get(cpu.regs.pc & 0xffff);
+    const loc = sourceMap.addrToLoc.get(cpu.regs.pc);
     if (!loc) return null;
     return loc.file === activePath ? loc.line : null;
   }, [sourceMap, cpu, activePath, running]);
@@ -493,7 +493,7 @@ export default function App() {
   const setActivePathFn = project.loaded ? project.setActivePath : null;
   useEffect(() => {
     if (running || !cpu || !sourceMap || !projectFilesRef || !setActivePathFn) return;
-    const loc = sourceMap.addrToLoc.get(cpu.regs.pc & 0xffff);
+    const loc = sourceMap.addrToLoc.get(cpu.regs.pc);
     if (!loc) return;
     if (loc.file === activePath) return;
     // SourceMap keys are full project paths post-30be0cf — exact-match the

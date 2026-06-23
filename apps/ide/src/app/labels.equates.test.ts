@@ -26,8 +26,12 @@ describe('scanEquates', () => {
     expect(scanEquates(src)).toEqual(new Map([[3, 0x10]]))
   })
 
-  it('skips out-of-range addresses', () => {
-    expect(scanEquates('BIG = $1FFFF')).toEqual(new Map())
+  it('admits >64K addresses up to the 24-bit ceiling, skips beyond (#133/88A)', () => {
+    // Forward-compat for >64K targets (68000): a 17-bit / 24-bit address is kept…
+    expect(scanEquates('MID = $1FFFF')).toEqual(new Map([[1, 0x1ffff]]))
+    expect(scanEquates('HI = $FFFFFF')).toEqual(new Map([[1, 0xffffff]]))
+    // …but a value past 24 bits is still rejected as a non-address constant.
+    expect(scanEquates('BIG = $1000000')).toEqual(new Map())
   })
 
   it('ignores code and label lines', () => {
