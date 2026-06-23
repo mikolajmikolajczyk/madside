@@ -32,11 +32,12 @@
 | Co-located panel packages (`packages/panel-{memory,registers,ppu,variables}/`) — each self-contained with its CSS | ✅ |
 | Event-driven panel refresh via ctx.events / ctx.debug | ✅ (v0.7.0 ba1a27b) |
 | FileEditor (Phase 11) folded into PanelPlugin via editorToPanel | ✅ (v0.7.0 6f2dc20) |
-| Plugin contract test harnesses under `@ports/test/` | partial — Toolchain ✅ (51e047c); Machine drift test ✅; Debug/Panel pending |
+| Plugin contract test harnesses under `@ports/test/` — every built-in plugin run through its kind's `assert<Kind>Plugin` (machine/toolchain/emulator/debug/panel/converter/editor) | ✅ (51e047c; full built-in coverage 1a2b68d) |
 | Plugin author docs under `wiki/plugin-api/` | ✅ (v0.7.0 a7b79c0) |
 | Service ↔ UI sync FSM + EventBus + useSyncExternalStore (ADR-0007) | ✅ (v0.7.5 M7.5 epic 152abfd — Run lifecycle reference impl, contract test, dev event logger, property fuzz) |
 | Second MachinePlugin — NES (`packages/machine-nes`) | ✅ (v0.8.0 481d76b) — manifest-driven machine selection (1972a36) |
 | Second emulator backend — jsnes (`packages/emulator-nes-jsnes`) | ✅ (v0.8.0 b41098c) |
+| **Genesis / 68000 backend (Phase A, #145)** — the full plugin stack for a 32-bit, alien-ISA CPU over a 24-bit bus, the "final contract validation": `toolchain-clownassembler` (asm68k wasm), `machine-genesis` (24-bit memory map), `emulator-genesis-musashi` (Musashi wasm reactor + RunBackend), `debug-m68k` adapter (D0–D7/A0–A7/PC/SR). build→run→debug proven end-to-end (`tests/integration/genesis-68k`). | ✅ Phase A — Phase B (VDP/sound/display) + the clang-m68k C path (then an external SGDK-on-clang port) remain |
 | Named memory-space mechanism (`MachinePlugin.memorySpaces`, `readMemory(addr,len,space)` — cpu/ppu/oam) | ✅ (v0.8.0 93c218b) |
 | Editor language generalization — toolchain+CPU-driven (`@core/cpu/mos6502`, `ToolchainPlugin.language`) | ✅ (v0.8.7 1f08b2c, 6ba97ca, 5ee1a42) |
 | Bundled templates — `apps/ide/templates/<id>/` via Vite glob, `apps/ide/src/app/templates.ts`, Welcome picker | ✅ (v0.8.5 71acac1, 505492d) |
