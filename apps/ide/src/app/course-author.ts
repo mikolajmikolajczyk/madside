@@ -10,6 +10,7 @@ import { zipSync } from 'fflate'
 import { MANIFEST_PATH, textToBytes } from '@madside/storage-idb'
 import type { ProjectManifestV2 as Manifest, ProjectRow, StorageBackend } from '@ports'
 import { validateCourseFiles, type CourseCheck, type CourseMeta } from './courses'
+import { starterFilesForMachine } from './templates'
 
 /** Root descriptor file whose presence marks a project as a course in authoring. */
 export const COURSE_FILE = 'course.json'
@@ -61,6 +62,19 @@ export function courseMetaText(meta: CourseMeta): string {
 
 const json = (o: unknown): string => JSON.stringify(o, null, 2) + '\n'
 
+/** A buildable starter file set for a lesson (relative to its `files/` dir:
+ *  project.json + sources) — the matching machine template so a fresh lesson's
+ *  `build` check passes, falling back to a minimal stub for an unmapped machine. */
+function lessonStarter(machine: string, name: string): { path: string; content: string }[] {
+  const fromTemplate = starterFilesForMachine(machine)
+  if (fromTemplate) return fromTemplate
+  const s = SEED[machine] ?? SEED[DEFAULT_MACHINE]!
+  return [
+    { path: MANIFEST_PATH, content: json({ version: 2, name, main: s.main, machine, toolchain: s.toolchain } satisfies Manifest) },
+    { path: s.main, content: '; starter — your code here\n' },
+  ]
+}
+
 /** Create a new course-authoring project: a container `project.json` (so it loads
  *  as a normal project) + `course.json` (CourseMeta) + one stub lesson laid out
  *  in the directory shape the course runtime expects. The Course Author surface
@@ -76,17 +90,16 @@ export async function createCourseProject(
   const meta: CourseMeta = { title: name, description: 'A new course.', machine }
   // Container manifest: makes the authoring project a valid, loadable project.
   const container: Manifest = { version: 2, name, main: s.main, machine, toolchain: s.toolchain }
-  // The stub lesson's own starter project (what a learner instantiates).
-  const lessonManifest: Manifest = { version: 2, name: `${name} — lesson 1`, main: s.main, machine, toolchain: s.toolchain }
   const check: { checks: CourseCheck[] } = { checks: [{ kind: 'build' }] }
+  const dir = 'lessons/01-intro'
+  const starter = lessonStarter(machine, `${name} — lesson 1`)
 
   const files = [
     { path: MANIFEST_PATH, content: textToBytes(json(container)) },
     { path: COURSE_FILE, content: textToBytes(courseMetaText(meta)) },
-    { path: 'lessons/01-intro/lesson.md', content: textToBytes('# Introduction\n\nWrite the lesson theory here.\n') },
-    { path: `lessons/01-intro/files/${MANIFEST_PATH}`, content: textToBytes(json(lessonManifest)) },
-    { path: `lessons/01-intro/files/${s.main}`, content: textToBytes('; lesson 1 starter — your code here\n') },
-    { path: 'lessons/01-intro/check.json', content: textToBytes(json(check)) },
+    { path: `${dir}/lesson.md`, content: textToBytes('# Introduction\n\nWrite the lesson theory here.\n') },
+    ...starter.map((f) => ({ path: `${dir}/files/${f.path}`, content: textToBytes(f.content) })),
+    { path: `${dir}/check.json`, content: textToBytes(json(check)) },
   ]
   return storage.projects.create(name, files, container)
 }
@@ -237,13 +250,11 @@ export function readLessonChecks(files: readonly { path: string; content: string
 export function newLessonFiles(lessons: readonly LessonInfo[], machine: string): { path: string; content: string }[] {
   const n = lessons.reduce((max, l) => Math.max(max, l.n), 0) + 1
   const dir = `lessons/${pad(n)}-new-lesson`
-  const s = SEED[machine] ?? SEED[DEFAULT_MACHINE]!
-  const lessonManifest: Manifest = { version: 2, name: `Lesson ${n}`, main: s.main, machine, toolchain: s.toolchain }
   const check: { checks: CourseCheck[] } = { checks: [{ kind: 'build' }] }
+  const starter = lessonStarter(machine, `Lesson ${n}`)
   return [
     { path: `${dir}/lesson.md`, content: '# New lesson\n\nWrite the lesson here.\n' },
-    { path: `${dir}/files/${MANIFEST_PATH}`, content: json(lessonManifest) },
-    { path: `${dir}/files/${s.main}`, content: '; lesson starter — your code here\n' },
+    ...starter.map((f) => ({ path: `${dir}/files/${f.path}`, content: f.content })),
     { path: `${dir}/check.json`, content: json(check) },
   ]
 }

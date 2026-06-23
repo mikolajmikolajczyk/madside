@@ -107,6 +107,27 @@ export function getTemplateManifestText(id: string): string | undefined {
   return b ? JSON.stringify(b.manifest, null, 2) + '\n' : undefined
 }
 
+/** Per-machine starter template id — the buildable hello program a new course
+ *  lesson seeds from (#139), so a fresh lesson's `build` check passes. */
+const MACHINE_TEMPLATE: Record<string, string> = {
+  'atari-xl': 'atari-hello',
+  nes: 'nes-hello',
+  c64: 'c64-hello',
+  'zx-spectrum': 'zx-asm-hello',
+}
+
+/** A buildable starter file set for `machine` (sources + a project.json text),
+ *  drawn from the matching bundled template. Undefined for an unmapped machine. */
+export function starterFilesForMachine(machine: string): { path: string; content: string }[] | undefined {
+  const id = MACHINE_TEMPLATE[machine]
+  const b = id ? BUNDLES.get(id) : undefined
+  if (!b) return undefined
+  return [
+    { path: MANIFEST_PATH, content: JSON.stringify(b.manifest, null, 2) + '\n' },
+    ...b.files.map((f) => ({ path: f.path, content: f.content })),
+  ]
+}
+
 /** Create a blank project: the 'empty' template's source files + a
  *  caller-supplied project.json (edited in the welcome picker's manifest form).
  *  The manifest text is assumed already validated by the form. */

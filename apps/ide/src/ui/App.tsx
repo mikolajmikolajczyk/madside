@@ -29,6 +29,7 @@ import { CommandPalette } from "./components/command/CommandPalette";
 import { useToast } from "./components/ui/Toast";
 import { buildAppCommands, type AppCommandEnv } from "./commands/appCommands";
 import type { CpuRegs } from "./components/debug/Emulator";
+import { errorMessage, parseProjectManifest } from "@ports";
 import type { CommandContext, PanelPlugin, ThemePlugin, ToolchainPlugin } from "@ports";
 import { basename, extOf } from "@core/path";
 import { getCpuLanguage } from "@core";
@@ -124,9 +125,14 @@ export default function App() {
   const [runBlockedMsg, setRunBlockedMsg] = useState<string | null>(null);
   const [cursorLine, setCursorLine] = useState<number | null>(null);
 
+  // A course-authoring project (#139) is a wrapper whose own project.json isn't
+  // buildable (its `main` lives inside lessons/, not at root) — don't auto-
+  // assemble it, or the editor fills with spurious "main not found" errors. The
+  // author builds + runs a lesson via Course Preview → Check instead.
+  const authoring = project.loaded && isCourseAuthoring(project.files);
   const { result, setResult, busy, runAssemble } = useAutoAssemble({
     buildService: workbench.build,
-    files: project.loaded ? project.files : null,
+    files: project.loaded && !authoring ? project.files : null,
     manifest: project.loaded ? project.manifest : null,
     projectId: project.loaded ? project.projectId : null,
     storage: workbench.storage,
@@ -246,22 +252,21 @@ export default function App() {
     else if (courseKey === null && isOpen) c.setPanelOpen("course", false);
   }, [courseKey, dockOpenIds]);
 
-  // Course Author surface (#139) — same condition-driven open/close: open + focus
-  // while the project is a course being authored (carries a root course.json).
-  const authoringActive = project.loaded && isCourseAuthoring(project.files);
+  // Course Author + Preview surfaces (#139) — condition-driven open/close: open +
+  // focus while the project is a course being authored (carries a root course.json).
   useEffect(() => {
     const c = dockControlsRef.current;
     if (!c) return;
     const authorOpen = dockOpenIds.includes("course-author");
     const previewOpen = dockOpenIds.includes("course-preview");
-    if (authoringActive) {
+    if (authoring) {
       if (!authorOpen) { c.setPanelOpen("course-author", true); c.focusPanel("course-author"); }
       if (!previewOpen) c.setPanelOpen("course-preview", true);
     } else {
       if (authorOpen) c.setPanelOpen("course-author", false);
       if (previewOpen) c.setPanelOpen("course-preview", false);
     }
-  }, [authoringActive, dockOpenIds]);
+  }, [authoring, dockOpenIds]);
 
   // Theme (#118) — registered ThemePlugins; apply the selected palette's tokens
   // to :root and persist the choice. Default 'dark' (matches base tokens.css).
@@ -655,12 +660,39 @@ export default function App() {
     await project.switchProject(id);
   }, [project, workbench]);
 
-  // Run a lesson's declarative checks: assemble (reusing the auto-assemble
-  // pipeline for the binary + label table), then — only if a register/memory
-  // check needs it — load + advance frames and snapshot CPU/memory. Disturbs
-  // the live emulator (loads the freshly-built binary); the learner re-runs.
+  // The headless-run dep for declarative checks: load the binary on the LIVE
+  // emulator backend, wait out the machine's boot allowance, advance `frames`,
+  // then snapshot CPU + memory. Disturbs the live emulator (loads the freshly
+  // built binary); the learner / author re-runs afterwards. Shared by the
+  // learner Check (active project) and the authoring preview (a lesson starter).
+  const runOnLiveBackend = useCallback<CheckRunDeps["run"]>(async (binary, frames) => {
+    if (workbench.run.status !== "idle") workbench.run.unload();
+    const loaded = await workbench.run.load(binary);
+    if (!loaded.ok) throw new Error(loaded.error.message);
+    // Boot allowance (#30): a loaded program may not run the user's code until
+    // the machine has cold-booted (an Atari XEX waits out tens of frames of OS
+    // boot). Advance until the PC enters the program's load range, so the
+    // author's `afterFrames` counts frames *after the program starts*. The range
+    // comes from the active MachinePlugin (Atari parses the XEX; NES omits it —
+    // PC runs from the reset vector). Capped; falls back to plain frame stepping.
+    const range = machine.programLoadRange?.(binary) ?? null;
+    if (range) {
+      const BOOT_CAP = 600; // ~10s of simulated frames — generous upper bound
+      for (let i = 0; i < BOOT_CAP; i++) {
+        await workbench.debug.stepFrame();
+        const pc = (await workbench.debug.registers()).pc;
+        if (pc >= range.lo && pc <= range.hi) break;
+      }
+    }
+    for (let i = 0; i < frames; i++) await workbench.debug.stepFrame();
+    const regs = await workbench.debug.registers();
+    return { regs, readMem: (a, l, s) => workbench.debug.readMemory(a, l, s) };
+  }, [workbench, machine]);
+
+  // Run a lesson's declarative checks (learner): assemble the active project,
+  // then run on the live backend if a register/memory check needs it.
   const handleCheck = useCallback(async (checks: CourseCheck[]): Promise<CheckReport> => {
-    const deps: CheckRunDeps = {
+    return runChecks(checks, {
       assemble: async () => {
         const r = await runAssemble();
         if (!r || !r.ok || !r.xex) {
@@ -668,34 +700,40 @@ export default function App() {
         }
         return { ok: true, labels: r.labels ?? new Map(), binary: r.xex };
       },
-      run: async (binary, frames) => {
-        if (workbench.run.status !== "idle") workbench.run.unload();
-        const loaded = await workbench.run.load(binary);
-        if (!loaded.ok) throw new Error(loaded.error.message);
-        // Boot allowance (#30): a loaded program may not run the user's code
-        // until the machine has cold-booted (an Atari XEX waits out tens of
-        // frames of OS boot). Advance until the PC enters the program's load
-        // range, so the author's `afterFrames` counts frames *after the program
-        // starts* — not a boot-time guess. The range comes from the active
-        // MachinePlugin, so each platform owns its own format (Atari parses the
-        // XEX; NES omits it — PC is seeded from the reset vector, runs from
-        // load). Capped; falls back to plain frame stepping when absent.
-        const range = machine.programLoadRange?.(binary) ?? null;
-        if (range) {
-          const BOOT_CAP = 600; // ~10s of simulated frames — generous upper bound
-          for (let i = 0; i < BOOT_CAP; i++) {
-            await workbench.debug.stepFrame();
-            const pc = (await workbench.debug.registers()).pc;
-            if (pc >= range.lo && pc <= range.hi) break;
-          }
-        }
-        for (let i = 0; i < frames; i++) await workbench.debug.stepFrame();
-        const regs = await workbench.debug.registers();
-        return { regs, readMem: (a, l, s) => workbench.debug.readMemory(a, l, s) };
+      run: runOnLiveBackend,
+    });
+  }, [runAssemble, runOnLiveBackend]);
+
+  // Run a lesson's checks from the Course Author preview (#139 3b). Assembles
+  // the lesson's OWN starter files (lessons/<id>/files/**, not the authoring
+  // container) via BuildService, then reuses the live-backend run. Commandeers
+  // the emulator just like the learner Check. (The backend is the active = course
+  // machine; a lesson targeting a different machine is best-effort.)
+  const handleCoursePreviewCheck = useCallback(async (lessonId: string, checks: CourseCheck[]): Promise<CheckReport> => {
+    const prefix = `lessons/${lessonId}/files/`;
+    const lessonFiles = (project.files ?? [])
+      .filter((f) => f.path.startsWith(prefix))
+      .map((f) => ({ path: f.path.slice(prefix.length), content: f.content, updatedAt: 0 }));
+    const manifestFile = lessonFiles.find((f) => f.path === "project.json");
+    const fail = (message: string): CheckReport => ({ pass: false, results: [{ kind: "build", pass: false, label: "check", message }] });
+    if (!manifestFile) return fail("lesson has no files/project.json");
+    let manifest;
+    try {
+      const parsed = parseProjectManifest(JSON.parse(new TextDecoder().decode(manifestFile.content)));
+      if (!parsed.ok) return fail(parsed.error.message);
+      manifest = parsed.value;
+    } catch (e) {
+      return fail(errorMessage(e));
+    }
+    return runChecks(checks, {
+      assemble: async () => {
+        const r = await workbench.build.build({ projectId: `__course-preview__/${lessonId}`, files: lessonFiles, manifest });
+        if (!r.ok) return { ok: false, error: r.error.message, labels: new Map() };
+        return { ok: true, labels: r.value.labels ?? new Map(), binary: r.value.binary };
       },
-    };
-    return runChecks(checks, deps);
-  }, [runAssemble, workbench, machine]);
+      run: runOnLiveBackend,
+    });
+  }, [project.files, workbench, runOnLiveBackend]);
 
   // Re-fetch a remote course from its repo (preserves learner edits — only the
   // course definition updates; the active lesson project is left as-is).
@@ -874,7 +912,6 @@ export default function App() {
   // Course Author surface (#139) — present only while authoring a course (the
   // project carries a root course.json), so its View-menu toggle shows only then.
   // Phase 1 edits course.json; persists via the multi-file writer (applyEdits).
-  const authoring = project.loaded && isCourseAuthoring(project.files);
   const courseFiles = authoring ? project.files.map((f) => ({ path: f.path, content: new TextDecoder().decode(f.content) })) : null;
   const courseAuthorSurface = courseFiles ? (
     <Suspense fallback={<div className="app__loading">loading…</div>}>
@@ -890,7 +927,7 @@ export default function App() {
   ) : null;
   const courseAuthorPreviewSurface = courseFiles ? (
     <Suspense fallback={<div className="app__loading">loading…</div>}>
-      <CourseAuthorPreview files={courseFiles} />
+      <CourseAuthorPreview files={courseFiles} onCheckLesson={handleCoursePreviewCheck} />
     </Suspense>
   ) : null;
 

@@ -1,14 +1,18 @@
 import { useState } from "react";
 import { listLessons, readCourseMeta, readLessonBody, readLessonChecks } from "@app";
+import type { CheckReport, CourseCheck } from "@app";
 import { CourseView, type CourseViewData } from "./CourseView";
 
 // Course Author live preview (#139) — renders the course being authored exactly
 // as a learner sees it, fed from the project files (no install, no store). Lesson
-// switching is local to the preview (it never switches the project). Check
-// execution is deferred to the check-builder phase; the button reads as
-// "preview" (no onCheck wired).
+// switching is local to the preview (it never switches the project). The Check
+// button runs the shown lesson's checks against its OWN starter, commandeering
+// the live emulator just like the learner (#139 3b, via onCheckLesson).
 
-export function CourseAuthorPreview({ files }: { files: { path: string; content: string }[] }) {
+export function CourseAuthorPreview({ files, onCheckLesson }: {
+  files: { path: string; content: string }[];
+  onCheckLesson?: (lessonId: string, checks: CourseCheck[]) => Promise<CheckReport>;
+}) {
   const meta = readCourseMeta(files);
   const lessons = listLessons(files);
   const [selected, setSelected] = useState<string | null>(null);
@@ -29,5 +33,12 @@ export function CourseAuthorPreview({ files }: { files: { path: string; content:
     checks: readLessonChecks(files, currentId),
   };
 
-  return <CourseView data={data} onOpenLesson={setSelected} preview />;
+  return (
+    <CourseView
+      data={data}
+      onOpenLesson={setSelected}
+      onCheck={onCheckLesson ? (checks) => onCheckLesson(currentId, checks) : undefined}
+      preview
+    />
+  );
 }
