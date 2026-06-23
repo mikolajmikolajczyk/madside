@@ -35,4 +35,4 @@ npm packages that ship inside the app. Versions and licences are read from the i
 | [jsnes](https://github.com/bfirsh/jsnes) | 2.1.0 | Apache-2.0 | NES emulator core |
 | [browser_wasi_shim](https://github.com/bjorn3/browser_wasi_shim) | 0.4.2 | MIT OR Apache-2.0 | WASI runtime hosting the wasm toolchains in the browser |
 | [fflate](https://github.com/101arrowz/fflate) | 0.8.3 | MIT | zip / unzip of the cc65 sysroot assets |
-| [idb](https://github.com/jakearchibald/idb) | 8.0.3 | ISC | IndexedDB wrapper (project storage + asset cache) |
+| [idb](https://github.com/jakearchibald/idb) | ? | ? | IndexedDB wrapper (project storage + asset cache) |

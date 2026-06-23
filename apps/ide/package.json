@@ -1,7 +1,7 @@
 {
   "name": "@madside/ide",
   "private": true,
-  "version": "0.15.1",
+  "version": "0.16.0",
   "license": "AGPL-3.0-or-later",
   "type": "module",
   "scripts": {
@@ -48,12 +48,12 @@
     "@madside/toolchain-ca65": "workspace:*",
     "@madside/toolchain-mads": "workspace:*",
     "@madside/toolchain-z88dk": "workspace:*",
-    "@madside/workbench-core": "workspace:*",
     "@madside/wasm-altirra": "workspace:*",
     "@madside/wasm-cc65": "workspace:*",
     "@madside/wasm-chips": "workspace:*",
     "@madside/wasm-mads": "workspace:*",
     "@madside/wasm-z88dk": "workspace:*",
+    "@madside/workbench-core": "workspace:*",
     "@radix-ui/react-context-menu": "^2.2.16",
     "@radix-ui/react-dialog": "^1.1.15",
     "@radix-ui/react-dropdown-menu": "^2.1.16",

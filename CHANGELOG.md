@@ -1,3 +1,152 @@
+## [0.16.0] - 2026-06-23
+
+### 🚀 Features
+
+- *(editor)* Opt-in cc65-intel LSP for C completion (#63)
+- *(editor)* Cc65-intel LSP parity — stdlib completion, hover, auto-include (#63)
+- *(editor)* Multi-document C LSP client — open all project .c/.h (#70)
+- *(editor)* C go-to-definition via LSP (#73)
+- *(editor)* Read-only CodeMirror sysroot header viewer (#78)
+- *(editor)* C semantic-token highlighting via LSP (#72)
+- *(editor)* C signature help via LSP (#71)
+- *(editor)* C semantic diagnostics via LSP (#77)
+- *(cpu)* Z80 instruction vocabulary (#80)
+- *(toolchain)* Z88dk z80asm + appmake → wasm (#83)
+- *(machine)* ZX Spectrum 48K MachinePlugin (#81)
+- *(emulator)* Chips ZX Spectrum 48K core (#82)
+- *(toolchain)* Z88dk asm-first toolchain plugin (#84)
+- *(template)* Zx-asm-hello — ZX Spectrum Z80 asm starter (#86)
+- *(debug)* Z80 debug adapter + ZX machine selection (#85)
+- *(ui)* C outline in the sidebar via LSP (#76)
+- *(editor)* C find-references via LSP (#74)
+- *(editor)* C rename symbol via LSP (#75)
+- *(editor)* Pass cc65 target defines to the C LSP (#30 host side)
+- *(toolchain)* Z88dk C path for ZX Spectrum (#87)
+- *(toolchain)* Z88dk C printf/stdio on ZX Spectrum (#87)
+- *(toolchain)* Real copt peephole optimiser for the z88dk C path (#87)
+- *(lsp)* Scaffold @madside/lsp-core — language-agnostic LSP framework (#111)
+- *(lsp)* @madside/lsp-c — generic C engine over the LanguageProvider contract (#112)
+- *(lsp)* @madside/lsp-cc65 + migrate the IDE off @cc65-intel/* (#113)
+- *(lsp)* @madside/lsp-z80 — sccz80/z88dk C language server for ZX Spectrum (#114)
+- *(lsp)* Close the __ZPROTO gap — index z88dk macro-defined functions (#114)
+- *(vfs)* Surface the z88dk +zx sysroot read-only in the file tree (#55)
+- *(panel-memory)* Fill panel height with rows + wheel-scroll through memory (#119)
+- *(dock)* Outline + References as their own dock panels (#120)
+- *(panel-memory)* Touch-drag scrolling on the memory view (#119)
+- *(theme)* Themes as plugins — ThemePlugin contract + Dark/Light + picker (#118)
+- *(panel-variables)* Variables panel — flat globals + live values (#121 phase 1)
+- *(lsp-c)* Type-introspection API for debug info (#129)
+- *(panel-variables)* Typed globals + live values via DebugInfo (#130 step 1)
+- *(panel-variables)* Expandable struct/array/pointer tree (#130 step 2)
+- *(panel-variables)* Watch expressions (#132)
+- *(ports)* DebugFrame/DebugScope/DebugLocal frame contract (#131)
+- *(lsp-c)* FunctionLocals introspection (#131)
+- *(toolchain-ca65)* Parse .dbg scope/csym frames (#131)
+- *(course-author)* In-app course authoring — phase 1 (metadata form) (#139)
+- *(course-author)* Lesson CRUD + reorder + markdown editing — phase 2 (#139)
+- *(course-author)* Live learner preview via shared CourseView (#139)
+- *(course-author)* Per-lesson check builder + clickable lesson rows — phase 3 (#139)
+- *(course-author)* Course export + import (round-trip) — phase 5 (#139)
+- *(course-author)* Run checks in preview + buildable lesson seeds (#139 3b)
+- *(course-author)* Draft course bundle in the courses store (#139 rework step 1)
+- *(course-author)* Rework authoring onto the course-bundle model (#139)
+
+### 🐛 Bug Fixes
+
+- *(editor)* C LSP client — error-tolerant + readable hover
+- *(ui)* Drop dead eslint-disable in useEmuStateReset (#65)
+- *(template)* Zx-asm-hello clears the screen on entry (#86)
+- *(toolchain)* Surface C build diagnostics + fix .sna org for the z88dk C path
+- *(toolchain)* Revert z88dk copt to passthrough — it drops sccz80 labels (#105)
+- *(lsp)* Push sysroot/defines to a live connection so ZX completion works (#114)
+- *(lsp)* Resolve z88dk header collisions + content-key the sysroot cache (#114)
+- *(lsp)* ZX completion offers the right header + parses varargs decls (#114)
+- *(ui)* Restore debug-panel styles lost with Debug.css removal
+- *(theme)* Route remaining hardcoded UI colours through tokens (#118)
+- *(dock)* Course lesson panel as its own dock surface (#127)
+- *(lsp-c)* Index pointer-returning functions (#137)
+- *(lsp-c)* FunctionLocals finds pointer-returning functions (#131)
+
+### 💼 Other
+
+- *(z88dk)* Save C-path (#87) build inputs + dispatcher reference
+- *(repo)* Real pnpm workspace, fold docs, kill nested lockfile (#91)
+- *(repo)* Wasm blobs as @madside/wasm-* workspace packages (#92)
+- *(repo)* @madside/core + @madside/ports workspace packages (#93)
+- *(repo)* @madside/toolchain-{mads,ca65,z88dk} workspace packages (#94)
+- *(repo)* @madside/* workspace packages for all plugins (#95)
+- *(repo)* @madside/ide app package; root becomes workspace shell (#96)
+- *(repo)* Split justfile — dev in root, wasm machinery in build/ (#97)
+- *(lint)* Migrate boundaries to the v6 dependencies rule + guard @madside deep imports (#107)
+- *(lint)* Enforce lsp-core ⊥ language boundary + document MIT carve-out (#115)
+- *(ui)* Dockview dockable layout behind VITE_MADSIDE_DOCKVIEW (#55 follow-up)
+- *(ui)* Migrate App body to a dockview layout behind the flag (#55 follow-up)
+- *(ui)* Madside dockview theme + View menu for panel toggles (#55 follow-up)
+- *(ui)* Floating panels, named layouts + user presets, touch tuning (#55 follow-up)
+
+### 🚜 Refactor
+
+- *(editor)* Cc65-intel LSP is the C engine — drop cLibrary (#63)
+- *(ui)* PluginEditor imports editor contracts from @ports (#66)
+- *(app)* Extract built-in plugin manifest (#67)
+- *(ui)* Decompose App.tsx into workflow hooks (#65)
+- *(toolchain)* Share VFS tree helpers between asm + C paths
+- *(repo)* Git mv docs -> apps/docs (pure rename) (#91)
+- *(repo)* Git mv wasm blobs -> packages/wasm-* (pure rename) (#92)
+- *(repo)* Git mv core + ports -> packages/{core,ports}/src (pure rename) (#93)
+- *(repo)* Git mv toolchain plugins -> packages/toolchain-* (pure rename) (#94)
+- *(repo)* Git mv remaining plugins -> packages/* (pure rename) (#95)
+- *(repo)* Git mv host layers + assets -> apps/ide (pure rename) (#96)
+- *(repo)* Git mv build-support + third-party.toml -> build/ (pure rename) (#97)
+- *(explorer)* Unify read-only sysroot into the file tree as a mount (#55)
+- *(ui)* Make dockview the only layout — drop the flag + legacy splitter UI
+- *(panels)* Co-locate panel styles in their packages, not the app
+- *(services)* Extract headless engine to @madside/workbench-core (#123)
+- *(storage)* Extract IDB backend to @madside/storage-idb (#125)
+- *(courses)* Decouple course logic from concrete adapters + app templates
+
+### 📚 Documentation
+
+- *(z88dk)* C-path (#87) progress — 3 compilers built, link remaining
+- *(z88dk)* #87 approach — shim system() to host, ship zcc.wasm
+- *(z88dk)* #87 — zcc.wasm drives the full classic recipe via shim
+- *(z88dk)* #87 — two shim blockers fixed, link reaches; WASI .. path bug next
+- *(z88dk)* #87 — WASI .. path fixed, C compiles+links+BOOTS
+- Update internal docs for the monorepo layout (#106)
+- Remove stale CLEANUP.md backlog (superseded by GitHub issues)
+- *(adr)* ADR-0009 — in-repo language-agnostic LSP packages
+- Reflect the in-repo @madside/lsp-* C language server (#110)
+- Drop stale 'cc65-intel' references from comments post-migration (#110)
+- *(adr)* Mark ADR-0008 (virtual filesystem) Accepted
+- *(adr)* ADR-0010 — Dockview as the workbench layout (Accepted)
+- *(adr)* ADR-0011 — toolchain-supplied language-agnostic DebugInfo (Accepted)
+- *(adr)* ADR-0012 — debug stack-frame model + cc65-ABI deferral (#131)
+- *(toolchain-ca65)* Mark parseDbg frame parse as unconsumed (#131)
+- *(agents)* Refresh status + architecture to current state
+- *(public)* Bring the Starlight site to current — C64, ZX, Dockview, Variables
+- *(public)* Second accuracy pass — fix fabrications + Step Over/Instruction, add theme plugin
+- *(agents)* Correct themes-as-plugins status — shipped, not deferred
+- *(public)* Name custom editors 'visual editors' to disambiguate from the code editor
+- *(public)* Document the in-app Course Author editor (#139)
+- *(adr)* ADR-0013 — project-local plugin trust (consent + content-hash + sandbox)
+
+### ⚡ Performance
+
+- *(lsp)* Cache the sysroot index so reindex is O(project), not O(sysroot) (#114)
+
+### 🧪 Testing
+
+- *(integration)* Cross-service build→run + machine-switch isolation (#68)
+- List zx-asm-hello in templates contract (#86)
+- *(toolchain)* Cover z88dk C-path routing + diagnostics
+
+### ⚙️ Miscellaneous Tasks
+
+- Drop unused @codemirror/search dep + ignore docs/dist in eslint
+- *(dev)* Expose vite dev server over Tailscale
+- Consolidate on one workspace job (build+test+lint+docs) (#99)
+- *(repo)* Post-#89 config cleanup — tsconfig.node + justfile pnpm (#108)
+- *(tooling)* Wire the repoctx skill into the repo
 ## [0.15.1] - 2026-06-19
 
 ### 🐛 Bug Fixes
