@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { unzipSync } from "fflate";
-import { createBlankProject, createCourseProject, getCourse, getTemplateManifestText, importCourseProject, installCourseFromGitHub, instantiateTemplate, listTemplates, officialCourseRef, officialCourseSourceId, openLesson, rebaseCourseFiles, removeRemoteCourse, useWorkbench, type OfficialCourse } from "@app";
+import { createBlankProject, createDraftCourse, getCourse, getTemplateManifestText, importDraftCourse, installCourseFromGitHub, instantiateTemplate, listTemplates, officialCourseRef, officialCourseSourceId, openLesson, removeRemoteCourse, useWorkbench, type OfficialCourse } from "@app";
 import { errorMessage, NetworkError } from "@ports";
 import { exportProjectZip } from "@app/project-zip";
 import { useCourses } from "../hooks/useCourses";
@@ -185,8 +185,8 @@ export function Welcome({ onOpen, projects = [], onDeleteProject }: Props) {
     setBusy("course");
     setError(null);
     try {
-      const row = await createCourseProject(workbench.storage);
-      onOpen(row.id);
+      const { courseId, lessonId } = await createDraftCourse(workbench.storage);
+      onOpen(await openLesson(workbench.storage, courseId, lessonId));
     } catch (e) {
       setError(`could not create course: ${errorMessage(e)}`);
       setBusy(null);
@@ -204,8 +204,8 @@ export function Welcome({ onOpen, projects = [], onDeleteProject }: Props) {
     setBusy("import");
     setError(null);
     try {
-      const row = await importCourseProject(workbench.storage, rebaseCourseFiles(files));
-      onOpen(row.id);
+      const { courseId, lessonId } = await importDraftCourse(workbench.storage, files);
+      onOpen(await openLesson(workbench.storage, courseId, lessonId));
     } catch (e) {
       setError(`could not import course: ${errorMessage(e)}`);
       setBusy(null);

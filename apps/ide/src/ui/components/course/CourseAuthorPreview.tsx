@@ -1,29 +1,26 @@
-import { useState } from "react";
 import { listLessons, readCourseMeta, readLessonBody, readLessonChecks } from "@app";
 import type { CheckReport, CourseCheck } from "@app";
 import { CourseView, type CourseViewData } from "./CourseView";
 
 // Course Author live preview (#139) — renders the course being authored exactly
-// as a learner sees it, fed from the project files (no install, no store). Lesson
-// switching is local to the preview (it never switches the project). The Check
-// button runs the shown lesson's checks against its OWN starter, commandeering
-// the live emulator just like the learner (#139 3b, via onCheckLesson).
+// as a learner sees it, fed from the draft bundle files. It follows the ACTIVE
+// lesson (the one open in the file tree); navigating in the preview selects a
+// lesson (the host opens it), so preview-nav == author-nav. The Check button runs
+// the active lesson's checks against its starter, commandeering the live emulator
+// like the learner (3b).
 
-export function CourseAuthorPreview({ files, onCheckLesson }: {
+export function CourseAuthorPreview({ files, activeLessonId, onSelectLesson, onCheckLesson }: {
   files: { path: string; content: string }[];
+  activeLessonId: string | null;
+  onSelectLesson: (lessonId: string) => void;
   onCheckLesson?: (lessonId: string, checks: CourseCheck[]) => Promise<CheckReport>;
 }) {
   const meta = readCourseMeta(files);
   const lessons = listLessons(files);
-  const [selected, setSelected] = useState<string | null>(null);
-
-  // Effective selection — falls back to the first lesson when the chosen id is
-  // gone (add / delete / reorder renumbers ids). No effect: derive each render.
-  const currentId = selected && lessons.some((l) => l.id === selected) ? selected : lessons[0]?.id ?? "";
-
   if (lessons.length === 0) {
     return <div className="course course--missing">No lessons yet — add one in Course Author.</div>;
   }
+  const currentId = lessons.some((l) => l.id === activeLessonId) ? activeLessonId! : lessons[0]!.id;
 
   const data: CourseViewData = {
     title: meta?.title || "Untitled course",
@@ -36,7 +33,7 @@ export function CourseAuthorPreview({ files, onCheckLesson }: {
   return (
     <CourseView
       data={data}
-      onOpenLesson={setSelected}
+      onOpenLesson={onSelectLesson}
       onCheck={onCheckLesson ? (checks) => onCheckLesson(currentId, checks) : undefined}
       preview
     />

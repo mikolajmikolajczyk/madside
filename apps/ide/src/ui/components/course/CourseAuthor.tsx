@@ -1,22 +1,26 @@
 import { useEffect, useRef, useState } from "react";
 import {
   AUTHORABLE_MACHINES,
-  COURSE_FILE,
   courseExportFiles,
   courseMetaText,
-  lessonSwapRenames,
+  deleteLessonInFiles,
   listLessons,
-  newLessonFiles,
   readCourseMeta,
   readLessonChecks,
+  setCourseMetaInFiles,
+  setLessonChecksInFiles,
+  setLessonMdInFiles,
   slugify,
+  swapLessonsInFiles,
   validateCourseFiles,
   zipCourse,
 } from "@app";
 import type { CourseCheck, CourseMeta, LessonInfo } from "@app";
 import "./CourseAuthor.css";
 
-function downloadCourse(files: { path: string; content: string }[], title: string): void {
+type Files = { path: string; content: string }[];
+
+function downloadCourse(files: Files, title: string): void {
   const check = validateCourseFiles(courseExportFiles(files));
   if (!check.ok) {
     window.alert(`Course not ready to export: ${check.error}`);
@@ -31,25 +35,20 @@ function downloadCourse(files: { path: string; content: string }[], title: strin
   URL.revokeObjectURL(url);
 }
 
-// Course Author surface (#139). A structured view over the course-as-project
-// files: phase 1 = course.json metadata; phase 2 = lesson CRUD + reorder +
-// lesson.md editing. Persists through the host's multi-file ops (no raw JSON in
-// the editor). Later phases add the check builder + live preview + export.
-
-export interface CourseAuthorOps {
-  /** Write/create files in one batch (project.applyEdits — writeFile upserts). */
-  save: (edits: { path: string; content: string }[]) => void;
-  /** Remove a whole folder subtree (a lesson dir). */
-  deleteFolder: (prefix: string) => void;
-  /** Apply a sequence of folder-prefix renames (reorder). */
-  renameFolders: (renames: { from: string; to: string }[]) => void;
-}
+// Course Author surface (#139). The course is a draft bundle; this is its editor.
+// Every edit is a pure transform over the bundle files → onSaveFiles. The ACTIVE
+// lesson (open in the file tree as a normal project) is highlighted + expanded for
+// markdown/check editing; clicking another lesson selects it (the host saves the
+// open lesson back + opens the new one).
 
 const EMPTY: CourseMeta = { title: "", description: "", machine: AUTHORABLE_MACHINES[0]! };
 
-export function CourseAuthor({ files, ops }: {
-  files: { path: string; content: string }[];
-  ops: CourseAuthorOps;
+export function CourseAuthor({ files, activeLessonId, onSaveFiles, onSelectLesson, onAddLesson }: {
+  files: Files;
+  activeLessonId: string | null;
+  onSaveFiles: (files: Files) => void;
+  onSelectLesson: (lessonId: string) => void;
+  onAddLesson: () => void;
 }) {
   const meta = readCourseMeta(files) ?? EMPTY;
   const lessons = listLessons(files);
@@ -67,17 +66,12 @@ export function CourseAuthor({ files, ops }: {
           ↓ Export .zip
         </button>
       </div>
-      <MetaForm meta={meta} onSave={(m) => ops.save([{ path: COURSE_FILE, content: courseMetaText(m) }])} />
+      <MetaForm meta={meta} onSave={(m) => onSaveFiles(setCourseMetaInFiles(files, m))} />
 
       <div className="course-author__section">
         <div className="course-author__section-head">
           <span>Lessons</span>
-          <button
-            type="button"
-            className="course-author__btn"
-            onClick={() => ops.save(newLessonFiles(lessons, meta.machine))}
-            title="Add a lesson"
-          >
+          <button type="button" className="course-author__btn" onClick={onAddLesson} title="Add a lesson">
             + Add lesson
           </button>
         </div>
@@ -91,17 +85,19 @@ export function CourseAuthor({ files, ops }: {
                 key={l.id}
                 lesson={l}
                 files={files}
+                active={l.id === activeLessonId}
                 canUp={i > 0}
                 canDown={i < lessons.length - 1}
-                onUp={() => ops.renameFolders(lessonSwapRenames(lessons[i - 1]!, l))}
-                onDown={() => ops.renameFolders(lessonSwapRenames(l, lessons[i + 1]!))}
+                onSelect={() => onSelectLesson(l.id)}
+                onUp={() => onSaveFiles(swapLessonsInFiles(files, lessons[i - 1]!.id, l.id))}
+                onDown={() => onSaveFiles(swapLessonsInFiles(files, l.id, lessons[i + 1]!.id))}
                 onDelete={() => {
-                  if (window.confirm(`Delete lesson "${l.title}"? This removes ${l.dir}/ and cannot be undone.`)) {
-                    ops.deleteFolder(l.dir);
+                  if (window.confirm(`Delete lesson "${l.title}"? This cannot be undone.`)) {
+                    onSaveFiles(deleteLessonInFiles(files, l.id));
                   }
                 }}
-                onSaveMd={(text) => ops.save([{ path: `${l.dir}/lesson.md`, content: text }])}
-                onSaveChecks={(checks) => ops.save([{ path: `${l.dir}/check.json`, content: JSON.stringify({ checks }, null, 2) + "\n" }])}
+                onSaveMd={(text) => onSaveFiles(setLessonMdInFiles(files, l.id, text))}
+                onSaveChecks={(checks) => onSaveFiles(setLessonChecksInFiles(files, l.id, checks))}
               />
             ))}
           </ul>
@@ -109,7 +105,7 @@ export function CourseAuthor({ files, ops }: {
       </div>
 
       <p className="course-author__hint">
-        Expand a lesson to edit its text and checks. Starter files live under <code>{"<lesson>/files/"}</code> — edit those in the file tree. Use <strong>Course Preview</strong> to see it as a learner does, then <strong>Export .zip</strong> and push the contents to a public GitHub repo to publish.
+        Click a lesson to open it in the file tree (a normal project — build &amp; run it). Edit its text + checks here. <strong>Course Preview</strong> shows it as a learner sees it; <strong>Export .zip</strong> to publish.
       </p>
     </div>
   );
@@ -161,34 +157,34 @@ function MetaForm({ meta, onSave }: { meta: CourseMeta; onSave: (m: CourseMeta) 
   );
 }
 
-// ── One lesson row (reorder / delete / expand to edit lesson.md + checks) ─────
-function LessonRow({ lesson, files, canUp, canDown, onUp, onDown, onDelete, onSaveMd, onSaveChecks }: {
+// ── One lesson row — click to open (active = expanded for md + check editing) ──
+function LessonRow({ lesson, files, active, canUp, canDown, onSelect, onUp, onDown, onDelete, onSaveMd, onSaveChecks }: {
   lesson: LessonInfo;
-  files: { path: string; content: string }[];
+  files: Files;
+  active: boolean;
   canUp: boolean;
   canDown: boolean;
+  onSelect: () => void;
   onUp: () => void;
   onDown: () => void;
   onDelete: () => void;
   onSaveMd: (text: string) => void;
   onSaveChecks: (checks: CourseCheck[]) => void;
 }) {
-  const [open, setOpen] = useState(false);
-  const mdPath = `${lesson.dir}/lesson.md`;
-  const mdContent = files.find((f) => f.path === mdPath)?.content ?? "";
+  const mdContent = files.find((f) => f.path === `lessons/${lesson.id}/lesson.md`)?.content ?? "";
   const checks = readLessonChecks(files, lesson.id);
 
   return (
     <li className="course-author__lesson">
-      <div className={"course-author__lesson-head" + (open ? " course-author__lesson-head--open" : "")}>
+      <div className={"course-author__lesson-head" + (active ? " course-author__lesson-head--open" : "")}>
         <button
           type="button"
           className="course-author__lesson-toggle"
-          onClick={() => setOpen((o) => !o)}
-          aria-expanded={open}
-          title={open ? "Collapse" : "Expand to edit lesson + checks"}
+          onClick={onSelect}
+          aria-current={active ? "true" : undefined}
+          title="Open this lesson in the file tree"
         >
-          <span className="course-author__caret">{open ? "▾" : "▸"}</span>
+          <span className="course-author__caret">{active ? "▾" : "▸"}</span>
           <span className="course-author__lesson-n">{String(lesson.n).padStart(2, "0")}</span>
           <span className="course-author__lesson-title" title={lesson.dir}>{lesson.title}</span>
         </button>
@@ -196,9 +192,9 @@ function LessonRow({ lesson, files, canUp, canDown, onUp, onDown, onDelete, onSa
         <button type="button" className="course-author__icon" disabled={!canDown} onClick={onDown} title="Move down">↓</button>
         <button type="button" className="course-author__icon course-author__icon--del" onClick={onDelete} title="Delete lesson">✕</button>
       </div>
-      {open && (
+      {active && (
         <div className="course-author__lesson-body">
-          <LessonMd key={mdPath} initial={mdContent} onSave={onSaveMd} />
+          <LessonMd key={`${lesson.id}-md`} initial={mdContent} onSave={onSaveMd} />
           <LessonChecks key={`${lesson.id}-checks`} initial={checks} onSave={onSaveChecks} />
         </div>
       )}

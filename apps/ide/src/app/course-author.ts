@@ -9,7 +9,7 @@
 import { zipSync } from 'fflate'
 import { MANIFEST_PATH, textToBytes } from '@madside/storage-idb'
 import { newProjectId } from '@madside/storage-shared'
-import type { InstalledCourseRow, ProjectManifestV2 as Manifest, ProjectRow, StorageBackend } from '@ports'
+import type { InstalledCourseRow, ProjectManifestV2 as Manifest, StorageBackend } from '@ports'
 import { addRemoteCourse, validateCourseFiles, type CourseCheck, type CourseMeta } from './courses'
 import { starterFilesForMachine } from './templates'
 
@@ -30,12 +30,6 @@ const DEFAULT_MACHINE = 'atari-xl'
 
 /** Machine ids a new course can target (seed defaults exist for these). */
 export const AUTHORABLE_MACHINES = Object.keys(SEED)
-
-/** True when a project's files include a root `course.json` — i.e. it is a course
- *  being authored (course-as-project model). */
-export function isCourseAuthoring(files: readonly { path: string }[]): boolean {
-  return files.some((f) => f.path === COURSE_FILE)
-}
 
 /** Parse the authored course's `course.json` into `CourseMeta`, or null when it's
  *  absent or malformed. */
@@ -74,35 +68,6 @@ function lessonStarter(machine: string, name: string): { path: string; content: 
     { path: MANIFEST_PATH, content: json({ version: 2, name, main: s.main, machine, toolchain: s.toolchain } satisfies Manifest) },
     { path: s.main, content: '; starter — your code here\n' },
   ]
-}
-
-/** Create a new course-authoring project: a container `project.json` (so it loads
- *  as a normal project) + `course.json` (CourseMeta) + one stub lesson laid out
- *  in the directory shape the course runtime expects. The Course Author surface
- *  (#139) edits these via forms. */
-export async function createCourseProject(
-  storage: StorageBackend,
-  opts?: { name?: string; machine?: string },
-): Promise<ProjectRow> {
-  const machine = opts?.machine && SEED[opts.machine] ? opts.machine : DEFAULT_MACHINE
-  const name = opts?.name?.trim() || 'Untitled course'
-  const s = SEED[machine]!
-
-  const meta: CourseMeta = { title: name, description: 'A new course.', machine }
-  // Container manifest: makes the authoring project a valid, loadable project.
-  const container: Manifest = { version: 2, name, main: s.main, machine, toolchain: s.toolchain }
-  const check: { checks: CourseCheck[] } = { checks: [{ kind: 'build' }] }
-  const dir = 'lessons/01-intro'
-  const starter = lessonStarter(machine, `${name} — lesson 1`)
-
-  const files = [
-    { path: MANIFEST_PATH, content: textToBytes(json(container)) },
-    { path: COURSE_FILE, content: textToBytes(courseMetaText(meta)) },
-    { path: `${dir}/lesson.md`, content: textToBytes('# Introduction\n\nWrite the lesson theory here.\n') },
-    ...starter.map((f) => ({ path: `${dir}/files/${f.path}`, content: textToBytes(f.content) })),
-    { path: `${dir}/check.json`, content: textToBytes(json(check)) },
-  ]
-  return storage.projects.create(name, files, container)
 }
 
 // ── Draft course bundle (#139 rework) — authoring = inverse of the learner ────
@@ -163,12 +128,82 @@ export async function importDraftCourse(storage: StorageBackend, courseFiles: re
   return { courseId, lessonId: first.id }
 }
 
-// ── Import (#139) — bring an existing course into authoring ───────────────────
+// ── Bundle edits (#139 rework) — pure transforms over the course files ────────
+// All authoring edits are pure (files[]) → (files[]); the UI saves the result via
+// saveDraftCourse. No project-file ops / folder renames — the course lives in the
+// bundle, not the file tree.
+
+function upsertFile(files: readonly { path: string; content: string }[], path: string, content: string): { path: string; content: string }[] {
+  const i = files.findIndex((f) => f.path === path)
+  if (i < 0) return [...files, { path, content }]
+  return files.map((f, j) => (j === i ? { path, content } : f))
+}
+
+/** Replace course.json with new metadata. */
+export function setCourseMetaInFiles(files: readonly { path: string; content: string }[], meta: CourseMeta): { path: string; content: string }[] {
+  return upsertFile(files, COURSE_FILE, courseMetaText(meta))
+}
+
+/** Replace a lesson's markdown. */
+export function setLessonMdInFiles(files: readonly { path: string; content: string }[], lessonId: string, md: string): { path: string; content: string }[] {
+  return upsertFile(files, `lessons/${lessonId}/lesson.md`, md)
+}
+
+/** Replace a lesson's checks (check.json). */
+export function setLessonChecksInFiles(files: readonly { path: string; content: string }[], lessonId: string, checks: CourseCheck[]): { path: string; content: string }[] {
+  return upsertFile(files, `lessons/${lessonId}/check.json`, json({ checks }))
+}
+
+/** Replace a lesson's starter files (under `lessons/<id>/files/`) — the save-back
+ *  of the working project when switching lessons / exporting. `starter` paths are
+ *  relative to the lesson's `files/` dir. */
+export function setLessonStarterInFiles(
+  files: readonly { path: string; content: string }[],
+  lessonId: string,
+  starter: readonly { path: string; content: string }[],
+): { path: string; content: string }[] {
+  const prefix = `lessons/${lessonId}/files/`
+  const kept = files.filter((f) => !f.path.startsWith(prefix))
+  return [...kept, ...starter.map((f) => ({ path: prefix + f.path, content: f.content }))]
+}
+
+/** Append a new lesson (next numeric prefix) with a buildable starter + build
+ *  check. Returns the new files + the new lesson id. */
+export function addLessonInFiles(files: readonly { path: string; content: string }[], machine: string): { files: { path: string; content: string }[]; lessonId: string } {
+  const lessons = listLessons(files)
+  const n = (lessons.length ? lessons[lessons.length - 1]!.n : 0) + 1
+  const id = `${pad(n)}-new-lesson`
+  const added = newLessonFiles(lessons, machine).map((f) => ({ path: f.path, content: f.content }))
+  return { files: [...files, ...added], lessonId: id }
+}
+
+/** Remove a lesson (its whole subtree). */
+export function deleteLessonInFiles(files: readonly { path: string; content: string }[], lessonId: string): { path: string; content: string }[] {
+  return files.filter((f) => !f.path.startsWith(`lessons/${lessonId}/`)).map((f) => ({ path: f.path, content: f.content }))
+}
+
+/** Swap two lessons' order by rewriting their numeric prefixes (pure path
+ *  rewrite — no collision dance needed on an array). Returns the new files. */
+export function swapLessonsInFiles(files: readonly { path: string; content: string }[], idA: string, idB: string): { path: string; content: string }[] {
+  const lessons = listLessons(files)
+  const a = lessons.find((l) => l.id === idA)
+  const b = lessons.find((l) => l.id === idB)
+  if (!a || !b) return files.map((f) => ({ path: f.path, content: f.content }))
+  const aNew = `lessons/${pad(b.n)}-${a.slug}`
+  const bNew = `lessons/${pad(a.n)}-${b.slug}`
+  return files.map((f) => {
+    if (f.path === a.dir || f.path.startsWith(a.dir + '/')) return { path: aNew + f.path.slice(a.dir.length), content: f.content }
+    if (f.path === b.dir || f.path.startsWith(b.dir + '/')) return { path: bNew + f.path.slice(b.dir.length), content: f.content }
+    return { path: f.path, content: f.content }
+  })
+}
+
+// ── Lessons (#139) ───────────────────────────────────────────────────────────
 
 /** Rebase a set of files onto the course root: find the shallowest `course.json`
  *  and strip its directory prefix from every path (dropping anything outside it).
  *  Handles a picked folder (`my-course/course.json` → `course.json`) and a zip
- *  already at the root (`course.json` → unchanged). */
+ *  already at the root (`course.json` → unchanged). Used by import. */
 export function rebaseCourseFiles(
   files: readonly { path: string; content: string }[],
 ): { path: string; content: string }[] {
@@ -181,31 +216,6 @@ export function rebaseCourseFiles(
     .filter((f) => f.path.startsWith(root))
     .map((f) => ({ path: f.path.slice(root.length), content: f.content }))
 }
-
-/** Create an authoring project from an existing course's files (course-root-
- *  relative: course.json + lessons/**). Validates first, then wraps them with a
- *  container project.json so they load as a normal, editable project — the
- *  inverse of `zipCourse`/`courseExportFiles`. Throws on an invalid course. */
-export async function importCourseProject(
-  storage: StorageBackend,
-  courseFiles: readonly { path: string; content: string }[],
-  opts?: { name?: string },
-): Promise<ProjectRow> {
-  const v = validateCourseFiles([...courseFiles])
-  if (!v.ok) throw new Error(v.error ?? 'invalid course')
-  const meta = readCourseMeta(courseFiles)
-  const machine = meta && SEED[meta.machine] ? meta.machine : DEFAULT_MACHINE
-  const name = opts?.name?.trim() || meta?.title || 'Imported course'
-  const s = SEED[machine]!
-  const container: Manifest = { version: 2, name, main: s.main, machine, toolchain: s.toolchain }
-  const files = [
-    { path: MANIFEST_PATH, content: textToBytes(json(container)) },
-    ...courseFiles.map((f) => ({ path: f.path, content: textToBytes(f.content) })),
-  ]
-  return storage.projects.create(name, files, container)
-}
-
-// ── Lessons (#139 phase 2) ───────────────────────────────────────────────────
 
 /** A lesson parsed from the authored project's `lessons/<nn>-<slug>/` tree. */
 export interface LessonInfo {
@@ -249,19 +259,7 @@ export function listLessons(files: readonly { path: string; content: string }[])
     .sort((a, b) => a.n - b.n || a.id.localeCompare(b.id))
 }
 
-/** Collision-safe folder renames that swap two lessons' numeric prefixes (their
- *  order). Apply in sequence via `renameFolder` — a temp prefix avoids the
- *  transient collision when two dirs trade numbers. */
-export function lessonSwapRenames(a: LessonInfo, b: LessonInfo): { from: string; to: string }[] {
-  const tmp = `lessons/__swap-${a.slug}`
-  return [
-    { from: a.dir, to: tmp },
-    { from: b.dir, to: `lessons/${pad(a.n)}-${b.slug}` },
-    { from: tmp, to: `lessons/${pad(b.n)}-${a.slug}` },
-  ]
-}
-
-// ── Export (#139 phase 5) ────────────────────────────────────────────────────
+// ── Export (#139) ────────────────────────────────────────────────────────────
 
 /** The publishable subset of an authoring project's files — what belongs in a
  *  course repo: `course.json` + `lessons/**`. Drops the authoring container

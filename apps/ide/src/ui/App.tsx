@@ -29,7 +29,6 @@ import { CommandPalette } from "./components/command/CommandPalette";
 import { useToast } from "./components/ui/Toast";
 import { buildAppCommands, type AppCommandEnv } from "./commands/appCommands";
 import type { CpuRegs } from "./components/debug/Emulator";
-import { errorMessage, parseProjectManifest } from "@ports";
 import type { CommandContext, PanelPlugin, ThemePlugin, ToolchainPlugin } from "@ports";
 import { basename, extOf } from "@core/path";
 import { getCpuLanguage } from "@core";
@@ -52,8 +51,8 @@ import { useRunStatus } from "./hooks/useRunStatus";
 import { useActiveMachine } from "./hooks/useActiveMachine";
 import { useWorkbench } from "@app";
 import { applyTheme, loadThemeId, saveThemeId } from "@app";
-import { getCourse, openLesson, refreshCourseFromGitHub, resetLessonToStarter, runChecks, scanEquates } from "@app";
-import { isCourseAuthoring } from "@app";
+import { addLessonInFiles, getCourse, getDraftCourse, openLesson, readCourseMeta, refreshCourseFromGitHub, resetLessonToStarter, runChecks, saveDraftCourse, scanEquates, setLessonStarterInFiles } from "@app";
+import { useCourses } from "./hooks/useCourses";
 import type { CheckReport, CheckRunDeps } from "@app";
 import type { CourseCheck } from "@app";
 import "./App.css";
@@ -125,18 +124,33 @@ export default function App() {
   const [runBlockedMsg, setRunBlockedMsg] = useState<string | null>(null);
   const [cursorLine, setCursorLine] = useState<number | null>(null);
 
-  // A course-authoring project (#139) is a wrapper whose own project.json isn't
-  // buildable (its `main` lives inside lessons/, not at root) — don't auto-
-  // assemble it, or the editor fills with spurious "main not found" errors. The
-  // author builds + runs a lesson via Course Preview → Check instead.
-  const authoring = project.loaded && isCourseAuthoring(project.files);
   const { result, setResult, busy, runAssemble } = useAutoAssemble({
     buildService: workbench.build,
-    files: project.loaded && !authoring ? project.files : null,
+    files: project.loaded ? project.files : null,
     manifest: project.loaded ? project.manifest : null,
     projectId: project.loaded ? project.projectId : null,
     storage: workbench.storage,
   });
+
+  // Course authoring (#139): the active project is a lesson (stamped
+  // manifest.course) whose course is a local draft. Authoring then = editing that
+  // draft bundle + the open lesson is an ordinary project (builds/runs natively).
+  useCourses(); // subscribe so getCourse() reflects draft saves
+  const course = project.loaded ? project.manifest.course : undefined;
+  const courseInfo = course ? getCourse(course.id) : undefined;
+  const authoring = courseInfo?.source.kind === "local";
+
+  // The draft bundle's files (course.json + every lesson) loaded for editing;
+  // the active lesson's starter is the LIVE project, swapped in on read so the
+  // course view always reflects the open lesson's latest code.
+  const [draftFiles, setDraftFiles] = useState<{ path: string; content: string }[] | null>(null);
+  const draftCourseId = authoring ? course!.id : null;
+  useEffect(() => {
+    let cancelled = false;
+    const load = draftCourseId ? getDraftCourse(workbench.storage, draftCourseId) : Promise.resolve(null);
+    void load.then((f) => { if (!cancelled) setDraftFiles(f); });
+    return () => { cancelled = true; };
+  }, [draftCourseId, workbench.storage]);
 
   const editorViewRef = useRef<EditorView | null>(null);
   const importFileInputRef = useRef<HTMLInputElement | null>(null);
@@ -704,36 +718,44 @@ export default function App() {
     });
   }, [runAssemble, runOnLiveBackend]);
 
-  // Run a lesson's checks from the Course Author preview (#139 3b). Assembles
-  // the lesson's OWN starter files (lessons/<id>/files/**, not the authoring
-  // container) via BuildService, then reuses the live-backend run. Commandeers
-  // the emulator just like the learner Check. (The backend is the active = course
-  // machine; a lesson targeting a different machine is best-effort.)
-  const handleCoursePreviewCheck = useCallback(async (lessonId: string, checks: CourseCheck[]): Promise<CheckReport> => {
-    const prefix = `lessons/${lessonId}/files/`;
-    const lessonFiles = (project.files ?? [])
-      .filter((f) => f.path.startsWith(prefix))
-      .map((f) => ({ path: f.path.slice(prefix.length), content: f.content, updatedAt: 0 }));
-    const manifestFile = lessonFiles.find((f) => f.path === "project.json");
-    const fail = (message: string): CheckReport => ({ pass: false, results: [{ kind: "build", pass: false, label: "check", message }] });
-    if (!manifestFile) return fail("lesson has no files/project.json");
-    let manifest;
-    try {
-      const parsed = parseProjectManifest(JSON.parse(new TextDecoder().decode(manifestFile.content)));
-      if (!parsed.ok) return fail(parsed.error.message);
-      manifest = parsed.value;
-    } catch (e) {
-      return fail(errorMessage(e));
-    }
-    return runChecks(checks, {
-      assemble: async () => {
-        const r = await workbench.build.build({ projectId: `__course-preview__/${lessonId}`, files: lessonFiles, manifest });
-        if (!r.ok) return { ok: false, error: r.error.message, labels: new Map() };
-        return { ok: true, labels: r.value.labels ?? new Map(), binary: r.value.binary };
-      },
-      run: runOnLiveBackend,
-    });
-  }, [project.files, workbench, runOnLiveBackend]);
+  // Course authoring (#139) — the active lesson's starter is the LIVE project, so
+  // the "course files" the editor/preview/export see = the draft bundle with that
+  // starter swapped in.
+  const liveLessonStarter = useCallback(
+    (): { path: string; content: string }[] => (project.files ?? []).map((f) => ({ path: f.path, content: new TextDecoder().decode(f.content) })),
+    [project.files],
+  );
+  // Persist an edit to the draft bundle (course.json / a lesson's md / checks /
+  // lesson structure). The incoming files already include the live starter.
+  const onSaveDraft = useCallback(async (files: { path: string; content: string }[]) => {
+    if (!course) return;
+    await saveDraftCourse(workbench.storage, course.id, files);
+    setDraftFiles(files);
+  }, [course, workbench.storage]);
+  // Switch the open lesson: save the current lesson's starter back into the
+  // bundle, then open the target lesson as the active project (openLesson reuses
+  // the per-lesson project, preserving edits).
+  const onSelectLesson = useCallback(async (lessonId: string) => {
+    if (!course || !draftFiles || lessonId === course.lesson) return;
+    const synced = setLessonStarterInFiles(draftFiles, course.lesson, liveLessonStarter());
+    await saveDraftCourse(workbench.storage, course.id, synced);
+    setDraftFiles(synced);
+    const pid = await openLesson(workbench.storage, course.id, lessonId);
+    await project.switchProject(pid);
+  }, [course, draftFiles, liveLessonStarter, project, workbench.storage]);
+  // Add a lesson: sync the open lesson's starter, append a new lesson to the
+  // bundle, persist, then open the new one. One sequenced op (composing
+  // save+select separately would race on stale draftFiles).
+  const onAddLesson = useCallback(async () => {
+    if (!course || !draftFiles) return;
+    const synced = setLessonStarterInFiles(draftFiles, course.lesson, liveLessonStarter());
+    const machine = readCourseMeta(synced)?.machine ?? "atari-xl";
+    const { files: withNew, lessonId } = addLessonInFiles(synced, machine);
+    await saveDraftCourse(workbench.storage, course.id, withNew);
+    setDraftFiles(withNew);
+    const pid = await openLesson(workbench.storage, course.id, lessonId);
+    await project.switchProject(pid);
+  }, [course, draftFiles, liveLessonStarter, project, workbench.storage]);
 
   // Re-fetch a remote course from its repo (preserves learner edits — only the
   // course definition updates; the active lesson project is left as-is).
@@ -893,10 +915,10 @@ export default function App() {
     />
   );
 
-  // Course lesson + checks — its own dock panel (#127), present only while the
-  // project is a course, so its View-menu toggle shows only then.
-  const course = project.loaded ? project.manifest.course : undefined;
-  const courseSurface = course ? (
+  // Course panels (#139). A lesson stamped with a course shows EITHER the learner
+  // lesson panel (installed course) OR Course Author + Preview (a local draft). The
+  // active lesson is an ordinary project — file tree, build, run, debug all native.
+  const courseSurface = course && !authoring ? (
     <Suspense fallback={<div className="app__loading">loading lesson…</div>}>
       <CoursePanel
         courseId={course.id}
@@ -909,25 +931,33 @@ export default function App() {
     </Suspense>
   ) : null;
 
-  // Course Author surface (#139) — present only while authoring a course (the
-  // project carries a root course.json), so its View-menu toggle shows only then.
-  // Phase 1 edits course.json; persists via the multi-file writer (applyEdits).
-  const courseFiles = authoring ? project.files.map((f) => ({ path: f.path, content: new TextDecoder().decode(f.content) })) : null;
-  const courseAuthorSurface = courseFiles ? (
+  // The course view = the draft bundle with the open lesson's live starter swapped
+  // in. Guard: only swap when the active lesson is actually in the bundle (after a
+  // reorder its dir id changes — fall back to the bundle's copy rather than append
+  // a phantom lesson).
+  const activeInDraft = !!(draftFiles && course && draftFiles.some((f) => f.path.startsWith(`lessons/${course.lesson}/`)));
+  const courseFiles = authoring && draftFiles && course
+    ? (activeInDraft ? setLessonStarterInFiles(draftFiles, course.lesson, liveLessonStarter()) : draftFiles)
+    : null;
+  const courseAuthorSurface = (courseFiles && course) ? (
     <Suspense fallback={<div className="app__loading">loading…</div>}>
       <CourseAuthor
         files={courseFiles}
-        ops={{
-          save: (edits) => { void project.applyEdits(edits.map((e) => ({ path: e.path, content: new TextEncoder().encode(e.content) }))); },
-          deleteFolder: (prefix) => { void project.deleteFolder(prefix); },
-          renameFolders: async (renames) => { for (const r of renames) await project.renameFolder(r.from, r.to); },
-        }}
+        activeLessonId={course.lesson}
+        onSaveFiles={(f) => { void onSaveDraft(f); }}
+        onSelectLesson={(l) => { void onSelectLesson(l); }}
+        onAddLesson={() => { void onAddLesson(); }}
       />
     </Suspense>
   ) : null;
-  const courseAuthorPreviewSurface = courseFiles ? (
+  const courseAuthorPreviewSurface = (courseFiles && course) ? (
     <Suspense fallback={<div className="app__loading">loading…</div>}>
-      <CourseAuthorPreview files={courseFiles} onCheckLesson={handleCoursePreviewCheck} />
+      <CourseAuthorPreview
+        files={courseFiles}
+        activeLessonId={course.lesson}
+        onSelectLesson={(l) => { void onSelectLesson(l); }}
+        onCheckLesson={(_, checks) => handleCheck(checks)}
+      />
     </Suspense>
   ) : null;
 

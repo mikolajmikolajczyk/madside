@@ -6,12 +6,10 @@ import { createDraftCourse, getDraftCourse, importDraftCourse, saveDraftCourse }
 import {
   AUTHORABLE_MACHINES,
   COURSE_FILE,
+  addLessonInFiles,
   courseExportFiles,
   courseMetaText,
-  createCourseProject,
-  importCourseProject,
-  isCourseAuthoring,
-  lessonSwapRenames,
+  deleteLessonInFiles,
   listLessons,
   newLessonFiles,
   readCourseMeta,
@@ -19,22 +17,15 @@ import {
   readLessonChecks,
   rebaseCourseFiles,
   slugify,
+  swapLessonsInFiles,
   zipCourse,
-  type LessonInfo,
 } from "./course-author";
 
-// #139 phase 1 — course-as-project authoring helpers.
+// #139 — course authoring helpers (draft bundle + pure file transforms).
 
 const dec = new TextDecoder();
 
 describe("course-author helpers", () => {
-  it("isCourseAuthoring detects a root course.json", () => {
-    expect(isCourseAuthoring([{ path: "project.json" }, { path: "course.json" }])).toBe(true);
-    expect(isCourseAuthoring([{ path: "project.json" }, { path: "src/main.c" }])).toBe(false);
-    // nested course.json doesn't count — must be at root
-    expect(isCourseAuthoring([{ path: "lessons/01/files/course.json" }])).toBe(false);
-  });
-
   it("readCourseMeta parses, courseMetaText round-trips (omits unset order)", () => {
     const meta = { title: "T", description: "D", machine: "atari-xl" };
     const text = courseMetaText(meta);
@@ -51,42 +42,14 @@ describe("course-author helpers", () => {
   });
 });
 
-describe("createCourseProject", () => {
-  it("seeds a valid, loadable course-authoring project", async () => {
-    const storage = createMemoryStorage();
-    const row = await createCourseProject(storage, { name: "My Course", machine: "nes" });
-
-    const loaded = await storage.projects.load(row.id);
-    expect(loaded).not.toBeNull();
-    const files = loaded!.files.map((f) => ({ path: f.path, content: dec.decode(f.content) }));
-
-    // It's recognised as a course-authoring project.
-    expect(isCourseAuthoring(files)).toBe(true);
-
-    // The course.json carries the requested metadata.
-    expect(readCourseMeta(files)).toMatchObject({ title: "My Course", machine: "nes" });
-
-    // A valid container manifest exists (so the project loads).
-    expect(files.some((f) => f.path === "project.json")).toBe(true);
-
-    // The seeded layout passes the course runtime's own validator.
-    expect(validateCourseFiles(files)).toEqual({ ok: true });
-
-    // The stub lesson + its check are present.
-    expect(files.some((f) => f.path === "lessons/01-intro/lesson.md")).toBe(true);
-    expect(files.some((f) => f.path === "lessons/01-intro/check.json")).toBe(true);
-  });
-
+describe("draft course bundle", () => {
   it("falls back to the default machine for an unknown one", async () => {
     const storage = createMemoryStorage();
-    const row = await createCourseProject(storage, { machine: "nonsense" });
-    const loaded = await storage.projects.load(row.id);
-    const files = loaded!.files.map((f) => ({ path: f.path, content: dec.decode(f.content) }));
+    const { courseId } = await createDraftCourse(storage, { machine: "nonsense" });
+    const files = (await getDraftCourse(storage, courseId))!;
     expect(AUTHORABLE_MACHINES).toContain(readCourseMeta(files)!.machine);
   });
-});
 
-describe("draft course bundle", () => {
   it("createDraftCourse registers a local course the read API sees", async () => {
     const storage = createMemoryStorage();
     const { courseId, lessonId } = await createDraftCourse(storage, { name: "Drafty", machine: "atari-xl" });
@@ -157,14 +120,22 @@ describe("lessons (phase 2)", () => {
     expect(slugify("!!!")).toBe("lesson");
   });
 
-  it("lessonSwapRenames swaps two prefixes collision-safe (via temp)", () => {
-    const a: LessonInfo = { dir: "lessons/01-intro", id: "01-intro", n: 1, slug: "intro", title: "Intro" };
-    const b: LessonInfo = { dir: "lessons/02-loops", id: "02-loops", n: 2, slug: "loops", title: "Loops" };
-    expect(lessonSwapRenames(a, b)).toEqual([
-      { from: "lessons/01-intro", to: "lessons/__swap-intro" },
-      { from: "lessons/02-loops", to: "lessons/01-loops" },
-      { from: "lessons/__swap-intro", to: "lessons/02-intro" },
-    ]);
+  it("swapLessonsInFiles swaps two lessons' prefixes (pure path rewrite)", () => {
+    const out = swapLessonsInFiles(files, "01-intro", "02-loops");
+    const ids = listLessons(out).map((l) => l.id);
+    // intro takes 02, loops takes 01 → sorted: 01-loops, 02-intro
+    expect(ids).toEqual(["01-loops", "02-intro"]);
+    // content travels with the swap
+    expect(out.find((f) => f.path === "lessons/02-intro/files/src/main.a65")?.content).toBe("; x");
+  });
+
+  it("addLessonInFiles appends the next-numbered lesson; deleteLessonInFiles removes one", () => {
+    const { files: added, lessonId } = addLessonInFiles(files, "atari-xl");
+    expect(lessonId).toBe("03-new-lesson");
+    expect(listLessons(added).map((l) => l.id)).toEqual(["01-intro", "02-loops", "03-new-lesson"]);
+    const removed = deleteLessonInFiles(added, "02-loops");
+    expect(listLessons(removed).map((l) => l.id)).toEqual(["01-intro", "03-new-lesson"]);
+    expect(removed.some((f) => f.path.startsWith("lessons/02-loops/"))).toBe(false);
   });
 
   it("newLessonFiles appends after the highest prefix with a starter + check", () => {
@@ -213,36 +184,13 @@ describe("lessons (phase 2)", () => {
     expect(rebaseCourseFiles(atRoot)).toEqual(atRoot);
   });
 
-  it("importCourseProject round-trips an exported course back into authoring", async () => {
+  it("zipCourse round-trips a draft to a validateCourseFiles-clean course", async () => {
     const storage = createMemoryStorage();
-    // Author + export a course, then import the exported files back.
-    const made = await createCourseProject(storage, { name: "RT", machine: "c64" });
-    const loaded = await storage.projects.load(made.id);
-    const exported = courseExportFiles(loaded!.files.map((f) => ({ path: f.path, content: dec.decode(f.content) })));
-
-    const imported = await importCourseProject(storage, exported);
-    const back = await storage.projects.load(imported.id);
-    const files = back!.files.map((f) => ({ path: f.path, content: dec.decode(f.content) }));
-
-    expect(isCourseAuthoring(files)).toBe(true);               // course.json present
-    expect(files.some((f) => f.path === "project.json")).toBe(true); // container added
-    expect(readCourseMeta(files)).toMatchObject({ machine: "c64" });
-  });
-
-  it("importCourseProject rejects an invalid course", async () => {
-    const storage = createMemoryStorage();
-    await expect(importCourseProject(storage, [{ path: "course.json", content: "{}" }])).rejects.toThrow();
-  });
-
-  it("zipCourse round-trips to a validateCourseFiles-clean course", async () => {
-    const storage = createMemoryStorage();
-    const row = await createCourseProject(storage, { name: "Z", machine: "atari-xl" });
-    const loaded = await storage.projects.load(row.id);
-    const files = loaded!.files.map((f) => ({ path: f.path, content: dec.decode(f.content) }));
+    const { courseId } = await createDraftCourse(storage, { name: "Z", machine: "atari-xl" });
+    const files = (await getDraftCourse(storage, courseId))!;
 
     const zipped = unzipSync(zipCourse(files));
     const out = Object.entries(zipped).map(([path, bytes]) => ({ path, content: dec.decode(bytes) }));
-    expect(out.some((f) => f.path === "project.json")).toBe(false); // container excluded
     expect(out.some((f) => f.path === "course.json")).toBe(true);
     expect(validateCourseFiles(out)).toEqual({ ok: true });
   });
