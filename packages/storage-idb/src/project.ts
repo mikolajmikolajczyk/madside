@@ -3,22 +3,16 @@
 import { parseProjectManifest, StorageError } from "@ports";
 import type { LoadedProject } from "@ports";
 import { getDB } from "./db";
-import { MANIFEST_PATH, isProjectRow, newProjectId, serializeManifest, uniquify } from "@madside/storage-shared";
+import { MANIFEST_PATH, bytesToText, isProjectRow, newProjectId, serializeManifest, textToBytes, uniquify } from "@madside/storage-shared";
 import type { Manifest, ProjectRow } from "./types";
 
-const enc = new TextEncoder();
-const dec = new TextDecoder();
-
 // Shared persistence helpers live in @adapters/storage-shared (#19). Re-export
-// MANIFEST_PATH for the many call sites that import it from this module.
-export { MANIFEST_PATH };
+// the ones call sites import from this module (MANIFEST_PATH + text codecs).
+export { MANIFEST_PATH, textToBytes, bytesToText };
 const META_ACTIVE_PROJECT = "activeProjectId";
 
 // Canonical shape lives in @ports/storage; re-export for continuity.
 export type { LoadedProject };
-
-export function textToBytes(s: string): Uint8Array { return enc.encode(s); }
-export function bytesToText(b: Uint8Array): string { return dec.decode(b); }
 
 export async function listProjects(): Promise<ProjectRow[]> {
   const db = await getDB();
@@ -85,7 +79,7 @@ export async function createProject(name: string, files: { path: string; content
     await tx.objectStore("files").put({
       projectId: id,
       path: MANIFEST_PATH,
-      content: enc.encode(serializeManifest(manifest)),
+      content: textToBytes(serializeManifest(manifest)),
       updatedAt: now,
     });
   }

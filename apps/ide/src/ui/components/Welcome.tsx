@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { unzipSync } from "fflate";
-import { createBlankProject, createDraftCourse, getCourse, getTemplateManifestText, importDraftCourse, installCourseFromGitHub, instantiateTemplate, listTemplates, officialCourseRef, officialCourseSourceId, openLesson, removeRemoteCourse, useWorkbench, type OfficialCourse } from "@app";
+import { createBlankProject, createDraftCourse, getCourse, getTemplateManifestText, importDraftCourse, installCourseFromGitHub, instantiateTemplate, listTemplates, officialCourseRef, officialCourseSourceId, openLesson, removeRemoteCourse, starterFilesForMachine, useWorkbench, type OfficialCourse } from "@app";
 import { errorMessage, NetworkError } from "@ports";
 import { exportProjectZip } from "@app/project-zip";
 import { useCourses } from "../hooks/useCourses";
@@ -185,7 +185,7 @@ export function Welcome({ onOpen, projects = [], onDeleteProject }: Props) {
     setBusy("course");
     setError(null);
     try {
-      const { courseId, lessonId } = await createDraftCourse(workbench.storage);
+      const { courseId, lessonId } = await createDraftCourse(workbench.storage, { starter: starterFilesForMachine });
       onOpen(await openLesson(workbench.storage, courseId, lessonId));
     } catch (e) {
       setError(`could not create course: ${errorMessage(e)}`);

@@ -7,6 +7,13 @@ import type { ProjectManifestV2, ProjectRow, SnapshotDiff, SnapshotMeta } from "
 
 export const MANIFEST_PATH = "project.json";
 
+const enc = new TextEncoder();
+const dec = new TextDecoder();
+/** UTF-8 encode — file content is stored as bytes (structured-clone safe). */
+export function textToBytes(s: string): Uint8Array { return enc.encode(s); }
+/** UTF-8 decode a stored file's bytes back to text. */
+export function bytesToText(b: Uint8Array): string { return dec.decode(b); }
+
 /** Structural guard for a persisted project row — used to quarantine a corrupt
  *  IDB record on read instead of flowing a malformed row into typed state
  *  (ADR-0004, #12). */

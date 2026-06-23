@@ -51,7 +51,7 @@ import { useRunStatus } from "./hooks/useRunStatus";
 import { useActiveMachine } from "./hooks/useActiveMachine";
 import { useWorkbench } from "@app";
 import { applyTheme, loadThemeId, saveThemeId } from "@app";
-import { addLessonInFiles, getCourse, getDraftCourse, openLesson, readCourseMeta, refreshCourseFromGitHub, resetLessonToStarter, runChecks, saveDraftCourse, scanEquates, setLessonStarterInFiles } from "@app";
+import { addLessonInFiles, getCourse, getDraftCourse, openLesson, readCourseMeta, refreshCourseFromGitHub, resetLessonToStarter, runChecks, saveDraftCourse, scanEquates, setLessonStarterInFiles, starterFilesForMachine } from "@app";
 import { useCourses } from "./hooks/useCourses";
 import type { CheckReport, CheckRunDeps } from "@app";
 import type { CourseCheck } from "@app";
@@ -750,7 +750,7 @@ export default function App() {
     if (!course || !draftFiles) return;
     const synced = setLessonStarterInFiles(draftFiles, course.lesson, liveLessonStarter());
     const machine = readCourseMeta(synced)?.machine ?? "atari-xl";
-    const { files: withNew, lessonId } = addLessonInFiles(synced, machine);
+    const { files: withNew, lessonId } = addLessonInFiles(synced, machine, starterFilesForMachine);
     await saveDraftCourse(workbench.storage, course.id, withNew);
     setDraftFiles(withNew);
     const pid = await openLesson(workbench.storage, course.id, lessonId);

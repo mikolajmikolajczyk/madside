@@ -7,11 +7,15 @@
 // plus normal multi-file writes (project.applyEdits). See issue #139.
 
 import { zipSync } from 'fflate'
-import { MANIFEST_PATH, textToBytes } from '@madside/storage-idb'
-import { newProjectId } from '@madside/storage-shared'
+import { MANIFEST_PATH, newProjectId, textToBytes } from '@madside/storage-shared'
 import type { InstalledCourseRow, ProjectManifestV2 as Manifest, StorageBackend } from '@ports'
 import { addRemoteCourse, validateCourseFiles, type CourseCheck, type CourseMeta } from './courses'
-import { starterFilesForMachine } from './templates'
+
+/** Supplies a buildable starter file set (project.json + sources, relative to a
+ *  lesson's `files/` dir) for a machine — injected by the host so this module
+ *  stays decoupled from the app's template system (a future courses-core pkg).
+ *  The app passes `starterFilesForMachine`; omitted ⇒ a minimal stub. */
+export type LessonStarterProvider = (machine: string) => { path: string; content: string }[] | undefined
 
 /** Root descriptor file whose presence marks a project as a course in authoring. */
 export const COURSE_FILE = 'course.json'
@@ -60,8 +64,8 @@ const json = (o: unknown): string => JSON.stringify(o, null, 2) + '\n'
 /** A buildable starter file set for a lesson (relative to its `files/` dir:
  *  project.json + sources) — the matching machine template so a fresh lesson's
  *  `build` check passes, falling back to a minimal stub for an unmapped machine. */
-function lessonStarter(machine: string, name: string): { path: string; content: string }[] {
-  const fromTemplate = starterFilesForMachine(machine)
+function lessonStarter(machine: string, name: string, starterFor?: LessonStarterProvider): { path: string; content: string }[] {
+  const fromTemplate = starterFor?.(machine)
   if (fromTemplate) return fromTemplate
   const s = SEED[machine] ?? SEED[DEFAULT_MACHINE]!
   return [
@@ -79,14 +83,14 @@ function lessonStarter(machine: string, name: string): { path: string; content: 
 
 /** The course-root-relative files for a fresh draft: course.json + one buildable
  *  lesson (its starter from the machine template). */
-export function draftCourseFiles(name: string, machine: string): { path: string; content: string }[] {
+export function draftCourseFiles(name: string, machine: string, starterFor?: LessonStarterProvider): { path: string; content: string }[] {
   const meta: CourseMeta = { title: name, description: 'A new course.', machine }
   const dir = 'lessons/01-intro'
   const check: { checks: CourseCheck[] } = { checks: [{ kind: 'build' }] }
   return [
     { path: COURSE_FILE, content: courseMetaText(meta) },
     { path: `${dir}/lesson.md`, content: '# Introduction\n\nWrite the lesson theory here.\n' },
-    ...lessonStarter(machine, `${name} — lesson 1`).map((f) => ({ path: `${dir}/files/${f.path}`, content: f.content })),
+    ...lessonStarter(machine, `${name} — lesson 1`, starterFor).map((f) => ({ path: `${dir}/files/${f.path}`, content: f.content })),
     { path: `${dir}/check.json`, content: json(check) },
   ]
 }
@@ -106,10 +110,10 @@ export async function getDraftCourse(storage: StorageBackend, courseId: string):
 
 /** Create a new draft course bundle. Returns its id + first lesson id; the caller
  *  opens that lesson (openLesson) to start editing. */
-export async function createDraftCourse(storage: StorageBackend, opts?: { name?: string; machine?: string }): Promise<{ courseId: string; lessonId: string }> {
+export async function createDraftCourse(storage: StorageBackend, opts?: { name?: string; machine?: string; starter?: LessonStarterProvider }): Promise<{ courseId: string; lessonId: string }> {
   const machine = opts?.machine && SEED[opts.machine] ? opts.machine : DEFAULT_MACHINE
   const name = opts?.name?.trim() || 'Untitled course'
-  const files = draftCourseFiles(name, machine)
+  const files = draftCourseFiles(name, machine, opts?.starter)
   const courseId = `local:${newProjectId(name)}`
   await saveDraftCourse(storage, courseId, files)
   return { courseId, lessonId: listLessons(files)[0]!.id }
@@ -169,11 +173,11 @@ export function setLessonStarterInFiles(
 
 /** Append a new lesson (next numeric prefix) with a buildable starter + build
  *  check. Returns the new files + the new lesson id. */
-export function addLessonInFiles(files: readonly { path: string; content: string }[], machine: string): { files: { path: string; content: string }[]; lessonId: string } {
+export function addLessonInFiles(files: readonly { path: string; content: string }[], machine: string, starterFor?: LessonStarterProvider): { files: { path: string; content: string }[]; lessonId: string } {
   const lessons = listLessons(files)
   const n = (lessons.length ? lessons[lessons.length - 1]!.n : 0) + 1
   const id = `${pad(n)}-new-lesson`
-  const added = newLessonFiles(lessons, machine).map((f) => ({ path: f.path, content: f.content }))
+  const added = newLessonFiles(lessons, machine, starterFor).map((f) => ({ path: f.path, content: f.content }))
   return { files: [...files, ...added], lessonId: id }
 }
 
@@ -304,11 +308,11 @@ export function readLessonChecks(files: readonly { path: string; content: string
 
 /** Files for a brand-new lesson appended after the existing ones (next numeric
  *  prefix). Mirrors the seed lesson's shape — a starter project + a build check. */
-export function newLessonFiles(lessons: readonly LessonInfo[], machine: string): { path: string; content: string }[] {
+export function newLessonFiles(lessons: readonly LessonInfo[], machine: string, starterFor?: LessonStarterProvider): { path: string; content: string }[] {
   const n = lessons.reduce((max, l) => Math.max(max, l.n), 0) + 1
   const dir = `lessons/${pad(n)}-new-lesson`
   const check: { checks: CourseCheck[] } = { checks: [{ kind: 'build' }] }
-  const starter = lessonStarter(machine, `Lesson ${n}`)
+  const starter = lessonStarter(machine, `Lesson ${n}`, starterFor)
   return [
     { path: `${dir}/lesson.md`, content: '# New lesson\n\nWrite the lesson here.\n' },
     ...starter.map((f) => ({ path: `${dir}/files/${f.path}`, content: f.content })),
