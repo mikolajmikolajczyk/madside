@@ -45,7 +45,7 @@ sidebar:
 - **PanelPlugin** — an arbitrary UI panel (built-in React component or sandboxed `mount(container, ctx)`).
 - **EmulatorPlugin** — wraps a machine emulator backend.
 - **Converter (AssetPlugin)** — `convert(input, opts)` turns asset bytes into includable data.
-- **FileEditorPlugin** — a visual file editor, surfaced through the panel system.
+- **Visual editor** (`editor` plugin / `EditorModule`) — a graphical UI for a file type (bitmap, hex, …) that replaces the text editor when a matching file is opened. Distinct from the workbench's code editor.
 
 ## Project model
 

@@ -17,7 +17,7 @@ The workbench core knows nothing about Atari, NES, MADS, or jsnes. Those are **p
 | `debug-adapter` | The debugger surface — register/flag descriptors, step, memory reads. |
 | `panel` | A UI panel — registers, memory, variables, machine-specific viewers. |
 | `converter` | An asset transform — image/CSV/binary → assembler data. |
-| `editor` | A custom editor for a file type. |
+| `editor` | A visual editor for a file type — a graphical UI (bitmap, hex, …) replacing the text editor. |
 | `theme` | A colour palette — design tokens applied as CSS custom properties. |
 
 A project's `project.json` selects which `machine` and `toolchain` it uses; the machine declares which emulators and debug adapters are compatible. See the [Reference](/docs/reference/) for the full manifest schema.

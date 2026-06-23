@@ -1,11 +1,11 @@
 ---
-title: Editors
-description: Custom editors for project file types, bound by file extension.
+title: Visual editors
+description: Custom visual editors for project file types, bound by file extension.
 sidebar:
   order: 4
 ---
 
-An **editor** plugin owns the UI for a file type — a hex editor, a bitmap editor, a custom level editor. Like [converters](/docs/extending/converter/), editors can ship **inside a project** (`editors/*.js`), loaded at runtime via Blob URL.
+A **visual editor** plugin owns a graphical UI for a file type — a hex editor, a bitmap editor, a custom level editor — replacing the plain text editor when a matching file is opened. (The plugin *kind* is `editor`; "visual editor" is the human name, to keep it distinct from the workbench's code editor.) Like [converters](/docs/extending/converter/), visual editors can ship **inside a project** (`editors/*.js`), loaded at runtime via Blob URL.
 
 :::note
 A [`PanelPlugin`](/docs/extending/panel/) can also act as a file editor — set `fileExt` and read `ctx.file` (the workbench routes matching opens through it). The two contracts coexist: this page documents the standalone `EditorModule` that the project-local `editors/*.js` ecosystem uses; if you're writing a new built-in panel-style editor, read the panel guide instead. (There is no longer an `editorToPanel` bridge — built-in editors are no longer registered as panels.)

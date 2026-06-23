@@ -81,7 +81,7 @@ Built-ins live under `packages/converters/src/builtins/` (`bin-to-incbin`, `csv-
 
 ## Project-local converters
 
-Converters are one of the two kinds that can ship **inside a project** (the other is [editors](/docs/extending/editor/)). Drop a module at `converters/<name>.js` in the project tree. The loader expects a named `meta` export plus a **default-exported `convert` function**:
+Converters are one of the two kinds that can ship **inside a project** (the other is [visual editors](/docs/extending/editor/)). Drop a module at `converters/<name>.js` in the project tree. The loader expects a named `meta` export plus a **default-exported `convert` function**:
 
 ```js
 // converters/passthrough.js

@@ -138,7 +138,7 @@ A generic memory viewer reads named address spaces through `ctx.debug.target().r
 
 ## File-editor mode
 
-A panel with a `fileExt` array doubles as a file editor: when a matching file is opened, the workbench routes it through this panel and populates `ctx.file` with `{ value, path, onChange, assets }`. This is how the [editor](/docs/extending/editor/) contract folds into `PanelPlugin`.
+A panel with a `fileExt` array doubles as a visual editor: when a matching file is opened, the workbench routes it through this panel and populates `ctx.file` with `{ value, path, onChange, assets }`. This is how the [visual editor](/docs/extending/editor/) contract folds into `PanelPlugin`.
 
 ## Error containment
 
