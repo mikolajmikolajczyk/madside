@@ -11,6 +11,35 @@ A **course** is interactive, in-app learning: a course holds ordered **lessons**
 The format below is the same whether a course ships **with the app** (in the repo's `courses/` directory) or lives in your **own public GitHub repo** that learners load by pasting a URL. Write it once; see [Publish on GitHub](#publish-on-github) at the end for sharing.
 :::
 
+## Author in the app (Course Author)
+
+The quickest way to build a course is the in-app **Course Author** — you don't
+hand-write any of the layout below; the editor produces it for you, and you test
+each lesson exactly as a learner will.
+
+1. On the welcome screen's **Follow a course** section, click **Author a new
+   course** (or **Import folder** / **Import .zip** to edit an existing one).
+2. The course's **first lesson opens as an ordinary project** — the file tree
+   shows just that lesson's starter (`src/…`, `project.json`), and you **build,
+   run, and debug it like any project**. A **Course Author** panel and a **Course
+   Preview** panel open alongside it.
+3. In **Course Author**:
+   - edit the course **title / description / machine** (its `course.json`);
+   - the **Lessons** list — click a lesson to open it (the file tree switches to
+     it), reorder with ↑ / ↓, delete, or **+ Add lesson** (seeded with a buildable
+     starter);
+   - for the open lesson, edit its **markdown** and build its **checks** with a
+     form (one row per check kind — no JSON).
+4. **Course Preview** renders the open lesson exactly as a learner sees it —
+   markdown, lesson list, and a working **Check** button.
+5. **↓ Export .zip** validates the course and downloads it; unzip into a public
+   GitHub repo and [publish](#publish-on-github). (Round-trips with Import.)
+
+Under the hood a draft course is held in your browser; the editor reads and writes
+the same directory layout documented below, so app-authored and hand-written
+courses are identical. The rest of this page is the **format reference** — useful
+for understanding what the editor produces, hand-editing, or publishing.
+
 ## Directory layout
 
 A course is a directory under `courses/<id>/`, bundled at build time via Vite glob (the same mechanism as [templates](/docs/extending/templates/)):
@@ -147,13 +176,21 @@ This boot allowance is automatic — the active machine reports its program's lo
 
 A pure-theory lesson simply omits `check.json` (the Check button is disabled).
 
-## Testing a course locally
+## Testing a course
 
-1. Add your course under `courses/<id>/` and start the dev server.
-2. Open it from the welcome screen's **Courses** section (**File → New project** reopens that screen).
-3. Work a lesson, press **Check**, and confirm each assertion reports what you expect. Keep `solution/` assembling cleanly as a regression guard.
+- **Authoring in the app:** the **Course Preview** panel renders each lesson as a
+  learner sees it, and its **Check** button runs the open lesson's checks against
+  your starter — so you verify a lesson without leaving the editor. Build & run the
+  open lesson directly too (it's a normal project).
+- **A course bundled with the app:** add it under `courses/<id>/`, start the dev
+  server, and open it from the welcome screen's **Follow a course** section
+  (**File → New project** reopens that screen).
 
-Keep checks **lenient enough to not frustrate, strict enough to confirm the concept** — e.g. lesson 1 might only assert `build` + the entry label, not the exact bytes, so a learner who solves it a different way still passes.
+Confirm each assertion reports what you expect, and keep any `solution/` assembling
+cleanly as a regression guard. Keep checks **lenient enough to not frustrate,
+strict enough to confirm the concept** — e.g. lesson 1 might only assert `build` +
+the entry label, not the exact bytes, so a learner who solves it a different way
+still passes.
 
 ## Publish on GitHub
 
@@ -161,7 +198,7 @@ Anyone can publish a course from a **public GitHub repo** — no app code change
 
 1. **Lay the course at the repo root** — `course.json` + `lessons/` exactly as above. (The whole repo is the course; there's no `courses/<id>/` wrapper here.)
 2. **Push it to a public GitHub repo.**
-3. **Share the URL.** A learner opens the welcome screen's **Courses** section, pastes `github.com/<owner>/<repo>` (or the shorthand `<owner>/<repo>`), and the course installs + opens. They can **Refresh from repo** later to pull your updates, and remove it anytime.
+3. **Share the URL.** A learner opens the welcome screen's **Follow a course** section, pastes `github.com/<owner>/<repo>` (or the shorthand `<owner>/<repo>`), and the course installs + opens. They can **Refresh from repo** later to pull your updates, and remove it anytime.
 
 ```
 github.com/you/my-atari-course
