@@ -19,16 +19,17 @@ RUN pnpm install --frozen-lockfile
 COPY . .
 RUN pnpm build
 
-# Docs is a self-contained pnpm workspace (own lockfile + allowBuilds).
-RUN cd docs && pnpm install --frozen-lockfile && pnpm build
+# Docs (apps/docs) is part of the single root workspace (#89) — its deps were
+# installed above; just build it.
+RUN pnpm --filter @madside/docs build
 
 # --- runtime ---------------------------------------------------------------
 # static-web-server: single ~5 MB scratch binary, built-in SPA fallback.
 # Pinned to a manifest digest (Dependabot bumps it).
 FROM ghcr.io/static-web-server/static-web-server:2@sha256:6acea6260b14e08dda986361e42640082fbfaab8d88c327de532bb13a3b22994
 # App at the root, docs under /docs (Astro built with base "/docs").
-COPY --from=build /app/dist /public
-COPY --from=build /app/docs/dist /public/docs
+COPY --from=build /app/apps/ide/dist /public
+COPY --from=build /app/apps/docs/dist /public/docs
 # Security headers + caching + compression live in the config file; the SERVER_*
 # env below still set the startup essentials (env wins over the file), so a
 # config typo can only drop headers, never stop the server booting.
