@@ -89,3 +89,75 @@ export async function createCourseProject(
   ]
   return storage.projects.create(name, files, container)
 }
+
+// ── Lessons (#139 phase 2) ───────────────────────────────────────────────────
+
+/** A lesson parsed from the authored project's `lessons/<nn>-<slug>/` tree. */
+export interface LessonInfo {
+  /** Full course-root-relative dir, e.g. `lessons/01-intro`. */
+  dir: string
+  /** Dir name, e.g. `01-intro`. */
+  id: string
+  /** Numeric order prefix. */
+  n: number
+  /** Slug after the `<nn>-` prefix. */
+  slug: string
+  /** First `# ` heading in lesson.md, else the slug. */
+  title: string
+}
+
+const LESSON_RE = /^lessons\/(\d+)-([^/]+)\//
+
+const pad = (n: number): string => String(n).padStart(2, '0')
+
+/** Slugify a title into a lesson-dir-safe slug. */
+export function slugify(s: string): string {
+  return s.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '') || 'lesson'
+}
+
+/** List the authored lessons (sorted by numeric prefix) from the project files. */
+export function listLessons(files: readonly { path: string; content: string }[]): LessonInfo[] {
+  const byId = new Map<string, { n: number; slug: string; md?: string }>()
+  for (const f of files) {
+    const m = LESSON_RE.exec(f.path)
+    if (!m) continue
+    const id = `${m[1]}-${m[2]}`
+    if (!byId.has(id)) byId.set(id, { n: Number(m[1]), slug: m[2]! })
+    if (f.path === `lessons/${id}/lesson.md`) byId.get(id)!.md = f.content
+  }
+  const titleOf = (slug: string, md?: string): string => {
+    const h = md?.split('\n').find((l) => l.startsWith('# '))
+    return h ? h.slice(2).trim() : slug
+  }
+  return [...byId.entries()]
+    .map(([id, e]) => ({ dir: `lessons/${id}`, id, n: e.n, slug: e.slug, title: titleOf(e.slug, e.md) }))
+    .sort((a, b) => a.n - b.n || a.id.localeCompare(b.id))
+}
+
+/** Collision-safe folder renames that swap two lessons' numeric prefixes (their
+ *  order). Apply in sequence via `renameFolder` — a temp prefix avoids the
+ *  transient collision when two dirs trade numbers. */
+export function lessonSwapRenames(a: LessonInfo, b: LessonInfo): { from: string; to: string }[] {
+  const tmp = `lessons/__swap-${a.slug}`
+  return [
+    { from: a.dir, to: tmp },
+    { from: b.dir, to: `lessons/${pad(a.n)}-${b.slug}` },
+    { from: tmp, to: `lessons/${pad(b.n)}-${a.slug}` },
+  ]
+}
+
+/** Files for a brand-new lesson appended after the existing ones (next numeric
+ *  prefix). Mirrors the seed lesson's shape — a starter project + a build check. */
+export function newLessonFiles(lessons: readonly LessonInfo[], machine: string): { path: string; content: string }[] {
+  const n = lessons.reduce((max, l) => Math.max(max, l.n), 0) + 1
+  const dir = `lessons/${pad(n)}-new-lesson`
+  const s = SEED[machine] ?? SEED[DEFAULT_MACHINE]!
+  const lessonManifest: Manifest = { version: 2, name: `Lesson ${n}`, main: s.main, machine, toolchain: s.toolchain }
+  const check: { checks: CourseCheck[] } = { checks: [{ kind: 'build' }] }
+  return [
+    { path: `${dir}/lesson.md`, content: '# New lesson\n\nWrite the lesson here.\n' },
+    { path: `${dir}/files/${MANIFEST_PATH}`, content: json(lessonManifest) },
+    { path: `${dir}/files/${s.main}`, content: '; lesson starter — your code here\n' },
+    { path: `${dir}/check.json`, content: json(check) },
+  ]
+}

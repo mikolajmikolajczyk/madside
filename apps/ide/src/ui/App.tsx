@@ -51,7 +51,7 @@ import { useActiveMachine } from "./hooks/useActiveMachine";
 import { useWorkbench } from "@app";
 import { applyTheme, loadThemeId, saveThemeId } from "@app";
 import { getCourse, openLesson, refreshCourseFromGitHub, resetLessonToStarter, runChecks, scanEquates } from "@app";
-import { COURSE_FILE, isCourseAuthoring } from "@app";
+import { isCourseAuthoring } from "@app";
 import type { CheckReport, CheckRunDeps } from "@app";
 import type { CourseCheck } from "@app";
 import "./App.css";
@@ -867,12 +867,15 @@ export default function App() {
   // Course Author surface (#139) — present only while authoring a course (the
   // project carries a root course.json), so its View-menu toggle shows only then.
   // Phase 1 edits course.json; persists via the multi-file writer (applyEdits).
-  const courseJsonFile = project.loaded ? project.files.find((f) => f.path === COURSE_FILE) : undefined;
-  const courseAuthorSurface = courseJsonFile ? (
+  const courseAuthorSurface = (project.loaded && isCourseAuthoring(project.files)) ? (
     <Suspense fallback={<div className="app__loading">loading…</div>}>
       <CourseAuthor
-        files={[{ path: COURSE_FILE, content: new TextDecoder().decode(courseJsonFile.content) }]}
-        onSave={(text) => { void project.applyEdits([{ path: COURSE_FILE, content: new TextEncoder().encode(text) }]); }}
+        files={project.files.map((f) => ({ path: f.path, content: new TextDecoder().decode(f.content) }))}
+        ops={{
+          save: (edits) => { void project.applyEdits(edits.map((e) => ({ path: e.path, content: new TextEncoder().encode(e.content) }))); },
+          deleteFolder: (prefix) => { void project.deleteFolder(prefix); },
+          renameFolders: async (renames) => { for (const r of renames) await project.renameFolder(r.from, r.to); },
+        }}
       />
     </Suspense>
   ) : null;

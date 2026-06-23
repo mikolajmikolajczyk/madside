@@ -7,7 +7,12 @@ import {
   courseMetaText,
   createCourseProject,
   isCourseAuthoring,
+  lessonSwapRenames,
+  listLessons,
+  newLessonFiles,
   readCourseMeta,
+  slugify,
+  type LessonInfo,
 } from "./course-author";
 
 // #139 phase 1 — course-as-project authoring helpers.
@@ -70,5 +75,55 @@ describe("createCourseProject", () => {
     const loaded = await storage.projects.load(row.id);
     const files = loaded!.files.map((f) => ({ path: f.path, content: dec.decode(f.content) }));
     expect(AUTHORABLE_MACHINES).toContain(readCourseMeta(files)!.machine);
+  });
+});
+
+describe("lessons (phase 2)", () => {
+  const files = [
+    { path: "course.json", content: "{}" },
+    { path: "lessons/02-loops/lesson.md", content: "# Loops\n\nbody" },
+    { path: "lessons/02-loops/check.json", content: "{}" },
+    { path: "lessons/01-intro/lesson.md", content: "intro with no heading" },
+    { path: "lessons/01-intro/files/src/main.a65", content: "; x" },
+  ];
+
+  it("listLessons parses + sorts by prefix, title from first # else slug", () => {
+    const ls = listLessons(files);
+    expect(ls.map((l) => l.id)).toEqual(["01-intro", "02-loops"]);
+    expect(ls[0]).toMatchObject({ n: 1, slug: "intro", title: "intro" }); // no heading → slug
+    expect(ls[1]).toMatchObject({ n: 2, slug: "loops", title: "Loops" });
+    expect(ls[0]!.dir).toBe("lessons/01-intro");
+  });
+
+  it("slugify produces dir-safe slugs", () => {
+    expect(slugify("Hello, World!")).toBe("hello-world");
+    expect(slugify("  spaces  ")).toBe("spaces");
+    expect(slugify("!!!")).toBe("lesson");
+  });
+
+  it("lessonSwapRenames swaps two prefixes collision-safe (via temp)", () => {
+    const a: LessonInfo = { dir: "lessons/01-intro", id: "01-intro", n: 1, slug: "intro", title: "Intro" };
+    const b: LessonInfo = { dir: "lessons/02-loops", id: "02-loops", n: 2, slug: "loops", title: "Loops" };
+    expect(lessonSwapRenames(a, b)).toEqual([
+      { from: "lessons/01-intro", to: "lessons/__swap-intro" },
+      { from: "lessons/02-loops", to: "lessons/01-loops" },
+      { from: "lessons/__swap-intro", to: "lessons/02-intro" },
+    ]);
+  });
+
+  it("newLessonFiles appends after the highest prefix with a starter + check", () => {
+    const ls = listLessons(files);
+    const added = newLessonFiles(ls, "atari-xl");
+    const paths = added.map((f) => f.path);
+    expect(paths).toContain("lessons/03-new-lesson/lesson.md");
+    expect(paths).toContain("lessons/03-new-lesson/check.json");
+    expect(paths.some((p) => p.startsWith("lessons/03-new-lesson/files/"))).toBe(true);
+    // starter manifest targets the requested machine
+    const manifest = added.find((f) => f.path === "lessons/03-new-lesson/files/project.json")!;
+    expect(JSON.parse(manifest.content)).toMatchObject({ machine: "atari-xl", toolchain: "mads" });
+  });
+
+  it("newLessonFiles starts at 01 for an empty course", () => {
+    expect(newLessonFiles([], "atari-xl")[0]!.path).toBe("lessons/01-new-lesson/lesson.md");
   });
 });

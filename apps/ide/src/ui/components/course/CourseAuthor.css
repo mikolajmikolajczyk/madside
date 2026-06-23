@@ -59,6 +59,100 @@
   line-height: 1.5;
   margin: 0;
 }
-.course-author__hint code {
+.course-author__hint code,
+.course-author__section code {
   color: var(--accent-peach);
 }
+
+/* Lessons */
+.course-author__section {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  border-top: 1px solid var(--border-default);
+  padding-top: 8px;
+}
+.course-author__section-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  color: var(--text-secondary);
+  font-size: 12px;
+}
+.course-author__btn {
+  background: transparent;
+  border: 1px solid var(--border-default);
+  color: var(--text-primary);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  padding: 2px 8px;
+  cursor: pointer;
+}
+.course-author__btn:hover { border-color: var(--accent-mint); }
+.course-author__empty {
+  color: var(--text-tertiary);
+  font-size: 11px;
+  padding: 4px 0;
+}
+.course-author__lessons {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.course-author__lesson {
+  border: 1px solid var(--border-muted);
+}
+.course-author__lesson-head {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 6px;
+  font-size: 12px;
+}
+.course-author__caret {
+  background: none;
+  border: none;
+  color: var(--text-quaternary);
+  cursor: pointer;
+  font-size: 9px;
+  padding: 0;
+  width: 12px;
+}
+.course-author__lesson-n {
+  color: var(--text-quaternary);
+  font-variant-numeric: tabular-nums;
+}
+.course-author__lesson-title {
+  flex: 1;
+  color: var(--text-primary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.course-author__icon {
+  background: transparent;
+  border: none;
+  color: var(--text-tertiary);
+  cursor: pointer;
+  font-size: 12px;
+  padding: 0 3px;
+}
+.course-author__icon:hover:not(:disabled) { color: var(--accent-mint); }
+.course-author__icon:disabled { opacity: 0.3; cursor: default; }
+.course-author__icon--del:hover { color: var(--accent-coral); }
+.course-author__md {
+  width: 100%;
+  box-sizing: border-box;
+  background: var(--bg-primary);
+  border: 1px solid var(--border-default);
+  border-top: none;
+  color: var(--text-primary);
+  font-family: var(--font-mono);
+  font-size: 12px;
+  padding: 6px;
+  resize: vertical;
+}
+.course-author__md:focus { outline: none; border-color: var(--accent-mint); }
