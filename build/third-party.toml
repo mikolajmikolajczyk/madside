@@ -165,6 +165,18 @@ license_note = "Musashi is MIT. The bundled softfloat/ (FPU) is John R. Hauser's
 artifact   = "packages/wasm-musashi/musashi.wasm"
 built_with = "host cc runs m68kmake to generate the opcode tables, then wasi-sdk clang builds m68kcpu.c + m68kops.c + softfloat/softfloat.c + our musashi-system.c harness as a wasm32 reactor (a setjmp shim stands in for wasi-sdk's SjLj-gated <setjmp.h>). See wiki/agents/musashi-wasm-build.md."
 
+[source.genesis-plus-gx]
+name       = "Genesis Plus GX"
+role       = "Full Sega Mega Drive / Genesis system emulator (VDP + YM2612/PSG + Z80 + I/O) — Genesis run/display backend, Phase B (#145)"
+upstream   = "https://github.com/ekeeke/Genesis-Plus-GX"
+source     = "https://github.com/ekeeke/Genesis-Plus-GX"
+ref        = "c7ecd07f0a08db1cdd6871d788476bfac55be638"
+version    = "snapshot (git)"
+license    = "Non-commercial (Genesis Plus GX — Charles MacDonald / Eke-Eke; some portions MAME)"
+license_note = "NON-COMMERCIAL: redistributions may not be sold or used in a commercial product. Shipped as a SEPARATE, aggregated emulator-core wasm (the app instantiates + calls it over an API boundary, not linked into the AGPL code) — same footing as the chips/altirra cores. madside's own code stays AGPL-3.0; the bundled core keeps this licence. Consequence: the assembled madside distribution is not commercially redistributable. NB this restricts only the IDE — games users BUILD with madside contain no emulator code and are unaffected. Uses Musashi internally, so the existing m68k-debug adapter works."
+artifact   = "packages/wasm-genesis-gpgx/genesis-gpgx.wasm"
+built_with = "Phase B (planned, not built yet): wasi-sdk clang reactor over core/ (base Genesis only — cd_hw/libchdr excluded) + a minimal osd glue + a custom frontend (load-from-buffer / frame / bitmap / m68k debug exports). Setjmp shim as for Musashi. Full plan: wiki/agents/genesis-gpgx-wasm-build.md."
+
 [builddep.fpc]
 upstream = "https://gitlab.com/freepascal.org/fpc/source.git"
 ref      = "17c002e6460417e6980fcae2affe6e5bbb00bd6a"
