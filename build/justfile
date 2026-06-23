@@ -395,3 +395,34 @@ compile-musashi-wasm:
 # Smoke: run a hand-built ROM (move.l #$12345678,d0) and check D0.
 verify-musashi-wasm:
     node --no-warnings "{{musashi_support}}/smoke.mjs" "{{musashi_out_dir}}/musashi.wasm"
+
+# === Genesis Plus GX (full Sega Mega Drive emulator) — #145 Phase B ===
+# Full-system backend (VDP + YM2612/PSG + Z80 + I/O), aggregated + disclosed
+# (non-commercial licence — see third-party.toml + wiki/agents/genesis-gpgx-wasm-build.md).
+gpgx_build_dir := root / "_notes/genesis-gpgx-spike/build"
+gpgx_src_dir   := gpgx_build_dir / "genesis-plus-gx"
+gpgx_out_dir   := root / "packages/wasm-genesis-gpgx"
+gpgx_support   := support / "genesis-gpgx"
+gpgx_repo      := `python3 ../scripts/third-party.py get source.genesis-plus-gx.upstream`
+gpgx_commit    := `python3 ../scripts/third-party.py get source.genesis-plus-gx.ref`
+
+# Build gpgx + the madside frontend harness to a wasm32 reactor. Single wasi-sdk
+# clang pass (gpgx commits its m68k tables — no host m68kmake). setjmp shim
+# reused from the Musashi build.
+build-genesis-gpgx-wasm: fetch-wasi-sdk clone-genesis-gpgx compile-genesis-gpgx-wasm verify-genesis-gpgx-wasm
+
+clone-genesis-gpgx:
+    if [ ! -d "{{gpgx_src_dir}}/.git" ]; then \
+        git clone "{{gpgx_repo}}" "{{gpgx_src_dir}}"; \
+    fi
+    cd "{{gpgx_src_dir}}" && git fetch origin "{{gpgx_commit}}" && git checkout "{{gpgx_commit}}"
+
+compile-genesis-gpgx-wasm:
+    GPGX="{{gpgx_src_dir}}" WASI_SDK="{{wasi_sdk_dir}}" OUT="{{gpgx_out_dir}}" \
+        SUPPORT="{{gpgx_support}}" MUSASHI_SHIM="{{support}}/musashi/shim" \
+        bash "{{gpgx_support}}/build-genesis-gpgx.sh"
+    @ls -lh "{{gpgx_out_dir}}/"*.wasm
+
+# Smoke: load a hand-built MD ROM (move.l #$12345678,d0), emulate frames, check D0.
+verify-genesis-gpgx-wasm:
+    node --no-warnings "{{gpgx_support}}/smoke.mjs" "{{gpgx_out_dir}}/genesis-gpgx.wasm"

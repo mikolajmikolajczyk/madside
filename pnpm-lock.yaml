@@ -358,6 +358,18 @@ importers:
         specifier: workspace:*
         version: link:../wasm-chips
 
+  packages/emulator-genesis-gpgx:
+    dependencies:
+      '@madside/core':
+        specifier: workspace:*
+        version: link:../core
+      '@madside/ports':
+        specifier: workspace:*
+        version: link:../ports
+      '@madside/wasm-genesis-gpgx':
+        specifier: workspace:*
+        version: link:../wasm-genesis-gpgx
+
   packages/emulator-genesis-musashi:
     dependencies:
       '@madside/core':
@@ -620,6 +632,8 @@ importers:
   packages/wasm-chips: {}
 
   packages/wasm-clownassembler: {}
+
+  packages/wasm-genesis-gpgx: {}
 
   packages/wasm-mads: {}
 
