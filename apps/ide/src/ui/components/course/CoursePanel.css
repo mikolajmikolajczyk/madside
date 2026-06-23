@@ -260,3 +260,6 @@
   opacity: 0.45;
   cursor: default;
 }
+
+/* Preview tag (CourseView, authoring preview #139) */
+.course__preview-tag { color: var(--text-quaternary); font-weight: normal; }

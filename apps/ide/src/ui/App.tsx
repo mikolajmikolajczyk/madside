@@ -21,6 +21,7 @@ import { PanelSlot } from "./components/PanelSlot";
 const Welcome = lazy(() => import("./components/Welcome").then((m) => ({ default: m.Welcome })));
 const CoursePanel = lazy(() => import("./components/course/CoursePanel").then((m) => ({ default: m.CoursePanel })));
 const CourseAuthor = lazy(() => import("./components/course/CourseAuthor").then((m) => ({ default: m.CourseAuthor })));
+const CourseAuthorPreview = lazy(() => import("./components/course/CourseAuthorPreview").then((m) => ({ default: m.CourseAuthorPreview })));
 import { TooltipProvider } from "./components/ui/Tooltip";
 import { TextPromptDialog, ConfirmDialog, Dialog, DialogContent } from "./components/ui/Dialog";
 import { useProject } from "@app/state";
@@ -251,9 +252,15 @@ export default function App() {
   useEffect(() => {
     const c = dockControlsRef.current;
     if (!c) return;
-    const isOpen = dockOpenIds.includes("course-author");
-    if (authoringActive && !isOpen) { c.setPanelOpen("course-author", true); c.focusPanel("course-author"); }
-    else if (!authoringActive && isOpen) c.setPanelOpen("course-author", false);
+    const authorOpen = dockOpenIds.includes("course-author");
+    const previewOpen = dockOpenIds.includes("course-preview");
+    if (authoringActive) {
+      if (!authorOpen) { c.setPanelOpen("course-author", true); c.focusPanel("course-author"); }
+      if (!previewOpen) c.setPanelOpen("course-preview", true);
+    } else {
+      if (authorOpen) c.setPanelOpen("course-author", false);
+      if (previewOpen) c.setPanelOpen("course-preview", false);
+    }
   }, [authoringActive, dockOpenIds]);
 
   // Theme (#118) — registered ThemePlugins; apply the selected palette's tokens
@@ -867,16 +874,23 @@ export default function App() {
   // Course Author surface (#139) — present only while authoring a course (the
   // project carries a root course.json), so its View-menu toggle shows only then.
   // Phase 1 edits course.json; persists via the multi-file writer (applyEdits).
-  const courseAuthorSurface = (project.loaded && isCourseAuthoring(project.files)) ? (
+  const authoring = project.loaded && isCourseAuthoring(project.files);
+  const courseFiles = authoring ? project.files.map((f) => ({ path: f.path, content: new TextDecoder().decode(f.content) })) : null;
+  const courseAuthorSurface = courseFiles ? (
     <Suspense fallback={<div className="app__loading">loading…</div>}>
       <CourseAuthor
-        files={project.files.map((f) => ({ path: f.path, content: new TextDecoder().decode(f.content) }))}
+        files={courseFiles}
         ops={{
           save: (edits) => { void project.applyEdits(edits.map((e) => ({ path: e.path, content: new TextEncoder().encode(e.content) }))); },
           deleteFolder: (prefix) => { void project.deleteFolder(prefix); },
           renameFolders: async (renames) => { for (const r of renames) await project.renameFolder(r.from, r.to); },
         }}
       />
+    </Suspense>
+  ) : null;
+  const courseAuthorPreviewSurface = courseFiles ? (
+    <Suspense fallback={<div className="app__loading">loading…</div>}>
+      <CourseAuthorPreview files={courseFiles} />
     </Suspense>
   ) : null;
 
@@ -1011,6 +1025,7 @@ export default function App() {
     emulator: emulatorSurface,
     ...(courseSurface ? { course: courseSurface } : {}),
     ...(courseAuthorSurface ? { "course-author": courseAuthorSurface } : {}),
+    ...(courseAuthorPreviewSurface ? { "course-preview": courseAuthorPreviewSurface } : {}),
     ...(outputSurface ? { output: outputSurface } : {}),
   };
   for (const d of debugSurfaces) dockSurfaces[d.id] = d.node;
@@ -1023,6 +1038,7 @@ export default function App() {
     { id: "emulator", title: "Emulator" },
     ...(courseSurface ? [{ id: "course", title: "Course" }] : []),
     ...(courseAuthorSurface ? [{ id: "course-author", title: "Course Author" }] : []),
+    ...(courseAuthorPreviewSurface ? [{ id: "course-preview", title: "Course Preview" }] : []),
     ...debugSurfaces.map((d) => ({ id: d.id, title: d.title })),
     ...(outputSurface ? [{ id: "output", title: "Output" }] : []),
   ];

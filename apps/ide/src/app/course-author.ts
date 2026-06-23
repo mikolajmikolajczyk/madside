@@ -146,6 +146,24 @@ export function lessonSwapRenames(a: LessonInfo, b: LessonInfo): { from: string;
   ]
 }
 
+/** The markdown body of a lesson (its `lesson.md`), or '' if absent. */
+export function readLessonBody(files: readonly { path: string; content: string }[], lessonId: string): string {
+  return files.find((f) => f.path === `lessons/${lessonId}/lesson.md`)?.content ?? ''
+}
+
+/** The declarative checks of a lesson (its `check.json`'s `checks`), or [] if
+ *  absent / malformed. */
+export function readLessonChecks(files: readonly { path: string; content: string }[], lessonId: string): CourseCheck[] {
+  const f = files.find((x) => x.path === `lessons/${lessonId}/check.json`)
+  if (!f) return []
+  try {
+    const o = JSON.parse(f.content) as { checks?: unknown }
+    return Array.isArray(o.checks) ? (o.checks as CourseCheck[]) : []
+  } catch {
+    return []
+  }
+}
+
 /** Files for a brand-new lesson appended after the existing ones (next numeric
  *  prefix). Mirrors the seed lesson's shape — a starter project + a build check. */
 export function newLessonFiles(lessons: readonly LessonInfo[], machine: string): { path: string; content: string }[] {

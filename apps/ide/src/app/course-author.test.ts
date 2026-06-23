@@ -11,6 +11,8 @@ import {
   listLessons,
   newLessonFiles,
   readCourseMeta,
+  readLessonBody,
+  readLessonChecks,
   slugify,
   type LessonInfo,
 } from "./course-author";
@@ -125,5 +127,18 @@ describe("lessons (phase 2)", () => {
 
   it("newLessonFiles starts at 01 for an empty course", () => {
     expect(newLessonFiles([], "atari-xl")[0]!.path).toBe("lessons/01-new-lesson/lesson.md");
+  });
+
+  it("readLessonBody / readLessonChecks read a lesson's md + checks", () => {
+    const f = [
+      { path: "lessons/01-intro/lesson.md", content: "# Intro\n\nhi" },
+      { path: "lessons/01-intro/check.json", content: JSON.stringify({ checks: [{ kind: "build" }, { kind: "label", name: "main" }] }) },
+      { path: "lessons/02-x/check.json", content: "{ not json" },
+    ];
+    expect(readLessonBody(f, "01-intro")).toBe("# Intro\n\nhi");
+    expect(readLessonBody(f, "99-none")).toBe("");
+    expect(readLessonChecks(f, "01-intro")).toEqual([{ kind: "build" }, { kind: "label", name: "main" }]);
+    expect(readLessonChecks(f, "02-x")).toEqual([]); // malformed → []
+    expect(readLessonChecks(f, "99-none")).toEqual([]); // absent → []
   });
 });
