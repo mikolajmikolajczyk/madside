@@ -20,6 +20,7 @@ import { Emulator } from "./components/debug/Emulator";
 import { PanelSlot } from "./components/PanelSlot";
 const Welcome = lazy(() => import("./components/Welcome").then((m) => ({ default: m.Welcome })));
 const CoursePanel = lazy(() => import("./components/course/CoursePanel").then((m) => ({ default: m.CoursePanel })));
+const CourseAuthor = lazy(() => import("./components/course/CourseAuthor").then((m) => ({ default: m.CourseAuthor })));
 import { TooltipProvider } from "./components/ui/Tooltip";
 import { TextPromptDialog, ConfirmDialog, Dialog, DialogContent } from "./components/ui/Dialog";
 import { useProject } from "@app/state";
@@ -50,6 +51,7 @@ import { useActiveMachine } from "./hooks/useActiveMachine";
 import { useWorkbench } from "@app";
 import { applyTheme, loadThemeId, saveThemeId } from "@app";
 import { getCourse, openLesson, refreshCourseFromGitHub, resetLessonToStarter, runChecks, scanEquates } from "@app";
+import { COURSE_FILE, isCourseAuthoring } from "@app";
 import type { CheckReport, CheckRunDeps } from "@app";
 import type { CourseCheck } from "@app";
 import "./App.css";
@@ -242,6 +244,17 @@ export default function App() {
     if (courseKey !== null && !isOpen) { c.setPanelOpen("course", true); c.focusPanel("course"); }
     else if (courseKey === null && isOpen) c.setPanelOpen("course", false);
   }, [courseKey, dockOpenIds]);
+
+  // Course Author surface (#139) — same condition-driven open/close: open + focus
+  // while the project is a course being authored (carries a root course.json).
+  const authoringActive = project.loaded && isCourseAuthoring(project.files);
+  useEffect(() => {
+    const c = dockControlsRef.current;
+    if (!c) return;
+    const isOpen = dockOpenIds.includes("course-author");
+    if (authoringActive && !isOpen) { c.setPanelOpen("course-author", true); c.focusPanel("course-author"); }
+    else if (!authoringActive && isOpen) c.setPanelOpen("course-author", false);
+  }, [authoringActive, dockOpenIds]);
 
   // Theme (#118) — registered ThemePlugins; apply the selected palette's tokens
   // to :root and persist the choice. Default 'dark' (matches base tokens.css).
@@ -851,6 +864,19 @@ export default function App() {
     </Suspense>
   ) : null;
 
+  // Course Author surface (#139) — present only while authoring a course (the
+  // project carries a root course.json), so its View-menu toggle shows only then.
+  // Phase 1 edits course.json; persists via the multi-file writer (applyEdits).
+  const courseJsonFile = project.loaded ? project.files.find((f) => f.path === COURSE_FILE) : undefined;
+  const courseAuthorSurface = courseJsonFile ? (
+    <Suspense fallback={<div className="app__loading">loading…</div>}>
+      <CourseAuthor
+        files={[{ path: COURSE_FILE, content: new TextDecoder().decode(courseJsonFile.content) }]}
+        onSave={(text) => { void project.applyEdits([{ path: COURSE_FILE, content: new TextEncoder().encode(text) }]); }}
+      />
+    </Suspense>
+  ) : null;
+
   // Outline of the active C file (#76) — its own dock panel (#120). Empty state
   // for non-C / system files so the panel reads sensibly when idle.
   const outlineSurface = isCFile(activePath) && !viewSystemFile ? (
@@ -981,6 +1007,7 @@ export default function App() {
     references: referencesSurface,
     emulator: emulatorSurface,
     ...(courseSurface ? { course: courseSurface } : {}),
+    ...(courseAuthorSurface ? { "course-author": courseAuthorSurface } : {}),
     ...(outputSurface ? { output: outputSurface } : {}),
   };
   for (const d of debugSurfaces) dockSurfaces[d.id] = d.node;
@@ -992,6 +1019,7 @@ export default function App() {
     { id: "references", title: "References" },
     { id: "emulator", title: "Emulator" },
     ...(courseSurface ? [{ id: "course", title: "Course" }] : []),
+    ...(courseAuthorSurface ? [{ id: "course-author", title: "Course Author" }] : []),
     ...debugSurfaces.map((d) => ({ id: d.id, title: d.title })),
     ...(outputSurface ? [{ id: "output", title: "Output" }] : []),
   ];

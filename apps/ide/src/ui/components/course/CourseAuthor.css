@@ -1,0 +1,64 @@
+/* Course Author surface (#139). Colours from host design tokens. */
+.course-author {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  overflow: auto;
+  background: var(--bg-secondary);
+  color: var(--text-primary);
+  font-family: var(--font-mono);
+  padding: 10px 14px;
+  gap: 10px;
+}
+.course-author__title {
+  border-bottom: 1px solid var(--border-default);
+  padding-bottom: 4px;
+}
+.course-author__form {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.course-author__field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 12px;
+}
+.course-author__field > span {
+  color: var(--text-secondary);
+}
+.course-author__field > span small {
+  color: var(--text-quaternary);
+  font-weight: normal;
+}
+.course-author__field input,
+.course-author__field textarea,
+.course-author__field select {
+  background: var(--bg-primary);
+  border: 1px solid var(--border-default);
+  color: var(--text-primary);
+  font-family: var(--font-mono);
+  font-size: 12px;
+  padding: 4px 6px;
+  width: 100%;
+  box-sizing: border-box;
+}
+.course-author__field textarea {
+  resize: vertical;
+}
+.course-author__field input:focus,
+.course-author__field textarea:focus,
+.course-author__field select:focus {
+  outline: none;
+  border-color: var(--accent-mint);
+}
+.course-author__hint {
+  color: var(--text-tertiary);
+  font-size: 11px;
+  line-height: 1.5;
+  margin: 0;
+}
+.course-author__hint code {
+  color: var(--accent-peach);
+}

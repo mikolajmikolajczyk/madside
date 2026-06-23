@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { createBlankProject, getCourse, getTemplateManifestText, installCourseFromGitHub, instantiateTemplate, listTemplates, officialCourseRef, officialCourseSourceId, openLesson, removeRemoteCourse, useWorkbench, type OfficialCourse } from "@app";
+import { createBlankProject, createCourseProject, getCourse, getTemplateManifestText, installCourseFromGitHub, instantiateTemplate, listTemplates, officialCourseRef, officialCourseSourceId, openLesson, removeRemoteCourse, useWorkbench, type OfficialCourse } from "@app";
 import { errorMessage, NetworkError } from "@ports";
 import { exportProjectZip } from "@app/project-zip";
 import { useCourses } from "../hooks/useCourses";
@@ -176,6 +176,18 @@ export function Welcome({ onOpen, projects = [], onDeleteProject }: Props) {
       onOpen(row.id);
     } catch (e) {
       setError(`could not create project: ${errorMessage(e)}`);
+      setBusy(null);
+    }
+  };
+
+  const createCourse = async () => {
+    setBusy("course");
+    setError(null);
+    try {
+      const row = await createCourseProject(workbench.storage);
+      onOpen(row.id);
+    } catch (e) {
+      setError(`could not create course: ${errorMessage(e)}`);
       setBusy(null);
     }
   };
@@ -523,6 +535,15 @@ export function Welcome({ onOpen, projects = [], onDeleteProject }: Props) {
                 {busy === "add-course" ? "adding…" : "Add"}
               </button>
             </div>
+            <button
+              type="button"
+              className="welcome__create"
+              disabled={busy != null}
+              onClick={() => void createCourse()}
+              data-testid="welcome.course-new"
+            >
+              {busy === "course" ? "creating…" : "Author a new course"}
+            </button>
         {(featured.length > 0 || courses.length > 0) && (
           <CardFilter
             query={courseQuery}
