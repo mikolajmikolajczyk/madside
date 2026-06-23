@@ -90,4 +90,18 @@ describe('manifest-driven machine selection', () => {
     expect(wb.machine.id).toBe('atari-xl')
     expect(fired).toBe(0)
   })
+
+  it('resolves the genesis machine + its emulator from the registry (#145)', () => {
+    // Regression: machineSetups was missing a 'genesis' entry, so loading a
+    // Genesis project left the previously-active machine's backend running
+    // (e.g. C64). Switching must land on genesis with its gpgx backend.
+    const wb = createWorkbench({
+      storage: createMemoryStorage(),
+      logger: createNoopLogger(),
+      emuBackendFactory: async () => stubBackend(),
+    })
+    wb.setActiveMachine('genesis')
+    expect(wb.machine.id).toBe('genesis')
+    expect(wb.plugins.get('emulator', 'genesis-gpgx')?.id).toBe('genesis-gpgx')
+  })
 })

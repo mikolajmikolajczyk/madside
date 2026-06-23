@@ -44,6 +44,7 @@ import { atariXl } from '@madside/machine-atari-xl'
 import { machineNes } from '@madside/machine-nes'
 import { machineC64 } from '@madside/machine-c64'
 import { machineZx } from '@madside/machine-zx'
+import { machineGenesis } from '@madside/machine-genesis'
 import { madsToolchain } from '@madside/toolchain-mads'
 
 // Workbench Core — the headless workbench instance the rest of the app talks
@@ -232,6 +233,11 @@ export function createWorkbench(deps: WorkbenchDeps): Workbench {
       machine: machineZx,
       backendFactory: resolveEmulatorBackend(machineZx),
       debugAdapter: deps.debugAdapter ?? resolveDebugAdapter(machineZx),
+    },
+    genesis: {
+      machine: machineGenesis,
+      backendFactory: resolveEmulatorBackend(machineGenesis),
+      debugAdapter: deps.debugAdapter ?? resolveDebugAdapter(machineGenesis),
     },
   }
   let activeMachine: MachinePlugin = atariXl

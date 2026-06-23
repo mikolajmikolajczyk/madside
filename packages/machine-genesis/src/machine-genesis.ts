@@ -33,6 +33,21 @@ export const machineGenesis: MachinePlugin = {
     channels: 2,
   },
 
+  // clownassembler emits a flat ROM (.bin). The emulator backends also accept
+  // raw .md/.gen dumps and de-interleave .smd. Without this the run service
+  // can't resolve a format and falls back to 'binary', which the backend rejects.
+  media: {
+    formats: ['bin', 'md', 'gen', 'smd'],
+    extToFormat: { bin: 'bin', md: 'md', gen: 'gen', smd: 'smd' },
+    defaultFormat: 'bin',
+    // .smd interleaved dumps carry a 512-byte header whose bytes 8/9 are $AA/$BB;
+    // everything else is treated as a flat ROM.
+    detect(bytes) {
+      if (bytes.length > 0x200 && bytes[8] === 0xaa && bytes[9] === 0xbb) return 'smd'
+      return 'bin'
+    },
+  },
+
   // 68000 bus (24-bit). Only the load-bearing regions are mapped; the rest of the
   // 16 MB space is unmapped/mirrored hardware. RAM is the 64K at $FF0000–$FFFFFF
   // (mirrored down through $E00000). The VDP, I/O and Z80 area are register

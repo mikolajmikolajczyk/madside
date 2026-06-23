@@ -1,4 +1,4 @@
-import { describe, it } from 'vitest'
+import { describe, expect, it } from 'vitest'
 import {
   assertConverterPlugin,
   assertDebugAdapterPlugin,
@@ -32,6 +32,19 @@ describe('MachinePlugin contract', () => {
   it('c64', () => assertMachinePlugin(machineC64))
   it('zx-spectrum', () => assertMachinePlugin(machineZx))
   it('genesis', () => assertMachinePlugin(machineGenesis))
+
+  // Regression: machine-genesis shipped without a `media` config, so the run
+  // service couldn't resolve a format and fell back to 'binary' — which the
+  // gpgx/musashi backends reject ("Failed to load binary"). A flat clownassembler
+  // ROM must resolve to a format the backend accepts.
+  it('genesis resolves a flat ROM to a loadable format', () => {
+    const media = machineGenesis.media!
+    expect(media).toBeDefined()
+    expect(media.formats).toContain(media.defaultFormat)
+    const flat = new Uint8Array(0x300) // no .smd $AA/$BB header
+    expect(media.detect(flat) ?? media.defaultFormat).toBe('bin')
+    expect(media.formats).toContain('bin')
+  })
 })
 
 describe('PanelPlugin contract', () => {
