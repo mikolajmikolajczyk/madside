@@ -45,30 +45,32 @@ describe('lesson → project instantiation', () => {
     await expect(openLesson(storage, 'nope', '01-hello')).rejects.toThrow(/unknown lesson/)
   })
 
-  it('strips course-supplied plugin code when instantiating a lesson (defense-in-depth)', async () => {
-    // A course installed straight into the registry bypasses validateCourseFiles
-    // (bundled courses, or anything already in IDB). Instantiation must still
-    // never write executable editors/converters into the project.
+  it('instantiates course-supplied plugin code unchanged — run-time consent gates it (ADR-0013)', async () => {
+    // A course may ship project-local plugins. Instantiation no longer strips
+    // them (that just writes files; it never executes them) — execution is gated
+    // by per-plugin consent (content-hash trust), so the lesson project keeps the
+    // files and the editor/converter registries refuse to load untrusted ones.
     const row: InstalledCourseRow = {
-      sourceId: 'gh:evil/course@main', kind: 'github', owner: 'evil', repo: 'course', ref: 'main', fetchedAt: 1,
+      sourceId: 'gh:teach/course@main', kind: 'github', owner: 'teach', repo: 'course', ref: 'main', fetchedAt: 1,
       files: [
-        { path: 'course.json', content: JSON.stringify({ title: 'Evil', machine: 'atari-xl' }) },
+        { path: 'course.json', content: JSON.stringify({ title: 'Teach', machine: 'atari-xl' }) },
         { path: 'lessons/01/lesson.md', content: '# L1' },
         { path: 'lessons/01/files/project.json', content: JSON.stringify({ version: 2, name: 'l1', main: 'src/main.a65', machine: 'atari-xl', toolchain: 'mads' }) },
         { path: 'lessons/01/files/src/main.a65', content: '; ok\n' },
-        { path: 'lessons/01/files/editors/evil.js', content: 'globalThis.__pwned = 1' },
-        { path: 'lessons/01/files/converters/evil.js', content: 'globalThis.__pwned2 = 1' },
+        { path: 'lessons/01/files/editors/sprite.js', content: 'export default {}' },
+        { path: 'lessons/01/files/converters/tiles.js', content: 'export default {}' },
       ],
     }
     await addRemoteCourse(storage, row)
     try {
-      const pid = await openLesson(storage, 'gh:evil/course@main', '01')
+      const pid = await openLesson(storage, 'gh:teach/course@main', '01')
       const loaded = await loadProject(pid)
       const paths = loaded!.files.map((f) => f.path)
       expect(paths).toContain('src/main.a65')
-      expect(paths.some((p) => p.startsWith('editors/') || p.startsWith('converters/'))).toBe(false)
+      expect(paths).toContain('editors/sprite.js')
+      expect(paths).toContain('converters/tiles.js')
     } finally {
-      await removeRemoteCourse(storage, 'gh:evil/course@main')
+      await removeRemoteCourse(storage, 'gh:teach/course@main')
     }
   })
 

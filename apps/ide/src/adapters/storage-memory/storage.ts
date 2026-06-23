@@ -41,7 +41,7 @@ export function createMemoryStorage(): StorageBackend {
   const courses = new Map<string, InstalledCourseRow>();
   const bpStore = new Map<string, Record<string, number[]>>(); // projectId → record
   const buildStore = new Map<string, StoredBuild>(); // projectId → last build (#62)
-  const meta: { activeProjectId?: string } = {};
+  const meta: { activeProjectId?: string; trustedPlugins?: Set<string> } = {};
 
   const filesOf = (projectId: string): FileRow[] =>
     [...files.values()].filter((f) => f.projectId === projectId);
@@ -301,6 +301,8 @@ export function createMemoryStorage(): StorageBackend {
     kv: {
       getActiveProjectId() { return Promise.resolve(meta.activeProjectId); },
       setActiveProjectId(id) { meta.activeProjectId = id; return Promise.resolve(); },
+      getTrustedPluginHashes() { return Promise.resolve([...(meta.trustedPlugins ?? [])]); },
+      addTrustedPluginHash(hash) { (meta.trustedPlugins ??= new Set()).add(hash); return Promise.resolve(); },
     },
   };
 }

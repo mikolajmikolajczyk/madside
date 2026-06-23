@@ -9,9 +9,11 @@ import {
   createProject,
   deleteFile,
   deleteFolder,
+  addTrustedPluginHash,
   deleteProject,
   duplicateProject,
   getActiveProjectId,
+  getTrustedPluginHashes,
   listProjects,
   loadProject,
   renameFile,
@@ -86,6 +88,8 @@ export function createIdbStorage(): StorageBackend {
     kv: {
       getActiveProjectId,
       setActiveProjectId,
+      getTrustedPluginHashes,
+      addTrustedPluginHash,
     },
   };
 }

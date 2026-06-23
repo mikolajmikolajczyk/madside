@@ -169,11 +169,17 @@ export interface CourseStore {
   remove(sourceId: string): Promise<void>
 }
 
-/** Key/value meta. Currently just the active-project pointer (also mirrored in
- *  the URL). Generic get/set is deferred until a second consumer needs it. */
+/** Key/value meta: the active-project pointer (also mirrored in the URL) plus the
+ *  global set of trusted project-local plugin hashes (ADR-0013). Generic get/set
+ *  is still deferred — these consumers get named methods. */
 export interface KeyValueStore {
   getActiveProjectId(): Promise<string | undefined>
   setActiveProjectId(id: string): Promise<void>
+  /** sha256 hex of every project-local plugin (editors/converters `*.js`) the
+   *  user has consented to run — trust is keyed on code, not project/path. */
+  getTrustedPluginHashes(): Promise<string[]>
+  /** Record consent for a plugin's exact content hash. Idempotent. */
+  addTrustedPluginHash(hash: string): Promise<void>
 }
 
 export interface StorageBackend {

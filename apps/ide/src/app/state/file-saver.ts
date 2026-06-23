@@ -32,6 +32,10 @@ export interface FileSaver {
    *  next `sync` (React effect cleanup) so a removed file can't write stale
    *  bytes after it's gone. */
   sync(projectId: string, files: DirtyFile[]): () => void
+  /** Seed the save baseline with already-persisted files (on project load), so
+   *  the first `sync` doesn't write them straight back — and a `write` hook only
+   *  observes genuine user edits, never load write-back (ADR-0013 provenance). */
+  prime(projectId: string, files: DirtyFile[]): void
   /** Cancel all pending writes and forget save history (project switch /
    *  unmount). */
   reset(): void
@@ -70,11 +74,15 @@ export function createFileSaver({ write, onSaved, delayMs }: FileSaverDeps): Fil
     }
   }
 
+  function prime(projectId: string, files: DirtyFile[]): void {
+    for (const { path, content } of files) lastSaved.set(`${projectId}::${path}`, content)
+  }
+
   function reset(): void {
     for (const h of timers.values()) clearTimeout(h)
     timers.clear()
     lastSaved.clear()
   }
 
-  return { sync, reset }
+  return { sync, prime, reset }
 }

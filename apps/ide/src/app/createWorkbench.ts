@@ -35,6 +35,7 @@ import { createPluginLoader } from '@adapters'
 // editors are no longer registered as panels (see the deleted dead scaffolding
 // + decision note below).
 import { builtinPlugins } from './builtin-plugins'
+import { filterTrustedConverterFiles } from './plugin-trust'
 // Composition-time references: these specific plugins are wired into the
 // machine-selection table / RunService init / introspection fields below, on
 // top of being registered via the builtin manifest. Every other built-in is
@@ -129,7 +130,10 @@ const registryToolchainResolver =
   }
 
 const makeDefaultRecipes = (storage: StorageBackend): RecipeRunnerFn => async (projectId, recipes, files) => {
-  const results = await runRecipes(projectId, recipes, files, (path, bytes) =>
+  // Only run converters the user has consented to (ADR-0013) — untrusted
+  // project-local converters are dropped so the build never executes them.
+  const trustedFiles = await filterTrustedConverterFiles(storage, files)
+  const results = await runRecipes(projectId, recipes, trustedFiles, (path, bytes) =>
     storage.projects.writeFile(projectId, path, bytes),
   )
   return results.map((r) => ({

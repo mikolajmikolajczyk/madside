@@ -10,6 +10,7 @@ import type { Manifest, ProjectRow } from "./types";
 // the ones call sites import from this module (MANIFEST_PATH + text codecs).
 export { MANIFEST_PATH, textToBytes, bytesToText };
 const META_ACTIVE_PROJECT = "activeProjectId";
+const META_TRUSTED_PLUGINS = "trustedPluginHashes";
 
 // Canonical shape lives in @ports/storage; re-export for continuity.
 export type { LoadedProject };
@@ -28,6 +29,22 @@ export async function getActiveProjectId(): Promise<string | undefined> {
 export async function setActiveProjectId(id: string): Promise<void> {
   const db = await getDB();
   await db.put("meta", { key: META_ACTIVE_PROJECT, value: id });
+}
+
+export async function getTrustedPluginHashes(): Promise<string[]> {
+  const db = await getDB();
+  const row = await db.get("meta", META_TRUSTED_PLUGINS);
+  return Array.isArray(row?.value) ? (row.value as string[]) : [];
+}
+
+export async function addTrustedPluginHash(hash: string): Promise<void> {
+  const db = await getDB();
+  const tx = db.transaction("meta", "readwrite");
+  const row = await tx.store.get(META_TRUSTED_PLUGINS);
+  const set = new Set(Array.isArray(row?.value) ? (row.value as string[]) : []);
+  set.add(hash);
+  await tx.store.put({ key: META_TRUSTED_PLUGINS, value: [...set] });
+  await tx.done;
 }
 
 export async function loadProject(id: string): Promise<LoadedProject | null> {

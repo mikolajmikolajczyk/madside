@@ -52,3 +52,7 @@
 .about__links { margin: 0; font-size: 12px; }
 .about__links a { color: var(--accent-mint); }
 .about__muted { color: var(--text-tertiary); }
+
+/* Editor surface: consent banner stacked above the active editor (ADR-0013). */
+.app__editor-surface { display: flex; flex-direction: column; height: 100%; min-height: 0; }
+.app__editor-body { flex: 1; min-height: 0; position: relative; }

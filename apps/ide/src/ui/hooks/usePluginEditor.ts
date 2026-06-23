@@ -1,5 +1,5 @@
-import { useEffect, useMemo, useState } from "react";
-import { buildEditorRegistry, resolveEditorId } from "@app";
+import { useEffect, useMemo, useState, useSyncExternalStore } from "react";
+import { buildEditorRegistry, partitionPlugins, resolveEditorId, subscribeTrustedPlugins, trustedPluginsSnapshot } from "@app";
 import type { EditorModule } from "@ports";
 import { extOf } from "@core/path";
 
@@ -49,15 +49,19 @@ export function usePluginEditor({ files, activePath, manifestEditors }: Args): U
     [sources],
   );
 
+  // Only load editors the user has consented to (ADR-0013). Re-run when the
+  // trusted set changes so trusting a plugin activates it without a reload.
+  const trustedSet = useSyncExternalStore(subscribeTrustedPlugins, trustedPluginsSnapshot, trustedPluginsSnapshot);
+
   const [registry, setRegistry] = useState<Map<string, EditorModule>>(new Map());
   useEffect(() => {
     let cancelled = false;
-    void buildEditorRegistry(sources).then((reg) => {
-      if (!cancelled) setRegistry(reg);
-    });
+    void partitionPlugins(sources)
+      .then(({ trusted }) => buildEditorRegistry(trusted))
+      .then((reg) => { if (!cancelled) setRegistry(reg); });
     return () => { cancelled = true; };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [sourcesKey]);
+  }, [sourcesKey, trustedSet]);
 
   const activeModule = useMemo<EditorModule | null>(() => {
     if (!activePath || registry.size === 0) return null;

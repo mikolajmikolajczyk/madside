@@ -1,0 +1,70 @@
+.plugin-trust {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 10px 12px;
+  background: var(--bg-tertiary);
+  border-bottom: 2px solid var(--accent-peach);
+  font-size: 13px;
+  color: var(--text-primary);
+}
+
+.plugin-trust__head {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+}
+
+.plugin-trust__icon {
+  color: var(--accent-peach);
+  font-size: 14px;
+}
+
+.plugin-trust__list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.plugin-trust__row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.plugin-trust__path {
+  font-family: var(--font-mono);
+  color: var(--text-secondary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.plugin-trust__actions {
+  display: flex;
+  gap: 6px;
+  flex-shrink: 0;
+}
+
+.plugin-trust__trust,
+.plugin-trust__skip {
+  padding: 3px 10px;
+  border-radius: 4px;
+  border: 1px solid var(--border-default);
+  background: var(--bg-secondary);
+  color: var(--text-primary);
+  cursor: pointer;
+  font-size: 12px;
+}
+
+.plugin-trust__trust {
+  border-color: var(--accent-mint);
+  color: var(--accent-mint);
+}
+
+.plugin-trust__trust:hover { background: var(--bg-primary); }
+.plugin-trust__skip:hover { background: var(--bg-primary); }

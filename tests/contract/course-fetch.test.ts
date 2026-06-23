@@ -105,11 +105,12 @@ describe('validateCourseFiles', () => {
     expect(r.ok).toBe(false)
     expect(r.error).toMatch(/invalid check/)
   })
-  it('rejects a course shipping plugin code (editors/converters are not course content)', () => {
-    for (const p of ['lessons/01-first/files/editors/evil.js', 'lessons/01-first/files/converters/evil.js']) {
-      const r = validateCourseFiles([...good, { path: p, content: 'globalThis.__pwned = 1' }])
-      expect(r.ok, p).toBe(false)
-      expect(r.error).toMatch(/plugin code|editors|converters/)
+  it('accepts a course shipping plugin code — run-time consent gates it now (ADR-0013)', () => {
+    // Courses may ship editors/converters; they no longer execute on load, they
+    // require per-plugin consent (content-hash trust), so install no longer rejects.
+    for (const p of ['lessons/01-first/files/editors/x.js', 'lessons/01-first/files/converters/x.js']) {
+      const r = validateCourseFiles([...good, { path: p, content: 'export default {}' }])
+      expect(r.ok, p).toBe(true)
     }
   })
   it('still accepts ordinary starter files under files/', () => {

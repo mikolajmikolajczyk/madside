@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { createFileSaver, type FileSaver } from "./file-saver";
 import { exportProjectZip, importProjectZip } from "../project-zip";
+import { PLUGIN_FILE_RE, pluginHash, trustPluginHash } from "../plugin-trust";
 import { MANIFEST_PATH } from "@madside/storage-idb";
 import { errorMessage, parseProjectManifest } from "@ports";
 import type { EventBus, FileRow, ProjectManifestV2 as Manifest, ProjectRow, SnapshotMeta, StorageBackend } from "@ports";
@@ -123,10 +124,24 @@ export function useProject(storage: StorageBackend, events?: EventBus) {
   // lifetime), so the lazy useState init captures them directly — a single,
   // stable saver with no render-time ref write (#28).
   const [saver] = useState<FileSaver>(() => createFileSaver({
-    write: (pid, path, content) => storage.projects.writeFile(pid, path, content),
+    write: async (pid, path, content) => {
+      await storage.projects.writeFile(pid, path, content);
+      // Provenance (ADR-0013): a plugin the user *wrote* in-app is theirs to
+      // trust. Load write-back can't reach here — `prime` seeds the baseline on
+      // load, so this fires only on genuine edits.
+      if (PLUGIN_FILE_RE.test(path)) void trustPluginHash(storage, await pluginHash(content));
+    },
     onSaved: (path) => events?.emit('file:changed', { path }),
     delayMs: SAVE_DEBOUNCE_MS,
   }));
+
+  // Seed the saver baseline on project load (keyed on projectId → once per load,
+  // not per edit) so the loaded files aren't written straight back — and the
+  // provenance hook in `write` sees only genuine edits, never load write-back.
+  useEffect(() => {
+    if (state) saver.prime(state.projectId, state.files);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [state?.projectId, saver]);
 
   // Schedule dirty-file writes; the saver's returned cleanup cancels exactly
   // this run's timers, so a file removed inside the debounce window can't

@@ -50,7 +50,8 @@ import { useAutoAssemble } from "./hooks/useAutoAssemble";
 import { useRunStatus } from "./hooks/useRunStatus";
 import { useActiveMachine } from "./hooks/useActiveMachine";
 import { useWorkbench } from "@app";
-import { applyTheme, loadThemeId, saveThemeId } from "@app";
+import { applyTheme, loadThemeId, saveThemeId, hydrateTrustedPlugins } from "@app";
+import { PluginTrustBanner } from "./components/PluginTrustBanner";
 import { addLessonInFiles, getCourse, getDraftCourse, openLesson, readCourseMeta, refreshCourseFromGitHub, resetLessonToStarter, runChecks, saveDraftCourse, scanEquates, setLessonStarterInFiles, starterFilesForMachine } from "@app";
 import { useCourses } from "./hooks/useCourses";
 import type { CheckReport, CheckRunDeps } from "@app";
@@ -104,6 +105,10 @@ export default function App() {
   const workbench = useWorkbench();
   const toast = useToast();
   const project = useProject(workbench.storage, workbench.events);
+
+  // Hydrate the project-local plugin trust set (ADR-0013) so editor/converter
+  // gates reflect persisted consent from the first render.
+  useEffect(() => { void hydrateTrustedPlugins(workbench.storage); }, [workbench.storage]);
 
   // Run lifecycle is owned by RunService (ADR-0007). UI reads via the hook;
   // no parallel React state. `running` + `hasEmu` are derived primitives.
@@ -985,7 +990,7 @@ export default function App() {
     <div className="app__panel-empty">No references — use “Find references”.</div>
   );
 
-  const editorSurface = viewSystemFile ? (
+  const editorBody = viewSystemFile ? (
     <SystemFileView
       path={viewSystemFile.path}
       text={viewSystemFile.text}
@@ -1049,6 +1054,15 @@ export default function App() {
         onCursorLine={setCursorLine}
       />
     </Suspense>
+  );
+
+  // Editor surface = the consent banner (renders only when the project ships
+  // untrusted plugins) stacked above the active editor (ADR-0013).
+  const editorSurface = (
+    <div className="app__editor-surface">
+      <PluginTrustBanner files={project.loaded ? project.files : null} />
+      <div className="app__editor-body">{editorBody}</div>
+    </div>
   );
 
   const outputSurface = project.loaded && outputPanel ? (
