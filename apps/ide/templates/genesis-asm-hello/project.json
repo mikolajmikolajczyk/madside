@@ -1,0 +1,8 @@
+{
+  "version": 2,
+  "name": "genesis-asm-hello",
+  "main": "src/main.asm",
+  "machine": "genesis",
+  "toolchain": "clownassembler",
+  "run": { "default": { "audio": true } }
+}

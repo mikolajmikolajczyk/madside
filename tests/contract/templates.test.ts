@@ -15,7 +15,7 @@ describe('project templates', () => {
 
   it('lists the bundled templates with display metadata, ordered', () => {
     const list = listTemplates()
-    expect(list.map((t) => t.id)).toEqual(['atari-hello', 'nes-hello', 'nes-apu-hello', 'nes-c-hello', 'atari-c-hello', 'c64-c-hello', 'c64-hello', 'empty', 'zx-asm-hello', 'zx-c-hello'])
+    expect(list.map((t) => t.id)).toEqual(['atari-hello', 'nes-hello', 'nes-apu-hello', 'nes-c-hello', 'atari-c-hello', 'c64-c-hello', 'c64-hello', 'empty', 'genesis-asm-hello', 'zx-asm-hello', 'zx-c-hello'])
     expect(list[0]).toMatchObject({ machine: 'atari-xl', name: expect.stringContaining('Atari') })
     expect(list[1]).toMatchObject({ machine: 'nes' })
     expect(list[2]).toMatchObject({ id: 'nes-apu-hello', machine: 'nes' })
@@ -24,8 +24,9 @@ describe('project templates', () => {
     expect(list[5]).toMatchObject({ id: 'c64-c-hello', machine: 'c64' })
     expect(list[6]).toMatchObject({ id: 'c64-hello', machine: 'c64' })
     expect(list[7]).toMatchObject({ id: 'empty', machine: 'atari-xl' })
-    expect(list[8]).toMatchObject({ id: 'zx-asm-hello', machine: 'zx-spectrum' })
-    expect(list[9]).toMatchObject({ id: 'zx-c-hello', machine: 'zx-spectrum' })
+    expect(list[8]).toMatchObject({ id: 'genesis-asm-hello', machine: 'genesis' })
+    expect(list[9]).toMatchObject({ id: 'zx-asm-hello', machine: 'zx-spectrum' })
+    expect(list[10]).toMatchObject({ id: 'zx-c-hello', machine: 'zx-spectrum' })
     expect(list[0]!.description.length).toBeGreaterThan(0)
   })
 
@@ -75,6 +76,17 @@ describe('project templates', () => {
     const main = loaded!.files.find((f) => f.path === 'src/nes-hello.a65')
     expect(main).toBeTruthy()
     expect(new TextDecoder().decode(main!.content)).toMatch(/opt h-/)
+  })
+
+  it('instantiates the Genesis template (clownassembler M68k)', async () => {
+    const row = await instantiateTemplate(storage, 'genesis-asm-hello')
+    const loaded = await loadProject(row.id)
+    expect(loaded!.manifest.machine).toBe('genesis')
+    expect(loaded!.manifest.toolchain).toBe('clownassembler')
+    expect(loaded!.manifest.main).toBe('src/main.asm')
+    const paths = loaded!.files.map((f) => f.path).sort()
+    expect(paths).toContain('src/main.asm')
+    expect(paths).toContain('src/genesis.inc')
   })
 
   it('honours a name override and rejects unknown ids', async () => {

@@ -1,0 +1,6 @@
+{
+  "name": "Sega Genesis — Hello World (M68k asm)",
+  "description": "Write Sega Mega Drive / Genesis programs in Motorola 68000 assembly. clownassembler assembles the source to a flat ROM that boots on the Genesis Plus GX core (VDP + YM2612/PSG + Z80). Sets up the VDP and shows a solid blue background — extend it with tiles, a palette, and nametable writes.",
+  "machine": "genesis",
+  "order": 10
+}
