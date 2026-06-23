@@ -1,7 +1,8 @@
 import { describe, expect, it } from "vitest";
 import { unzipSync } from "fflate";
 import { createMemoryStorage } from "@adapters/storage-memory";
-import { validateCourseFiles } from "./courses";
+import { getCourse, getLesson, validateCourseFiles } from "./courses";
+import { createDraftCourse, getDraftCourse, importDraftCourse, saveDraftCourse } from "./course-author";
 import {
   AUTHORABLE_MACHINES,
   COURSE_FILE,
@@ -82,6 +83,54 @@ describe("createCourseProject", () => {
     const loaded = await storage.projects.load(row.id);
     const files = loaded!.files.map((f) => ({ path: f.path, content: dec.decode(f.content) }));
     expect(AUTHORABLE_MACHINES).toContain(readCourseMeta(files)!.machine);
+  });
+});
+
+describe("draft course bundle", () => {
+  it("createDraftCourse registers a local course the read API sees", async () => {
+    const storage = createMemoryStorage();
+    const { courseId, lessonId } = await createDraftCourse(storage, { name: "Drafty", machine: "atari-xl" });
+    expect(courseId.startsWith("local:")).toBe(true);
+    expect(lessonId).toBe("01-intro");
+
+    const info = getCourse(courseId);
+    expect(info).toBeDefined();
+    expect(info!.source.kind).toBe("local");
+    expect(info!.title).toBe("Drafty");
+    expect(info!.lessons).toContain(lessonId);
+
+    const lesson = getLesson(courseId, lessonId);
+    expect(lesson).toBeDefined();
+    expect(lesson!.body).toContain("# Introduction");
+    expect(lesson!.checks).toEqual([{ kind: "build" }]);
+
+    // It round-trips through the courses store.
+    const files = await getDraftCourse(storage, courseId);
+    expect(files!.some((f) => f.path === "course.json")).toBe(true);
+  });
+
+  it("saveDraftCourse overwrites the bundle by id (re-registers)", async () => {
+    const storage = createMemoryStorage();
+    const { courseId } = await createDraftCourse(storage, { name: "Edit me", machine: "c64" });
+    const files = (await getDraftCourse(storage, courseId))!;
+    const next = files.map((f) => (f.path === "course.json" ? { ...f, content: JSON.stringify({ title: "Renamed", description: "d", machine: "c64" }) } : f));
+    await saveDraftCourse(storage, courseId, next);
+    expect(getCourse(courseId)!.title).toBe("Renamed");
+  });
+
+  it("importDraftCourse validates + registers; rejects invalid", async () => {
+    const storage = createMemoryStorage();
+    const good = [
+      { path: "course.json", content: JSON.stringify({ title: "Imported", description: "d", machine: "atari-xl" }) },
+      { path: "lessons/01-intro/lesson.md", content: "# Intro" },
+      { path: "lessons/01-intro/files/project.json", content: JSON.stringify({ version: 2, name: "l", main: "src/m.a65", machine: "atari-xl", toolchain: "mads" }) },
+      { path: "lessons/01-intro/files/src/m.a65", content: "; x" },
+    ];
+    const { courseId, lessonId } = await importDraftCourse(storage, good);
+    expect(getCourse(courseId)!.source.kind).toBe("local");
+    expect(lessonId).toBe("01-intro");
+
+    await expect(importDraftCourse(storage, [{ path: "course.json", content: "{}" }])).rejects.toThrow();
   });
 });
 

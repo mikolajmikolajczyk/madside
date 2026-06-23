@@ -75,16 +75,18 @@ export interface SnapshotDiff {
   unchanged: number // count, not list
 }
 
-/** A course installed from a remote git repo. Stored as course-root-relative
+/** A course held in the courses store. `github` = installed from a remote git
+ *  repo; `local` = a draft authored in-app (#139). Stored as course-root-relative
  *  files; the CourseSource rebuilds the bundle on read. */
 export interface InstalledCourseRow {
-  /** Stable id, e.g. "gh:owner/repo@ref". Also the course id in the registry. */
+  /** Stable id, e.g. "gh:owner/repo@ref" or "local:<uuid>". Also the course id. */
   sourceId: string
-  kind: 'github'
-  owner: string
-  repo: string
+  kind: 'github' | 'local'
+  /** GitHub provenance (absent for local drafts). */
+  owner?: string
+  repo?: string
   /** Requested ref (branch/tag/commit); "" means the repo default branch. */
-  ref: string
+  ref?: string
   /** Concrete version jsDelivr resolved the ref to (for display/immutability). */
   resolvedRef?: string
   fetchedAt: number

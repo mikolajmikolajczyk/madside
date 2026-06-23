@@ -45,6 +45,7 @@ export interface CourseMeta {
 /** Where a course came from. */
 export type CourseSource =
   | { kind: 'bundled' }
+  | { kind: 'local'; sourceId: string } // an in-app draft being authored (#139)
   | {
       kind: 'github'
       sourceId: string
@@ -229,19 +230,18 @@ export function coursesSnapshot(): CourseInfo[] {
 function bundleFromRow(row: InstalledCourseRow): CourseBundle | null {
   const built = assembleCourse(row.files)
   if (!built) return null
-  return {
-    id: row.sourceId,
-    ...built,
-    source: {
-      kind: 'github',
-      sourceId: row.sourceId,
-      owner: row.owner,
-      repo: row.repo,
-      ref: row.ref,
-      resolvedRef: row.resolvedRef,
-      fetchedAt: row.fetchedAt,
-    },
-  }
+  const source: CourseSource = row.kind === 'local'
+    ? { kind: 'local', sourceId: row.sourceId }
+    : {
+        kind: 'github',
+        sourceId: row.sourceId,
+        owner: row.owner ?? '',
+        repo: row.repo ?? '',
+        ref: row.ref ?? '',
+        resolvedRef: row.resolvedRef,
+        fetchedAt: row.fetchedAt,
+      }
+  return { id: row.sourceId, ...built, source }
 }
 
 let hydration: Promise<void> | null = null

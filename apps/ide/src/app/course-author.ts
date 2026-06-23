@@ -8,8 +8,9 @@
 
 import { zipSync } from 'fflate'
 import { MANIFEST_PATH, textToBytes } from '@madside/storage-idb'
-import type { ProjectManifestV2 as Manifest, ProjectRow, StorageBackend } from '@ports'
-import { validateCourseFiles, type CourseCheck, type CourseMeta } from './courses'
+import { newProjectId } from '@madside/storage-shared'
+import type { InstalledCourseRow, ProjectManifestV2 as Manifest, ProjectRow, StorageBackend } from '@ports'
+import { addRemoteCourse, validateCourseFiles, type CourseCheck, type CourseMeta } from './courses'
 import { starterFilesForMachine } from './templates'
 
 /** Root descriptor file whose presence marks a project as a course in authoring. */
@@ -102,6 +103,64 @@ export async function createCourseProject(
     { path: `${dir}/check.json`, content: textToBytes(json(check)) },
   ]
   return storage.projects.create(name, files, container)
+}
+
+// ── Draft course bundle (#139 rework) — authoring = inverse of the learner ────
+// A course is a bundle in the courses store (source.kind 'local'). Authoring
+// edits the bundle; the active lesson is opened with the SAME `openLesson` a
+// learner uses, so the file tree is a normal lesson project (no container, no
+// filtered view). These helpers own the bundle CRUD; switching/save-back live in
+// the UI (course-project + the Course Author panel).
+
+/** The course-root-relative files for a fresh draft: course.json + one buildable
+ *  lesson (its starter from the machine template). */
+export function draftCourseFiles(name: string, machine: string): { path: string; content: string }[] {
+  const meta: CourseMeta = { title: name, description: 'A new course.', machine }
+  const dir = 'lessons/01-intro'
+  const check: { checks: CourseCheck[] } = { checks: [{ kind: 'build' }] }
+  return [
+    { path: COURSE_FILE, content: courseMetaText(meta) },
+    { path: `${dir}/lesson.md`, content: '# Introduction\n\nWrite the lesson theory here.\n' },
+    ...lessonStarter(machine, `${name} — lesson 1`).map((f) => ({ path: `${dir}/files/${f.path}`, content: f.content })),
+    { path: `${dir}/check.json`, content: json(check) },
+  ]
+}
+
+/** Persist + register a draft course bundle (install or overwrite by id), so the
+ *  learner read API (`getCourse`/`getLesson`) + preview see it immediately. */
+export async function saveDraftCourse(storage: StorageBackend, courseId: string, files: { path: string; content: string }[]): Promise<void> {
+  const row: InstalledCourseRow = { sourceId: courseId, kind: 'local', fetchedAt: 0, files }
+  await addRemoteCourse(storage, row)
+}
+
+/** The stored files of a draft course, or null if it's gone. */
+export async function getDraftCourse(storage: StorageBackend, courseId: string): Promise<{ path: string; content: string }[] | null> {
+  const row = await storage.courses.get(courseId)
+  return row?.files ?? null
+}
+
+/** Create a new draft course bundle. Returns its id + first lesson id; the caller
+ *  opens that lesson (openLesson) to start editing. */
+export async function createDraftCourse(storage: StorageBackend, opts?: { name?: string; machine?: string }): Promise<{ courseId: string; lessonId: string }> {
+  const machine = opts?.machine && SEED[opts.machine] ? opts.machine : DEFAULT_MACHINE
+  const name = opts?.name?.trim() || 'Untitled course'
+  const files = draftCourseFiles(name, machine)
+  const courseId = `local:${newProjectId(name)}`
+  await saveDraftCourse(storage, courseId, files)
+  return { courseId, lessonId: listLessons(files)[0]!.id }
+}
+
+/** Create a draft course bundle from imported files (folder/zip), rebased onto
+ *  the course root + validated. Returns its id + first lesson id. */
+export async function importDraftCourse(storage: StorageBackend, courseFiles: readonly { path: string; content: string }[]): Promise<{ courseId: string; lessonId: string }> {
+  const files = rebaseCourseFiles(courseFiles)
+  const v = validateCourseFiles(files)
+  if (!v.ok) throw new Error(v.error ?? 'invalid course')
+  const first = listLessons(files)[0]
+  if (!first) throw new Error('course has no lessons')
+  const courseId = `local:${newProjectId(readCourseMeta(files)?.title ?? 'course')}`
+  await saveDraftCourse(storage, courseId, files)
+  return { courseId, lessonId: first.id }
 }
 
 // ── Import (#139) — bring an existing course into authoring ───────────────────
