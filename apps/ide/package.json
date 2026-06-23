@@ -34,6 +34,7 @@
     "@madside/lsp-z80": "workspace:*",
     "@madside/machine-atari-xl": "workspace:*",
     "@madside/machine-c64": "workspace:*",
+    "@madside/machine-genesis": "workspace:*",
     "@madside/machine-nes": "workspace:*",
     "@madside/machine-zx": "workspace:*",
     "@madside/panel-memory": "workspace:*",

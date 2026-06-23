@@ -3,6 +3,7 @@ import { atariXl } from '@madside/machine-atari-xl'
 import { machineNes } from '@madside/machine-nes'
 import { machineC64 } from '@madside/machine-c64'
 import { machineZx } from '@madside/machine-zx'
+import { machineGenesis } from '@madside/machine-genesis'
 import { madsToolchain } from '@madside/toolchain-mads'
 import { cc65Toolchain } from '@madside/toolchain-ca65'
 import { z88dkToolchain } from '@madside/toolchain-z88dk'
@@ -37,6 +38,7 @@ export const builtinPlugins: readonly PluginBase[] = [
   machineNes,
   machineC64,
   machineZx,
+  machineGenesis,
   // toolchains
   madsToolchain,
   cc65Toolchain,

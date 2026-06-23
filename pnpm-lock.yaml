@@ -186,6 +186,9 @@ importers:
       '@madside/machine-c64':
         specifier: workspace:*
         version: link:../../packages/machine-c64
+      '@madside/machine-genesis':
+        specifier: workspace:*
+        version: link:../../packages/machine-genesis
       '@madside/machine-nes':
         specifier: workspace:*
         version: link:../../packages/machine-nes
@@ -416,6 +419,12 @@ importers:
         version: link:../ports
 
   packages/machine-c64:
+    dependencies:
+      '@madside/ports':
+        specifier: workspace:*
+        version: link:../ports
+
+  packages/machine-genesis:
     dependencies:
       '@madside/ports':
         specifier: workspace:*

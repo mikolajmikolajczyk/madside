@@ -10,6 +10,7 @@ import { atariXl } from '@madside/machine-atari-xl'
 import { machineNes } from '@madside/machine-nes'
 import { machineC64 } from '@madside/machine-c64'
 import { machineZx } from '@madside/machine-zx'
+import { machineGenesis } from '@madside/machine-genesis'
 import { registersPanel } from '@madside/panel-registers'
 import { memoryPanel } from '@madside/panel-memory'
 import { outputPanel } from '@madside/panel-output'
@@ -29,6 +30,7 @@ describe('MachinePlugin contract', () => {
   it('nes', () => assertMachinePlugin(machineNes))
   it('c64', () => assertMachinePlugin(machineC64))
   it('zx-spectrum', () => assertMachinePlugin(machineZx))
+  it('genesis', () => assertMachinePlugin(machineGenesis))
 })
 
 describe('PanelPlugin contract', () => {
