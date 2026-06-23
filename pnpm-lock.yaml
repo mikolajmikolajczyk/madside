@@ -156,6 +156,9 @@ importers:
       '@madside/debug-atari-6502':
         specifier: workspace:*
         version: link:../../packages/debug-atari-6502
+      '@madside/debug-m68k':
+        specifier: workspace:*
+        version: link:../../packages/debug-m68k
       '@madside/debug-zx-z80':
         specifier: workspace:*
         version: link:../../packages/debug-zx-z80
@@ -320,6 +323,12 @@ importers:
         version: 8.0.3
 
   packages/debug-atari-6502:
+    dependencies:
+      '@madside/ports':
+        specifier: workspace:*
+        version: link:../ports
+
+  packages/debug-m68k:
     dependencies:
       '@madside/ports':
         specifier: workspace:*

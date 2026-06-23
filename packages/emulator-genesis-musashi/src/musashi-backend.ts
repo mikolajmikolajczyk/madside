@@ -1,4 +1,4 @@
-import type { RunBackend } from '@ports'
+import type { Cpu68kState, RunBackend } from '@ports'
 import { loadWasmModule } from '@core/vfs'
 import { musashiWasmUrl } from '@madside/wasm-musashi'
 
@@ -29,14 +29,6 @@ interface MusashiExports {
   rom_capacity(): number
   ram_ptr(): number
   ram_size(): number
-}
-
-/** Decoded 68000 register file — what cpuState() returns for the debug adapter. */
-export interface Cpu68kState {
-  d: number[]   // D0–D7
-  a: number[]   // A0–A7
-  pc: number
-  sr: number
 }
 
 async function instantiate(): Promise<MusashiExports> {

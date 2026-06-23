@@ -24,6 +24,7 @@
     "@lezer/highlight": "^1.2.3",
     "@madside/converters": "workspace:*",
     "@madside/debug-atari-6502": "workspace:*",
+    "@madside/debug-m68k": "workspace:*",
     "@madside/debug-zx-z80": "workspace:*",
     "@madside/editors": "workspace:*",
     "@madside/emulator-c64-chips": "workspace:*",

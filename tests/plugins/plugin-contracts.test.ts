@@ -18,6 +18,7 @@ import { ppuPanel } from '@madside/panel-ppu'
 import { variablesPanel } from '@madside/panel-variables'
 import { atari6502DebugAdapter } from '@madside/debug-atari-6502'
 import { zxZ80DebugAdapter } from '@madside/debug-zx-z80'
+import { m68kDebugAdapter } from '@madside/debug-m68k'
 import { jsnesEmulator } from '@madside/emulator-nes-jsnes'
 import { listBuiltins } from '@madside/converters'
 import { listBuiltinEditors } from '@madside/editors'
@@ -48,6 +49,9 @@ describe('DebugAdapterPlugin contract', () => {
   })
   it('zx-z80-debug', async () => {
     assertDebugAdapterPlugin(zxZ80DebugAdapter, await jsnesEmulator.createBackend())
+  })
+  it('m68k-debug', async () => {
+    assertDebugAdapterPlugin(m68kDebugAdapter, await jsnesEmulator.createBackend())
   })
 })
 

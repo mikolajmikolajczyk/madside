@@ -1,0 +1,13 @@
+{
+  "name": "@madside/debug-m68k",
+  "version": "0.0.0",
+  "type": "module",
+  "main": "./src/index.ts",
+  "types": "./src/index.ts",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "dependencies": {
+    "@madside/ports": "workspace:*"
+  }
+}

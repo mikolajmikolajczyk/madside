@@ -15,6 +15,7 @@ import { genesisMusashiEmulator } from '@madside/emulator-genesis-musashi'
 import { altirraEmulator } from '@adapters/emu'
 import { atari6502DebugAdapter } from '@madside/debug-atari-6502'
 import { zxZ80DebugAdapter } from '@madside/debug-zx-z80'
+import { m68kDebugAdapter } from '@madside/debug-m68k'
 import { registersPanel } from '@madside/panel-registers'
 import { memoryPanel } from '@madside/panel-memory'
 import { outputPanel } from '@madside/panel-output'
@@ -55,6 +56,7 @@ export const builtinPlugins: readonly PluginBase[] = [
   // debug adapters
   atari6502DebugAdapter,
   zxZ80DebugAdapter,
+  m68kDebugAdapter,
   // panels
   registersPanel,
   memoryPanel,
