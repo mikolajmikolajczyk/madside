@@ -165,6 +165,9 @@ importers:
       '@madside/emulator-c64-chips':
         specifier: workspace:*
         version: link:../../packages/emulator-c64-chips
+      '@madside/emulator-genesis-musashi':
+        specifier: workspace:*
+        version: link:../../packages/emulator-genesis-musashi
       '@madside/emulator-nes-jsnes':
         specifier: workspace:*
         version: link:../../packages/emulator-nes-jsnes
@@ -249,6 +252,9 @@ importers:
       '@madside/wasm-mads':
         specifier: workspace:*
         version: link:../../packages/wasm-mads
+      '@madside/wasm-musashi':
+        specifier: workspace:*
+        version: link:../../packages/wasm-musashi
       '@madside/wasm-z88dk':
         specifier: workspace:*
         version: link:../../packages/wasm-z88dk
@@ -342,6 +348,18 @@ importers:
       '@madside/wasm-chips':
         specifier: workspace:*
         version: link:../wasm-chips
+
+  packages/emulator-genesis-musashi:
+    dependencies:
+      '@madside/core':
+        specifier: workspace:*
+        version: link:../core
+      '@madside/ports':
+        specifier: workspace:*
+        version: link:../ports
+      '@madside/wasm-musashi':
+        specifier: workspace:*
+        version: link:../wasm-musashi
 
   packages/emulator-nes-jsnes:
     dependencies:
