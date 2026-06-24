@@ -75,6 +75,16 @@ describe('z88dk build routing (#103)', () => {
     expect(r.binary).toEqual(new Uint8Array([0xaa]))
   })
 
+  it('accepts the zx128 machine and asks the asm path to bank', async () => {
+    const r = await z88dkToolchain.build({ ...base('src/main.asm'), machine: 'zx128' })
+    expect(r.ok).toBe(true)
+    // build(main, files, opts, banked) — the 4th arg is true for zx128.
+    expect(vi.mocked(wasm.buildZ88dk).mock.calls[0]![3]).toBe(true)
+    // ...and false for the 48K machine.
+    await z88dkToolchain.build(base('src/main.asm'))
+    expect(vi.mocked(wasm.buildZ88dk).mock.calls[1]![3]).toBe(false)
+  })
+
   it('rejects an unmapped machine before building', async () => {
     const r = await z88dkToolchain.build({ ...base('src/main.c'), machine: 'atari-xl' })
     expect(r.ok).toBe(false)
@@ -111,8 +121,9 @@ describe('z88dk coerceZ88dkOptions', () => {
 })
 
 describe('z88dk targetFor', () => {
-  it('maps zx-spectrum to +zx and nothing else', () => {
+  it('maps zx-spectrum + zx128 to +zx, nothing else', () => {
     expect(targetFor('zx-spectrum')).toBe('+zx')
+    expect(targetFor('zx128')).toBe('+zx')
     expect(targetFor('c64')).toBeUndefined()
     expect(targetFor(undefined)).toBeUndefined()
   })

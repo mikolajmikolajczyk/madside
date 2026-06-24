@@ -34,6 +34,9 @@ export function coerceZ88dkOptions(
 // machines this toolchain claims + is where appmake's `+target` will plug in.)
 const Z88DK_TARGET: Record<string, string> = {
   'zx-spectrum': '+zx',
+  // The 128K reuses the same z88dk target / zx sysroot — z80asm is identical;
+  // banking is handled by the section→bank .z80 wrap, not a different target.
+  zx128: '+zx',
 }
 export const targetFor = (machine?: string): string | undefined => Z88DK_TARGET[machine ?? '']
 
