@@ -2,11 +2,12 @@
 // code-split chunk; `createBackend` lazy-imports it so jsnes loads only when a
 // NES project actually boots — importing this module is cheap.
 
-import type { EmulatorPlugin } from "@ports";
+import type { BankWindow, EmulatorPlugin } from "@ports";
 
 export const jsnesEmulator: EmulatorPlugin = {
   id: "jsnes",
   kind: "emulator",
   name: "jsnes (NES)",
-  createBackend: async () => (await import("./jsnes-backend")).createJsnesBackend(),
+  createBackend: async (banks?: readonly BankWindow[]) =>
+    (await import("./jsnes-backend")).createJsnesBackend(banks),
 };
