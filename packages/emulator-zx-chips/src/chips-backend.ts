@@ -27,6 +27,9 @@ interface ZxCoreInstance {
   getMemConfig(): number
   reset(): void
   loadSNA(bytes: Uint8Array): boolean
+  /** Load a .z80 snapshot (v2/v3) — handles the 128K format: 8 RAM bank pages +
+   *  $7FFD paging, so a banked 128K program lands with each bank in place. */
+  loadZ80(bytes: Uint8Array): boolean
   advanceFrame(): number
   step(): number
   setBreakpoints(addrs: number[]): void
@@ -120,11 +123,16 @@ export class ChipsZxBackend implements RunBackend {
   }
 
   loadMedia(format: string, bytes: Uint8Array): void {
-    if (format !== 'sna') {
-      throw new Error(`ChipsZxBackend.loadMedia: unsupported format '${format}' (expected 'sna')`)
+    // .z80 carries the 128K bank pages (the banked zx128 output); .sna is the 48K
+    // path. Both restore full Z80 state + paging in the core.
+    const ok = format === 'z80' ? this.core.loadZ80(bytes)
+             : format === 'sna' ? this.core.loadSNA(bytes)
+             : null
+    if (ok === null) {
+      throw new Error(`ChipsZxBackend.loadMedia: unsupported format '${format}' (expected 'sna' or 'z80')`)
     }
-    if (!this.core.loadSNA(bytes)) {
-      throw new Error('ChipsZxBackend.loadMedia: .sna snapshot rejected (need a 48K .sna)')
+    if (!ok) {
+      throw new Error(`ChipsZxBackend.loadMedia: ${format} snapshot rejected`)
     }
     this.refreshPixels()
   }

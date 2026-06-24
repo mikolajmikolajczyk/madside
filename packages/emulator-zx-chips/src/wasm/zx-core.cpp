@@ -239,6 +239,20 @@ public:
         return true;
     }
 
+    // Load a .z80 snapshot via the chips quickloader. Unlike the hand-rolled 48K
+    // .sna path, this handles the v2/v3 128K format — 8 RAM bank pages + the
+    // $7FFD paging state — so a banked 128K program lands with each bank in its
+    // place. chips restores the full Z80 state, AY, and memory map internally.
+    bool loadZ80(val bytes) {
+        std::vector<uint8_t> d = vec_from_val(bytes);
+        chips_range_t range = { d.data(), d.size() };
+        if (!zx_quickload(&g_sys, range)) return false;
+        // zx_quickload prefetched the start PC into cpu.pc (the next fetch addr).
+        g_last_pc = (uint16_t)g_sys.cpu.pc;
+        render();
+        return true;
+    }
+
     uint32_t advanceFrame() { return exec(g_bp_count > 0 ? MODE_FRAME_BP : MODE_RUN, FRAME_USEC); }
     uint32_t step() { return exec(MODE_STEP, STEP_USEC); }
 
@@ -321,6 +335,7 @@ EMSCRIPTEN_BINDINGS(zx_core) {
         .function("init128", &ZxCore::init128)
         .function("reset", &ZxCore::reset)
         .function("loadSNA", &ZxCore::loadSNA)
+        .function("loadZ80", &ZxCore::loadZ80)
         .function("advanceFrame", &ZxCore::advanceFrame)
         .function("step", &ZxCore::step)
         .function("setBreakpoints", &ZxCore::setBreakpoints)
