@@ -40,7 +40,7 @@ export function buildIndex(files: SourceFile[], d: AsmDialect): AsmIndex {
         else index.defs.set(key, [def])
       }
       for (const r of parsed.refs) {
-        const ref: AsmRef = { name: r.name, uri: file.path, start: r.start, end: r.end }
+        const ref: AsmRef = { name: r.name, uri: file.path, start: r.start, end: r.end, mnemonic: r.mnemonic }
         bucket.refs.push(ref)
         const key = normalize(r.name, d)
         const list = index.refs.get(key)

@@ -157,6 +157,31 @@ describe('cross-file + case-insensitivity (mads) and z80asm', () => {
     expect(p.diagnose('m.asm').filter((d) => d.severity === 'error')).toEqual([])
   })
 
+  it('MADS custom mnemonics: pseudo-ops + illegal opcodes recognized, not flagged', () => {
+    const src = [
+      '        mva #0 dst',        // MADS pseudo-op
+      '        sax $80',           // illegal 6502 opcode
+      '        jeq loop',          // MADS long conditional jump
+      '        boguscall arg',     // unknown mnemonic-slot (a pseudo-op we don\'t model)
+      '        lda undefined_sym', // operand-position undefined → SHOULD flag
+      'dst     equ $80',
+      'loop',
+      '        rts',
+    ].join('\n')
+    const p = createAsmProvider(madsDialect)
+    p.configure({})
+    p.update([{ path: 'm.asm', text: src }])
+    const msgs = p.diagnose('m.asm').map((d) => d.message)
+    // recognized as opcodes → not undefined; hover gives the pseudo-op / illegal doc
+    expect(msgs.some((m) => m.includes('mva') || m.includes('sax') || m.includes('jeq'))).toBe(false)
+    expect(p.hover('m.asm', src, src.indexOf('mva') + 1)).toContain('move byte')
+    expect(p.hover('m.asm', src, src.indexOf('sax') + 1)).toContain('Undocumented')
+    // unknown mnemonic-slot call is NOT undefined-flagged (likely a pseudo-op)
+    expect(msgs.some((m) => m.includes('boguscall'))).toBe(false)
+    // ...but a real operand-position undefined symbol still is
+    expect(msgs.some((m) => m.includes('undefined_sym'))).toBe(true)
+  })
+
   it('clownassembler (m68k): size suffixes, local labels, registers', () => {
     const src = [
       'Start:',

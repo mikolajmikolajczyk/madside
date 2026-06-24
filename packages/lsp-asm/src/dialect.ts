@@ -12,6 +12,11 @@ export interface AsmDialect {
   readonly id: string
   /** Opcode hint table for this assembler's CPU (hover / completion / modes). */
   readonly cpu: CpuOpcodes
+  /** Assembler-specific extra mnemonics beyond the CPU base — illegal/undocumented
+   *  opcodes + pseudo-instructions (MADS `mva`/`mwa`/`jeq`…). Recognized as
+   *  opcodes (highlight + hover + completion, no undefined-symbol false positive).
+   *  Same shape as `cpu`; merged with it on lookup. */
+  readonly extras?: CpuOpcodes
   /** CPU register + condition names, excluded from symbol-reference detection
    *  and undefined-symbol diagnostics. Matched case-insensitively. */
   readonly registers: ReadonlySet<string>

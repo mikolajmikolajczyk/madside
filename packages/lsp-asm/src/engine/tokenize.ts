@@ -35,6 +35,10 @@ export interface LineRef {
   name: string
   start: number
   end: number
+  /** True when the reference is in the mnemonic slot (a macro/pseudo-op call) —
+   *  not undefined-flagged, since an unrecognized one is more likely a pseudo-op
+   *  we don't model than a typo'd symbol. */
+  mnemonic?: boolean
 }
 
 /** An instruction statement on the line (mnemonic that is a known opcode + its
@@ -71,11 +75,14 @@ export function normalize(name: string, dialect: AsmDialect): string {
 // so it's untouched.
 const stripSize = (t: string, d: AsmDialect): string => (d.sizeSuffix ? t.replace(/\.[bwls]$/i, '') : t)
 
-/** The uppercase base mnemonic if `t` is an opcode (size suffix stripped), else
- *  null. Shared so hover/validation resolve `move.w` → MOVE like the tokenizer. */
+/** The uppercase base mnemonic if `t` is an opcode (size suffix stripped) — from
+ *  the CPU base set OR the dialect's extra mnemonics (illegal opcodes / pseudo-
+ *  ops) — else null. Shared so hover/validation resolve `move.w` → MOVE and MADS
+ *  `mva` like the tokenizer. */
 export function mnemonicBase(t: string, d: AsmDialect): string | null {
   const base = stripSize(t, d).toUpperCase()
-  return d.cpu.mnemonics.has(base) ? base : null
+  if (d.cpu.mnemonics.has(base) || d.extras?.mnemonics.has(base)) return base
+  return null
 }
 
 export const isOpcodeTok = (t: string, d: AsmDialect): boolean => mnemonicBase(t, d) !== null
@@ -205,9 +212,10 @@ export function parseLine(line: string, lineStart: number, d: AsmDialect): Parse
       instr = { mnemonic: tokTxt, operand: code.slice(opEnd).trim(), start: tokStart, end: tokStart + tokTxt.length }
     } else if (isDirective(tokTxt, d)) {
       tokens.push({ kind: 'directive', start: tokStart, end: tokStart + tokTxt.length })
-    } else if (/[A-Za-z_@?]/.test(tokTxt[0])) {
-      // A bare identifier in the mnemonic slot = a macro invocation → reference.
-      refs.push({ name: tokTxt, start: tokStart, end: tokStart + tokTxt.length })
+    } else if (/[.A-Za-z_@?]/.test(tokTxt[0])) {
+      // A bare identifier in the mnemonic slot = a macro / pseudo-op invocation →
+      // reference (flagged mnemonic-slot so diagnose won't undefined-flag it).
+      refs.push({ name: tokTxt, start: tokStart, end: tokStart + tokTxt.length, mnemonic: true })
       tokens.push({ kind: 'macro', start: tokStart, end: tokStart + tokTxt.length })
     }
     scanOperand(code.slice(opEnd), lineStart + opEnd, d, refs, tokens)

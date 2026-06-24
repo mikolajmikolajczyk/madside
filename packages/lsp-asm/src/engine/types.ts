@@ -30,6 +30,9 @@ export interface AsmRef {
   uri: string
   start: number
   end: number
+  /** True for a mnemonic-slot (macro/pseudo-op) reference — excluded from the
+   *  undefined-symbol diagnostic. */
+  mnemonic?: boolean
 }
 
 export interface AsmIndex {

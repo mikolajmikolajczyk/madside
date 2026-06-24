@@ -106,7 +106,7 @@ export function hoverAt(index: AsmIndex, d: AsmDialect, _uri: string, text: stri
   }
   const base = mnemonicBase(w.name, d)
   if (base) {
-    const info = d.cpu.info[base]
+    const info = d.cpu.info[base] ?? d.extras?.info[base]
     if (info) return formatOpcode(base, info)
   }
   return null
@@ -116,6 +116,9 @@ export function completeAt(index: AsmIndex, d: AsmDialect): ProviderCompletion[]
   const out: ProviderCompletion[] = []
   for (const op of d.cpu.mnemonics) {
     out.push({ label: op.toLowerCase(), kind: 'keyword', detail: d.cpu.info[op]?.desc })
+  }
+  for (const op of d.extras?.mnemonics ?? []) {
+    out.push({ label: op.toLowerCase(), kind: 'keyword', detail: d.extras?.info[op]?.desc })
   }
   for (const dir of d.directives) {
     out.push({ label: `${d.directivePrefix}${dir}`, kind: 'keyword', detail: 'directive' })
@@ -166,6 +169,9 @@ export function diagnoseFile(
 
   // References with no definition anywhere in the project.
   for (const ref of bucket.refs) {
+    // Mnemonic-slot refs (macro / pseudo-op calls) are never undefined-flagged —
+    // an unrecognized one is more likely an assembler pseudo-op we don't model.
+    if (ref.mnemonic) continue
     const key = normalize(ref.name, d)
     if (index.defs.has(key)) continue
     if (defined.has(key) || defined.has(ref.name)) continue
