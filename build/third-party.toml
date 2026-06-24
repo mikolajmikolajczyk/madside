@@ -144,7 +144,7 @@ built_with = "Extracted verbatim from floooh/chips-test's embedded dump; Amstrad
 
 [source.clownassembler]
 name       = "clownassembler"
-role       = "Motorola 68000 assembler (asm68k/SN-68k compatible) — Sega Genesis/Mega Drive toolchain (asm-first, #145)"
+role       = "Motorola 68000 assembler (asm68k/SN-68k compatible) — Sega Genesis/Mega Drive toolchain"
 upstream   = "https://github.com/Clownacy/clownassembler"
 source     = "https://github.com/Clownacy/clownassembler"
 ref        = "0842de46bfb2db44fbd9e1e3d5cc7e366fb965e5"
@@ -155,7 +155,7 @@ built_with = "wasi-sdk clang (wasm32-wasip1), single pass — committed flex/bis
 
 [source.genesis-plus-gx]
 name       = "Genesis Plus GX"
-role       = "Full Sega Mega Drive / Genesis system emulator (VDP + YM2612/PSG + Z80 + I/O) — Genesis run/display backend, Phase B (#145)"
+role       = "Full Sega Mega Drive / Genesis system emulator (VDP + YM2612/PSG + Z80 + I/O) — Genesis run/display backend"
 upstream   = "https://github.com/ekeeke/Genesis-Plus-GX"
 source     = "https://github.com/ekeeke/Genesis-Plus-GX"
 ref        = "c7ecd07f0a08db1cdd6871d788476bfac55be638"
