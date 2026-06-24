@@ -150,13 +150,14 @@ async function loadLanguagePack(
     const base = buildAssemblyLanguage(cpu, toolchain);
     const dialect = asmDialectFor(toolchainId);
     if (!dialect) return [base];
-    const [{ autocompletion }, asm] = await Promise.all([
+    const [{ autocompletion }, asm, { asmSemanticTokens }] = await Promise.all([
       import("@codemirror/autocomplete"),
       import("../../codemirror/lsp/asm-client"),
+      import("../../codemirror/lsp/asmSemanticTokens"),
     ]);
     asm.setAsmDialect(dialect);
     asm.setAsmActiveDoc(path);
-    return [base, autocompletion({ override: [asm.asmLspComplete] }), asm.asmLspHover];
+    return [base, asmSemanticTokens(), autocompletion({ override: [asm.asmLspComplete] }), asm.asmLspHover];
   }
   return [];
 }

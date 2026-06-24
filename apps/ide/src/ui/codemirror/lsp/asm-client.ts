@@ -16,8 +16,12 @@ import type { Completion, CompletionContext, CompletionResult } from '@codemirro
 import { hoverTooltip, type Tooltip } from '@codemirror/view'
 import type { Text } from '@codemirror/state'
 import type { DefinitionTarget, ReferenceLocation, RenameChanges, RenameTextEdit } from './client'
+import { setLspDiagnostics } from './diagnosticsStore'
 
 const FILE_URI_PREFIX = 'file:///'
+
+const pathForUri = (uri: string): string | null =>
+  uri.startsWith(FILE_URI_PREFIX) ? uri.slice(FILE_URI_PREFIX.length) : null
 
 const uriFor = (path: string): string => 'file:///' + path.replace(/^\/+/, '')
 
@@ -67,6 +71,27 @@ function connect(): { conn: MessageConnection; ready: Promise<void> } {
   // id rides the worker `name` (read by @madside/lsp-asm/browser via self.name).
   worker = new Worker(new URL('./asm-lsp.worker.ts', import.meta.url), { type: 'module', name: dialectId })
   const conn = createMessageConnection(new BrowserMessageReader(worker), new BrowserMessageWriter(worker))
+  // The server publishes analysis diagnostics (undefined symbol / duplicate
+  // definition) on every edit. Map each to a BuildDiagnostic against the project
+  // path and stash them in the shared store the editor merges (#77). Registered
+  // before listen() so no early push is missed.
+  conn.onNotification(
+    'textDocument/publishDiagnostics',
+    (p: { uri: string; diagnostics: { range: { start: Position }; severity?: number; message: string }[] }) => {
+      const path = pathForUri(p.uri)
+      if (!path) return
+      setLspDiagnostics(
+        path,
+        p.diagnostics.map((d) => ({
+          file: path,
+          line: d.range.start.line + 1,
+          column: d.range.start.character + 1,
+          severity: (d.severity ?? 1) === 1 ? 'error' : 'warning',
+          message: d.message,
+        })),
+      )
+    },
+  )
   conn.listen()
   connection = conn
   ready = (async () => {
@@ -260,6 +285,25 @@ export async function asmRename(text: string, pos: number, newName: string): Pro
       if (u.startsWith(FILE_URI_PREFIX)) out[u.slice(FILE_URI_PREFIX.length)] = edits
     }
     return out
+  } catch {
+    return null
+  }
+}
+
+/** Full-document semantic tokens for the focused buffer — the server's packed LSP
+ *  array ([deltaLine, deltaStartChar, length, tokenType, tokenModifiers]); the
+ *  host decodes it. Token-type order is the asm legend (SEM_LEGEND). Null on
+ *  miss / transport failure. */
+export async function asmSemanticTokensFull(doc: Text): Promise<number[] | null> {
+  try {
+    if (!activePath) return null
+    const { conn, ready: handshake } = connect()
+    await handshake
+    const uri = openOrChange(conn, activePath, doc.toString())
+    const res = await conn.sendRequest<{ data: number[] } | null>('textDocument/semanticTokens/full', {
+      textDocument: { uri },
+    })
+    return res?.data ?? null
   } catch {
     return null
   }
