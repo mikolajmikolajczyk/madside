@@ -7,7 +7,7 @@ sidebar:
 
 ## WebAssembly, cross-origin isolation, and headers
 
-madside runs entirely in your browser. The toolchains (MADS, the cc65 and z88dk C compilers) and the emulator cores (Altirra for Atari, Chips for C64 / ZX Spectrum; the NES core is pure JavaScript) are compiled to **WebAssembly**, which every current browser supports out of the box.
+madside runs entirely in your browser. The toolchains (MADS, the cc65 and z88dk C compilers, and the clownassembler M68k assembler) and the emulator cores (Altirra for Atari, Chips for C64 / ZX Spectrum, Genesis Plus GX for the Sega Genesis; the NES core is pure JavaScript) are compiled to **WebAssembly**, which every current browser supports out of the box.
 
 You may have read that browser-based emulators need special HTTP headers — `Cross-Origin-Opener-Policy` (COOP) and `Cross-Origin-Embedder-Policy` (COEP). Those headers are only required to unlock `SharedArrayBuffer`. **madside does not use `SharedArrayBuffer`**, so it does **not** require cross-origin isolation, and the page works without those headers. Communication with the wasm cores goes through ordinary `postMessage` / typed-array copies instead.
 

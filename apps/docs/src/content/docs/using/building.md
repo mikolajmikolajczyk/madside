@@ -9,11 +9,12 @@ madside builds your project with a toolchain selected by the project's `toolchai
 
 ## Toolchains
 
-Three toolchains ship today; the active one is set by `toolchain` in `project.json`:
+Four toolchains ship today; the active one is set by `toolchain` in `project.json`:
 
 - **MADS** — the Mad Assembler, for 6502 assembly (`.asm` / `.a65` / `.inc`). One pass produces the binary, a source map, and a label table.
 - **cc65** — the cc65 C compiler plus the ca65 assembler and ld65 linker, for C and ca65 assembly (`.c` / `.s` / `.asm` / `.h` / `.inc`) on the 6502 machines. Each `.c` is compiled to assembly with cc65, every assembly file is assembled to an object with ca65, and ld65 links the objects against the target's bundled runtime library and config into the final binary (`.nes` for NES, `.xex` for Atari, `.prg` for C64). The bundled C runtime and headers are mounted read-only for the active machine — they show up in the Files panel's system view.
 - **z88dk** — the sccz80 C compiler plus the z80asm assembler, for C and z80 assembly (`.c` / `.asm` / `.s` / `.h` / `.inc`) targeting the ZX Spectrum (→ `.sna`).
+- **clownassembler** — the Motorola 68000 assembler (asm68k / SN-68k syntax) for the Sega Genesis. One pass produces the flat `.bin` ROM, a label table, and a source map.
 
 ## Build trigger
 
@@ -72,4 +73,4 @@ Includes are resolved by the assembler relative to the project root; add source 
 
 ## Exporting the binary
 
-**File → Export binary** downloads the assembled binary to your machine, named after the project with the machine's default media extension — `.xex` for Atari, `.nes` (iNES) for NES, `.prg` for C64, `.tap` for the ZX Spectrum. It's enabled once a build has succeeded; run the result on a hardware emulator, flash it to a cart, or share it. (To export the whole *project* — sources + manifest — use **File → Export ZIP** instead.)
+**File → Export binary** downloads the assembled binary to your machine, named after the project with the machine's default media extension — `.xex` for Atari, `.nes` (iNES) for NES, `.prg` for C64, `.tap` for the ZX Spectrum, `.bin` for the Sega Genesis. It's enabled once a build has succeeded; run the result on a hardware emulator, flash it to a cart, or share it. (To export the whole *project* — sources + manifest — use **File → Export ZIP** instead.)

@@ -20,6 +20,7 @@ madside ships with:
 - **C64 — Hello (C, cc65)** (`c64-c-hello`) — a C64 program in C, linked with cc65 into a `.prg`.
 - **ZX Spectrum — Hello World (z80asm)** (`zx-asm-hello`) — a minimal ZX Spectrum program in z80 assembly, built with z88dk.
 - **ZX Spectrum — Hello (C, z88dk)** (`zx-c-hello`) — a ZX Spectrum program in C: sccz80 compiles it and z80asm/appmake produce a `.sna`.
+- **Sega Genesis — Hello World (M68k asm)** (`genesis-asm-hello`) — a minimal Genesis program: clownassembler assembles a vector table + ROM header + VDP init that turns on the display and shows a solid blue background, ready to extend with tiles and a palette.
 - **Empty project** (`empty`) — a blank project you fill in yourself.
 
 The cc65 C templates use the **cc65** toolchain (cc65 → ca65 → ld65); the ZX C template uses **z88dk** (sccz80 → z80asm); the assembly templates use **mads** (6502) or **z88dk** (z80) — all in the browser.

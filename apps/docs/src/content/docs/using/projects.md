@@ -35,8 +35,8 @@ Every project has a `project.json` at its root. It selects the machine, toolchai
 }
 ```
 
-- `machine` — which machine plugin to run on (`atari-xl`, `nes`).
-- `toolchain` — which toolchain builds it: `mads` (Atari assembly) or `cc65` (C + ca65 assembly, for NES and Atari).
+- `machine` — which machine plugin to run on (`atari-xl`, `nes`, `c64`, `zx-spectrum`, `genesis`).
+- `toolchain` — which toolchain builds it: `mads` (Atari assembly), `cc65` (C + ca65 assembly, for NES, Atari, and C64), `z88dk` (C + z80 assembly, for ZX Spectrum), or `clownassembler` (M68k assembly, for Genesis).
 - `main` — the entry-point file the toolchain is pointed at; shown as `MAIN` in the file tree.
 
 Optional sections tune the build and editor — `build.trigger` (`manual` by default, or `auto` to rebuild on every edit), `build.options` (toolchain-specific flags — e.g. cc65's custom linker config and per-tool args), and `editor` (`tabWidth`, clang-format `format`). Changing `machine` switches the active emulator + debug view the next time the project loads. Full field reference: [`project.json`](/docs/reference/manifest/).

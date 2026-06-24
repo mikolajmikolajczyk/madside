@@ -49,7 +49,7 @@ const off = ctx.events.on('debug:step-done', (p) => { /* p.pc, … */ })
 
 Three services own the lifecycles a plugin observes:
 
-- **BuildService** — resolves `manifest.toolchain` → your `ToolchainPlugin.build()`, emits `build:done` / `build:error`. Three toolchains ship today (`mads`, `cc65`, `z88dk`); resolution is by id through the registry, so none is hardcoded. The last successful build is persisted per project (see [the VFS + persistence note](#the-build-filesystem-vfs-mount-layer)) so a reload restores OUTPUT + the binary without rebuilding.
+- **BuildService** — resolves `manifest.toolchain` → your `ToolchainPlugin.build()`, emits `build:done` / `build:error`. Four toolchains ship today (`mads`, `cc65`, `z88dk`, `clownassembler`); resolution is by id through the registry, so none is hardcoded. The last successful build is persisted per project (see [the VFS + persistence note](#the-build-filesystem-vfs-mount-layer)) so a reload restores OUTPUT + the binary without rebuilding.
 - **RunService** — emulator lifecycle (load / run / pause / reset) over the `RunBackend`, owns `status`, emits `run:state`.
 - **DebugService** — wraps the active `DebugAdapter`; `debug.target()` returns the live `DebugTarget` once a backend is booted. Emits `debug:step-done` / `debug:bp-hit`.
 

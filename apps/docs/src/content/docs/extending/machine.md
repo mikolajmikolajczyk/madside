@@ -7,7 +7,7 @@ sidebar:
 
 A **machine plugin** describes target hardware so the workbench stays machine-agnostic: display dimensions, audio rate, input layout, the memory map, a media-format dispatch table, and an opaque hardware-config bag. Everything that would otherwise calcify as Atari-specific constants lives here instead.
 
-Machine plugins are **built-in only**. Reference impls live as workspace packages: `packages/machine-atari-xl/`, `packages/machine-nes/`, `packages/machine-c64/`, and `packages/machine-zx/` (ZX Spectrum).
+Machine plugins are **built-in only**. Reference impls live as workspace packages: `packages/machine-atari-xl/`, `packages/machine-nes/`, `packages/machine-c64/`, `packages/machine-zx/` (ZX Spectrum), and `packages/machine-genesis/` (Sega Genesis).
 
 ## The contract
 
@@ -123,7 +123,7 @@ bootEquates: { path: 'src/atari.a65', content: 'SAVMSC = $58\nCOLOR0 = $02C4\n' 
 
 ## Compatibility + default panels
 
-- `compatibleToolchains` / `compatibleEmulators` / `compatibleDebugAdapters` — plugin ids known to target/host/debug this machine; resolved through the registry and used for selection and validation. The workbench takes the first entry of each as the active pairing. The 6502 machines (Atari, NES, C64) list `cc65` + `mads` and reuse the generic `atari-6502-debug` adapter; they host on `altirra-wasm` / `jsnes` / `chips-c64` respectively. The ZX Spectrum lists `z88dk`, hosts on `zx-chips`, and uses `zx-z80-debug`.
+- `compatibleToolchains` / `compatibleEmulators` / `compatibleDebugAdapters` — plugin ids known to target/host/debug this machine; resolved through the registry and used for selection and validation. The workbench takes the first entry of each as the active pairing. The 6502 machines (Atari, NES, C64) list `cc65` + `mads` and reuse the generic `atari-6502-debug` adapter; they host on `altirra-wasm` / `jsnes` / `chips-c64` respectively. The ZX Spectrum lists `z88dk`, hosts on `zx-chips`, and uses `zx-z80-debug`. The Sega Genesis lists `clownassembler`, hosts on `genesis-gpgx`, and uses `m68k-debug`.
 - `defaultPanels` — panel ids the machine recommends when a project doesn't list its own.
 
 ## Program load range (optional)

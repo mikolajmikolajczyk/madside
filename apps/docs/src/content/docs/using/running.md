@@ -5,7 +5,7 @@ sidebar:
   order: 4
 ---
 
-Pressing **Run** boots your assembled binary in the in-browser emulator — Altirra (`altirra-wasm`) for Atari, jsnes for NES, and Chips cores for the C64 (`chips-c64`) and ZX Spectrum (`zx-chips`). The emulator is a dockable panel; click its screen to give it keyboard focus, then type to send keys to the machine.
+Pressing **Run** boots your assembled binary in the in-browser emulator — Altirra (`altirra-wasm`) for Atari, jsnes for NES, Chips cores for the C64 (`chips-c64`) and ZX Spectrum (`zx-chips`), and Genesis Plus GX (`genesis-gpgx`) for the Sega Genesis. The emulator is a dockable panel; click its screen to give it keyboard focus, then type to send keys to the machine.
 
 ## Run controls
 

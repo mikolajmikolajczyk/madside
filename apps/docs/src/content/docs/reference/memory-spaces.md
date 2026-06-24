@@ -32,6 +32,15 @@ readMemory(addr: number, len: number, space?: string): Promise<Uint8Array>
 | NES (`nes`) | `cpu` | CPU bus | — | Implicit. |
 | NES (`nes`) | `ppu` | PPU VRAM | `0x4000` (16 KB) | Pattern tables, nametables, palette. Read by the PPU viewer. |
 | NES (`nes`) | `oam` | OAM | `0x100` (256 B) | Sprite attribute table. |
+| Genesis (`genesis`) | `cpu` | CPU bus | — | 24-bit address bus. |
+| Genesis (`genesis`) | `vram` | VDP VRAM | `0x10000` (64 KB) | Tiles, maps, sprites. Reads not served by the backend yet. |
+| Genesis (`genesis`) | `cram` | VDP CRAM | `0x80` (128 B, 64 entries) | Palette. Reads not served by the backend yet. |
+| Genesis (`genesis`) | `vsram` | VDP VSRAM | `0x50` (80 B) | Vertical-scroll values. Reads not served by the backend yet. |
 
-Only the NES declares extra spaces today; the Atari, C64, and ZX Spectrum expose
-only the implicit `cpu` space.
+The NES and the Genesis declare extra spaces; the Atari, C64, and ZX Spectrum
+expose only the implicit `cpu` space.
+
+The Genesis machine *declares* the three VDP spaces (`vram`, `cram`, `vsram`),
+but the current Genesis emulator backend does **not** yet serve reads of them —
+only the CPU bus is readable today. The VDP tile / palette / sprite viewers are a
+pending follow-up.

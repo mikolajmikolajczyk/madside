@@ -7,9 +7,9 @@ sidebar:
 
 ## Source extensions
 
-madside ships three toolchains: `mads` (6502 assembly), `cc65` (C + ca65 + ld65,
-6502), and `z88dk` (C + z80asm, z80). Each declares the extensions it accepts as
-input.
+madside ships four toolchains: `mads` (6502 assembly), `cc65` (C + ca65 + ld65,
+6502), `z88dk` (C + z80asm, z80), and `clownassembler` (Motorola 68000 assembly).
+Each declares the extensions it accepts as input.
 
 ### Assembly (MADS)
 
@@ -53,6 +53,19 @@ Spectrum and accepts:
 | `.s` | `z88dk` toolchain (z80 assembly source) |
 | `.inc` | `z88dk` toolchain (include) |
 
+### M68k assembly (clownassembler)
+
+The `clownassembler` toolchain (asm68k / SN-68k syntax) targets the Sega Mega
+Drive / Genesis and accepts:
+
+| Extension | Handled by |
+|-----------|-----------|
+| `.asm` | `clownassembler` toolchain (M68k assembly source) |
+| `.s` | `clownassembler` toolchain (M68k assembly source) |
+| `.68k` | `clownassembler` toolchain (M68k assembly source) |
+| `.i` | `clownassembler` toolchain (include) |
+| `.x68` | `clownassembler` toolchain (M68k assembly source) |
+
 ## Output extensions
 
 The build output extension is set by the toolchain and the target machine's
@@ -64,6 +77,7 @@ media table.
 | `.nes` | NES (`nes`) | iNES image; NES default media format. `cc65` `outputExt`; also produced by `mads` (NROM iNES). |
 | `.prg` | C64 (`c64`) | Commodore PRG (load-address-prefixed). Produced by `cc65` targeting `c64`. |
 | `.sna` | ZX Spectrum (`zx-spectrum`) | 48K snapshot. `z88dk` `outputExt`. |
+| `.bin` | Genesis (`genesis`) | Flat Mega Drive / Genesis ROM. `clownassembler` `outputExt`. |
 
 The `cc65` toolchain's declared `outputExt` is `nes`, but the real extension is
 picked from the active machine's target: `nes` for the NES, `xex` for the Atari,
