@@ -540,6 +540,46 @@ add the in-bank offset compute). Storage stays line-based.
 - cc65 `.dbg` `seg` carries `bank` + `ooffs` (Phase 0 captures both).
 - 130XE: window `$4000–$7FFF`, 4 banks, PORTB `$D301` bits 2–3 (+CPE bit 4 / VBE bit 5).
 
+## Phase 3 — ZX Spectrum 128K (second write-only-latch target)
+
+### Runtime — DONE (verified on the real chips core)
+`$7FFD` is a write-only paging latch (bits 0-2 = one of 8 RAM banks paged into
+`$C000–$FFFF`), **absent on the 48K** (writes do nothing) — so 128K is a
+**separate machine** (`zx128`, `ZX_TYPE_128`), not a 48K config: a 48K title that
+hits `$7FFD` would page/crash on a 128K, and +2A/+3 contention differs. The chips
+`zx-core` wasm was rebuilt to support both (`init` 48K / `init128` 128K + 2 ROMs)
+plus a `getMemConfig()` getter exposing `zx.h`'s tracked `last_mem_config` (the
+write-only latch — same core-state pattern as the NES). `machine-zx128` declares
+the `$C000` / 8-bank window (selector omitted); the backend's `bankMap()` reads
+`getMemConfig() & 7`. Live test `zx128-banking-live.test.ts`. Reuses the unified
+contract + the zx-z80 adapter's `bankMap()` forward.
+
+### Editor-side (source map) — BLOCKED on a prerequisite, bigger than NES
+Verified by running the real z80asm:
+- **z80asm CAN emit debug info**: `-l` (list) gives `line  offset  bytes` per source
+  line (offset within its SECTION; absolute = section `org` + offset); `-m` (map)
+  gives `symbol = addr ; addr, …, <section>, file:line`. So a SourceMap is
+  buildable from `-l`/`-m`.
+- **But madside's z88dk toolchain runs only `z80asm -b`** (binary) — it returns
+  **no `sourceMap` at all**. ZX has **zero source-level debugging today** (the
+  `#87` debt): no gutter addresses, no set-BP-from-source, no current-line. So
+  there is no foundation to add bank tags to (unlike NES, where cc65's `.dbg`
+  gave line→addr + native `bank=` for free).
+- **z80asm has no native bank field** (no cc65-style `bank=`). It has named
+  SECTIONS (address-only); a 128K "bank" is a *convention* (which section maps to
+  which `$7FFD` bank). So bank-tagging needs a section→bank mapping we define.
+
+**Therefore parity is a two-step build:**
+1. **z88dk source-level debugging (#87 prerequisite, = ZX48 + ZX128 parity).** Run
+   `z80asm -l -m`, parse the list (`line offset bytes` + section `org`) → `SourceMap`
+   (line↔addr), parse the map for labels. Gives both 48K and 128K the same
+   source-level debug as Atari/NES (gutter, BP-from-source, current-line). NO
+   banking yet.
+2. **ZX128 section→bank convention.** Tag a banked section's lines with its bank
+   (e.g. a `SECTION BANK_n` naming convention or a project-declared section→bank
+   map) → fold into the source map's `bankedAddrToLoc`, then the unified Phase-1
+   path takes over (`resolveBreakpoints` → `BankBreakpoint`, gutter, `resolvePcLoc`).
+
 ## Sources
 
 Per-target hardware: atariarchives.org / Altirra (PORTB), nesdev.org wiki
