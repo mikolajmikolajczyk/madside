@@ -309,11 +309,20 @@ target, the way the 68000 validated the plugin contracts.
      verified: `tsc -b` clean, 550 tests green, no backend touched.
    - `bankMap?(): BankProjection[]` — optional on both `RunBackend` + `DebugTarget`;
      only banked backends implement it, flat backends omit it.
-4. **Altirra backend: implement `bankMap()` + the BP hit-test.** `bankMap()` =
-   `readMem(0xD301)` → decode bits 2–3 (+ CPE) → `{ window:[0x4000,0x7fff],
-   space:'bank'+n, bankOffset:n*0x4000 }`. Prefer the **physical-offset BP** (map
-   `cpuPC ∈ $4000–$7FFF` → `(bank, offset)` via live PORTB, compare to the BP's
-   captured `(space, offset)`); the live-bank predicate is the fallback.
+4. **Altirra backend: implement `bankMap()` + the BP hit-test. — DONE.**
+   - `decodeBankWindow(w, regByte)` — pure, exported, unit-tested (5 tests, all 4
+     banks + CPE gate + no-selector + default prefix). `bankMap()` reads
+     `readMem(selector.reg,1)` per window and calls it.
+   - `setBreakpoints` widened to `Iterable<number | BankBreakpoint>`: extracts the
+     CPU `addr` from each (the C++ core traps bank-blind on PC==addr); the bank
+     match is consumer-side via `bankMap()` (Step 5), not in the backend.
+   - **Bank config flows app→backend, not adapter→machine.** `adapters` can't
+     import `plugins` (boundary rule), so `EmulatorPlugin.createBackend(banks?)`
+     was widened; `createWorkbench.resolveEmulatorBackend` passes `machine.banks`;
+     `emulator.ts`/`facade.ts` forward to `AltirraBackend.create(banks)`. The
+     machine stays the single source.
+   - tsc clean, lint clean, 555 tests (+5). Physical-offset hit-test (map cpuPC→
+     live bank, compare to BP space) lands in Step 5 where the consumer has both.
 5. **`debug-service` + storage + UI hooks: thread `space`.** Keep breakpoints stored
    as source lines (bank-agnostic at rest — ADR-0014 decision 3); resolve to
    `(space, addr)` at sync time using the Phase-0 source-map `space`. `useBreakpointAddrs`

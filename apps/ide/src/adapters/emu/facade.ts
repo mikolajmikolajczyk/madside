@@ -2,10 +2,10 @@
 // contract) — swapping in a different backend is a one-import change here.
 
 import { AltirraBackend } from "./altirra";
-import type { RunBackend } from "@ports";
+import type { BankWindow, RunBackend } from "@ports";
 
 export type { CpuRegs } from "./backend";
 
-export async function createEmu(): Promise<RunBackend> {
-  return AltirraBackend.create();
+export async function createEmu(banks?: readonly BankWindow[]): Promise<RunBackend> {
+  return AltirraBackend.create(banks);
 }

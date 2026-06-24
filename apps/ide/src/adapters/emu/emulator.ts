@@ -8,15 +8,18 @@
 // `createBackend` lazy-imports the facade so the ~4.5 MB core is fetched only
 // when an Atari project actually boots — importing this module is cheap.
 
-import type { EmulatorPlugin } from "@ports";
+import type { BankWindow, EmulatorPlugin } from "@ports";
 
 export const altirraEmulator: EmulatorPlugin = {
   id: "altirra-wasm",
   kind: "emulator",
   name: "Altirra (Atari 8-bit)",
-  async createBackend() {
+  async createBackend(banks?: readonly BankWindow[]) {
     const { createEmu } = await import("./facade");
-    // AltirraBackend implements RunBackend directly now (#16) — no cast.
-    return createEmu();
+    // AltirraBackend implements RunBackend directly now (#16) — no cast. The
+    // machine's bank-window declaration (ADR-0014) drives the backend's
+    // bankMap(); the app layer passes it (adapters can't import the machine
+    // plugin). Flat 800XL projects carry none.
+    return createEmu(banks);
   },
 };

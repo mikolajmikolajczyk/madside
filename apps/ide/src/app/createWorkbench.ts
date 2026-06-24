@@ -189,7 +189,10 @@ export function createWorkbench(deps: WorkbenchDeps): Workbench {
     if (!emulator) {
       throw new Error(`machine '${machine.id}' requires emulator '${emuId}', not registered`)
     }
-    return () => emulator.createBackend()
+    // Pass the machine's switchable bank windows (ADR-0014) so the backend can
+    // build its bankMap(); flat machines declare none. Adapters can't import
+    // machine plugins, so the app layer threads it here.
+    return () => emulator.createBackend(machine.banks)
   }
 
   // Same pattern for the debug adapter: the machine names it via

@@ -7,7 +7,7 @@
 // host only owns the pixel/audio plumbing.
 
 import { AudioPushPump } from "@core/audio";
-import type { RunBackend } from "@ports";
+import type { BankBreakpoint, BankProjection, BankWindow, RunBackend } from "@ports";
 import type { CpuRegs } from "./backend";
 
 interface AltirraCoreInstance {
@@ -69,21 +69,45 @@ function loadModule(): Promise<AltirraModule> {
   return p;
 }
 
+/** Pure decode of a bank window against a selector-register byte (ADR-0014).
+ *  Split out so the projection is unit-testable without the wasm core. Returns
+ *  the live `(space, bankOffset)` for the window, or a null projection when the
+ *  window has no selector or its enable gate is closed (main RAM mapped). */
+export function decodeBankWindow(w: BankWindow, regByte: number): BankProjection {
+  const sel = w.selector;
+  const flat: BankProjection = { window: w.id, start: w.start, end: w.end, space: null, bankOffset: null };
+  if (!sel) return flat;
+  if (sel.enableMask != null && (regByte & sel.enableMask) !== (sel.enableValue ?? 0)) return flat;
+  const bank = (regByte & sel.mask) >> sel.shift;
+  const windowSize = w.end - w.start + 1;
+  return {
+    window: w.id,
+    start: w.start,
+    end: w.end,
+    space: `${w.spacePrefix ?? "bank"}${bank}`,
+    bankOffset: bank * windowSize,
+  };
+}
+
 export class AltirraBackend implements RunBackend {
-  static async create(): Promise<AltirraBackend> {
+  static async create(banks: readonly BankWindow[] = []): Promise<AltirraBackend> {
     const mod = await loadModule();
     const core = new mod.AltirraCore();
-    return new AltirraBackend(core);
+    return new AltirraBackend(core, banks);
   }
 
   private core: AltirraCoreInstance;
+  // Switchable bank windows declared by the machine (ADR-0014). Empty for the
+  // flat 800XL config; the 130XE config carries the $4000–$7FFF window.
+  private readonly banks: readonly BankWindow[];
   readonly width: number;
   readonly height: number;
   readonly sampleRate: number;
   pixels: Uint32Array;
 
-  private constructor(core: AltirraCoreInstance) {
+  private constructor(core: AltirraCoreInstance, banks: readonly BankWindow[]) {
     this.core = core;
+    this.banks = banks;
     this.width = core.width;
     this.height = core.height;
     this.sampleRate = core.sampleRate;
@@ -196,8 +220,20 @@ export class AltirraBackend implements RunBackend {
   setBasic(enabled: boolean)    { this.core.setBasic(enabled); }
   setKernel(firmwareId: number) { this.core.setKernel(firmwareId); }
 
-  setBreakpoints(addrs: Iterable<number>) {
-    this.core.setBreakpoints([...addrs].map((a) => a & 0xffff));
+  setBreakpoints(addrs: Iterable<number | BankBreakpoint>) {
+    // The C++ core traps purely on PC == addr (bank-blind). Register the CPU
+    // address of every breakpoint — bare numbers and the `addr` of bank-aware
+    // ones alike. The bank match (resume when the wrong bank is live) is done
+    // consumer-side via bankMap() (ADR-0014); the core just stops at the addr.
+    const cpu: number[] = [];
+    for (const a of addrs) cpu.push((typeof a === "number" ? a : a.addr) & 0xffff);
+    this.core.setBreakpoints(cpu);
+  }
+
+  bankMap(): BankProjection[] {
+    return this.banks.map((w) =>
+      decodeBankWindow(w, w.selector ? (this.core.readMem(w.selector.reg, 1)[0] ?? 0) : 0),
+    );
   }
 
   private refreshPixels() {
