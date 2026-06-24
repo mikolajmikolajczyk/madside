@@ -554,7 +554,16 @@ the `$C000` / 8-bank window (selector omitted); the backend's `bankMap()` reads
 `getMemConfig() & 7`. Live test `zx128-banking-live.test.ts`. Reuses the unified
 contract + the zx-z80 adapter's `bankMap()` forward.
 
-### Editor-side (source map) — BLOCKED on a prerequisite, bigger than NES
+### Editor-side (source map) — DONE (#87 prerequisite built + banking on top)
+Both steps below shipped: ZX (48K + 128K) now has source-level debugging, and
+128K is bank-aware. The toolchain runs `z80asm -l -m`; `parseZ80asmDebug`
+(`packages/toolchain-z88dk/src/z80asm-debug.ts`) builds the `SourceMap`
+(line↔addr = section base from the map + the list's per-line offset) + labels,
+and tags `BANK_n`-named sections with `space:'bankN'` into `bankedAddrToLoc`.
+Tests (real z80asm) in `tests/integration/zx-source-map.test.ts`. The original
+analysis that follows is kept for context.
+
+### (original analysis) — was BLOCKED on a prerequisite, bigger than NES
 Verified by running the real z80asm:
 - **z80asm CAN emit debug info**: `-l` (list) gives `line  offset  bytes` per source
   line (offset within its SECTION; absolute = section `org` + offset); `-m` (map)
