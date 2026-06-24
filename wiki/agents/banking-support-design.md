@@ -259,13 +259,31 @@ target, the way the 68000 validated the plugin contracts.
   space-only capture suffices; compute the offset in the decode.
 
 ### Steps (ordered, de-risk first)
-1. **Verify the real banked-MADS shape for the actual window (½ day).** Assemble a
-   130XE program with `OPT B+` + code at `$4000` switched across banks via `lmb/nmb`;
-   confirm the `.lst` emits `BB,4xxx` prefixes that the Phase-0 parser captures
-   (the Phase-0 test used `lmb` at `$2000`, not the hardware window). Confirm
-   `readMem(0xD301)` on the Altirra backend returns the live PORTB. Optionally probe
-   whether Altirra can read a *non-live* ext bank's bytes (for the viewer "show
-   other bank" feature) — if not, the viewer shows the live bank only; BP still works.
+1. **Verify the real banked-MADS shape for the actual window (½ day). — DONE.**
+   Assembled a 130XE program with `OPT B+` + code at `$4000` switched across banks
+   via `lmb/nmb` (mads 2.1.8 via wasm). **Verified results:**
+   - `.lst`: bank-0 code emits **no prefix** (`4000 A9 00`); bank≠0 emits the
+     `BB,AAAA` prefix at the hardware window exactly as Phase 0 assumed
+     (`01,4000-4005> A9 01`, `02,4002 8D 01 D3`). The Phase-0 `PREFIX_RE` captures
+     it (window address is irrelevant to the regex). No parser change needed.
+   - `.lab`: `BB<TAB>AAAA<TAB>NAME`, bank always present incl `00`. The ambiguity
+     case is real and explicit — three labels at the **same** address in different
+     banks: `00 4005 LOOP0` / `01 4005 LOOP1` / `02 4005 LOOP2`.
+   - **`@BANK_ADD` gotcha:** `lmb`/`nmb` emit a call to a *user-supplied* `@BANK_ADD`
+     macro (the load-time PORTB switch glue); without it MADS errors
+     `Undeclared macro @BANK_ADD` and the XEX has no bank-switch loader. Address
+     assignment + `.lst`/`.lab` capture are unaffected (so Phase-0 capture is
+     verified), but a **runnable** banked XEX needs `@BANK_ADD` defined — a Step-7
+     template concern, not a capture/debug concern.
+   - `readMem(0xD301, 1)` on the Altirra backend (`apps/ide/src/adapters/emu/altirra.ts:156`)
+     returns an owned copy via the core's Embind `readMem`. `$D301` is `$D3xx` I/O
+     space (PIA, not the banked window), so it reads back the PIA PORTB output
+     register = live bank bits. Live-bank read needs no new core API. (A runtime
+     probe that the value actually tracks the bank after a `sta $d301` is folded
+     into the Step-7 integration test — the only thing not yet exercised on a
+     running core.)
+   - Non-live ext-bank reads (viewer "show other bank") not probed — deferred to
+     the viewer step; BP/debug path does not need it.
 2. **`machine-atari-xl`: declare the banking.** Add the `ext-ram` domain + the
    switchable window `$4000–$7FFF` + how to derive the live bank from `$D301`
    (which bits). Decide the declarative shape: extend `memorySpaces` with a
