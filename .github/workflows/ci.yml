@@ -15,7 +15,7 @@ jobs:
     name: typecheck · test · lint · build · docs
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - uses: pnpm/action-setup@v4
         with:
@@ -45,7 +45,7 @@ jobs:
     name: secret + vuln scan
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           # gitleaks scans history on push; fetch it all.
           fetch-depth: 0
