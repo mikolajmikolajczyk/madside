@@ -24,6 +24,7 @@ In-browser Web IDE for retro hardware. Currently Atari 8-bit (MADS + Altirra was
 | How `mads.wasm` was built / how to rebuild | [`wiki/agents/mads-wasm-build.md`](wiki/agents/mads-wasm-build.md) |
 | How `altirra-core.wasm` was built / how to rebuild | [`wiki/agents/altirra-wasm-build.md`](wiki/agents/altirra-wasm-build.md) |
 | How `z80asm.wasm` / `appmake.wasm` (z88dk) were built / how to rebuild | [`wiki/agents/z88dk-wasm-build.md`](wiki/agents/z88dk-wasm-build.md) |
+| How `clownassembler.wasm` (M68k) + `genesis-gpgx.wasm` (Genesis Plus GX) were built / how to rebuild | [`wiki/agents/clownassembler-wasm-build.md`](wiki/agents/clownassembler-wasm-build.md) + [`wiki/agents/genesis-gpgx-wasm-build.md`](wiki/agents/genesis-gpgx-wasm-build.md) |
 | Dormant wasm-build tooling (rebuild recipes + pinned upstream sources) | [`build/justfile`](build/justfile) + [`build/third-party.toml`](build/third-party.toml) (run as `cd build && just build-*-wasm`) |
 | Things deliberately deferred — do NOT implement unprompted | [`wiki/agents/deferred.md`](wiki/agents/deferred.md) |
 | Plugin contracts (Machine/Toolchain/Emulator/Debug/Panel/Converter/Editor) | [`wiki/plugin-api/`](wiki/plugin-api/) |

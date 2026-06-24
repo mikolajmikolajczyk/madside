@@ -13,6 +13,9 @@ Load on demand. Pick the file that matches the task.
 | [glossary.md](glossary.md) | Encountered an Atari or plugin term you don't recognize |
 | [mads-wasm-build.md](mads-wasm-build.md) | About to rebuild `mads.wasm` |
 | [altirra-wasm-build.md](altirra-wasm-build.md) | About to rebuild Altirra core |
+| [z88dk-wasm-build.md](z88dk-wasm-build.md) | About to rebuild z88dk (z80asm / zcc) |
+| [clownassembler-wasm-build.md](clownassembler-wasm-build.md) | About to rebuild `clownassembler.wasm` (M68k) |
+| [genesis-gpgx-wasm-build.md](genesis-gpgx-wasm-build.md) | About to rebuild `genesis-gpgx.wasm` (Genesis Plus GX) |
 | [deferred.md](deferred.md) | Tempted to implement something not asked — check this first |
 
 Roadmap and active issues are in **GitHub**, not in these files. Use `gh issue list --state all` (repo `mikolajmikolajczyk/madside`).

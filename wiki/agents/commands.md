@@ -49,6 +49,8 @@ cd build && just build-altirra-wasm  # rebuild packages/wasm-altirra/altirra-cor
 cd build && just build-cc65-wasm     # rebuild packages/wasm-cc65/{ca65,cc65,ld65}.wasm + ca65 sysroots
 cd build && just build-z88dk-wasm    # rebuild packages/wasm-z88dk/*.wasm
 cd build && just build-chips-wasm    # rebuild packages/wasm-chips/{c64,zx}-core.{js,wasm}
+cd build && just build-clownassembler-wasm  # rebuild packages/wasm-clownassembler/clownassembler.wasm (M68k)
+cd build && just build-genesis-gpgx-wasm    # rebuild packages/wasm-genesis-gpgx/genesis-gpgx.wasm (Genesis Plus GX)
 ```
 
 The **root** `justfile` only wraps the app + docs commands (`just dev`, `just build`, `just preview`, `just typecheck`, `just install`, `just docs-dev`, `just docs-build` — Astro Starlight under `apps/docs/`); `just --list` at the root shows just those. The wasm recipes are dormant — they live in `build/justfile` alongside `build/third-party.toml` (pins) and `build/support/`.

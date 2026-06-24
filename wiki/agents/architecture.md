@@ -50,6 +50,8 @@ packages/                # workspace libraries (each: src/ + package.json)
   wasm-cc65/             # ca65.wasm / cc65.wasm / ld65.wasm (cc65 toolchain) + index
   wasm-z88dk/            # z80asm/zcc/sccz80/zcpp/zpragma/zcc/copt/appmake.wasm + index
   wasm-chips/            # c64-core.{js,wasm} + zx-core.{js,wasm} (Chips emulator cores) + index
+  wasm-clownassembler/   # clownassembler.wasm (M68k assembler, wasi-sdk reactor) + index
+  wasm-genesis-gpgx/     # genesis-gpgx.wasm (~2.6 MB — Genesis Plus GX full-system core, wasi-sdk reactor) + index
 
   # --- plugin packages (built-in plugin instances, each: src/) ---
   toolchain-mads/        # ToolchainPlugin v0.5.0 — src/mads.ts (parses .lab → labels Map, .lst → SourceMap)
@@ -58,15 +60,19 @@ packages/                # workspace libraries (each: src/ + package.json)
                          #   src/{atari,c64,nes}-sysroot.zip — cc65 sysroots; src/wasm/ — ca65/cc65/ld65 loaders
   toolchain-z88dk/       # ToolchainPlugin (z88dk, ZX) — src/z88dk-toolchain.ts
                          #   src/zx-sysroot.zip — z88dk ZX sysroot; src/wasm/ — z88dk loaders
+  toolchain-clownassembler/ # ToolchainPlugin (clownassembler, M68k/Genesis) — src/clownassembler.ts (parses listing → labels + line↔addr SourceMap); src/wasm-clownassembler/ runner
   machine-atari-xl/      # MachinePlugin v0.4.0 — display/audio/input/memoryMap/media{xex,atr,car,cas}/hardwareConfig/bootEquates; src/xex.ts
   machine-c64/           # MachinePlugin — Commodore 64; src/machine-c64.ts
   machine-nes/           # MachinePlugin (v0.8.0) — NES; cpu ricoh-2a03, memorySpaces [ppu (PPU VRAM 0x4000), oam (0x100)], devices ppu/apu; pairs with jsnes backend
   machine-zx/            # MachinePlugin — ZX Spectrum; src/machine-zx.ts
+  machine-genesis/       # MachinePlugin — Sega Genesis; cpu m68000, 24-bit memoryMap, memorySpaces [vram/cram/vsram], media{bin,md,gen,smd}, programLoadRange parses reset vector; pairs with genesis-gpgx
   emulator-c64-chips/    # EmulatorPlugin — Chips c64-core backend; src/chips-backend.ts + src/{roms,wasm}/
   emulator-nes-jsnes/    # RunBackend (v0.8.0) over the jsnes npm package; readMem(addr,len,space) serves cpu/ppu/oam; lazy-imported (code-split)
   emulator-zx-chips/     # EmulatorPlugin — Chips zx-core backend; src/chips-backend.ts + src/{roms,wasm}/
+  emulator-genesis-gpgx/ # EmulatorPlugin — Genesis Plus GX full-system backend (VDP/sound/Z80/IO); src/gpgx-backend.ts (wasi reactor, viewport→pixels, mono audio); embeds Musashi → reuses debug-m68k
   debug-atari-6502/      # DebugAdapter v0.6.0 — wraps AltirraBackend; exports MOS6502_REGISTERS/FLAGS (reused for NES — both setups share this adapter)
   debug-zx-z80/          # DebugAdapter — Z80; src/zx-z80.ts + src/z80.ts
+  debug-m68k/            # DebugAdapter — Motorola 68000 (Genesis); D0–D7/A0–A7/PC/SR + X N Z V C; reads Cpu68kState, native 24-bit memory
   panel-registers/       # PanelPlugin v0.7.0 — descriptor-driven register + flag panel
   panel-memory/          # PanelPlugin v0.7.0 — hex view + base input + cursor follow badge
   panel-output/          # PanelPlugin v0.7.0 — build stdout/stderr + OK/ERR tag
