@@ -33,6 +33,7 @@ import {
   appmakeWasmUrl,
 } from '@madside/wasm-z88dk'
 import zxSysrootZipUrl from '../zx-sysroot.zip?url'
+import { buildZ80Snapshot } from '../z80snapshot'
 
 const encoder = new TextEncoder()
 
@@ -68,8 +69,11 @@ export interface Z88dkOptions {
 
 export interface Z88dkBuildResult {
   ok: boolean
-  /** Bootable 48K .sna snapshot (absent on failure). */
+  /** Bootable snapshot (absent on failure): a 48K .sna (flat) or a 128K .z80
+   *  (banked). The `format` field says which. */
   binary?: Uint8Array
+  /** Snapshot format of `binary` — 'sna' (48K) or 'z80' (128K banked). */
+  format?: 'sna' | 'z80'
   /** z80asm list file (`-l`) — per-line addresses for the source map (#87). */
   lis?: string
   /** z80asm map file (`-m`) — section bases + labels for the source map (#87). */
@@ -136,7 +140,7 @@ const DEFAULT_SNA_SP = 0xff00
 /** Assemble `main` (+ its includes) with z80asm to a binary, then wrap it into a
  *  48K .sna at `opts.org`. Project `.asm`/`.inc` files are mounted RW; includes
  *  resolve relative to the including file (z80asm) and from the project root. */
-export async function buildZ88dk(main: string, files: Z88dkFile[], opts: Z88dkOptions = {}): Promise<Z88dkBuildResult> {
+export async function buildZ88dk(main: string, files: Z88dkFile[], opts: Z88dkOptions = {}, banked = false): Promise<Z88dkBuildResult> {
   const org = opts.org ?? DEFAULT_ORG
   const sp = opts.snaSp ?? DEFAULT_SNA_SP
   const z80asmMod = await loadWasmModule(z80asmWasmUrl)
@@ -161,6 +165,22 @@ export async function buildZ88dk(main: string, files: Z88dkFile[], opts: Z88dkOp
   if (r.stderr.trim()) stderr += `[z80asm] ${r.stderr}`
   if (r.exitCode !== 0) return { ok: false, stdout, stderr, exitCode: r.exitCode }
 
+  const decoder = new TextDecoder()
+  const lisBytes = readFromPreopen(root, lisPath)
+  const mapBytes = readFromPreopen(root, mapPath)
+  const lis = lisBytes ? decoder.decode(lisBytes) : undefined
+  const map = mapBytes ? decoder.decode(mapBytes) : undefined
+
+  if (banked) {
+    // 128K banked build: z80asm wrote one binary per SECTION (`<stem>_<sect>.bin`)
+    // — there is no single flat binary. Place each section's bytes into its RAM
+    // bank (BANK_n → bank n at $C000; $4000→bank 5, $8000→bank 2) and wrap into a
+    // .z80 the 128K core can page in. (ADR-0014.)
+    const snap = buildBanked128(stem(main), root, map, org, sp)
+    if (!snap.ok) return { ok: false, stdout, stderr: stderr + '\n' + snap.error, exitCode: 1 }
+    return { ok: true, binary: snap.z80, format: 'z80', lis, map, stdout, stderr, exitCode: 0 }
+  }
+
   const binary = readFromPreopen(root, binPath)
   if (!binary || binary.length === 0) {
     return { ok: false, stdout, stderr: stderr + '\n[z88dk] no binary produced', exitCode: 1 }
@@ -173,12 +193,61 @@ export async function buildZ88dk(main: string, files: Z88dkFile[], opts: Z88dkOp
       exitCode: 1,
     }
   }
-  const decoder = new TextDecoder()
-  const lisBytes = readFromPreopen(root, lisPath)
-  const mapBytes = readFromPreopen(root, mapPath)
-  const lis = lisBytes ? decoder.decode(lisBytes) : undefined
-  const map = mapBytes ? decoder.decode(mapBytes) : undefined
-  return { ok: true, binary: buildSna48k(binary, org, sp), lis, map, stdout, stderr, exitCode: 0 }
+  return { ok: true, binary: buildSna48k(binary, org, sp), format: 'sna', lis, map, stdout, stderr, exitCode: 0 }
+}
+
+const SECTION_HEAD_RE = /^__(?:(.+)_)?head\s*=\s*\$([0-9A-Fa-f]+)/
+const BANK_NAME_RE = /^BANK_?(\d+)$/i
+
+/** Map z80asm's per-section binaries into 128K RAM banks and build a .z80. A
+ *  section's RAM bank comes from its name (`BANK_n` → bank n) or its load
+ *  address ($4000→5, $8000→2, $C000→0). */
+function buildBanked128(
+  stemName: string,
+  root: PreopenDirectory,
+  map: string | undefined,
+  org: number,
+  sp: number,
+): { ok: true; z80: Uint8Array } | { ok: false; error: string } {
+  if (!map) return { ok: false, error: '[z88dk] 128K banked build needs the map file (missing)' }
+  // Section → load address from the map.
+  const headOf = new Map<string, number>()
+  for (const line of map.split(/\r?\n/)) {
+    const m = SECTION_HEAD_RE.exec(line)
+    if (m) headOf.set(m[1] ?? '', parseInt(m[2], 16))
+  }
+  const banks = new Map<number, Uint8Array>()
+  const place = (bank: number, offset: number, bytes: Uint8Array): void => {
+    let img = banks.get(bank)
+    if (!img) { img = new Uint8Array(0x4000); banks.set(bank, img) }
+    img.set(bytes.subarray(0, 0x4000 - offset), offset)
+  }
+  // Each `<stem>_<SECTION>.bin` the assembler emitted.
+  const prefix = `${stemName}_`
+  let placed = 0
+  for (const name of root.dir.contents.keys()) {
+    if (!name.startsWith(prefix) || !name.endsWith('.bin')) continue
+    const bytes = readFromPreopen(root, name)
+    if (!bytes) continue
+    const section = name.slice(prefix.length, -'.bin'.length)
+    const head = headOf.get(section) ?? 0
+    const bankM = BANK_NAME_RE.exec(section)
+    if (bankM) {
+      place(parseInt(bankM[1], 10), head - 0xc000, bytes)
+    } else if (head >= 0x4000 && head < 0x8000) {
+      place(5, head - 0x4000, bytes)
+    } else if (head >= 0x8000 && head < 0xc000) {
+      place(2, head - 0x8000, bytes)
+    } else {
+      place(0, head - 0xc000, bytes)
+    }
+    placed++
+  }
+  if (placed === 0) return { ok: false, error: '[z88dk] 128K banked build produced no section binaries' }
+  // port $7FFD = 0 at boot (bank 0 at $C000, 128K editor ROM); the program pages
+  // banks itself. PC = the program org (entry).
+  const z80 = buildZ80Snapshot({ pc: org, port7ffd: 0, banks, sp })
+  return { ok: true, z80 }
 }
 
 // ---------------------------------------------------------------------------

@@ -1,0 +1,8 @@
+{
+  "version": 2,
+  "name": "zx128-banking",
+  "main": "src/main.asm",
+  "machine": "zx128",
+  "toolchain": "z88dk",
+  "run": { "default": { "audio": false } }
+}

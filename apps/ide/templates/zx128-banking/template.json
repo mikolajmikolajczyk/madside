@@ -1,0 +1,6 @@
+{
+  "name": "ZX Spectrum 128K — Memory Banking",
+  "description": "Two routines at the same address $C000 in different RAM banks. Demonstrates 128K paging (port $7FFD) and bank-aware debugging: set a breakpoint in each bank and watch it fire only while that bank is paged in. z80asm with BANK_n sections, wrapped into a 128K .z80 snapshot.",
+  "machine": "zx128",
+  "order": 12
+}

@@ -118,11 +118,13 @@ export const z88dkToolchain: ToolchainPlugin = {
       }
     }
     const files: Z88dkFile[] = input.files.map((f) => ({ path: f.path, content: f.content }))
-    // .c entry → full C path (zcc + crt0 + clibs link); .asm → asm-first .sna.
+    // .c entry → full C path (zcc + crt0 + clibs link); .asm → asm-first snapshot.
+    // The 128K machine banks SECTIONs into RAM banks + emits a .z80 (ADR-0014).
     const isC = /\.c$/i.test(input.main)
+    const banked = input.machine === 'zx128'
     const r = isC
       ? await buildZ88dkC(input.main, files, optsResult.value)
-      : await buildZ88dk(input.main, files, optsResult.value)
+      : await buildZ88dk(input.main, files, optsResult.value, banked)
     const diagnostics = parseDiagnostics(r.stdout, r.stderr)
     if (!r.ok || !r.binary) {
       return { ok: false, stdout: r.stdout, stderr: r.stderr, diagnostics, exitCode: r.exitCode !== 0 ? r.exitCode : 1 }

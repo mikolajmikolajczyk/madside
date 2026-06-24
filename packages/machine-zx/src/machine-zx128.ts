@@ -37,6 +37,12 @@ export const machineZx128: MachinePlugin = {
     { id: 'main', start: 0xc000, end: 0xffff, bankCount: 8, spacePrefix: 'bank' },
   ],
 
+  // The banked z88dk build emits a 128K .z80 (the 48K .sna can't hold bank
+  // contents). A built binary has no extension, so it falls through to the
+  // default format — make that .z80 for the 128K. User-loaded .sna/.tap/etc are
+  // still picked up by the inherited extToFormat / detect.
+  media: { ...machineZx.media!, defaultFormat: 'z80' },
+
   devices: [
     { id: 'ula', name: 'ULA (display / border / beeper / keyboard)' },
     { id: 'ay', name: 'AY-3-8912 (sound)' },
