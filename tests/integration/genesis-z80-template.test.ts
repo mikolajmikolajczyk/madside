@@ -57,5 +57,13 @@ describe('Genesis Z80 sound template — build + boot (#147)', () => {
     backend.loadMedia('bin', built.binary!)
     for (let i = 0; i < 4; i++) backend.advanceFrame()
     expect(backend.getPC()).toBe(built.labels?.get('Forever'))
+
+    // The Z80 ran and drove the PSG: gpgx's audio output is non-silent. Run more
+    // frames so the tone settles, then peak-check the drained YM2612/PSG samples
+    // (this is the audio the AudioPushPump streams to the worklet in-app).
+    for (let i = 0; i < 60; i++) backend.advanceFrame()
+    const audio = (backend as unknown as { audioQueue: number[] }).audioQueue
+    const peak = audio.reduce((m, v) => Math.max(m, Math.abs(v)), 0)
+    expect(peak, 'Z80 produced no PSG audio').toBeGreaterThan(0.01)
   })
 })
