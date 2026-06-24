@@ -19,6 +19,13 @@ import { basename } from '@core/path'
 
 const FILE_HEADER = /^(\S.*?):\s*$/
 const SECTION_LINE = /^\s*\d+\s+SECTION\s+(\S+)/
+// z80asm has no native memory-bank attribute (unlike cc65's `bank=`), so a 128K
+// bank is a SECTION-naming convention: code that runs in the $C000 window under
+// $7FFD bank N lives in a section named `BANK_N` (or `BANKN`). The parser tags
+// those lines with `space:'bankN'` so the bank-aware debugger (ADR-0014) can
+// tell two routines at the same $C000 apart by their bank. Flat sections (any
+// other name) stay unbanked.
+const BANK_SECTION = /^BANK_?(\d+)$/i
 // "<lineno>  <offset4hex>  <bytes>": the offset is exactly 4 hex digits, then at
 // least one byte pair. Distinguishes emitting lines from equates / labels.
 const CODE_LINE = /^\s*(\d+)\s+([0-9A-Fa-f]{4})\s+[0-9A-Fa-f]{2}/
@@ -50,24 +57,43 @@ export function parseZ80asmDebug(lis: string, map: string, projectFiles: readonl
 
   const addrToLoc = new Map<number, SourceLoc>()
   const locToAddr = new Map<string, Map<number, number>>()
+  // Banked builds only (ADR-0014): every loc per addr across banks, so same-addr
+  // lines in different banks stay distinguishable. Absent for flat builds.
+  const bankedAddrToLoc = new Map<number, SourceLoc[]>()
   let file = ''
   let section = ''
+  let bank: number | null = null
   for (const raw of lis.split(/\r?\n/)) {
     const fh = FILE_HEADER.exec(raw)
     if (fh && !/\s/.test(fh[1])) { file = resolve(fh[1]); continue }
     const sec = SECTION_LINE.exec(raw)
-    if (sec) { section = sec[1]; continue }
+    if (sec) {
+      section = sec[1]
+      const bm = BANK_SECTION.exec(section)
+      bank = bm ? parseInt(bm[1], 10) : null
+      continue
+    }
     const cl = CODE_LINE.exec(raw)
     if (!cl || !file) continue
     const lineno = parseInt(cl[1], 10)
     const offset = parseInt(cl[2], 16)
     const base = sectionBase.get(section) ?? sectionBase.get('') ?? 0
     const addr = (base + offset) & 0xffff
-    if (!addrToLoc.has(addr)) addrToLoc.set(addr, { file, line: lineno })
+    const loc: SourceLoc = { file, line: lineno }
+    if (bank != null) loc.space = `bank${bank}`
+    if (!addrToLoc.has(addr)) addrToLoc.set(addr, loc)
+    if (bank != null) {
+      const list = bankedAddrToLoc.get(addr)
+      if (list) list.push(loc)
+      else bankedAddrToLoc.set(addr, [loc])
+    }
     let fileMap = locToAddr.get(file)
     if (!fileMap) { fileMap = new Map(); locToAddr.set(file, fileMap) }
     if (!fileMap.has(lineno)) fileMap.set(lineno, addr)
   }
 
-  return { sourceMap: { addrToLoc, locToAddr }, labels }
+  const sourceMap: SourceMap = bankedAddrToLoc.size > 0
+    ? { addrToLoc, locToAddr, bankedAddrToLoc }
+    : { addrToLoc, locToAddr }
+  return { sourceMap, labels }
 }

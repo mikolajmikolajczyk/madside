@@ -15,6 +15,29 @@ const repo = (p: string) => fileURLToPath(new URL('../../' + p, import.meta.url)
 const Z80ASM = repo('packages/wasm-z88dk/z80asm.wasm')
 const TPL = 'apps/ide/templates/zx-asm-hello/src/'
 
+async function asmListMap(source: string): Promise<{ lis: string; map: string }> {
+  const files = new Map<string, File>([
+    ['p.asm', new File(new TextEncoder().encode(source))],
+    ['p.bin', new File([])],
+    ['p.lis', new File([])],
+    ['p.map', new File([])],
+  ])
+  const wasi = new WASI(['z80asm', '-b', '-l', '-m', '-mz80', 'p.asm'], [], [
+    new OpenFile(new File([])),
+    ConsoleStdout.lineBuffered(() => {}),
+    ConsoleStdout.lineBuffered(() => {}),
+    new PreopenDirectory('.', files),
+  ])
+  const inst = new WebAssembly.Instance(new WebAssembly.Module(await readFile(Z80ASM)), {
+    wasi_snapshot_preview1: wasi.wasiImport,
+  })
+  try {
+    wasi.start(inst as unknown as { exports: { memory: WebAssembly.Memory; _start: () => unknown } })
+  } catch { /* proc_exit */ }
+  const dec = new TextDecoder()
+  return { lis: dec.decode(files.get('p.lis')!.data), map: dec.decode(files.get('p.map')!.data) }
+}
+
 describe('ZX source map from real z80asm list + map (#87)', () => {
   it('builds line↔addr + labels from -l/-m, keyed back to project paths', async () => {
     const files = new Map<string, File>([
@@ -63,5 +86,32 @@ describe('ZX source map from real z80asm list + map (#87)', () => {
     // Later instruction addresses advance monotonically from the org.
     expect(m.get(17)).toBe(0x8001) // `ld a,1`
     expect(m.get(18)).toBe(0x8003) // `out (ULA_PORT),a`
+  })
+
+  it('tags BANK_n sections so same-$C000 lines in different banks are distinguished (ADR-0014)', async () => {
+    // 128K banking convention: code that runs in the $C000 window under $7FFD
+    // bank N lives in a section named BANK_N. Two such sections share $C000.
+    const { lis, map } = await asmListMap(
+      `    SECTION MAIN
+    org $8000
+main:
+    nop
+    SECTION BANK_3
+    org $c000
+b3:
+    ld a,3
+    SECTION BANK_5
+    org $c000
+b5:
+    ld a,5
+`,
+    )
+    const { sourceMap } = parseZ80asmDebug(lis, map, ['src/p.asm'])
+
+    // Both BANK sections org at $C000 → same address, different banks, kept apart.
+    const at = sourceMap.bankedAddrToLoc?.get(0xc000)
+    expect(at?.map((l) => l.space).sort()).toEqual(['bank3', 'bank5'])
+    // The flat MAIN section's line stays unbanked.
+    expect(sourceMap.addrToLoc.get(0x8000)?.space).toBeUndefined()
   })
 })
