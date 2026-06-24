@@ -11,7 +11,7 @@
 //   file id=2,name="src/main.c",...                       a source file
 // A source line's address(es) = for each of its spans: seg(span.seg).start + span.start.
 
-import type { SourceMap } from '@ports'
+import type { SourceLoc, SourceMap } from '@ports'
 import { basename } from '@core/path'
 
 const num = (s: string | undefined): number =>
@@ -75,7 +75,9 @@ export function parseDbg(text: string, projectFiles: readonly string[]): ParsedD
   const byBase = new Map<string, string>()
   for (const p of projectFiles) if (!byBase.has(basename(p))) byBase.set(basename(p), p)
 
-  const segStart = new Map<number, number>()        // seg id → base address
+  // seg id → base (run) address + the physical-placement fields (ADR-0014 Phase 0):
+  // `bank` when the MEMORY area has bank=, `ooffs` = byte offset in the output file.
+  const segInfo = new Map<number, { start: number; bank?: number; ooffs?: number }>()
   const spans = new Map<number, { seg: number; start: number }>()
   const dbgFileToProject = new Map<number, string>() // file id → project path
   interface LineRec { file: number; line: number; spanIds: number[] }
@@ -95,9 +97,16 @@ export function parseDbg(text: string, projectFiles: readonly string[]): ParsedD
     const kind = raw.slice(0, tab)
     const f = parseFields(raw.slice(tab + 1))
     switch (kind) {
-      case 'seg':
-        segStart.set(num(f.get('id')), num(f.get('start')))
+      case 'seg': {
+        const bankRaw = f.get('bank')
+        const ooffsRaw = f.get('ooffs')
+        segInfo.set(num(f.get('id')), {
+          start: num(f.get('start')),
+          bank: bankRaw == null ? undefined : num(bankRaw),
+          ooffs: ooffsRaw == null ? undefined : num(ooffsRaw),
+        })
         break
+      }
       case 'span':
         spans.set(num(f.get('id')), { seg: num(f.get('seg')), start: num(f.get('start')) })
         break
@@ -151,18 +160,26 @@ export function parseDbg(text: string, projectFiles: readonly string[]): ParsedD
 
   for (const rec of lines) {
     const file = dbgFileToProject.get(rec.file)!
-    const addrs: number[] = []
+    // Each addr carries its source loc, with the physical placement attached when
+    // the owning segment is banked (ADR-0014 Phase 0 — captured, not yet consumed).
+    const placed: { addr: number; loc: SourceLoc }[] = []
     for (const sid of rec.spanIds) {
       const span = spans.get(sid)
       if (!span) continue
-      const base = segStart.get(span.seg)
-      if (base == null) continue
-      addrs.push(base + span.start)
+      const seg = segInfo.get(span.seg)
+      if (seg == null) continue
+      const loc: SourceLoc = { file, line: rec.line }
+      if (seg.bank != null && !Number.isNaN(seg.bank)) {
+        loc.space = `bank${seg.bank}`
+        loc.offset = (seg.ooffs ?? 0) + span.start
+      }
+      placed.push({ addr: seg.start + span.start, loc })
     }
-    if (addrs.length === 0) continue
-    addrs.sort((a, b) => a - b)
+    if (placed.length === 0) continue
+    placed.sort((a, b) => a.addr - b.addr)
+    const addrs = placed.map((p) => p.addr)
 
-    for (const a of addrs) if (!addrToLoc.has(a)) addrToLoc.set(a, { file, line: rec.line })
+    for (const p of placed) if (!addrToLoc.has(p.addr)) addrToLoc.set(p.addr, p.loc)
 
     const lineMap = locToAddr.get(file) ?? new Map<number, number>()
     const prev = lineMap.get(rec.line)

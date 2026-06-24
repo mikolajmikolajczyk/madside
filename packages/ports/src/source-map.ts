@@ -5,6 +5,15 @@
 export interface SourceLoc {
   file: string
   line: number
+  /** Physical placement captured from the toolchain — banking-support groundwork
+   *  (ADR-0014, Phase 0). `space` names the bank/segment the bytes live in;
+   *  `offset` is their physical byte offset into that domain. Present ONLY for
+   *  genuinely banked builds (a segment assigned a bank); flat builds omit both
+   *  and behave exactly as before. **Unused until the bank-aware debugger lands**
+   *  — captured here so the toolchains' bank info (cc65 `seg.bank`/`ooffs`, MADS
+   *  virtual-bank column) isn't discarded. */
+  space?: string
+  offset?: number
 }
 
 export interface SourceMap {
