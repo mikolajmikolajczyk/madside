@@ -1,0 +1,13 @@
+{
+  "name": "@madside/lsp-asm",
+  "version": "0.0.0",
+  "description": "Generic assembly language server for @madside/lsp-core, parameterized by per-assembler dialect profiles (mads / ca65 / z80asm) over CPU opcode-hint tables.",
+  "license": "MIT",
+  "type": "module",
+  "main": "./src/index.ts",
+  "types": "./src/index.ts",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "files": ["src", "LICENSE"]
+}

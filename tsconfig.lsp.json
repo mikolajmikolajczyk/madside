@@ -4,5 +4,6 @@
     "tsBuildInfoFile": "./node_modules/.tmp/tsconfig.lsp.tsbuildinfo"
   },
   "include": ["packages/lsp-core/src/**/*", "packages/lsp-c/src/**/*",
-    "packages/lsp-cc65/src/**/*", "packages/lsp-z80/src/**/*"]
+    "packages/lsp-cc65/src/**/*", "packages/lsp-z80/src/**/*",
+    "packages/lsp-asm/src/**/*"]
 }

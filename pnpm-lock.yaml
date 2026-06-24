@@ -391,6 +391,8 @@ importers:
         specifier: workspace:*
         version: link:../wasm-chips
 
+  packages/lsp-asm: {}
+
   packages/lsp-c:
     dependencies:
       '@lezer/common':
