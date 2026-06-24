@@ -17,6 +17,7 @@ export const z80asmDialect: AsmDialect = {
   id: 'z80asm',
   cpu: Z80,
   registers: REG_Z80,
+  addressingModes: false,
   lineComment: [';'],
   directives: new Set(DIRECTIVES),
   directivePrefix: '',

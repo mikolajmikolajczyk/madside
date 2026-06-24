@@ -15,6 +15,11 @@ export interface AsmDialect {
   /** CPU register + condition names, excluded from symbol-reference detection
    *  and undefined-symbol diagnostics. Matched case-insensitively. */
   readonly registers: ReadonlySet<string>
+  /** Enable addressing-mode validation diagnostics (an opcode used with a mode it
+   *  doesn't support). True for the 6502 dialects, whose modes are syntactically
+   *  unambiguous; false for z80, whose operand forms are too varied to validate
+   *  without false positives. */
+  readonly addressingModes: boolean
   /** Line-comment marker(s), e.g. [';'] or [';', '//']. */
   readonly lineComment: readonly string[]
   /** Directive names (lowercase, WITHOUT any prefix). Used for completion +

@@ -20,6 +20,7 @@ export const ca65Dialect: AsmDialect = {
   id: 'ca65',
   cpu: MOS6502,
   registers: REG_6502,
+  addressingModes: true,
   lineComment: [';'],
   directives: new Set(DIRECTIVES),
   directivePrefix: '.',

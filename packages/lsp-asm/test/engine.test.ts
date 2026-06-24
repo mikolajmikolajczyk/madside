@@ -124,6 +124,39 @@ describe('cross-file + case-insensitivity (mads) and z80asm', () => {
     expect(p.definition('main.asm', main.text, main.text.indexOf('DRAW') + 1)?.uri).toBe('lib.asm')
   })
 
+  it('addressing-mode validation flags unsupported modes (6502), not valid ones', () => {
+    const src = [
+      '        lda #$00',   // ok: immediate
+      '        jmp #5',     // error: JMP has no immediate
+      '        ldx value,x', // error: LDX is Y-indexed, not X
+      '        nop #1',     // error: NOP takes no operand
+      '        bne done',   // ok: relative
+      'value   equ $80',
+      'done',
+      '        rts',        // ok: implied
+    ].join('\n')
+    const p = createAsmProvider(madsDialect)
+    p.configure({})
+    p.update([{ path: 'm.asm', text: src }])
+    const errs = p.diagnose('m.asm').filter((d) => d.severity === 'error')
+    const msgs = errs.map((e) => e.message)
+    expect(msgs.some((m) => m.includes('JMP') && m.includes('immediate'))).toBe(true)
+    expect(msgs.some((m) => m.includes('LDX'))).toBe(true)
+    expect(msgs.some((m) => m.includes('NOP') && m.includes('no operand'))).toBe(true)
+    // valid instructions produce no mode error
+    expect(msgs.some((m) => m.includes('LDA'))).toBe(false)
+    expect(msgs.some((m) => m.includes('BNE'))).toBe(false)
+    expect(msgs.some((m) => m.includes('RTS'))).toBe(false)
+  })
+
+  it('z80 dialect does not run addressing-mode validation (forms too varied)', () => {
+    const src = '        ld a,(weird+1)\n        push hl\n'
+    const p = createAsmProvider(z80asmDialect)
+    p.configure({})
+    p.update([{ path: 'm.asm', text: src }])
+    expect(p.diagnose('m.asm').filter((d) => d.severity === 'error')).toEqual([])
+  })
+
   it('z80asm: BANK_n section labels + defc equates index', () => {
     const src = 'border: equ $fe\nstart:\n        ld a,border\n        jr start\n'
     const p = createAsmProvider(z80asmDialect)

@@ -37,10 +37,21 @@ export interface LineRef {
   end: number
 }
 
+/** An instruction statement on the line (mnemonic that is a known opcode + its
+ *  operand text), for addressing-mode validation. `start`/`end` span the
+ *  mnemonic. Absent for directive / macro-call / label-only lines. */
+export interface LineInstr {
+  mnemonic: string
+  operand: string
+  start: number
+  end: number
+}
+
 export interface ParsedLine {
   def?: LineDef
   refs: LineRef[]
   tokens: SemTok[]
+  instr?: LineInstr
 }
 
 const IDENT = /[A-Za-z_@?][A-Za-z0-9_@?.]*/g
@@ -167,6 +178,7 @@ export function parseLine(line: string, lineStart: number, d: AsmDialect): Parse
   }
 
   // Statement: first token = mnemonic (opcode / directive / macro-call), rest = operand.
+  let instr: LineInstr | undefined
   const mn = /^(\s*)([.\w@?]+)/.exec(rest)
   if (mn && mn[2]) {
     const tokTxt = mn[2]
@@ -174,6 +186,7 @@ export function parseLine(line: string, lineStart: number, d: AsmDialect): Parse
     const opEnd = restBase + mn[1].length + tokTxt.length
     if (isOpcode(tokTxt, d)) {
       tokens.push({ kind: 'opcode', start: tokStart, end: tokStart + tokTxt.length })
+      instr = { mnemonic: tokTxt, operand: code.slice(opEnd).trim(), start: tokStart, end: tokStart + tokTxt.length }
     } else if (isDirective(tokTxt, d)) {
       tokens.push({ kind: 'directive', start: tokStart, end: tokStart + tokTxt.length })
     } else if (/[A-Za-z_@?]/.test(tokTxt[0])) {
@@ -184,7 +197,7 @@ export function parseLine(line: string, lineStart: number, d: AsmDialect): Parse
     scanOperand(code.slice(opEnd), lineStart + opEnd, d, refs, tokens)
   }
 
-  return { def, refs, tokens }
+  return { def, refs, tokens, instr }
 }
 
 /** The identifier under `offset` in `text` (the symbol the cursor is on), or null. */

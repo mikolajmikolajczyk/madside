@@ -172,6 +172,57 @@ export function diagnoseFile(
     if (/^[@?.]/.test(ref.name)) continue
     out.push({ start: ref.start, end: ref.end, severity: 'warning', message: `Undefined symbol '${ref.name}'` })
   }
+
+  // Addressing-mode validation (6502 dialects): an opcode used with a mode it
+  // doesn't support won't assemble. Re-scan the file for instruction statements.
+  if (d.addressingModes) out.push(...diagnoseAddressing(index, d, uri))
+  return out
+}
+
+/** Map an operand's syntax to the 6502 addressing mode(s) it could be. zeropage
+ *  vs absolute can't be told apart without the operand's value, so the indexed +
+ *  direct shapes carry both — validation accepts the opcode if it supports any. */
+function detectMode(operand: string): { name: string; candidates: string[] } {
+  const op = operand.trim()
+  if (op === '') return { name: 'implied', candidates: ['implied', 'accumulator'] }
+  if (/^[Aa]$/.test(op)) return { name: 'accumulator', candidates: ['accumulator'] }
+  if (op.startsWith('#')) return { name: 'immediate', candidates: ['immediate'] }
+  if (/^\(.*,\s*[Xx]\s*\)$/.test(op)) return { name: '(indirect,X)', candidates: ['(indirect,X)'] }
+  if (/^\(.*\)\s*,\s*[Yy]$/.test(op)) return { name: '(indirect),Y', candidates: ['(indirect),Y'] }
+  if (/^\(.*\)$/.test(op)) return { name: 'indirect', candidates: ['indirect'] }
+  if (/,\s*[Xx]$/.test(op)) return { name: 'X-indexed', candidates: ['zeropage,X', 'absolute,X'] }
+  if (/,\s*[Yy]$/.test(op)) return { name: 'Y-indexed', candidates: ['zeropage,Y', 'absolute,Y'] }
+  return { name: 'absolute', candidates: ['zeropage', 'absolute', 'relative'] }
+}
+
+function diagnoseAddressing(index: AsmIndex, d: AsmDialect, uri: string): SemanticDiagnostic[] {
+  const file = index.files.get(uri)
+  if (!file) return []
+  const out: SemanticDiagnostic[] = []
+  const text = file.text
+  let lineStart = 0
+  for (;;) {
+    const nl = text.indexOf('\n', lineStart)
+    const end = nl === -1 ? text.length : nl
+    const { instr } = parseLine(text.slice(lineStart, end), lineStart, d)
+    if (instr) {
+      const info = d.cpu.info[instr.mnemonic.toUpperCase()]
+      if (info) {
+        const supported = new Set(info.modes.map((m) => m.mode))
+        const det = detectMode(instr.operand)
+        if (!det.candidates.some((c) => supported.has(c))) {
+          const mn = instr.mnemonic.toUpperCase()
+          const message =
+            instr.operand === '' ? `\`${mn}\` requires an operand`
+              : supported.has('implied') && supported.size === 1 ? `\`${mn}\` takes no operand`
+                : `\`${mn}\` does not support ${det.name} addressing`
+          out.push({ start: instr.start, end: instr.end, severity: 'error', message })
+        }
+      }
+    }
+    if (nl === -1) break
+    lineStart = nl + 1
+  }
   return out
 }
 
