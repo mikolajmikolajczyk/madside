@@ -1,0 +1,9 @@
+{
+  "version": 2,
+  "name": "genesis-z80-sound",
+  "main": "src/main.asm",
+  "machine": "genesis",
+  "toolchain": "clownassembler",
+  "build": { "options": { "z80": true } },
+  "run": { "default": { "audio": true } }
+}

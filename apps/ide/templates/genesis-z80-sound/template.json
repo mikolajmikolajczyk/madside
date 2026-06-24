@@ -1,0 +1,6 @@
+{
+  "name": "Sega Genesis — Z80 sound (M68k + Z80)",
+  "description": "A Genesis program that uses both of its CPUs: the 68000 sets up the screen and boots the Z80 sound coprocessor, and the Z80 plays a tone on the PSG. Your Z80 source (src/sound/driver.s80) is assembled automatically and embedded in the ROM; the 68000 copies it into the Z80's RAM and starts it. Extend the driver to play music or sound effects.",
+  "machine": "genesis",
+  "order": 11
+}

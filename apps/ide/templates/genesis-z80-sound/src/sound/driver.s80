@@ -1,0 +1,18 @@
+; Genesis Z80 sound driver — plays a steady tone on the PSG, then loops.
+; This is assembled by z80asm into a flat binary (because the project has
+; "z80": true), embedded in the ROM, copied into the Z80's RAM by the 68000, and
+; run. The Z80 reaches the PSG (SN76489) at $7F11 in its own address space.
+	org	$0000
+	di				; the driver doesn't use interrupts
+
+	; PSG channel 0: latch the tone period (10 bits, low nibble first), then
+	; set the channel volume to maximum (attenuation 0).
+	ld	a,$8F			; latch ch0 tone, low 4 bits of the period
+	ld	($7F11),a
+	ld	a,$0F			; high 6 bits of the period
+	ld	($7F11),a
+	ld	a,$90			; latch ch0 volume, attenuation 0 = loudest
+	ld	($7F11),a
+
+Loop:
+	jp	Loop			; hold the note forever
