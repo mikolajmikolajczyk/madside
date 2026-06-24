@@ -1,6 +1,6 @@
 import { ViewPlugin, EditorView, showTooltip, type Tooltip, type ViewUpdate } from "@codemirror/view";
 import { StateField, StateEffect, type Extension } from "@codemirror/state";
-import { cc65SignatureHelp, type SignatureInfo } from "./client";
+import { cSignatureHelp, type SignatureInfo } from "./client";
 
 // Signature help (#71). While the cursor sits inside a call's `(…)`, a tooltip
 // shows the function signature with the active parameter bold. The server
@@ -25,7 +25,7 @@ const sigField = StateField.define<Tooltip | null>({
  *  label substring (the server sends parameter labels as text). */
 function renderSignature(info: SignatureInfo): HTMLElement {
   const dom = document.createElement("div");
-  dom.className = "cm-cc65-sighelp";
+  dom.className = "cm-c-sighelp";
   const active = info.params[info.active];
   const at = active ? info.label.indexOf(active) : -1;
   if (active && at >= 0) {
@@ -49,7 +49,7 @@ const plugin = ViewPlugin.fromClass(
       clearTimeout(this.timer);
       this.timer = window.setTimeout(() => {
         const pos = view.state.selection.main.head;
-        void cc65SignatureHelp(view.state.doc, pos).then((info) => {
+        void cSignatureHelp(view.state.doc, pos).then((info) => {
           const tip: Tooltip | null = info
             ? { pos, above: true, create: () => ({ dom: renderSignature(info) }) }
             : null;
@@ -65,6 +65,6 @@ const plugin = ViewPlugin.fromClass(
 
 /** CodeMirror extension: cursor-driven cc65 signature help. Degrades silently
  *  to no popup on transport failure. */
-export function cc65SignatureHelpTooltip(): Extension {
+export function cSignatureHelpTooltip(): Extension {
   return [sigField, plugin];
 }

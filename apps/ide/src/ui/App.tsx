@@ -610,8 +610,8 @@ export default function App() {
     if (!text) return;
     let changes: RenameChanges | null;
     if (isC) {
-      const { cc65Rename } = await import("./codemirror/lsp/client");
-      changes = await cc65Rename(text, req.pos, name);
+      const { cRename } = await import("./codemirror/lsp/client");
+      changes = await cRename(text, req.pos, name);
     } else {
       const { asmRename } = await import("./codemirror/lsp/asm-client");
       changes = await asmRename(text, req.pos, name);

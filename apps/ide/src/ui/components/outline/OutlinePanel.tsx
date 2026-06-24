@@ -35,8 +35,8 @@ export function OutlinePanel({ path, content, onJump }: Props) {
     let cancelled = false;
     // Debounced so typing doesn't spam the worker; the list lags edits slightly.
     const timer = window.setTimeout(() => {
-      void import("../../codemirror/lsp/client").then(({ cc65DocumentSymbols }) =>
-        cc65DocumentSymbols(path, content).then((syms) => {
+      void import("../../codemirror/lsp/client").then(({ cDocumentSymbols }) =>
+        cDocumentSymbols(path, content).then((syms) => {
           if (!cancelled) setItems(syms);
         }),
       );

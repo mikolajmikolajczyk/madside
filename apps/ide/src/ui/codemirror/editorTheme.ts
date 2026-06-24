@@ -175,7 +175,7 @@ export const editorTheme = EditorView.theme(
       border: "1px solid var(--border-default)",
       boxShadow: "0 4px 12px rgba(0,0,0,0.6)",
     },
-    ".cm-cc65-sighelp": {
+    ".cm-c-sighelp": {
       fontFamily: "var(--font-mono)",
       fontSize: "12px",
       color: "var(--text-secondary)",
@@ -183,7 +183,7 @@ export const editorTheme = EditorView.theme(
       maxWidth: "560px",
       whiteSpace: "pre-wrap",
     },
-    ".cm-cc65-sighelp strong": { color: "var(--accent-mint)", fontWeight: "bold" },
+    ".cm-c-sighelp strong": { color: "var(--accent-mint)", fontWeight: "bold" },
   },
   { dark: true }
 );

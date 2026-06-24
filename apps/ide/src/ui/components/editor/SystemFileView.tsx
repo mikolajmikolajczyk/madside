@@ -60,7 +60,7 @@ export function SystemFileView({ path, text, onClose, onGoToDefinition }: Props)
         lsp.setActiveDoc(path);
         exts.push(
           cpp(),
-          lsp.cc65LspHover,
+          lsp.cLspHover,
           EditorView.domEventHandlers({
             mousedown(e, v) {
               if (!(e.ctrlKey || e.metaKey)) return false;
@@ -68,8 +68,8 @@ export function SystemFileView({ path, text, onClose, onGoToDefinition }: Props)
               if (pos == null) return false;
               e.preventDefault();
               const doc = v.state.doc;
-              void import("../../codemirror/lsp/client").then(({ cc65LspDefinition }) =>
-                cc65LspDefinition(doc, pos).then((target) => {
+              void import("../../codemirror/lsp/client").then(({ cLspDefinition }) =>
+                cLspDefinition(doc, pos).then((target) => {
                   if (target) onGoToDefRef.current?.(target);
                 }),
               );

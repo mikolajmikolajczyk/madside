@@ -1,6 +1,6 @@
 import { ViewPlugin, Decoration, EditorView, type DecorationSet, type ViewUpdate } from "@codemirror/view";
 import { StateField, StateEffect, RangeSetBuilder, type Extension } from "@codemirror/state";
-import { cc65SemanticTokensFull } from "./client";
+import { cSemanticTokensFull } from "./client";
 
 // LSP semantic-token overlay (#72). The C language server resolves each
 // identifier to a *semantic* role the lezer lexer can't see — a macro vs a
@@ -65,7 +65,7 @@ const plugin = ViewPlugin.fromClass(
       // Debounced so fast typing doesn't spam the worker; the syntactic
       // highlight covers the gap until tokens land.
       this.timer = window.setTimeout(() => {
-        void cc65SemanticTokensFull(view.state.doc).then((data) => {
+        void cSemanticTokensFull(view.state.doc).then((data) => {
           if (data) view.dispatch({ effects: setTokens.of(decode(data, view)) });
         });
       }, 200);
@@ -78,6 +78,6 @@ const plugin = ViewPlugin.fromClass(
 
 /** CodeMirror extension: paint LSP semantic tokens over the active C
  *  buffer. Degrades silently to no overlay on transport failure. */
-export function cc65SemanticTokens(): Extension {
+export function cSemanticTokens(): Extension {
   return [tokenField, plugin];
 }

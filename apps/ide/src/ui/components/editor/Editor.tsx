@@ -111,7 +111,7 @@ async function loadLanguagePack(
   // C language server running in a Web Worker (#63): member completion, cc65 stdlib + register
   // structs (from the sysroot headers we feed it), and auto-#include.
   if (/\.(c|h|cc|cpp|hpp)$/.test(lower)) {
-    const [{ cpp }, { autocompletion }, lsp, { cc65SemanticTokens }, { cc65SignatureHelpTooltip }, { cSysrootHeaders, cTargetDefines, cLspTarget }] = await Promise.all([
+    const [{ cpp }, { autocompletion }, lsp, { cSemanticTokens }, { cSignatureHelpTooltip }, { cSysrootHeaders, cTargetDefines, cLspTarget }] = await Promise.all([
       import("@codemirror/lang-cpp"),
       import("@codemirror/autocomplete"),
       import("../../codemirror/lsp/client"),
@@ -131,15 +131,15 @@ async function loadLanguagePack(
     // Mark this file as the focused doc so completion/hover address its URI in
     // the multi-document worker (#70).
     lsp.setActiveDoc(path);
-    // cpp() = lexical highlight; cc65SemanticTokens() paints the LSP's semantic
+    // cpp() = lexical highlight; cSemanticTokens() paints the LSP's semantic
     // roles (macro / type / function / field) on top (#72); signature help (#71)
     // pops the call signature while typing arguments.
     return [
       cpp(),
-      cc65SemanticTokens(),
-      cc65SignatureHelpTooltip(),
-      autocompletion({ override: [lsp.cc65LspComplete] }),
-      lsp.cc65LspHover,
+      cSemanticTokens(),
+      cSignatureHelpTooltip(),
+      autocompletion({ override: [lsp.cLspComplete] }),
+      lsp.cLspHover,
     ];
   }
   // Assembly: StreamLanguage highlight from the CPU + toolchain vocab. When the
@@ -404,8 +404,8 @@ export function Editor({ value, onChange, filename, pcLine, breakpointLines, lin
             if (isCFile(filenameRef.current)) {
               e.preventDefault();
               const doc = view.state.doc;
-              void import("../../codemirror/lsp/client").then(({ cc65LspDefinition }) =>
-                cc65LspDefinition(doc, pos).then((target) => {
+              void import("../../codemirror/lsp/client").then(({ cLspDefinition }) =>
+                cLspDefinition(doc, pos).then((target) => {
                   if (target) onGoToDefRef.current?.(target);
                 }),
               );
@@ -451,8 +451,8 @@ export function Editor({ value, onChange, filename, pcLine, breakpointLines, lin
             const symbol = view.state.doc.sliceString(word.from, word.to);
             const doc = view.state.doc;
             if (isC) {
-              void import("../../codemirror/lsp/client").then(({ cc65References }) =>
-                cc65References(doc, pos).then((refs) => onFindRefsRef.current?.(symbol, refs)));
+              void import("../../codemirror/lsp/client").then(({ cReferences }) =>
+                cReferences(doc, pos).then((refs) => onFindRefsRef.current?.(symbol, refs)));
             } else {
               void import("../../codemirror/lsp/asm-client").then(({ asmReferences }) =>
                 asmReferences(doc, pos).then((refs) => onFindRefsRef.current?.(symbol, refs)));

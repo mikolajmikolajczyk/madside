@@ -255,7 +255,7 @@ function applyWithEdits(label: string, edits: LspTextEdit[]) {
 /** CodeMirror completion source backed by the C language server. Any transport
  *  failure (worker crash, init error) degrades to "no completions" rather than
  *  surfacing an error in the editor. */
-export async function cc65LspComplete(ctx: CompletionContext): Promise<CompletionResult | null> {
+export async function cLspComplete(ctx: CompletionContext): Promise<CompletionResult | null> {
   try {
     if (!activePath) return null
     const { conn, ready: handshake } = connect()
@@ -293,7 +293,7 @@ export async function cc65LspComplete(ctx: CompletionContext): Promise<Completio
  *  dependency-free — no markdown renderer in a CodeMirror tooltip. */
 function renderHover(markdown: string): HTMLElement {
   const dom = document.createElement('div')
-  dom.className = 'cm-cc65-hover'
+  dom.className = 'cm-c-hover'
   const code = /```c?\n([\s\S]*?)\n```/.exec(markdown)
   if (code) {
     const pre = document.createElement('pre')
@@ -316,7 +316,7 @@ function renderHover(markdown: string): HTMLElement {
 
 /** CodeMirror hover source backed by the C language server. Transport failures
  *  degrade to "no tooltip". */
-export const cc65LspHover = hoverTooltip(async (view, pos): Promise<Tooltip | null> => {
+export const cLspHover = hoverTooltip(async (view, pos): Promise<Tooltip | null> => {
   try {
     if (!activePath) return null
     const { conn, ready: handshake } = connect()
@@ -357,7 +357,7 @@ const FILE_URI_PREFIX = 'file:///'
  *  to a host navigation target. Cross-file: the server resolves against every
  *  open project doc (#70) plus the sysroot headers. Null on miss or transport
  *  failure (degrades to "no navigation"). */
-export async function cc65LspDefinition(doc: Text, pos: number): Promise<DefinitionTarget | null> {
+export async function cLspDefinition(doc: Text, pos: number): Promise<DefinitionTarget | null> {
   try {
     if (!activePath) return null
     const { conn, ready: handshake } = connect()
@@ -383,7 +383,7 @@ export async function cc65LspDefinition(doc: Text, pos: number): Promise<Definit
  *  tokenModifiers]` quintuples) — the host decodes it into editor decorations.
  *  The token-type order is the server's legend: type, function, macro,
  *  parameter, property, variable. Null on miss / transport failure. */
-export async function cc65SemanticTokensFull(doc: Text): Promise<number[] | null> {
+export async function cSemanticTokensFull(doc: Text): Promise<number[] | null> {
   try {
     if (!activePath) return null
     const { conn, ready: handshake } = connect()
@@ -417,7 +417,7 @@ export interface SignatureInfo {
 /** Signature help for the call enclosing `pos`, or null when the cursor isn't
  *  inside a known call (the server decides). Transport failures degrade to
  *  null (no popup). */
-export async function cc65SignatureHelp(doc: Text, pos: number): Promise<SignatureInfo | null> {
+export async function cSignatureHelp(doc: Text, pos: number): Promise<SignatureInfo | null> {
   try {
     if (!activePath) return null
     const { conn, ready: handshake } = connect()
@@ -457,7 +457,7 @@ export interface OutlineItem {
 /** Document symbols (functions / structs / typedefs / globals) for `path`. Syncs
  *  the passed text first so the outline tracks unsaved edits. Empty on miss /
  *  transport failure. */
-export async function cc65DocumentSymbols(path: string, text: string): Promise<OutlineItem[]> {
+export async function cDocumentSymbols(path: string, text: string): Promise<OutlineItem[]> {
   try {
     const { conn, ready: handshake } = connect()
     await handshake
@@ -482,7 +482,7 @@ export interface ReferenceLocation {
 
 /** All references to the symbol at `pos`, declaration included, across every
  *  open project document. Empty on miss / transport failure. */
-export async function cc65References(doc: Text, pos: number): Promise<ReferenceLocation[]> {
+export async function cReferences(doc: Text, pos: number): Promise<ReferenceLocation[]> {
   try {
     if (!activePath) return []
     const { conn, ready: handshake } = connect()
@@ -533,7 +533,7 @@ export type RenameChanges = Record<string, RenameTextEdit[]>
 /** Rename the symbol at `pos` (offset in `text`) to `newName`, returning the
  *  edits per project path, or null when the symbol isn't renameable / on
  *  failure. The host applies the edits to the project files. */
-export async function cc65Rename(
+export async function cRename(
   text: string,
   pos: number,
   newName: string,
