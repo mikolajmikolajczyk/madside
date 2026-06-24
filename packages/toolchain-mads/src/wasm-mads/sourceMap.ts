@@ -25,8 +25,11 @@ const SOURCE_RE = /^Source:\s*(.+?)\s*$/;
 const LINENO_RE = /^\s*(\d+)\s/;
 // MADS prefix tokens before code bytes: "XXXX>", "XXXX-XXXX>", or plain "XXXX " (4 hex + space).
 // Multiple may chain (e.g. line "8 FFFF> 2000-2019> A5 58 ...").
-// Capture groups: 1 = start addr, 2 = optional end addr (range), 3 = optional ">" marker.
-const PREFIX_RE = /^([0-9A-Fa-f]{4})(?:-([0-9A-Fa-f]{4}))?(>)?\s+/;
+// When a memory bank is active (bank != 0) MADS prefixes the address with the
+// 2-hex bank + comma: "01,2000", "01,2000-2008>" (bank 0 emits no prefix). The
+// optional bank is captured for banking-support groundwork (ADR-0014 Phase 0).
+// Capture groups: 1 = optional bank, 2 = start addr, 3 = optional end addr (range), 4 = optional ">" marker.
+const PREFIX_RE = /^(?:([0-9A-Fa-f]{2}),)?([0-9A-Fa-f]{4})(?:-([0-9A-Fa-f]{4}))?(>)?\s+/;
 // Byte sequence: one or more 2-hex tokens separated by whitespace.
 const BYTES_RE = /^((?:[0-9A-Fa-f]{2}\s+)+)/;
 // Equate line "= XXXX label = value" — no emission.
@@ -34,7 +37,7 @@ const EQUATE_RE = /^=\s+[0-9A-Fa-f]{4}/;
 // icl directive in MADS source: `icl 'path'` or `icl "path"`.
 const ICL_RE = /^\s*icl\s+['"]([^'"]+)['"]/i;
 
-interface LstCode { lineno: number; addr: number; bytes: number; }
+interface LstCode { lineno: number; addr: number; bytes: number; bank: number | null; }
 
 function parseCodeLine(s: string): LstCode | null {
   const lm = LINENO_RE.exec(s);
@@ -43,13 +46,16 @@ function parseCodeLine(s: string): LstCode | null {
   if (EQUATE_RE.test(rest)) return null;
   let addr: number | null = null;
   let rangeEnd: number | null = null;
+  let bank: number | null = null;
   let pm: RegExpExecArray | null;
   // Walk through every prefix on the line — the *last* one wins for the actual
   // emission address. `FFFF>` placeholders (forward references / org markers)
-  // before a real "XXXX-YYYY>" range are intentionally overwritten.
+  // before a real "XXXX-YYYY>" range are intentionally overwritten. The bank (when
+  // present) rides with the winning address.
   while ((pm = PREFIX_RE.exec(rest))) {
-    addr = parseInt(pm[1], 16);
-    rangeEnd = pm[2] ? parseInt(pm[2], 16) : null;
+    bank = pm[1] != null ? parseInt(pm[1], 16) : null;
+    addr = parseInt(pm[2], 16);
+    rangeEnd = pm[3] ? parseInt(pm[3], 16) : null;
     rest = rest.slice(pm[0].length);
   }
   if (addr == null) return null;
@@ -63,7 +69,7 @@ function parseCodeLine(s: string): LstCode | null {
     const span = ((rangeEnd - addr) & 0xffff) + 1;
     if (span > 0 && span <= tokenCount) bytes = span;
   }
-  return { lineno: parseInt(lm[1], 10), addr, bytes };
+  return { lineno: parseInt(lm[1], 10), addr, bytes, bank };
 }
 
 export interface ParseSourceMapContext {
@@ -174,12 +180,19 @@ export function parseSourceMap(lst: string, ctx?: ParseSourceMapContext): Source
 
     const code = parseCodeLine(rawLine);
     if (!code) continue;
-    const { lineno: line, addr, bytes } = code;
+    const { lineno: line, addr, bytes, bank } = code;
     const currentFile = stack[stack.length - 1].file;
 
     for (let i = 0; i < bytes; i++) {
       const a = (addr + i) & 0xffff;
-      if (!addrToLoc.has(a)) addrToLoc.set(a, { file: currentFile, line });
+      if (!addrToLoc.has(a)) {
+        // Banking groundwork (ADR-0014 Phase 0): capture the bank when MADS
+        // emitted one. MADS gives no physical offset (unlike cc65's `ooffs`), so
+        // only `space` is set; the offset within the bank is a Phase-1 decode.
+        const loc: SourceLoc = { file: currentFile, line };
+        if (bank != null) loc.space = `bank${bank}`;
+        addrToLoc.set(a, loc);
+      }
     }
     const fileMap = locToAddr.get(currentFile)!;
     if (!fileMap.has(line)) fileMap.set(line, addr);

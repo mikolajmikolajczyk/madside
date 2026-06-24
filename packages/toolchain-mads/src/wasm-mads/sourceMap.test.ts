@@ -53,3 +53,34 @@ describe('parseSourceMap — same-basename disambiguation (30be0cf)', () => {
     expect(sm.addrToLoc.get(0x2000)?.file).toBe('src/main.a65')
   })
 })
+
+// ADR-0014 Phase 0: when a memory bank is active (lmb/nmb), mads 2.1.8 prefixes
+// the .lst address with the 2-hex bank + comma ("01,2000"); bank 0 emits no
+// prefix. The parser captures it as SourceLoc.space. Shape verified against real
+// mads.wasm output. MADS gives no physical offset (unlike cc65's ooffs).
+const BANKED_LST = [
+  'Source: game.asm',
+  '     1 2000                     org $2000',
+  '     2 01,2000 A9 00            lda #0',          // bank 1, $2000 (2 bytes)
+  '     3 02,3000 A9 01            lda #1',          // bank 2, $3000
+  '     4 FFFF> 03,5000-5008> A9 + lda #2',          // bank 3, $5000 (FFFF> placeholder + range + truncation)
+  '     5 4000 A9 03               lda #3',          // bank 0 → no prefix
+].join('\n')
+
+describe('parseSourceMap — banked address capture (ADR-0014 Phase 0)', () => {
+  const sm = parseSourceMap(BANKED_LST)
+
+  it('captures the bank as SourceLoc.space when present', () => {
+    expect(sm.addrToLoc.get(0x2000)).toEqual({ file: 'game.asm', line: 2, space: 'bank1' })
+    expect(sm.addrToLoc.get(0x2001)).toEqual({ file: 'game.asm', line: 2, space: 'bank1' })
+    expect(sm.addrToLoc.get(0x3000)).toEqual({ file: 'game.asm', line: 3, space: 'bank2' })
+  })
+
+  it('takes the bank from the winning prefix through FFFF>/range/truncation', () => {
+    expect(sm.addrToLoc.get(0x5000)).toEqual({ file: 'game.asm', line: 4, space: 'bank3' })
+  })
+
+  it('leaves bank-0 lines (no prefix) placement-free', () => {
+    expect(sm.addrToLoc.get(0x4000)).toEqual({ file: 'game.asm', line: 5 })
+  })
+})
