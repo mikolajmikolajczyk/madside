@@ -391,7 +391,14 @@ importers:
         specifier: workspace:*
         version: link:../wasm-chips
 
-  packages/lsp-asm: {}
+  packages/lsp-asm:
+    dependencies:
+      '@madside/lsp-core':
+        specifier: workspace:*
+        version: link:../lsp-core
+      vscode-languageserver:
+        specifier: ^9.0.1
+        version: 9.0.1
 
   packages/lsp-c:
     dependencies:

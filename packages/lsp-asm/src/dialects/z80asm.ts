@@ -3,6 +3,7 @@
 // via `equ` / `=` / `defc NAME = …`; includes via `include`; macros
 // `NAME macro` … `endm`. Banking uses `SECTION BANK_n` (see z80asm-debug).
 import { Z80 } from '../cpu'
+import { REG_Z80 } from '../registers'
 import type { AsmDialect } from '../dialect'
 
 const DIRECTIVES = [
@@ -15,6 +16,7 @@ const DIRECTIVES = [
 export const z80asmDialect: AsmDialect = {
   id: 'z80asm',
   cpu: Z80,
+  registers: REG_Z80,
   lineComment: [';'],
   directives: new Set(DIRECTIVES),
   directivePrefix: '',

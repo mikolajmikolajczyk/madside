@@ -3,6 +3,7 @@
 // labels marked with a trailing ':'; equates via `=` / `:=`; includes via
 // `.include`; macros `.macro NAME` … `.endmacro` (or `.mac` … `.endmac`).
 import { MOS6502 } from '../cpu'
+import { REG_6502 } from '../registers'
 import type { AsmDialect } from '../dialect'
 
 const DIRECTIVES = [
@@ -18,6 +19,7 @@ const DIRECTIVES = [
 export const ca65Dialect: AsmDialect = {
   id: 'ca65',
   cpu: MOS6502,
+  registers: REG_6502,
   lineComment: [';'],
   directives: new Set(DIRECTIVES),
   directivePrefix: '.',

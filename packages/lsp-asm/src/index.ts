@@ -7,6 +7,8 @@
 
 export type { AsmDialect } from './dialect'
 export { madsDialect, ca65Dialect, z80asmDialect, getAsmDialect, ASM_DIALECTS } from './dialects'
+export { createAsmProvider } from './provider'
+export { SEM_LEGEND, buildIndex, type AsmIndex } from './engine'
 export {
   MOS6502,
   Z80,

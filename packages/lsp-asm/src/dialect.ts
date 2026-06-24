@@ -12,6 +12,9 @@ export interface AsmDialect {
   readonly id: string
   /** Opcode hint table for this assembler's CPU (hover / completion / modes). */
   readonly cpu: CpuOpcodes
+  /** CPU register + condition names, excluded from symbol-reference detection
+   *  and undefined-symbol diagnostics. Matched case-insensitively. */
+  readonly registers: ReadonlySet<string>
   /** Line-comment marker(s), e.g. [';'] or [';', '//']. */
   readonly lineComment: readonly string[]
   /** Directive names (lowercase, WITHOUT any prefix). Used for completion +

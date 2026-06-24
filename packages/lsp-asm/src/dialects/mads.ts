@@ -2,6 +2,7 @@
 // are bare in column 0 (a trailing ':' is also accepted); includes via `icl`;
 // equates via `EQU` or `=`; macros `.macro NAME` … `.endm`.
 import { MOS6502 } from '../cpu'
+import { REG_6502 } from '../registers'
 import type { AsmDialect } from '../dialect'
 
 const DIRECTIVES = [
@@ -13,6 +14,7 @@ const DIRECTIVES = [
 export const madsDialect: AsmDialect = {
   id: 'mads',
   cpu: MOS6502,
+  registers: REG_6502,
   lineComment: [';', '//'],
   directives: new Set(DIRECTIVES),
   directivePrefix: '',
