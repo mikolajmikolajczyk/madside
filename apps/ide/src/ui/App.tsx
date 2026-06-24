@@ -40,12 +40,13 @@ import { useEquateValues } from "./hooks/useEquateValues";
 import { usePluginEditor } from "./hooks/usePluginEditor";
 import { useProjectLabels } from "./hooks/useProjectLabels";
 import { useProjectCDocuments } from "./hooks/useProjectCDocuments";
+import { useProjectAsmDocuments } from "./hooks/useProjectAsmDocuments";
 import { useLspDiagnostics } from "./hooks/useLspDiagnostics";
 import { useManifestMachineSync } from "./hooks/useManifestMachineSync";
 import { useEmuStateReset } from "./hooks/useEmuStateReset";
 import { useRunControls } from "./hooks/useRunControls";
 import { useDebugEventMonitor } from "./hooks/useDebugEventMonitor";
-import type { DefinitionTarget } from "./codemirror/lsp/client";
+import type { DefinitionTarget, RenameChanges } from "./codemirror/lsp/client";
 import { useProjectsWithCourse } from "./hooks/useProjectsWithCourse";
 import { useAutoAssemble } from "./hooks/useAutoAssemble";
 import { useRunStatus } from "./hooks/useRunStatus";
@@ -310,6 +311,11 @@ export default function App() {
   useProjectCDocuments(
     project.loaded ? project.files : null,
     project.loaded ? project.manifest.machine : undefined,
+  );
+  // Same cross-file sync for the asm language server (#140).
+  useProjectAsmDocuments(
+    project.loaded ? project.files : null,
+    project.loaded ? project.manifest.toolchain : undefined,
   );
 
   // Welcome screen needs each project's course stamp to split "Your projects"
@@ -598,8 +604,18 @@ export default function App() {
     setRenameReq(null);
     const name = newName.trim();
     if (!req || !project.loaded || !name || name === req.symbol) return;
-    const { cc65Rename } = await import("./codemirror/lsp/client");
-    const changes = await cc65Rename(outlineText, req.pos, name);
+    // C files rename via the cc65 server; asm files via the asm server (#140).
+    const isC = isCFile(activePath);
+    const text = isC ? outlineText : (activeContent ? new TextDecoder().decode(activeContent) : "");
+    if (!text) return;
+    let changes: RenameChanges | null;
+    if (isC) {
+      const { cc65Rename } = await import("./codemirror/lsp/client");
+      changes = await cc65Rename(text, req.pos, name);
+    } else {
+      const { asmRename } = await import("./codemirror/lsp/asm-client");
+      changes = await asmRename(text, req.pos, name);
+    }
     if (!changes) return;
     const dec = new TextDecoder();
     const enc2 = new TextEncoder();
@@ -610,7 +626,7 @@ export default function App() {
       edits.push({ path, content: enc2.encode(applyTextEdits(dec.decode(file.content), textEdits)) });
     }
     if (edits.length > 0) await project.applyEdits(edits);
-  }, [renameReq, project, outlineText]);
+  }, [renameReq, project, outlineText, activeContent, activePath]);
 
 
   // Run/debug transport controls (#65): onRun/onPause/onStep/onStepFrame/

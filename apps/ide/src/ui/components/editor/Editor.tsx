@@ -290,6 +290,9 @@ export function Editor({ value, onChange, filename, pcLine, breakpointLines, lin
   const filenameRef = useRef(filename);
   const cFormatStyleRef = useRef(cFormatStyle);
   const tabWidthRef = useRef(tabWidth);
+  // The active asm LSP dialect (or undefined), so the once-built nav handlers can
+  // route asm files to the language server (#140).
+  const asmDialectRef = useRef(asmDialectFor(toolchainId));
   useEffect(() => {
     onChangeRef.current = onChange;
     onToggleRef.current = onToggleBreakpoint;
@@ -301,6 +304,7 @@ export function Editor({ value, onChange, filename, pcLine, breakpointLines, lin
     filenameRef.current = filename;
     cFormatStyleRef.current = cFormatStyle;
     tabWidthRef.current = tabWidth;
+    asmDialectRef.current = asmDialectFor(toolchainId);
   });
 
   // Format the active document: C/C++ → clang-format (wasm, VS Code parity);
@@ -407,6 +411,20 @@ export function Editor({ value, onChange, filename, pcLine, breakpointLines, lin
               );
               return true;
             }
+            // Asm sources resolve via the asm LSP (position-based, cross-file,
+            // #140), falling back to the name-based label jump on a miss.
+            if (asmDialectRef.current) {
+              e.preventDefault();
+              const doc = view.state.doc;
+              void import("../../codemirror/lsp/asm-client").then(({ asmDefinition }) =>
+                asmDefinition(doc, pos).then((target) => {
+                  if (target) { onGoToDefRef.current?.(target); return; }
+                  const w = view.state.wordAt(pos);
+                  if (w) onJumpRef.current?.(view.state.doc.sliceString(w.from, w.to));
+                }),
+              );
+              return true;
+            }
             const word = view.state.wordAt(pos);
             if (!word) return false;
             const text = view.state.doc.sliceString(word.from, word.to);
@@ -425,26 +443,31 @@ export function Editor({ value, onChange, filename, pcLine, breakpointLines, lin
           // Find all references for the C identifier at the cursor (#74, VS Code
           // parity). App surfaces the results in the sidebar.
           { key: "Shift-F12", preventDefault: true, run: (view) => {
-            if (!isCFile(filenameRef.current)) return false;
+            const isC = isCFile(filenameRef.current);
+            if (!isC && !asmDialectRef.current) return false;
             const pos = view.state.selection.main.head;
             const word = view.state.wordAt(pos);
             if (!word) return true;
             const symbol = view.state.doc.sliceString(word.from, word.to);
             const doc = view.state.doc;
-            void import("../../codemirror/lsp/client").then(({ cc65References }) =>
-              cc65References(doc, pos).then((refs) => onFindRefsRef.current?.(symbol, refs)),
-            );
+            if (isC) {
+              void import("../../codemirror/lsp/client").then(({ cc65References }) =>
+                cc65References(doc, pos).then((refs) => onFindRefsRef.current?.(symbol, refs)));
+            } else {
+              void import("../../codemirror/lsp/asm-client").then(({ asmReferences }) =>
+                asmReferences(doc, pos).then((refs) => onFindRefsRef.current?.(symbol, refs)));
+            }
             return true;
           } },
           // Rename symbol (#75, VS Code parity) — App prompts + applies the LSP
           // edits across files.
           { key: "F2", preventDefault: true, run: (view) => {
-            if (!isCFile(filenameRef.current)) return false;
+            if (!isCFile(filenameRef.current) && !asmDialectRef.current) return false;
             const pos = view.state.selection.main.head;
             const word = view.state.wordAt(pos);
             if (!word) return true;
             const symbol = view.state.doc.sliceString(word.from, word.to);
-            if (!/^[A-Za-z_][A-Za-z0-9_]*$/.test(symbol)) return true;
+            if (!/^[A-Za-z_@?.][\w@?.]*$/.test(symbol)) return true;
             onRequestRenameRef.current?.(pos, symbol);
             return true;
           } },

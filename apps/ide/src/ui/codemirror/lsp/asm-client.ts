@@ -15,12 +15,16 @@ import {
 import type { Completion, CompletionContext, CompletionResult } from '@codemirror/autocomplete'
 import { hoverTooltip, type Tooltip } from '@codemirror/view'
 import type { Text } from '@codemirror/state'
+import type { DefinitionTarget, ReferenceLocation, RenameChanges, RenameTextEdit } from './client'
+
+const FILE_URI_PREFIX = 'file:///'
 
 const uriFor = (path: string): string => 'file:///' + path.replace(/^\/+/, '')
 
 interface Position { line: number; character: number }
 interface LspCompletionItem { label: string; kind?: number; detail?: string }
 interface LspHover { contents?: string | { value?: string } }
+interface LspLocation { uri: string; range: { start: Position; end: Position } }
 
 // LSP CompletionItemKind → CodeMirror completion `type`. The asm provider emits
 // keyword (opcode/directive), constant (equate), function (macro), variable
@@ -179,3 +183,84 @@ export const asmLspHover = hoverTooltip(async (view, pos): Promise<Tooltip | nul
     return null
   }
 })
+
+// All asm sources are editable project files — every result URI carries the
+// file:/// prefix and maps to a navigable project path (no read-only sysroot).
+const targetOf = (loc: LspLocation): DefinitionTarget => ({
+  path: loc.uri.startsWith(FILE_URI_PREFIX) ? loc.uri.slice(FILE_URI_PREFIX.length) : loc.uri,
+  line: loc.range.start.line + 1,
+  sysroot: false,
+})
+
+/** Resolve the definition for the label/symbol at `pos` (cross-file). Null on
+ *  miss / transport failure. */
+export async function asmDefinition(doc: Text, pos: number): Promise<DefinitionTarget | null> {
+  try {
+    if (!activePath) return null
+    const { conn, ready: handshake } = connect()
+    await handshake
+    const uri = openOrChange(conn, activePath, doc.toString())
+    const res = await conn.sendRequest<LspLocation | LspLocation[] | null>('textDocument/definition', {
+      textDocument: { uri },
+      position: positionOf(doc, pos),
+    })
+    const loc = Array.isArray(res) ? res[0] : res
+    return loc ? targetOf(loc) : null
+  } catch {
+    return null
+  }
+}
+
+/** All references to the symbol at `pos` (declaration included), across every
+ *  open source. Empty on miss / transport failure. */
+export async function asmReferences(doc: Text, pos: number): Promise<ReferenceLocation[]> {
+  try {
+    if (!activePath) return []
+    const { conn, ready: handshake } = connect()
+    await handshake
+    const uri = openOrChange(conn, activePath, doc.toString())
+    const res = await conn.sendRequest<LspLocation[] | null>('textDocument/references', {
+      textDocument: { uri },
+      position: positionOf(doc, pos),
+      context: { includeDeclaration: true },
+    })
+    return (res ?? []).map((loc) => ({ path: targetOf(loc).path, line: loc.range.start.line + 1, sysroot: false }))
+  } catch {
+    return []
+  }
+}
+
+/** offset → LSP position against a plain string (rename hands us the buffer text
+ *  + a cursor offset, not a CodeMirror doc). */
+function positionOfText(text: string, offset: number): Position {
+  let line = 0
+  let lineStart = 0
+  const end = Math.min(offset, text.length)
+  for (let i = 0; i < end; i++) {
+    if (text.charCodeAt(i) === 10) { line++; lineStart = i + 1 }
+  }
+  return { line, character: offset - lineStart }
+}
+
+/** Rename the symbol at `pos` (offset in `text`) to `newName`, returning edits
+ *  per project path. Null when not renameable / on failure. */
+export async function asmRename(text: string, pos: number, newName: string): Promise<RenameChanges | null> {
+  try {
+    if (!activePath) return null
+    const { conn, ready: handshake } = connect()
+    await handshake
+    const uri = openOrChange(conn, activePath, text)
+    const res = await conn.sendRequest<{ changes?: Record<string, RenameTextEdit[]> } | null>(
+      'textDocument/rename',
+      { textDocument: { uri }, position: positionOfText(text, pos), newName },
+    )
+    if (!res?.changes) return null
+    const out: RenameChanges = {}
+    for (const [u, edits] of Object.entries(res.changes)) {
+      if (u.startsWith(FILE_URI_PREFIX)) out[u.slice(FILE_URI_PREFIX.length)] = edits
+    }
+    return out
+  } catch {
+    return null
+  }
+}
