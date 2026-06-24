@@ -4,7 +4,7 @@
 // drives debugging. Generic 6502 layout (A/X/Y/PC/SP + N V B D I Z C) ships
 // in @plugins/debug-atari-6502 and is reusable for NES (M9).
 
-import type { RunBackend } from './services/run-service'
+import type { BankBreakpoint, BankProjection, RunBackend } from './services/run-service'
 import type { PluginBase } from './plugin-registry'
 
 export interface RegisterDescriptor {
@@ -41,8 +41,15 @@ export interface DebugTarget {
   stepFrame(): Promise<number>
 
   /** Replace the breakpoint set. Backends honour the trap on subsequent
-   *  advanceFrame() / step() calls. */
-  setBreakpoints(addrs: Iterable<number>): void
+   *  advanceFrame() / step() calls. A bare `number` is a `cpu`-space breakpoint
+   *  (today's behavior verbatim); a {@link BankBreakpoint} fires only when its
+   *  bank is live (ADR-0014). */
+  setBreakpoints(addrs: Iterable<number | BankBreakpoint>): void
+
+  /** Live bank projection per switchable CPU window (ADR-0014). Optional —
+   *  present only for banked machines; the UI uses it to resolve the current
+   *  line's bank and to render the active bank in the memory viewer. */
+  bankMap?(): BankProjection[]
 
   /** Read from a named memory space (default: CPU bus). Machines with extra
    *  address spaces declare them in `MachinePlugin.memorySpaces`; a viewer

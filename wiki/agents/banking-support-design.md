@@ -297,10 +297,18 @@ target, the way the 68000 validated the plugin contracts.
    adds a core-state path; not modelled now (no pre-empting). Typecheck clean,
    field optional so every flat machine is untouched. ADR-0014 decision 1 carries
    the refinement note.
-3. **Contract: `bankMap()` + `(space, addr)` breakpoints.** Add to `RunBackend` /
-   `DebugTarget` (`@ports`): `bankMap()` returning the live window→`(space, offset)`
-   projection; extend `setBreakpoints` to carry `space`. Default `space:'cpu'` =
-   today's behavior verbatim (every flat machine unchanged).
+3. **Contract: `bankMap()` + `(space, addr)` breakpoints. — DONE.** Added to
+   `@ports` (`services/run-service.ts` + `plugin-debug.ts`, exported):
+   - `BankBreakpoint { addr, space, offset }` — a breakpoint qualified by bank.
+   - `BankProjection { window, start, end, space|null, bankOffset|null }` — one
+     live window→bank entry.
+   - `setBreakpoints(addrs: Iterable<number | BankBreakpoint>)` — widened. A bare
+     `number` = `cpu` space (today verbatim); a `BankBreakpoint` fires only when
+     its bank is live. **Method-param bivariance means every existing
+     `Iterable<number>` impl satisfies the wider interface with zero edits** —
+     verified: `tsc -b` clean, 550 tests green, no backend touched.
+   - `bankMap?(): BankProjection[]` — optional on both `RunBackend` + `DebugTarget`;
+     only banked backends implement it, flat backends omit it.
 4. **Altirra backend: implement `bankMap()` + the BP hit-test.** `bankMap()` =
    `readMem(0xD301)` → decode bits 2–3 (+ CPE) → `{ window:[0x4000,0x7fff],
    space:'bank'+n, bankOffset:n*0x4000 }`. Prefer the **physical-offset BP** (map

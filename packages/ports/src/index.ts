@@ -137,6 +137,8 @@ export type {
   BuildInput,
   BuildOptions,
   BuildResult,
+  BankBreakpoint,
+  BankProjection,
   BuildService,
   DebugService,
   EmuMediaFormat,

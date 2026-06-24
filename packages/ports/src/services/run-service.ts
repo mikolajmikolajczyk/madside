@@ -18,6 +18,39 @@ export type EmuMediaFormat = string
 
 export type RunStatus = 'idle' | 'loaded' | 'running' | 'paused' | 'crashed'
 
+/** A breakpoint qualified by bank window (ADR-0014, bank-aware debugging). A
+ *  bare `number` in `setBreakpoints` is the implicit `cpu` space — today's
+ *  behavior verbatim. A banked machine emits this form for code inside a bank
+ *  window so the backend fires only when the named bank is live. */
+export interface BankBreakpoint {
+  /** CPU-bus address the breakpoint sits at (inside a bank window). */
+  addr: number
+  /** Physical space id, e.g. 'bank3' — the bank the source line was built into
+   *  (from the source map's `SourceLoc.space`). */
+  space: string
+  /** Physical offset within the window's bank domain (`bankIndex*windowSize +
+   *  (addr-windowStart)`). The Mesen-style physical key the backend prefers for
+   *  the hit-test; computable from the machine's `BankWindow` + `space`. */
+  offset: number
+}
+
+/** Live projection of one switchable CPU window to its current physical bank
+ *  (ADR-0014). The backend reports which bank each `MachinePlugin.banks` window
+ *  currently resolves to by reading the live selector register. */
+export interface BankProjection {
+  /** Window id from `MachinePlugin.banks[].id`. */
+  window: string
+  /** CPU-bus range the window covers (inclusive). */
+  start: number
+  end: number
+  /** Live space id, e.g. 'bank3' — or null when no ext bank is mapped (gate bit
+   *  off / window shows main RAM). */
+  space: string | null
+  /** Base physical offset of the live bank (`bankIndex*windowSize`); add
+   *  `addr-start` for a full offset. null when `space` is null. */
+  bankOffset: number | null
+}
+
 /** Minimal facade the UI loops touch directly. RunService delegates here for
  *  per-frame work; DebugService (M6) will tighten this further. */
 export interface RunBackend {
@@ -41,7 +74,14 @@ export interface RunBackend {
    *  'ppu'/'oam', C64 'vic', …) declare them in `MachinePlugin.memorySpaces`
    *  and serve them here. Backends throw on an unknown space. */
   readMem(addr: number, len: number, space?: string): Uint8Array
-  setBreakpoints(addrs: Iterable<number>): void
+  /** Replace the breakpoint set. A bare `number` is a `cpu`-space breakpoint
+   *  (today's behavior verbatim); a {@link BankBreakpoint} fires only when its
+   *  bank is live (ADR-0014). Flat backends only ever receive numbers. */
+  setBreakpoints(addrs: Iterable<number | BankBreakpoint>): void
+  /** Live bank projection per switchable window (ADR-0014). Optional — only
+   *  backends for machines that declare `MachinePlugin.banks` implement it; flat
+   *  backends omit it. Returns one entry per window. */
+  bankMap?(): BankProjection[]
   sendKey(keyCode: number, charCode: number, isDown: boolean, modifiers?: number): void
   saveState(): unknown
   loadState(snapshot: unknown): void
