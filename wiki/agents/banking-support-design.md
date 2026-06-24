@@ -482,12 +482,26 @@ jsnes fork, no bus read. This is the core-state path for write-only selectors.
      windows** (not UNROM's two 16 KB) with no code change, and the `$8000` window
      updates live when reset switches the PRG bank. Proves the layout is derived
      from the mapper.
-5. **Toolchain banked source map (SEPARATE, harder).** A banked NES build that tags
-   source lines with banks needs a cc65 banked linker config (`.dbg seg.bank`, which
-   Phase 0 already parses) or a MADS multi-bank convention (no NES `OPT B+`
-   equivalent). Deferred from the runtime validation — the engine + live BP work
-   without it (BPs resolve via the same `bankedAddrToLoc` once a banked build feeds
-   it).
+5. **Toolchain banked source map. — DONE.** A banked NES build tags source lines
+   with banks via a **cc65 banked linker config**: a `MEMORY` area with a `bank N`
+   attribute makes `ld65` emit `bank=N` on that area's segments in the `.dbg`
+   (verified in the cc65 source — `segments.c` `PrintDbgSegments` writes `bank=`
+   only when `MemArea->BankExpr` is set — and on real `ca65`+`ld65` output). The
+   Phase-0 `parseDbg` already captures it into `bankedAddrToLoc`, and the cc65
+   toolchain already returns that source map. So the **entire downstream chain is
+   the unified Phase-1 path** — `resolveBreakpoints` emits a `BankBreakpoint`, the
+   gutter shows the bank, `resolvePcLoc` disambiguates — with no NES-specific code.
+   - **Test** `tests/integration/nes-cc65-banking.test.ts`: runs the **real
+     ca65+ld65** over a banked cfg (two `CODE` segments at the same `$8000` in PRG
+     banks 0 + 1, fixed bank at `$C000`); asserts the `.dbg` yields
+     `bankedAddrToLoc[$8000] = [bank0, bank1]` and a source-line breakpoint
+     resolves to `BankBreakpoint{$8000, bank1}` (and bank0 for the other line).
+     `parseDbg` is now exported from `@madside/toolchain-ca65`.
+   - **Bank-number alignment is the cfg author's job.** The cfg's `bank N` must
+     equal the PRG bank index the program selects at run time (so the source map's
+     `bank{N}` matches the live `bankMap()` `bank{N}`). For UxROM that's automatic
+     (writing N to `$8000` → `loadRomBank(N)`); for an 8 KB mapper the cfg must use
+     8 KB banks to match. MADS has no NES multi-bank mode, so cc65 is the NES path.
 
 ### Risks / open questions to resolve in Phase 1
 - **OPT B+ window capture** — verify step 1 (the `$4000` hardware path, not just `lmb`).
