@@ -347,9 +347,19 @@ target, the way the 68000 validated the plugin contracts.
      `resolveBreakpoints` bank/flat/mixed). tsc + lint clean, 569 total.
    - **Not yet live-exercised**: the running-emulator "fires only on live bank" —
      that's Step 7's build→run integration test (needs the wasm core).
-6. **UI: bank selector + annotated gutter/labels.** MemoryPanel gains a bank/domain
-   picker (BizHawk-domains style); the gutter shows `$4000 [bank 3]`. Hex widening
-   already handled by #133.
+6. **UI: live-bank indicator + annotated gutter. — DONE.** Scoped to read-only
+   indicators (non-live ext-bank reads unverified — Step 1 open item — so no
+   arbitrary-bank picker yet; the dump shows the live bus, the UI names which
+   bank that is):
+   - **atari-6502 adapter forwards `bankMap()`** to the backend (bound to
+     undefined for a flat backend, so DebugTarget.bankMap stays absent).
+   - **MemoryPanel live-bank badge**: when `ctx.machine.banks` exists and `base`
+     is inside a bank window, a badge shows the live bank (`bank3`), refreshed on
+     the same step/bp-hit/run:state events as the dump.
+   - **Editor addr-gutter bank suffix**: banked source lines render `4000 b3`
+     (dim amber). New `lineBanks` StateField/effect/prop mirroring `lineAddrs`;
+     App builds it via `resolveLineSpace` over the active file's emitting lines.
+   - tsc + lint clean, 569 tests (UI plumbing; `resolveLineSpace` already tested).
 7. **Template + integration test.** A MADS 130XE banked hello (`atari-130xe-bank`?);
    integration test: build → run → BP in bank N fires only when PORTB selects N →
    PC/line/D0 correct; current-line resolves the right bank.

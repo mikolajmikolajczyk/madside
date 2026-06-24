@@ -10,6 +10,11 @@ const attach = (backend: RunBackend): DebugTarget => ({
   registers: MOS6502_REGISTERS,
   flags: MOS6502_FLAGS,
 
+  // Forward the live bank projection when the backend exposes one (ADR-0014).
+  // Bound to undefined for a flat backend, so DebugTarget.bankMap stays absent
+  // and the UI treats the machine as unbanked.
+  bankMap: backend.bankMap ? () => backend.bankMap!() : undefined,
+
   async readRegisters() {
     const cpu = backend.cpuState() as Cpu6502State
     return { a: cpu.a, x: cpu.x, y: cpu.y, pc: cpu.pc, sp: cpu.sp }

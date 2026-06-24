@@ -57,6 +57,11 @@ export const editorTheme = EditorView.theme(
     ".cm-addrGutter .cm-equateValue": {
       color: "var(--accent-amber)",
     },
+    // Bank suffix on a banked source line's gutter address (ADR-0014).
+    ".cm-addrGutter .cm-addrBank": {
+      color: "var(--accent-amber)",
+      fontSize: "9px",
+    },
     ".cm-tooltip.cm-tooltip-autocomplete": {
       background: "var(--bg-secondary)",
       border: "1px solid var(--border-default)",

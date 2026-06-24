@@ -30,7 +30,7 @@ import { useToast } from "./components/ui/Toast";
 import { buildAppCommands, type AppCommandEnv } from "./commands/appCommands";
 import type { CpuRegs } from "./components/debug/Emulator";
 import type { CommandContext, PanelPlugin, ThemePlugin, ToolchainPlugin } from "@ports";
-import { resolvePcLoc } from "@ports";
+import { resolveLineSpace, resolvePcLoc } from "@ports";
 import { basename, extOf } from "@core/path";
 import { getCpuLanguage } from "@core";
 import { useCommandShortcuts } from "./hooks/useCommandShortcuts";
@@ -521,6 +521,19 @@ export default function App() {
   const lineAddrs = useMemo(() => {
     return sourceMap?.locToAddr.get(activePath) ?? new Map<number, number>();
   }, [sourceMap, activePath]);
+
+  // Per-line bank labels for the active file (ADR-0014) — only present when the
+  // build is banked. Drives the addr-gutter bank suffix. Built from the lines
+  // that emit code (lineAddrs keys) via the source map's static line→bank.
+  const lineBanks = useMemo(() => {
+    const out = new Map<number, string>();
+    if (!sourceMap?.bankedAddrToLoc) return out;
+    for (const line of lineAddrs.keys()) {
+      const space = resolveLineSpace(sourceMap, activePath, line);
+      if (space) out.set(line, space);
+    }
+    return out;
+  }, [sourceMap, activePath, lineAddrs]);
 
   // Inline build diagnostics for the active file (#29). The latest build result
   // carries every diagnostic; filter to the open file so switching tabs shows
@@ -1048,6 +1061,7 @@ export default function App() {
         pcLine={pcLine}
         breakpointLines={breakpointLines}
         lineAddrs={lineAddrs}
+        lineBanks={lineBanks}
         equateValues={equateValues}
         diagnostics={editorDiagnostics}
         projectLabels={projectLabels}

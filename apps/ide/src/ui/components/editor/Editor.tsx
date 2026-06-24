@@ -22,16 +22,38 @@ const lineAddrsField = StateField.define<Map<number, number>>({
   },
 });
 
+// Per-line bank label for banked builds (ADR-0014) — keyed by 1-based line,
+// value is the bank's space id (e.g. 'bank3'). Shown as a dim suffix on the
+// addr gutter so a banked source line reads `4000 b3`. Empty for flat builds.
+const setLineBanks = StateEffect.define<Map<number, string>>();
+const lineBanksField = StateField.define<Map<number, string>>({
+  create() { return new Map(); },
+  update(map, tr) {
+    for (const e of tr.effects) if (e.is(setLineBanks)) return e.value;
+    return map;
+  },
+});
+
 const toHex4 = (n: number) => n.toString(16).toUpperCase().padStart(4, "0");
 const toHex2 = (n: number) => (n & 0xff).toString(16).toUpperCase().padStart(2, "0");
 
 class AddrMarker extends GutterMarker {
   readonly text: string;
-  constructor(text: string) { super(); this.text = text; }
-  override eq(o: GutterMarker) { return o instanceof AddrMarker && o.text === this.text; }
+  readonly bank?: string;
+  constructor(text: string, bank?: string) { super(); this.text = text; this.bank = bank; }
+  override eq(o: GutterMarker) { return o instanceof AddrMarker && o.text === this.text && o.bank === this.bank; }
   override toDOM() {
     const el = document.createElement("span");
     el.textContent = this.text;
+    // Banked line (ADR-0014): append the bank as a dim suffix, so $4000 lines in
+    // different banks are distinguishable at a glance. Strips a leading 'bank'
+    // for compactness (`bank3` → `b3`).
+    if (this.bank) {
+      const tag = document.createElement("span");
+      tag.className = "cm-addrBank";
+      tag.textContent = " " + this.bank.replace(/^bank/, "b");
+      el.appendChild(tag);
+    }
     return el;
   }
 }
@@ -188,6 +210,10 @@ interface Props {
   pcLine?: number | null;
   breakpointLines?: Set<number>;
   lineAddrs?: Map<number, number>;
+  /** Per-line bank label for banked builds (ADR-0014), keyed by 1-based line.
+   *  A banked source line shows its bank as a dim suffix on the addr gutter
+   *  (`4000 b3`). Empty/absent for flat builds. */
+  lineBanks?: Map<number, string>;
   /** Live byte values for address equates (`COLOR4 = $02C8`), keyed by 1-based
    *  line — shown in the addr gutter while debugging (#34). Empty when idle. */
   equateValues?: Map<number, number>;
@@ -225,7 +251,7 @@ interface Props {
   onCursorLine?: (line: number) => void;
 }
 
-export function Editor({ value, onChange, filename, pcLine, breakpointLines, lineAddrs, equateValues, diagnostics, projectLabels, tabWidth, cFormatStyle, cpuLanguage, toolchainLanguage, machine, gotoTarget, onToggleBreakpoint, onViewReady, onJumpToLabel, onGoToDefinition, onFindReferences, onRequestRename, onCursorLine }: Props) {
+export function Editor({ value, onChange, filename, pcLine, breakpointLines, lineAddrs, lineBanks, equateValues, diagnostics, projectLabels, tabWidth, cFormatStyle, cpuLanguage, toolchainLanguage, machine, gotoTarget, onToggleBreakpoint, onViewReady, onJumpToLabel, onGoToDefinition, onFindReferences, onRequestRename, onCursorLine }: Props) {
   const hostRef = useRef<HTMLDivElement>(null);
   const viewRef = useRef<EditorView | null>(null);
   // Latest-callback refs so the CodeMirror handlers (built once on mount) always
@@ -277,13 +303,14 @@ export function Editor({ value, onChange, filename, pcLine, breakpointLines, lin
           renderEmptyElements: true,
           markers: (view) => {
             const addrs = view.state.field(lineAddrsField);
+            const banks = view.state.field(lineBanksField);
             const values = view.state.field(equateValuesField);
             if (addrs.size === 0 && values.size === 0) return RangeSet.empty;
             const ranges: Range<GutterMarker>[] = [];
             const doc = view.state.doc;
             for (const [line, addr] of addrs) {
               if (line < 1 || line > doc.lines) continue;
-              ranges.push(new AddrMarker(toHex4(addr)).range(doc.line(line).from));
+              ranges.push(new AddrMarker(toHex4(addr), banks.get(line)).range(doc.line(line).from));
             }
             // Equate lines carry no emitted code address, so they never collide
             // with the addr markers above — show the live byte value there (#34).
@@ -333,6 +360,7 @@ export function Editor({ value, onChange, filename, pcLine, breakpointLines, lin
         syntaxHighlighting(editorHighlight),
         bpField,
         lineAddrsField,
+        lineBanksField,
         equateValuesField,
         pcLineField,
         projectLabelsField,
@@ -454,6 +482,7 @@ export function Editor({ value, onChange, filename, pcLine, breakpointLines, lin
     view.dispatch({
       effects: [
         setLineAddrs.of(new Map()),
+        setLineBanks.of(new Map()),
         setEquateValues.of(new Map()),
         setBreakpoints.of(new Set()),
         setPcLine.of(null),
@@ -489,6 +518,12 @@ export function Editor({ value, onChange, filename, pcLine, breakpointLines, lin
     if (!view) return;
     view.dispatch({ effects: setLineAddrs.of(lineAddrs ?? new Map()) });
   }, [lineAddrs]);
+
+  useEffect(() => {
+    const view = viewRef.current;
+    if (!view) return;
+    view.dispatch({ effects: setLineBanks.of(lineBanks ?? new Map()) });
+  }, [lineBanks]);
 
   useEffect(() => {
     const view = viewRef.current;

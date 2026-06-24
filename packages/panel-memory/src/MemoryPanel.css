@@ -31,6 +31,19 @@
 }
 .debug__follow-badge:hover { background: var(--bg-tertiary); }
 
+/* Live bank indicator (ADR-0014) — names the bank currently mapped in the
+   window the dump is showing. Read-only, distinct accent from the follow badge. */
+.debug__bank-badge {
+  background: var(--bg-tertiary);
+  border: 1px solid var(--border-default);
+  color: var(--accent-amber, var(--accent-mint));
+  font-family: var(--font-mono);
+  font-size: 10px;
+  padding: 1px 6px;
+  border-radius: 2px;
+  text-transform: uppercase;
+}
+
 .debug__base {
   background: transparent;
   border: 1px solid var(--border-default);

@@ -41,6 +41,12 @@ export function MemoryPanel({ ctx }: { ctx: PanelContext }) {
   const addrMaxRef = useRef(addrMax)
   useEffect(() => { addrMaxRef.current = addrMax }, [addrMax])
   const [bytes, setBytes] = useState<Uint8Array>(new Uint8Array(0))
+  // Live bank mapped in the window covering `base` (ADR-0014). null when the
+  // machine is flat, the backend exposes no bankMap(), or `base` isn't inside a
+  // bank window. Read-only indicator — the dump shows the live bus, this names
+  // which bank that is.
+  const banks = ctx.machine.banks
+  const [liveBank, setLiveBank] = useState<string | null>(null)
 
   // Rows are derived from the panel's available height (#119), not a constant.
   // The measured count drives both how many rows render and how many bytes we
@@ -112,10 +118,16 @@ export function MemoryPanel({ ctx }: { ctx: PanelContext }) {
   useEffect(() => {
     let cancelled = false
     const refresh = async () => {
-      if (!ctx.debug.target()) return
+      const tgt = ctx.debug.target()
+      if (!tgt) return
       try {
         const fresh = await ctx.debug.readMemory(base, length)
-        if (!cancelled) setBytes(fresh)
+        if (cancelled) return
+        setBytes(fresh)
+        // Name the live bank in the window covering `base`, if any.
+        const map = banks && banks.length > 0 ? tgt.bankMap?.() : undefined
+        const win = map?.find((w) => base >= w.start && base <= w.end)
+        setLiveBank(win?.space ?? null)
       } catch {
         // Backend not booted yet.
       }
@@ -132,7 +144,7 @@ export function MemoryPanel({ ctx }: { ctx: PanelContext }) {
       cancelled = true
       for (const off of offs) off()
     }
-  }, [ctx.debug, ctx.events, base, length])
+  }, [ctx.debug, ctx.events, base, length, banks])
 
   const following = data?.following ?? true
   const onResumeFollow = data?.onResumeFollow
@@ -142,6 +154,11 @@ export function MemoryPanel({ ctx }: { ctx: PanelContext }) {
       <div className="debug__title label">
         <span>Memory @</span>
         <BaseInput value={base} onChange={onBaseChange} addrMax={addrMax} />
+        {liveBank && (
+          <span className="debug__bank-badge" title="Bank currently mapped in this window">
+            {liveBank}
+          </span>
+        )}
         {!following && onResumeFollow && (
           <button
             type="button"
