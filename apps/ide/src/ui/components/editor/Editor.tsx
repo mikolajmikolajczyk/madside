@@ -6,6 +6,7 @@ import { bracketMatching, syntaxHighlighting, indentUnit, indentRange } from "@c
 import { autocompletion, completionKeymap, closeBrackets, closeBracketsKeymap } from "@codemirror/autocomplete";
 import { lintGutter, setDiagnostics, type Diagnostic } from "@codemirror/lint";
 import { buildAssemblyLanguage, projectLabelsField, setProjectLabels, formatCView, isCFile, warmFormatter, resolveCStyle, editorTheme, editorHighlight } from "@ui/codemirror";
+import { asmDialectFor } from "@app/asmLsp";
 import type { CpuLanguage, LabelInfo } from "@core";
 import type { BuildDiagnostic, ToolchainLanguage } from "@ports";
 import type { DefinitionTarget, ReferenceLocation } from "../../codemirror/lsp/client";
@@ -91,6 +92,7 @@ async function loadLanguagePack(
   cpu: CpuLanguage | undefined,
   toolchain: ToolchainLanguage | undefined,
   machine?: string,
+  toolchainId?: string,
 ): Promise<Extension[]> {
   const lower = path.toLowerCase();
   if (/\.(js|mjs|cjs|ts|tsx)$/.test(lower)) {
@@ -140,8 +142,23 @@ async function loadLanguagePack(
       lsp.cc65LspHover,
     ];
   }
-  // Assembly: built from the active machine CPU + project toolchain language.
-  return cpu && toolchain ? [buildAssemblyLanguage(cpu, toolchain)] : [];
+  // Assembly: StreamLanguage highlight from the CPU + toolchain vocab. When the
+  // toolchain has an asm LSP dialect (#140), layer the language server's opcode/
+  // label hover + project-symbol completion on top (the StreamLanguage keeps the
+  // base syntax coloring; the LSP adds intelligence the lexer can't).
+  if (cpu && toolchain) {
+    const base = buildAssemblyLanguage(cpu, toolchain);
+    const dialect = asmDialectFor(toolchainId);
+    if (!dialect) return [base];
+    const [{ autocompletion }, asm] = await Promise.all([
+      import("@codemirror/autocomplete"),
+      import("../../codemirror/lsp/asm-client"),
+    ]);
+    asm.setAsmDialect(dialect);
+    asm.setAsmActiveDoc(path);
+    return [base, autocompletion({ override: [asm.asmLspComplete] }), asm.asmLspHover];
+  }
+  return [];
 }
 const languageCompartment = new Compartment();
 
@@ -234,6 +251,9 @@ interface Props {
   /** Active machine id (`manifest.machine`) — resolves the cc65 sysroot for the
    *  C LSP (stdlib completion + register structs). */
   machine?: string;
+  /** Active project toolchain id (`manifest.toolchain`) — selects the assembly
+   *  LSP dialect (mads / ca65 / z80asm) for opcode/label hover + completion. */
+  toolchainId?: string;
   // Bundle line + tick so jumping to the same line twice still retriggers the effect.
   gotoTarget?: { line: number; tick: number } | null;
   onToggleBreakpoint?: (line: number) => void;
@@ -251,7 +271,7 @@ interface Props {
   onCursorLine?: (line: number) => void;
 }
 
-export function Editor({ value, onChange, filename, pcLine, breakpointLines, lineAddrs, lineBanks, equateValues, diagnostics, projectLabels, tabWidth, cFormatStyle, cpuLanguage, toolchainLanguage, machine, gotoTarget, onToggleBreakpoint, onViewReady, onJumpToLabel, onGoToDefinition, onFindReferences, onRequestRename, onCursorLine }: Props) {
+export function Editor({ value, onChange, filename, pcLine, breakpointLines, lineAddrs, lineBanks, equateValues, diagnostics, projectLabels, tabWidth, cFormatStyle, cpuLanguage, toolchainLanguage, machine, toolchainId, gotoTarget, onToggleBreakpoint, onViewReady, onJumpToLabel, onGoToDefinition, onFindReferences, onRequestRename, onCursorLine }: Props) {
   const hostRef = useRef<HTMLDivElement>(null);
   const viewRef = useRef<EditorView | null>(null);
   // Latest-callback refs so the CodeMirror handlers (built once on mount) always
@@ -494,12 +514,12 @@ export function Editor({ value, onChange, filename, pcLine, breakpointLines, lin
     // Load and swap the language pack asynchronously (lazy chunk). Re-runs when
     // the file OR the active CPU / toolchain language changes (machine switch).
     let cancelled = false;
-    void loadLanguagePack(filename, cpuLanguage, toolchainLanguage, machine).then((exts) => {
+    void loadLanguagePack(filename, cpuLanguage, toolchainLanguage, machine, toolchainId).then((exts) => {
       if (cancelled || viewRef.current !== view) return;
       view.dispatch({ effects: languageCompartment.reconfigure(exts) });
     });
     return () => { cancelled = true; };
-  }, [filename, cpuLanguage, toolchainLanguage, machine]);
+  }, [filename, cpuLanguage, toolchainLanguage, machine, toolchainId]);
 
   useEffect(() => {
     const view = viewRef.current;

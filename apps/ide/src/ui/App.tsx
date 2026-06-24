@@ -1074,6 +1074,7 @@ export default function App() {
         cpuLanguage={cpuLanguage}
         toolchainLanguage={toolchainLanguage}
         machine={project.manifest.machine}
+        toolchainId={project.manifest.toolchain}
         gotoTarget={gotoTarget}
         onToggleBreakpoint={onToggleBreakpoint}
         onViewReady={(v) => { editorViewRef.current = v; }}

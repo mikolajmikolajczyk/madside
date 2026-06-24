@@ -177,6 +177,9 @@ importers:
       '@madside/emulator-zx-chips':
         specifier: workspace:*
         version: link:../../packages/emulator-zx-chips
+      '@madside/lsp-asm':
+        specifier: workspace:*
+        version: link:../../packages/lsp-asm
       '@madside/lsp-cc65':
         specifier: workspace:*
         version: link:../../packages/lsp-cc65
