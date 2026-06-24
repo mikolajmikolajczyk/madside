@@ -157,6 +157,9 @@ export function parseDbg(text: string, projectFiles: readonly string[]): ParsedD
   const addrToLoc: SourceMap['addrToLoc'] = new Map()
   const locToAddr: SourceMap['locToAddr'] = new Map()
   const lineToAddrs = new Map<string, Map<number, number[]>>()
+  // Banked builds only (ADR-0014 Phase 1): every loc per addr across banks, so
+  // same-addr lines in different banks stay distinguishable. Absent for flat.
+  const bankedAddrToLoc = new Map<number, SourceLoc[]>()
 
   for (const rec of lines) {
     const file = dbgFileToProject.get(rec.file)!
@@ -179,7 +182,16 @@ export function parseDbg(text: string, projectFiles: readonly string[]): ParsedD
     placed.sort((a, b) => a.addr - b.addr)
     const addrs = placed.map((p) => p.addr)
 
-    for (const p of placed) if (!addrToLoc.has(p.addr)) addrToLoc.set(p.addr, p.loc)
+    for (const p of placed) {
+      if (!addrToLoc.has(p.addr)) addrToLoc.set(p.addr, p.loc)
+      // Banked entries also go into the multi-loc index so same-addr lines in
+      // other banks aren't lost to the first-wins addrToLoc above (Phase 1).
+      if (p.loc.space != null) {
+        const list = bankedAddrToLoc.get(p.addr)
+        if (list) list.push(p.loc)
+        else bankedAddrToLoc.set(p.addr, [p.loc])
+      }
+    }
 
     const lineMap = locToAddr.get(file) ?? new Map<number, number>()
     const prev = lineMap.get(rec.line)
@@ -233,5 +245,8 @@ export function parseDbg(text: string, projectFiles: readonly string[]): ParsedD
     scopes.push({ name: s.name, start, end: start + s.size, locals })
   }
 
-  return { sourceMap: { addrToLoc, locToAddr, lineToAddrs }, labels, scopes }
+  const sourceMap: SourceMap = bankedAddrToLoc.size > 0
+    ? { addrToLoc, locToAddr, lineToAddrs, bankedAddrToLoc }
+    : { addrToLoc, locToAddr, lineToAddrs }
+  return { sourceMap, labels, scopes }
 }

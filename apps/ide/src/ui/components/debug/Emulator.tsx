@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { errorMessage } from "@ports";
-import type { RunBackend } from "@ports";
+import type { BankBreakpoint, RunBackend } from "@ports";
 import { useWorkbench } from "@app";
 import { useRunStatus } from "../../hooks/useRunStatus";
 import { useActiveMachine } from "../../hooks/useActiveMachine";
@@ -15,7 +15,10 @@ export interface CpuRegs {
 }
 
 interface Props {
-  breakpoints?: Set<number>; // PC addresses to break on
+  // Breakpoints to break on. A bare number is a `cpu`-space PC breakpoint
+  // (today's behavior); a BankBreakpoint fires only when its bank is live
+  // (ADR-0014).
+  breakpoints?: Set<number | BankBreakpoint>;
   onState?: (s: CpuRegs) => void;
   /** Shown as an overlay over the screen when a Run is blocked — e.g. the build
    *  failed, so there's no binary to load ("Compilation error. Check output"). */
@@ -270,11 +273,41 @@ export function Emulator({ breakpoints, onState, blockedMsg }: Props) {
     if (!emu || status !== "ready" || !running) return;
 
     // Push the BP address set into the backend. AltirraBackend traps in
-    // C++ on the instruction boundary — zero JS roundtrip cost per cycle.
+    // C++ on the instruction boundary — zero JS roundtrip cost per cycle. Bank
+    // breakpoints register their CPU addr too (the core is bank-blind); the
+    // bank match is re-checked host-side below (ADR-0014).
     emu.setBreakpoints(breakpoints ?? []);
-    // Cheap predicate the tick still uses to detect "we just hit a BP".
-    const trap = breakpoints && breakpoints.size > 0
-      ? () => emu.isAtInstrBoundary() && breakpoints.has(emu.getPC())
+    // Split the set into cpu-space addrs (fire on PC) and bank-aware ones
+    // (fire only when the live bank matches). The bank is a property of the
+    // breakpoint, so several banks can want the same addr.
+    const cpuAddrs = new Set<number>();
+    const bankReqByAddr = new Map<number, Set<string>>();
+    for (const bp of breakpoints ?? []) {
+      if (typeof bp === "number") { cpuAddrs.add(bp & 0xffff); continue; }
+      const a = bp.addr & 0xffff;
+      const set = bankReqByAddr.get(a) ?? new Set<string>();
+      set.add(bp.space);
+      bankReqByAddr.set(a, set);
+    }
+    const hasBP = cpuAddrs.size > 0 || bankReqByAddr.size > 0;
+    // Live bank space at a CPU address, via the backend's bankMap() projection.
+    const liveSpaceAt = (pc: number): string | null => {
+      const map = emu.bankMap?.();
+      if (!map) return null;
+      for (const w of map) if (pc >= w.start && pc <= w.end) return w.space;
+      return null;
+    };
+    const isHit = (pc: number): boolean => {
+      if (cpuAddrs.has(pc)) return true;
+      const req = bankReqByAddr.get(pc);
+      if (!req) return false;
+      const live = liveSpaceAt(pc);
+      return live != null && req.has(live);
+    };
+    // Cheap predicate the tick still uses to detect "we just hit a (live) BP".
+    // On a wrong-bank stop isHit is false → the loop resumes (FCEUX-style).
+    const trap = hasBP
+      ? () => emu.isAtInstrBoundary() && isHit(emu.getPC())
       : undefined;
 
     // Throttle the cpu/mem snapshot so we don't pay the readMem cost every

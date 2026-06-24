@@ -323,11 +323,30 @@ target, the way the 68000 validated the plugin contracts.
      machine stays the single source.
    - tsc clean, lint clean, 555 tests (+5). Physical-offset hit-test (map cpuPC→
      live bank, compare to BP space) lands in Step 5 where the consumer has both.
-5. **`debug-service` + storage + UI hooks: thread `space`.** Keep breakpoints stored
-   as source lines (bank-agnostic at rest — ADR-0014 decision 3); resolve to
-   `(space, addr)` at sync time using the Phase-0 source-map `space`. `useBreakpointAddrs`
-   resolves `(file, line)` → `(space, addr)`. `useRunControls`/`useCursorMemory`
-   current-line: `cpuPC` + live `bankMap()` → physical → `addrToLoc`.
+5. **`debug-service` + storage + UI hooks: thread `space`. — DONE.** Breakpoints
+   stay stored as source lines (`project.breakpoints: Map<file, Set<line>>`,
+   bank-agnostic at rest — ADR decision 3). The single live path is
+   `project.breakpoints → useBreakpointAddrs → Emulator.setBreakpoints` (the
+   `DebugService.setBreakpoint` API turned out to have **no callers** — vestigial,
+   left untouched).
+   - **Source map keeps banked multi-locs.** Added `SourceMap.bankedAddrToLoc:
+     Map<addr, SourceLoc[]>` (every loc per addr across banks) + two pure
+     resolvers in `@ports/source-map.ts`: `resolvePcLoc(sm, pc, liveSpace)` and
+     `resolveLineSpace(sm, file, line)`. Both MADS + cc65 parsers populate it for
+     banked entries; flat builds omit it (`addrToLoc` first-wins untouched).
+   - **BP resolution** (`useBreakpointAddrs` → extracted pure `resolveBreakpoints`):
+     a banked line emits a `BankBreakpoint{ addr, space }`; flat lines stay bare
+     numbers (cpu, verbatim).
+   - **Emulator trap loop** splits the set into cpu addrs + `bankReqByAddr`; the
+     predicate fires a bank BP only when `bankMap()`'s live window space matches —
+     a wrong-bank stop returns false → the rAF loop resumes (FCEUX-style).
+   - **Current-line + follow-PC** (`App.pcLine`, follow-PC effect) use
+     `resolvePcLoc(sm, pc, liveSpaceAt(pc))` where `liveSpaceAt` reads the
+     backend's `bankMap()` — same-addr lines now highlight the live bank's line.
+   - Tests: `+14` (source-map resolvers, MADS same-addr collision, flat-omits,
+     `resolveBreakpoints` bank/flat/mixed). tsc + lint clean, 569 total.
+   - **Not yet live-exercised**: the running-emulator "fires only on live bank" —
+     that's Step 7's build→run integration test (needs the wasm core).
 6. **UI: bank selector + annotated gutter/labels.** MemoryPanel gains a bank/domain
    picker (BizHawk-domains style); the gutter shows `$4000 [bank 3]`. Hex widening
    already handled by #133.

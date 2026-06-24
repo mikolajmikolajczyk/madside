@@ -100,6 +100,7 @@ export type {
 
 // Toolchain output types
 export type { SourceLoc, SourceMap } from './source-map'
+export { resolveLineSpace, resolvePcLoc } from './source-map'
 export type { BuildDiagnostic } from './diagnostics'
 
 // Project manifest schema v2 (hard cut from v1)

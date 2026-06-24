@@ -29,9 +29,11 @@ export interface BankBreakpoint {
    *  (from the source map's `SourceLoc.space`). */
   space: string
   /** Physical offset within the window's bank domain (`bankIndex*windowSize +
-   *  (addr-windowStart)`). The Mesen-style physical key the backend prefers for
-   *  the hit-test; computable from the machine's `BankWindow` + `space`. */
-  offset: number
+   *  (addr-windowStart)`). The Mesen-style physical key, when the toolchain
+   *  supplies it (cc65 `ooffs`). Optional — MADS gives no physical offset, and
+   *  the Phase-1 hit-test matches on `space` (the live-bank predicate), so the
+   *  offset is not required to fire correctly. */
+  offset?: number
 }
 
 /** Live projection of one switchable CPU window to its current physical bank

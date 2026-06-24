@@ -30,6 +30,7 @@ import { useToast } from "./components/ui/Toast";
 import { buildAppCommands, type AppCommandEnv } from "./commands/appCommands";
 import type { CpuRegs } from "./components/debug/Emulator";
 import type { CommandContext, PanelPlugin, ThemePlugin, ToolchainPlugin } from "@ports";
+import { resolvePcLoc } from "@ports";
 import { basename, extOf } from "@core/path";
 import { getCpuLanguage } from "@core";
 import { useCommandShortcuts } from "./hooks/useCommandShortcuts";
@@ -476,15 +477,26 @@ export default function App() {
     variables: { labels: result?.labels, debugInfo: result?.debugInfo },
   }), [memBase, onMemBaseChange, cursorHighlight, outputData, memBaseTouched, onResumeFollow, result?.labels, result?.debugInfo]);
 
+  // Live bank space mapped at a CPU address, from the active backend's
+  // bankMap() (ADR-0014). null for flat machines / addresses outside any bank
+  // window. Lets the current-line highlight disambiguate same-addr lines that
+  // live in different banks.
+  const liveSpaceAt = useCallback((pc: number): string | null => {
+    const map = workbench.run.backend()?.bankMap?.();
+    if (!map) return null;
+    for (const w of map) if (pc >= w.start && pc <= w.end) return w.space;
+    return null;
+  }, [workbench]);
+
   const pcLine = useMemo(() => {
     // During run the PC moves too fast to track in the editor — hide
     // the marker. It reappears on pause / step / BP hit.
     if (running) return null;
     if (!sourceMap || !cpu) return null;
-    const loc = sourceMap.addrToLoc.get(cpu.regs.pc);
+    const loc = resolvePcLoc(sourceMap, cpu.regs.pc, liveSpaceAt(cpu.regs.pc));
     if (!loc) return null;
     return loc.file === activePath ? loc.line : null;
-  }, [sourceMap, cpu, activePath, running]);
+  }, [sourceMap, cpu, activePath, running, liveSpaceAt]);
 
   // Follow PC into included files: when the emulator is paused/stepping and
   // the next op lives in a different source file, switch the active editor
@@ -493,14 +505,14 @@ export default function App() {
   const setActivePathFn = project.loaded ? project.setActivePath : null;
   useEffect(() => {
     if (running || !cpu || !sourceMap || !projectFilesRef || !setActivePathFn) return;
-    const loc = sourceMap.addrToLoc.get(cpu.regs.pc);
+    const loc = resolvePcLoc(sourceMap, cpu.regs.pc, liveSpaceAt(cpu.regs.pc));
     if (!loc) return;
     if (loc.file === activePath) return;
     // SourceMap keys are full project paths post-30be0cf — exact-match the
     // file in the project tree, no basename fallback needed.
     const target = projectFilesRef.find((f) => f.path === loc.file);
     if (target && target.path !== activePath) setActivePathFn(target.path);
-  }, [running, cpu, sourceMap, activePath, projectFilesRef, setActivePathFn]);
+  }, [running, cpu, sourceMap, activePath, projectFilesRef, setActivePathFn, liveSpaceAt]);
 
   const breakpointLines = useMemo(() => {
     return bpLinesByFile.get(activePath) ?? new Set<number>();

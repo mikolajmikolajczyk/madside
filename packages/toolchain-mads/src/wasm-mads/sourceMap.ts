@@ -126,6 +126,10 @@ function reconstructIncludePath(
 export function parseSourceMap(lst: string, ctx?: ParseSourceMapContext): SourceMap {
   const addrToLoc = new Map<number, SourceLoc>();
   const locToAddr = new Map<string, Map<number, number>>();
+  // Banked builds only (ADR-0014 Phase 1): every loc per addr across banks, so
+  // same-addr lines in different banks stay distinguishable. Stays empty/absent
+  // for flat builds.
+  const bankedAddrToLoc = new Map<number, SourceLoc[]>();
 
   // Stack of include frames. MADS emits "Source: foo" when entering icl,
   // but does NOT re-emit parent when leaving. Heuristic: when a new line
@@ -185,20 +189,26 @@ export function parseSourceMap(lst: string, ctx?: ParseSourceMapContext): Source
 
     for (let i = 0; i < bytes; i++) {
       const a = (addr + i) & 0xffff;
-      if (!addrToLoc.has(a)) {
-        // Banking groundwork (ADR-0014 Phase 0): capture the bank when MADS
-        // emitted one. MADS gives no physical offset (unlike cc65's `ooffs`), so
-        // only `space` is set; the offset within the bank is a Phase-1 decode.
-        const loc: SourceLoc = { file: currentFile, line };
-        if (bank != null) loc.space = `bank${bank}`;
-        addrToLoc.set(a, loc);
+      // Banking (ADR-0014): capture the bank when MADS emitted one. MADS gives
+      // no physical offset (unlike cc65's `ooffs`), so only `space` is set.
+      const loc: SourceLoc = { file: currentFile, line };
+      if (bank != null) loc.space = `bank${bank}`;
+      if (!addrToLoc.has(a)) addrToLoc.set(a, loc);
+      // Banked bytes also go into the multi-loc index so same-addr lines in
+      // other banks aren't lost to the first-wins addrToLoc above (Phase 1).
+      if (bank != null) {
+        const list = bankedAddrToLoc.get(a);
+        if (list) list.push(loc);
+        else bankedAddrToLoc.set(a, [loc]);
       }
     }
     const fileMap = locToAddr.get(currentFile)!;
     if (!fileMap.has(line)) fileMap.set(line, addr);
   }
 
-  return { addrToLoc, locToAddr };
+  return bankedAddrToLoc.size > 0
+    ? { addrToLoc, locToAddr, bankedAddrToLoc }
+    : { addrToLoc, locToAddr };
 }
 
 function lines(content: string): number {

@@ -84,3 +84,35 @@ describe('parseSourceMap — banked address capture (ADR-0014 Phase 0)', () => {
     expect(sm.addrToLoc.get(0x4000)).toEqual({ file: 'game.asm', line: 5 })
   })
 })
+
+// Two source lines emitting at the SAME window address $4005 in different banks
+// — the 130XE LOOP0/LOOP1 ambiguity. addrToLoc keeps the first; bankedAddrToLoc
+// keeps both so the live bank disambiguates. (ADR-0014 Phase 1)
+const COLLIDE_LST = [
+  'Source: game.asm',
+  '     8 01,4005 EA               loop0   nop',  // bank 1, $4005
+  '     9 02,4005 EA               loop1   nop',  // bank 2, $4005 (same addr)
+].join('\n')
+
+describe('parseSourceMap — same-addr banked disambiguation (ADR-0014 Phase 1)', () => {
+  const sm = parseSourceMap(COLLIDE_LST)
+
+  it('addrToLoc keeps the first bank (flat behavior untouched)', () => {
+    expect(sm.addrToLoc.get(0x4005)).toEqual({ file: 'game.asm', line: 8, space: 'bank1' })
+  })
+
+  it('bankedAddrToLoc keeps every bank at the colliding address', () => {
+    expect(sm.bankedAddrToLoc?.get(0x4005)).toEqual([
+      { file: 'game.asm', line: 8, space: 'bank1' },
+      { file: 'game.asm', line: 9, space: 'bank2' },
+    ])
+  })
+})
+
+// A flat build never gets a bankedAddrToLoc — it stays absent.
+describe('parseSourceMap — flat build omits bankedAddrToLoc', () => {
+  it('is absent when nothing is banked', () => {
+    const sm = parseSourceMap(LST)
+    expect(sm.bankedAddrToLoc).toBeUndefined()
+  })
+})
