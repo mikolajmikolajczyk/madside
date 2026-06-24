@@ -33,6 +33,7 @@ import type { CommandContext, PanelPlugin, ThemePlugin, ToolchainPlugin } from "
 import { resolveLineSpace, resolvePcLoc } from "@ports";
 import { basename, extOf } from "@core/path";
 import { getCpuLanguage } from "@core";
+import { primeAudio } from "@core/audio";
 import { useCommandShortcuts } from "./hooks/useCommandShortcuts";
 import { useBreakpointAddrs } from "./hooks/useBreakpointAddrs";
 import { useCursorMemory } from "./hooks/useCursorMemory";
@@ -111,6 +112,19 @@ export default function App() {
   // Hydrate the project-local plugin trust set (ADR-0013) so editor/converter
   // gates reflect persisted consent from the first render.
   useEffect(() => { void hydrateTrustedPlugins(workbench.storage); }, [workbench.storage]);
+
+  // iOS audio unlock: a browser only lets an AudioContext run if it was resumed
+  // inside a user gesture, but the emulator's startAudio() fires after an async
+  // build/load chain. Prime the shared context on the first interaction so audio
+  // works on iPad/iPhone Safari (all machines were silent there). Once is enough.
+  useEffect(() => {
+    const unlock = () => {
+      primeAudio();
+      for (const e of ["pointerdown", "touchend", "keydown"]) window.removeEventListener(e, unlock);
+    };
+    for (const e of ["pointerdown", "touchend", "keydown"]) window.addEventListener(e, unlock);
+    return () => { for (const e of ["pointerdown", "touchend", "keydown"]) window.removeEventListener(e, unlock); };
+  }, []);
 
   // Run lifecycle is owned by RunService (ADR-0007). UI reads via the hook;
   // no parallel React state. `running` + `hasEmu` are derived primitives.

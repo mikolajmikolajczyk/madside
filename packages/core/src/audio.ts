@@ -12,16 +12,25 @@
 export function pcmQueueWorkletSource(processorName: string): string {
   return `
 class PcmQueueProcessor extends AudioWorkletProcessor {
-  constructor() {
+  constructor(options) {
     super()
-    this.queue = []
-    this.head = 0
+    // Linear-resample the source samples to the context rate. We can't pin the
+    // context's sample rate to the source's: iOS Safari silently produces no
+    // audio from a context forced to a non-native rate (44100 vs the device's
+    // 48000). So run the context at its native rate and resample here instead.
+    const src = (options && options.processorOptions && options.processorOptions.sourceRate) || sampleRate
+    this.step = src / sampleRate
+    this.buf = new Float32Array(0)  // unconsumed samples
+    this.pos = 0                    // fractional read index into buf
     this.port.onmessage = (ev) => {
       if (ev.data instanceof Float32Array) {
-        this.queue.push(ev.data)
+        const merged = new Float32Array(this.buf.length + ev.data.length)
+        merged.set(this.buf, 0)
+        merged.set(ev.data, this.buf.length)
+        this.buf = merged
       } else if (ev.data === 'flush') {
-        this.queue.length = 0
-        this.head = 0
+        this.buf = new Float32Array(0)
+        this.pos = 0
       }
     }
   }
@@ -29,20 +38,21 @@ class PcmQueueProcessor extends AudioWorkletProcessor {
   process(_inputs, outputs) {
     const out = outputs[0][0]
     if (!out) return true
-    let written = 0
-    while (written < out.length) {
-      if (this.queue.length === 0) break
-      const buf = this.queue[0]
-      const take = Math.min(out.length - written, buf.length - this.head)
-      out.set(buf.subarray(this.head, this.head + take), written)
-      written += take
-      this.head += take
-      if (this.head >= buf.length) {
-        this.queue.shift()
-        this.head = 0
-      }
+    const buf = this.buf
+    const step = this.step
+    let pos = this.pos
+    let i = 0
+    for (; i < out.length; i++) {
+      const ip = Math.floor(pos)
+      if (ip + 1 >= buf.length) break  // not enough buffered to interpolate
+      out[i] = buf[ip] + (buf[ip + 1] - buf[ip]) * (pos - ip)
+      pos += step
     }
-    if (written < out.length) out.fill(0, written)
+    for (; i < out.length; i++) out[i] = 0  // underrun → silence, don't glitch
+    // Drop the integer samples we've consumed; keep the fractional remainder.
+    const consumed = Math.floor(pos)
+    this.buf = consumed > 0 ? buf.subarray(consumed) : buf
+    this.pos = pos - consumed
     return true
   }
 }
@@ -65,12 +75,44 @@ export interface AudioPushPumpOptions {
   intervalMs?: number;
 }
 
-/** Drains a backend's sample source into an AudioWorklet sink. Lazily creates
- *  the AudioContext + worklet on first start() (needs a user gesture), then
- *  posts chunks on an interval. suspend() stops the pump, flushes the queue, and
- *  suspends the context. */
+// One shared AudioContext for every pump. iOS Safari only lets an AudioContext
+// run if it was created + resumed inside a user gesture; our startAudio() fires
+// after an async build/load chain (not in the gesture), so a per-pump context
+// created there stays suspended forever → silence on iOS (all machines). Sharing
+// one context lets a single first-gesture unlock (primeAudio) cover everything,
+// and suspend() leaves it running so it never re-locks.
+let sharedCtx: AudioContext | null = null;
+
+function getSharedCtx(): AudioContext {
+  // Always the device's NATIVE rate — never a forced one. iOS Safari produces no
+  // audio at all from a context pinned to a non-native sample rate; the worklet
+  // resamples the source to this rate instead.
+  if (!sharedCtx) sharedCtx = new AudioContext();
+  return sharedCtx;
+}
+
+/** Unlock audio on a user gesture (iOS). Creates + resumes the shared
+ *  AudioContext and plays a one-sample silent buffer to nudge iOS into starting
+ *  it, so a later (async) startAudio() finds it already running. Idempotent;
+ *  no-op outside a browser. Call from a global first-gesture handler. */
+export function primeAudio(): void {
+  if (typeof AudioContext === "undefined") return;
+  const ctx = getSharedCtx();
+  if (ctx.state === "suspended") void ctx.resume();
+  try {
+    const src = ctx.createBufferSource();
+    src.buffer = ctx.createBuffer(1, 1, ctx.sampleRate);
+    src.connect(ctx.destination);
+    src.start(0);
+  } catch {
+    /* a failed warm-up blip is harmless */
+  }
+}
+
+/** Drains a backend's sample source into an AudioWorklet sink on the shared
+ *  AudioContext. start() attaches a worklet node + posts chunks on an interval;
+ *  suspend() stops the pump + flushes but leaves the (unlocked) context running. */
 export class AudioPushPump {
-  private ctx: AudioContext | null = null;
   private node: AudioWorkletNode | null = null;
   private timer: number | null = null;
   private readonly processorName: string;
@@ -82,30 +124,29 @@ export class AudioPushPump {
   }
 
   async start(): Promise<void> {
-    if (this.ctx) {
-      if (this.ctx.state === "suspended") await this.ctx.resume();
-      this.startTimer();
-      return;
+    const ctx = getSharedCtx();
+    // iOS: resume in case the context is still suspended (primeAudio should have
+    // unlocked it on the first gesture, but resume() here is harmless on desktop).
+    if (ctx.state === "suspended") await ctx.resume();
+    if (!this.node) {
+      const url = URL.createObjectURL(
+        new Blob([pcmQueueWorkletSource(this.processorName)], { type: "text/javascript" }),
+      );
+      try {
+        await ctx.audioWorklet.addModule(url);
+      } finally {
+        URL.revokeObjectURL(url);
+      }
+      const node = new AudioWorkletNode(ctx, this.processorName, {
+        numberOfInputs: 0,
+        numberOfOutputs: 1,
+        outputChannelCount: [1],
+        // The worklet resamples from the source rate to the context's native rate.
+        processorOptions: { sourceRate: this.opts.sampleRate ?? ctx.sampleRate },
+      });
+      node.connect(ctx.destination);
+      this.node = node;
     }
-    const ctx = this.opts.sampleRate
-      ? new AudioContext({ sampleRate: this.opts.sampleRate })
-      : new AudioContext();
-    const url = URL.createObjectURL(
-      new Blob([pcmQueueWorkletSource(this.processorName)], { type: "text/javascript" }),
-    );
-    try {
-      await ctx.audioWorklet.addModule(url);
-    } finally {
-      URL.revokeObjectURL(url);
-    }
-    const node = new AudioWorkletNode(ctx, this.processorName, {
-      numberOfInputs: 0,
-      numberOfOutputs: 1,
-      outputChannelCount: [1],
-    });
-    node.connect(ctx.destination);
-    this.ctx = ctx;
-    this.node = node;
     this.startTimer();
   }
 
@@ -120,12 +161,15 @@ export class AudioPushPump {
     }, this.opts.intervalMs ?? 5);
   }
 
-  async suspend(): Promise<void> {
+  suspend(): void {
     if (this.timer != null) {
       window.clearInterval(this.timer);
       this.timer = null;
     }
+    // Flush the worklet queue but DON'T suspend the shared context: on iOS a
+    // suspended context can only be resumed inside a user gesture, and our next
+    // start() is async (not in one) — suspending here would re-lock audio after
+    // the first run. The context stays running; no chunks pushed = silence.
     if (this.node) this.node.port.postMessage("flush");
-    if (this.ctx && this.ctx.state === "running") await this.ctx.suspend();
   }
 }
