@@ -463,6 +463,15 @@ jsnes fork, no bus read. This is the core-state path for write-only selectors.
    hardcoded table. `machine-nes` declares **no** `banks` (the field is for
    bus-readable-fixed-window machines like Atari). The jsnes plugin ignores the
    `banks` arg.
+   - **Coverage audited (jsnes 2.1.0): all 20 mappers covered.** Every mapper
+     (NROM, MMC1, UxROM, CNROM, MMC3, MMC5, AxROM, MMC2, Color Dreams, BNROM,
+     PCI556, GxROM, Camerica, NINA, UN1ROM, TxSROM, TQROM, Jaleco, Crazy Climber,
+     240, BxROM) maps PRG-ROM **only** through `loadRomBank` (16 KB) /
+     `load8kRomBank` (8 KB) / `load32kRomBank` (delegates to `loadRomBank` ×2) —
+     all extend Mapper0, none writes `cpu.mem` / `copyArrayElements` into the
+     `$8000+` PRG range directly. So wrapping the two primitives is exhaustive.
+     **Re-audit on a jsnes version bump** (pin is 2.1.0; a new mapper could add a
+     new primitive — same warning as `jsnes-internals.ts`).
 4. **Live BP-trap test. — DONE.** `tests/integration/nes-banking-live.test.ts`,
    2 cases on the **real jsnes core**:
    - **UNROM (mapper 2, 16 KB):** a hand-built 3-bank ROM; the same `$8000`
