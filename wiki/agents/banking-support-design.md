@@ -360,9 +360,46 @@ target, the way the 68000 validated the plugin contracts.
      (dim amber). New `lineBanks` StateField/effect/prop mirroring `lineAddrs`;
      App builds it via `resolveLineSpace` over the active file's emitting lines.
    - tsc + lint clean, 569 tests (UI plumbing; `resolveLineSpace` already tested).
-7. **Template + integration test.** A MADS 130XE banked hello (`atari-130xe-bank`?);
-   integration test: build → run → BP in bank N fires only when PORTB selects N →
-   PC/line/D0 correct; current-line resolves the right bank.
+7. **Template + integration test. — TEST DONE, TEMPLATE DEFERRED.**
+   - **Integration test** (`tests/integration/atari-banking.test.ts`, +5): the
+     full headless-verifiable chain — **real MADS banked build** (`opt b+` +
+     `lmb #1`/`nmb`, two NOPs at the shared `$4000` in bank 1 + bank 2) → source
+     map captures both via `bankedAddrToLoc` → `resolveBreakpoints` emits a
+     `BankBreakpoint{addr:$4000, space:'bank2'}` → `breakpointFires` returns true
+     only for the `bank2` projection (false for bank1 / no-bank) → `resolvePcLoc`
+     resolves `$4000` to the right source line per live bank. The bank-match
+     logic was extracted to `@ports/bank-match.ts` (`splitBreakpoints`,
+     `liveSpaceAt`, `breakpointFires`) so the Emulator loop and the test share
+     one implementation. The **running Altirra core is wasm → not bootable
+     headless** (repo policy: real cores only for pure-JS jsnes), so "the BP
+     traps in the live core" is the one link asserted by construction, not by a
+     running core.
+   - **Template deferred — needs a verified `@BANK_ADD`.** A runnable banked XEX
+     needs the load-time PORTB switch glue (`@BANK_ADD` macro); an **empty**
+     macro assembles + captures fine (what the test uses) but produces **no
+     runtime bank switching**. Shipping a "banked" template that doesn't switch
+     at runtime is a half-feature. Deferred until the real `@BANK_ADD` loader is
+     verified against a running core (the mads memory-banks doc describes the
+     directives but not a canonical loader body).
+
+### Phase 1 status — DONE (Steps 1–7, template deferred)
+Steps 1–6 + the Step-7 integration test are merged. Bank-aware debugging works
+end-to-end for Atari 130XE at every layer that's testable without booting the
+wasm core: capture → resolve → breakpoint match → current-line → UI indicators.
+574 tests, tsc + lint clean.
+
+### Known limitations / follow-ups
+- **MADS bank 0 is implicit** — its `.lst` lines carry no `BB,` prefix, so bank-0
+  code is indistinguishable from flat code in the source map and resolves via
+  `addrToLoc` first-wins (correct when bank 0 is the base layer; ambiguous only
+  if bank-0 and a higher bank share an address AND bank 0 wasn't emitted first).
+  Banks 1+ are explicit. The `.lab` carries bank for `00` too — a future parser
+  could cross-reference it.
+- **Non-live ext-bank reads** unverified — the memory viewer shows the live bus +
+  names the bank; an arbitrary-bank picker needs Altirra non-live read support.
+- **`@BANK_ADD` loader** — runnable banked XEX + the deferred template.
+- **cc65 130XE** banking is manual (linker config) — MADS is the Phase-1 path; the
+  cc65 `.dbg` capture (Phase 0) already feeds the same `bankedAddrToLoc`.
 
 ### Risks / open questions to resolve in Phase 1
 - **OPT B+ window capture** — verify step 1 (the `$4000` hardware path, not just `lmb`).
