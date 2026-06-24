@@ -370,10 +370,16 @@ target, the way the 68000 validated the plugin contracts.
      resolves `$4000` to the right source line per live bank. The bank-match
      logic was extracted to `@ports/bank-match.ts` (`splitBreakpoints`,
      `liveSpaceAt`, `breakpointFires`) so the Emulator loop and the test share
-     one implementation. The **running Altirra core is wasm → not bootable
-     headless** (repo policy: real cores only for pure-JS jsnes), so "the BP
-     traps in the live core" is the one link asserted by construction, not by a
-     running core.
+     one implementation.
+   - **Live-core test** (`tests/integration/atari-banking-live.test.ts`, +2) —
+     **boots the real Altirra wasm core headless in node** (first wasm core to do
+     so: a `wasmBinary` fetch shim feeds the 4.5 MB core, which can't fetch its
+     own `file://` URL). A tiny program pokes PORTB's ext-bank bits; after it
+     runs, `backend.bankMap()` reports the selected bank (`bank1`, then `bank3`).
+     This closes the one runtime assumption code-review alone couldn't:
+     **`readMem($D301)` returns the live PIA PORTB, so bankMap() tracks the
+     program's bank switches on the actual core.** ~0.5 s. (Supersedes the old
+     "Altirra can't boot headless" note in build-run-pipeline.)
    - **Template deferred — needs a verified `@BANK_ADD`.** A runnable banked XEX
      needs the load-time PORTB switch glue (`@BANK_ADD` macro); an **empty**
      macro assembles + captures fine (what the test uses) but produces **no
@@ -383,10 +389,12 @@ target, the way the 68000 validated the plugin contracts.
      directives but not a canonical loader body).
 
 ### Phase 1 status — DONE (Steps 1–7, template deferred)
-Steps 1–6 + the Step-7 integration test are merged. Bank-aware debugging works
-end-to-end for Atari 130XE at every layer that's testable without booting the
-wasm core: capture → resolve → breakpoint match → current-line → UI indicators.
-574 tests, tsc + lint clean.
+Steps 1–6 + the Step-7 tests are merged. Bank-aware debugging works end-to-end
+for Atari 130XE: capture → resolve → breakpoint match → current-line → UI
+indicators, plus a **live-core test** that boots the real Altirra wasm and
+confirms `bankMap()` tracks PORTB on the actual core. 576 tests, tsc + lint
+clean. The only deferred piece is the runnable banked **template** (needs the
+`@BANK_ADD` loader glue).
 
 ### Known limitations / follow-ups
 - **MADS bank 0 is implicit** — its `.lst` lines carry no `BB,` prefix, so bank-0
