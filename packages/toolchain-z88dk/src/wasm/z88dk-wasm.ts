@@ -140,6 +140,33 @@ const DEFAULT_SNA_SP = 0xff00
 /** Assemble `main` (+ its includes) with z80asm to a binary, then wrap it into a
  *  48K .sna at `opts.org`. Project `.asm`/`.inc` files are mounted RW; includes
  *  resolve relative to the including file (z80asm) and from the project root. */
+export interface Z80FlatResult {
+  ok: boolean
+  /** Raw flat binary z80asm emits (`-b`), absent on failure. */
+  binary?: Uint8Array
+  stderr: string
+}
+
+/** Assemble Z80 source to a RAW flat binary — `z80asm -b`, no snapshot wrap and
+ *  no ZX-RAM org constraints. For embedding a Z80 blob (e.g. a Genesis sound
+ *  driver) into another build via `incbin` (#147). `main` is the entry source;
+ *  `files` carries it plus any includes. The org comes from the source itself. */
+export async function assembleZ80Flat(main: string, files: Z88dkFile[], extraArgs: string[] = []): Promise<Z80FlatResult> {
+  const z80asmMod = await loadWasmModule(z80asmWasmUrl)
+  const binPath = `${stem(main)}.bin`
+  const project = new MemoryProvider(
+    files.map((f) => [f.path, typeof f.content === 'string' ? encoder.encode(f.content) : f.content] as const),
+  )
+  const vfs = createVfs([{ prefix: '', provider: project, ro: false }])
+  const root = await vfsToPreopen(vfs, { outputs: [binPath] })
+  const r = await runTool(z80asmMod, root, ['z80asm', '-b', '-mz80', ...extraArgs, main])
+  const stderr = r.stderr.trim() ? `[z80asm] ${r.stderr}` : ''
+  if (r.exitCode !== 0) return { ok: false, stderr }
+  const binary = readFromPreopen(root, binPath)
+  if (!binary || binary.length === 0) return { ok: false, stderr: `${stderr}\n[z80asm] no binary produced` }
+  return { ok: true, binary, stderr }
+}
+
 export async function buildZ88dk(main: string, files: Z88dkFile[], opts: Z88dkOptions = {}, banked = false): Promise<Z88dkBuildResult> {
   const org = opts.org ?? DEFAULT_ORG
   const sp = opts.snaSp ?? DEFAULT_SNA_SP

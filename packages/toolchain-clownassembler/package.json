@@ -11,6 +11,7 @@
     "@madside/core": "workspace:*",
     "@madside/ports": "workspace:*",
     "@madside/wasm-clownassembler": "workspace:*",
+    "@madside/toolchain-z88dk": "workspace:*",
     "@bjorn3/browser_wasi_shim": "^0.4.2"
   }
 }

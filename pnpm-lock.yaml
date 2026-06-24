@@ -588,6 +588,9 @@ importers:
       '@madside/ports':
         specifier: workspace:*
         version: link:../ports
+      '@madside/toolchain-z88dk':
+        specifier: workspace:*
+        version: link:../toolchain-z88dk
       '@madside/wasm-clownassembler':
         specifier: workspace:*
         version: link:../wasm-clownassembler

@@ -3,6 +3,7 @@ import { assemble, type SourceFile } from "./wasm-clownassembler";
 import { parseListingLabels } from "./labParser";
 import { parseListingSourceMap } from "./sourceMap";
 import { parseClownDiagnostics } from "./diagnostics";
+import { assembleZ80Flat } from "@madside/toolchain-z88dk";
 
 // clownassembler — Clownacy's AGPLv3+ Motorola 68000 assembler (asm68k/SN-68k
 // syntax), the Sega Genesis/Mega Drive toolchain (#145). Wraps the
@@ -46,6 +47,29 @@ export const clownassemblerToolchain: ToolchainPlugin = {
 
   async build(input): Promise<ToolchainBuildOutput> {
     const sources: SourceFile[] = input.files.map((f) => ({ path: f.path, content: f.content }));
+
+    // Composite Z80 step (#147): the Genesis Z80 sound coprocessor. When
+    // `build.options.z80` is set the project's own Z80 source is assembled here
+    // with z80asm into a sibling .bin the M68k source can `incbin` (the 68000
+    // then copies it to the Z80's RAM at $A00000). `z80: true` builds every
+    // `.s80`; `z80: "path.s80"` builds just that entry. This is the same
+    // multi-tool-under-one-plugin pattern as cc65/z88dk — clownassembler IS the
+    // Genesis build, internally orchestrating both assemblers.
+    const z80opt = (input.options as { z80?: unknown } | undefined)?.z80;
+    if (z80opt) {
+      const z80files = input.files.map((f) => ({ path: f.path, content: f.content }));
+      const entries = typeof z80opt === "string"
+        ? [z80opt]
+        : input.files.filter((f) => /\.s80$/i.test(f.path)).map((f) => f.path);
+      for (const entry of entries) {
+        const blob = await assembleZ80Flat(entry, z80files);
+        if (!blob.ok || !blob.binary) {
+          return { ok: false, stdout: "", stderr: blob.stderr, diagnostics: [], exitCode: 1 };
+        }
+        sources.push({ path: entry.replace(/\.s80$/i, ".bin"), content: blob.binary });
+      }
+    }
+
     const rawArgs = (input.options as { args?: unknown } | undefined)?.args;
     const userArgs = Array.isArray(rawArgs) ? rawArgs.filter((a): a is string => typeof a === "string") : [];
     const r = await assemble(input.main, sources, userArgs);
