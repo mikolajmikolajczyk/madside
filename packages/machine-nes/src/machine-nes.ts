@@ -57,17 +57,13 @@ export const machineNes: MachinePlugin = {
     { id: 'apu', name: 'APU (2A03)', ioRange: { start: 0x4000, end: 0x4017 } },
   ],
 
-  // PRG-ROM bank windows (ADR-0014). The mapper decides which are switchable
-  // (UNROM: $8000 switchable, $C000 fixed-last; MMC1/MMC3: both/more), so both
-  // 16 KB PRG windows are declared and the backend reports the live bank per
-  // window from the mapper state. `selector` is omitted — NES mapper latches are
-  // WRITE-ONLY (not bus-readable like Atari PORTB); the jsnes backend tracks the
-  // live bank by intercepting the mapper's bank-load instead. `bankCount` is the
-  // PRG-ROM bank ceiling (256 × 16 KB iNES max); the live count is per-ROM.
-  banks: [
-    { id: 'prg-lo', start: 0x8000, end: 0xbfff, bankCount: 256, spacePrefix: 'bank' },
-    { id: 'prg-hi', start: 0xc000, end: 0xffff, bankCount: 256, spacePrefix: 'bank' },
-  ],
+  // NOTE: no static `banks` declaration (ADR-0014). On the NES the PRG bank
+  // window layout is *per-mapper*, decided by the iNES header at ROM-load time
+  // (UxROM: 16 KB @ $8000 switchable + $C000 fixed; MMC3: 8 KB @ $8000/$A000/
+  // $C000/$E000; AxROM: 32 KB), so it can't be a static machine property. The
+  // jsnes backend derives the live windows from the loaded mapper and reports
+  // them via bankMap(). The `banks` field is for bus-readable-selector machines
+  // whose window is fixed (e.g. Atari 130XE PORTB).
 
   input: {
     kind: 'controller',

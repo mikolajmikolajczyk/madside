@@ -72,13 +72,16 @@ export interface JsnesMmap {
   /** Mapped read — honours cartridge / IO mapping (unlike raw cpu.mem). */
   load(addr: number): number
   write(addr: number, value: number): void
-  /** Copy PRG bank `bank` into the CPU window at `address` (`$8000` / `$C000`).
-   *  Mappers call this on a bank-select write; the bank number isn't stored
-   *  anywhere afterwards (write-only latch), so the backend wraps this to track
-   *  the live bank per window for bankMap() (ADR-0014). The bank is the index
-   *  passed by the mapper — a 16 KB PRG bank for UxROM (`(bank*2)%romCount` is
-   *  applied internally to 8 KB half-banks; the 16 KB index is what we record). */
+  /** Copy a **16 KB** PRG bank into the CPU window at `address` (`$8000` /
+   *  `$C000`). Used by NROM / UxROM. The bank number isn't stored afterwards
+   *  (write-only latch), so the backend wraps this to track the live bank per
+   *  window for bankMap() (ADR-0014). */
   loadRomBank(bank: number, address: number): void
+  /** Copy an **8 KB** PRG bank into the CPU window at `address` (`$8000` /
+   *  `$A000` / `$C000` / `$E000`). Used by MMC3 and other fine-grained mappers.
+   *  Wrapped alongside loadRomBank so bankMap() derives the window *size* from
+   *  whichever primitive the loaded mapper actually uses — no per-mapper table. */
+  load8kRomBank(bank: number, address: number): void
 }
 
 export interface JsnesController {

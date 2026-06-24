@@ -452,17 +452,27 @@ jsnes fork, no bus read. This is the core-state path for write-only selectors.
    `jsnes-internals.ts` now types `loadRomBank` (pinned 2.1.0). `setBreakpoints`
    widened to extract a `BankBreakpoint`'s addr (like Altirra). `createBackend(banks?)`
    threads `machine.banks` (the Phase-1 app-layer path) + `createJsnesBackend(banks?)`.
-3. **`machine-nes.banks`. — DONE.** Two PRG windows: `prg-lo` `$8000–$BFFF`
-   (switchable), `prg-hi` `$C000–$FFFF` (often fixed-last). `selector` **omitted**
-   (write-only latch — the backend supplies the live bank), `spacePrefix:'bank'`,
-   `bankCount:256` (iNES PRG ceiling; live count is per-ROM).
-4. **Live BP-trap test. — DONE.** `tests/integration/nes-banking-live.test.ts`:
-   a hand-built 3-bank UNROM (mapper 2) iNES image runs on the **real jsnes core**;
-   the same `$8000` breakpoint resolves to PRG bank 0 then bank 1 as execution
-   flows bank0→fixed-trampoline→bank1. Power-on `bankMap()` = `prg-lo bank0` +
-   `prg-hi bank2` (fixed). Reuses the Phase-1 `@ports/bank-match.ts` engine + the
-   `atari-6502` adapter's `bankMap()` forward, both unchanged — the abstraction
-   held for a write-only-latch target.
+3. **NES windows are per-mapper, NOT a static declaration. — DONE.** Critical
+   correction: the PRG window layout depends on the loaded mapper (UxROM: 16 KB @
+   `$8000`+`$C000`; **MMC3: 8 KB @ `$8000`/`$A000`/`$C000`/`$E000`**; AxROM: 32 KB),
+   decided by the iNES header at ROM-load time — so it **can't** be a static
+   `machine-nes.banks`. Instead the backend wraps **both** PRG-load primitives
+   (`loadRomBank` = 16 KB, `load8kRomBank` = 8 KB) and records `(window-start →
+   { bank, size })`, taking the window *size* from whichever primitive the mapper
+   fired. `bankMap()` derives the windows from that — mapper-agnostic, no
+   hardcoded table. `machine-nes` declares **no** `banks` (the field is for
+   bus-readable-fixed-window machines like Atari). The jsnes plugin ignores the
+   `banks` arg.
+4. **Live BP-trap test. — DONE.** `tests/integration/nes-banking-live.test.ts`,
+   2 cases on the **real jsnes core**:
+   - **UNROM (mapper 2, 16 KB):** a hand-built 3-bank ROM; the same `$8000`
+     breakpoint resolves to PRG bank 0 then bank 1 as execution flows
+     bank0→fixed-trampoline→bank1. Reuses the Phase-1 `@ports/bank-match.ts` engine
+     + the `atari-6502` `bankMap()` forward, both unchanged.
+   - **MMC3 (mapper 4, 8 KB):** a minimal ROM; `bankMap()` derives **four 8 KB
+     windows** (not UNROM's two 16 KB) with no code change, and the `$8000` window
+     updates live when reset switches the PRG bank. Proves the layout is derived
+     from the mapper.
 5. **Toolchain banked source map (SEPARATE, harder).** A banked NES build that tags
    source lines with banks needs a cc65 banked linker config (`.dbg seg.bank`, which
    Phase 0 already parses) or a MADS multi-bank convention (no NES `OPT B+`

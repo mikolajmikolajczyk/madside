@@ -11,7 +11,7 @@
 // buttonDown/Up), and a breakpoint-granular advance loop that mirrors jsnes's
 // own frame() body cycle-for-cycle (incl. the OAM-DMA halt drain).
 
-import type { BankBreakpoint, BankProjection, BankWindow, Cpu6502State, RunBackend } from '@ports'
+import type { BankBreakpoint, BankProjection, Cpu6502State, RunBackend } from '@ports'
 import { AudioPushPump } from '@core/audio'
 import { NES } from 'jsnes'
 import type { NESWithInternals } from './jsnes-internals'
@@ -31,14 +31,15 @@ export class JsnesBackend implements RunBackend {
 
   private readonly nes: NESWithInternals
   private readonly bp = new Set<number>()
-  // Switchable PRG windows the machine declares (ADR-0014). NES mapper latches
-  // are write-only, so the live bank can't be read off the bus; instead the
-  // backend records it by wrapping the mapper's loadRomBank (installed in
-  // loadMedia). Empty for a flat (NROM) machine config.
-  private readonly banks: readonly BankWindow[]
-  // Live PRG bank per window-start address ($8000 / $C000), updated by the
-  // loadRomBank wrapper. The source of bankMap().
-  private readonly liveBankAt = new Map<number, number>()
+  // Live PRG bank windows, derived from the *loaded mapper* — not a static
+  // machine declaration (ADR-0014). NES mapper latches are write-only and the
+  // window layout is per-mapper (UxROM: 16 KB @ $8000/$C000; MMC3: 8 KB @
+  // $8000/$A000/$C000/$E000; AxROM: 32 KB), decided by the iNES header at load
+  // time. So the backend wraps the mapper's PRG-load primitives (loadRomBank =
+  // 16 KB, load8kRomBank = 8 KB) and records, per window-start address, the live
+  // bank and the window size taken from whichever primitive fired. bankMap()
+  // projects from this — mapper-agnostic, no hardcoded window table.
+  private readonly liveWindows = new Map<number, { bank: number; size: number }>()
   // PC the last advanceFrame paused on — stepped over once on resume so Run
   // doesn't re-trap in place at the same breakpoint.
   private trappedAt: number | null = null
@@ -61,8 +62,7 @@ export class JsnesBackend implements RunBackend {
     },
   })
 
-  constructor(banks: readonly BankWindow[] = []) {
-    this.banks = banks
+  constructor() {
     this.nes = new NES({
       sampleRate: DEFAULT_SAMPLE_RATE,
       onFrame: (buffer: Uint32Array) => this.blit(buffer),
@@ -91,19 +91,25 @@ export class JsnesBackend implements RunBackend {
       throw new Error(`JsnesBackend.loadMedia: unsupported format '${format}'`)
     }
     this.nes.loadROM(bytes)
-    // Track the live PRG bank per window (ADR-0014). The mapper's latch is
-    // write-only — it copies the selected bank into cpu.mem and discards the
-    // number — so wrap loadRomBank to record it. The mapper instance only exists
-    // after loadROM, and loadROM already did the power-on mapping before the wrap
-    // could see it; re-run the mapper's own loadROM with the wrap installed to
-    // capture the initial banks (idempotent remap, before any frame runs).
-    this.liveBankAt.clear()
+    // Track live PRG bank windows (ADR-0014). The mapper latch is write-only —
+    // it copies the selected bank into cpu.mem and discards the number — so wrap
+    // its PRG-load primitives to record (window-start → bank + size). The mapper
+    // instance only exists after loadROM, and loadROM already did the power-on
+    // mapping before the wrap could see it; re-run the mapper's own loadROM with
+    // the wraps installed to capture the initial banks (idempotent remap, before
+    // any frame runs).
+    this.liveWindows.clear()
     const mmap2 = this.nes.mmap as (typeof this.nes.mmap & { loadROM?(): void }) | null
-    if (this.banks.length > 0 && mmap2) {
-      const orig = mmap2.loadRomBank.bind(mmap2)
+    if (mmap2) {
+      const orig16 = mmap2.loadRomBank.bind(mmap2)
       mmap2.loadRomBank = (bank: number, address: number): void => {
-        this.liveBankAt.set(address, bank)
-        orig(bank, address)
+        this.liveWindows.set(address, { bank, size: 0x4000 })
+        orig16(bank, address)
+      }
+      const orig8 = mmap2.load8kRomBank.bind(mmap2)
+      mmap2.load8kRomBank = (bank: number, address: number): void => {
+        this.liveWindows.set(address, { bank, size: 0x2000 })
+        orig8(bank, address)
       }
       mmap2.loadROM?.()
     }
@@ -252,23 +258,19 @@ export class JsnesBackend implements RunBackend {
   }
 
   bankMap(): BankProjection[] {
-    // Project each declared PRG window to its live bank from the tracked latch
-    // state (ADR-0014). NES selectors are write-only, so there's no register to
-    // decode — the value comes from the loadRomBank wrapper. A window the mapper
-    // never mapped (no entry) reports no bank.
-    return this.banks.map((w) => {
-      const bank = this.liveBankAt.get(w.start)
-      const windowSize = w.end - w.start + 1
-      return bank == null
-        ? { window: w.id, start: w.start, end: w.end, space: null, bankOffset: null }
-        : {
-            window: w.id,
-            start: w.start,
-            end: w.end,
-            space: `${w.spacePrefix ?? 'bank'}${bank}`,
-            bankOffset: bank * windowSize,
-          }
-    })
+    // Project the windows the loaded mapper actually maps (ADR-0014), sorted by
+    // address. Window size comes from the PRG-load primitive the mapper used, so
+    // this is correct for any mapper (16 KB UxROM, 8 KB MMC3, …) with no
+    // hardcoded layout. `space` / `bankOffset` are in that window's bank units.
+    return [...this.liveWindows.entries()]
+      .sort(([a], [b]) => a - b)
+      .map(([start, { bank, size }]) => ({
+        window: `prg-${start.toString(16)}`,
+        start,
+        end: start + size - 1,
+        space: `bank${bank}`,
+        bankOffset: bank * size,
+      }))
   }
 
   sendKey(keyCode: number, _charCode: number, isDown: boolean): void {
@@ -304,6 +306,6 @@ export class JsnesBackend implements RunBackend {
 
 /** Backend factory matching RunBackendFactory. Async to mirror the wasm-core
  *  factories (Altirra) even though jsnes boots synchronously. */
-export async function createJsnesBackend(banks?: readonly BankWindow[]): Promise<RunBackend> {
-  return new JsnesBackend(banks)
+export async function createJsnesBackend(): Promise<RunBackend> {
+  return new JsnesBackend()
 }
