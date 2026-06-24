@@ -39,7 +39,7 @@ export interface CpuZ80State {
   flags: { s: boolean; z: boolean; h: boolean; pv: boolean; n: boolean; c: boolean }
 }
 
-// Motorola 68000 register snapshot — produced by the Musashi Genesis backend,
+// Motorola 68000 register snapshot — produced by the Genesis (gpgx) backend,
 // consumed by the m68k DebugAdapter + register panel (#145). Eight 32-bit data
 // (D0–D7) + eight 32-bit address (A0–A7, A7 = SP) registers, a 32-bit PC (24-bit
 // bus), and the 16-bit status register. The condition-code flags (X N Z V C) are

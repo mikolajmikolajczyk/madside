@@ -7,10 +7,10 @@
 
 ## What + why
 
-gpgx is the Phase-B emulator backend; the bare-Musashi backend
-(`emulator-genesis-musashi`) stays as a headless CPU-only fallback. **gpgx embeds
-Musashi** (`core/m68k/`), so `@madside/debug-m68k` + `Cpu68kState` work unchanged
-on its m68k context — Phase B swapped the *emulator*, not the toolchain/machine/debug.
+gpgx is the Genesis emulator backend. **It embeds Musashi** (`core/m68k/`) as its
+68000 core, so `@madside/debug-m68k` + `Cpu68kState` work unchanged on its m68k
+context — Phase B swapped the *emulator* (replacing the earlier headless bare-Musashi
+scaffold, since removed), not the toolchain/machine/debug.
 
 ## Licence (non-commercial)
 
@@ -27,7 +27,7 @@ a ROM. See [[licensing-stance]]. Pinned ref `c7ecd07`.
 - **wasi-sdk clang, `-mexec-model=reactor`** — exported fns, no `_start`. NOT
   emscripten. Single clang pass: gpgx commits its m68k tables (`m68kops.h`,
   `m68ki_instruction_jump_table.h`, `m68ki_cycles.h`) so there's **no host m68kmake**.
-- **setjmp shim** reused from the Musashi build (`build/support/musashi/shim`):
+- **setjmp shim** (`build/support/genesis-gpgx/shim`):
   wasi-sdk has no SjLj runtime; m68k only uses setjmp for the address-error trap,
   which the harness keeps dormant (`config.addr_error = 0` + `m68k.aerr_enabled = 0`).
 - `-DLSB_FIRST` (wasm is little-endian), `-DUSE_32BPP_RENDERING` (0xAARRGGBB
@@ -93,7 +93,7 @@ throws rather than no-ops.
   wasm view each frame; memory growth detaches it), stereo→mono audio downmix via
   `AudioPushPump`, pad input via `set_input`. Reuses `debug-m68k` unchanged.
 - `machine-genesis`: `pixelFormat: 'xrgb8888'`, `compatibleEmulators:
-  ['genesis-gpgx', 'genesis-musashi']`. Registered in `builtin-plugins.ts`.
+  ['genesis-gpgx']`. Registered in `builtin-plugins.ts`.
 
 ## Caveats / Phase-B follow-ups
 

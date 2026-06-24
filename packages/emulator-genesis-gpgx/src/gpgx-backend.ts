@@ -6,8 +6,7 @@ import { gpgxWasmUrl } from '@madside/wasm-genesis-gpgx'
 // Genesis Plus GX full-system backend (#145, Phase B): VDP video, YM2612/PSG
 // audio, Z80 + I/O — driven through the wasm reactor harness
 // (build/support/genesis-gpgx/genesis-gpgx-system.c). Reuses the m68k-debug
-// adapter unchanged (gpgx embeds Musashi). The bare genesis-musashi backend
-// stays as a headless fallback.
+// adapter unchanged (gpgx embeds Musashi as its 68000 core).
 
 // NTSC H40 active display. The core's live viewport (fb_*) is copied into the
 // top-left of this fixed buffer each frame; a display-off ROM reports a smaller
@@ -16,7 +15,7 @@ const WIDTH = 320
 const HEIGHT = 224
 const SAMPLE_RATE = 44100
 
-// m68k_register_t indices (gpgx core/m68k/m68k.h — same ordering as bare Musashi).
+// m68k_register_t indices (gpgx core/m68k/m68k.h — the embedded Musashi core).
 const REG_D0 = 0
 const REG_A0 = 8
 const REG_PC = 16
@@ -166,9 +165,9 @@ class GenesisGpgxBackend implements RunBackend {
 
   advanceFrame(trap?: () => boolean): number {
     // gpgx is frame-scheduled — no sub-frame instruction stepping. With
-    // breakpoints/trap active, check at the frame boundary (instruction-granular
-    // single-step is the bare-Musashi backend's job; line-debug here is a Phase-B
-    // follow-up that needs M68K_INSTRUCTION_HOOK).
+    // breakpoints/trap active, check at the frame boundary; instruction-granular
+    // single-step / line-debug is a follow-up that needs M68K_INSTRUCTION_HOOK
+    // (#146).
     this.core.run_frame()
     this.refreshPixels()
     this.pumpAudio()

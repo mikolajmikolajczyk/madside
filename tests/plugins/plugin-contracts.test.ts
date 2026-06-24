@@ -35,7 +35,7 @@ describe('MachinePlugin contract', () => {
 
   // Regression: machine-genesis shipped without a `media` config, so the run
   // service couldn't resolve a format and fell back to 'binary' — which the
-  // gpgx/musashi backends reject ("Failed to load binary"). A flat clownassembler
+  // gpgx backend rejects ("Failed to load binary"). A flat clownassembler
   // ROM must resolve to a format the backend accepts.
   it('genesis resolves a flat ROM to a loadable format', () => {
     const media = machineGenesis.media!

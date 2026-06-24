@@ -1,10 +1,11 @@
 /*
- * wasm setjmp/longjmp shim for the Musashi build (#145, Phase A).
+ * wasm setjmp/longjmp shim for the Genesis Plus GX build (#145).
  *
  * wasi-sdk's <setjmp.h> is gated behind the wasm Exception-handling proposal and
- * ships no target-side SjLj runtime (wasi-sdk 33). Musashi uses setjmp/longjmp
- * only for 68000 address/bus-error traps: setjmp marks the recovery point on the
- * *normal* path (returns 0), longjmp is taken only when the emulated CPU faults.
+ * ships no target-side SjLj runtime (wasi-sdk 33). gpgx's embedded Musashi core
+ * uses setjmp/longjmp only for 68000 address/bus-error traps: setjmp marks the
+ * recovery point on the *normal* path (returns 0), longjmp is taken only when the
+ * emulated CPU faults (kept dormant here via config.addr_error = 0).
  *
  * So we shim setjmp to always return 0 (the normal path is unaffected) and make
  * longjmp a hard trap — a correctly-behaving program never faults, and a program

@@ -1,4 +1,4 @@
-// DebugAdapter plugin for the Motorola 68000 (Musashi Genesis backend, #145).
+// DebugAdapter plugin for the Motorola 68000 (Genesis gpgx backend, #145).
 // Neither the 6502 nor the Z80 adapter applies — the 68000 is a 32-bit ISA with
 // its own register file — so this exposes the m68k layout and reads the backend's
 // Cpu68kState. step/breakpoints/memory are CPU-agnostic and forward 1:1, but at
@@ -67,6 +67,6 @@ const attach = (backend: RunBackend): DebugTarget => ({
 export const m68kDebugAdapter: DebugAdapterPlugin = {
   kind: 'debug-adapter',
   id: 'm68k-debug',
-  name: 'Motorola 68000 (Musashi)',
+  name: 'Motorola 68000 (Genesis)',
   attach,
 }

@@ -4,7 +4,6 @@ import { afterAll, beforeAll, describe, it } from 'vitest'
 import { assertEmulatorPlugin } from '@ports/test'
 import { jsnesEmulator } from '@madside/emulator-nes-jsnes'
 import { chipsC64Emulator } from '@madside/emulator-c64-chips'
-import { genesisMusashiEmulator } from '@madside/emulator-genesis-musashi'
 import { genesisGpgxEmulator } from '@madside/emulator-genesis-gpgx'
 import { altirraEmulator } from '@adapters/emu'
 
@@ -27,32 +26,9 @@ describe('chips-c64 satisfies EmulatorPlugin', () => {
   it('contract (shape only)', () => assertEmulatorPlugin(chipsC64Emulator, { boots: false }))
 })
 
-// Musashi is a plain wasi reactor (no browser APIs), so it boots headless for the
-// full round-trip — shim fetch to serve the wasm from disk in the Node test env.
-const MUSASHI_WASM = fileURLToPath(
-  new URL('../../../packages/wasm-musashi/musashi.wasm', import.meta.url),
-)
-describe('genesis-musashi satisfies EmulatorPlugin', () => {
-  let originalFetch: typeof globalThis.fetch | undefined
-  beforeAll(() => {
-    originalFetch = globalThis.fetch
-    globalThis.fetch = (async (input: RequestInfo | URL) => {
-      const url = typeof input === 'string' ? input : input instanceof URL ? input.href : input.url
-      if (url.includes('musashi.wasm')) {
-        const bytes = await readFile(MUSASHI_WASM)
-        return new Response(bytes, { status: 200, headers: { 'content-type': 'application/wasm' } })
-      }
-      if (originalFetch) return originalFetch(input)
-      throw new Error(`unmocked fetch: ${url}`)
-    }) as typeof globalThis.fetch
-  })
-  afterAll(() => { if (originalFetch) globalThis.fetch = originalFetch })
-
-  it('contract', () => assertEmulatorPlugin(genesisMusashiEmulator))
-})
-
-// gpgx is the full-system wasi reactor — also boots headless (AudioContext is
-// only touched on startAudio, which the round-trip doesn't call). Same fetch shim.
+// gpgx is the full-system wasi reactor — boots headless (AudioContext is only
+// touched on startAudio, which the round-trip doesn't call). Shim fetch to serve
+// the wasm from disk in the Node test env.
 const GPGX_WASM = fileURLToPath(
   new URL('../../../packages/wasm-genesis-gpgx/genesis-gpgx.wasm', import.meta.url),
 )

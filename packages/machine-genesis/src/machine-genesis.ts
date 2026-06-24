@@ -5,9 +5,9 @@ import type { MachinePlugin } from '@ports'
 // machine/toolchain/emulator/debug contracts aren't 8-bit/16-bit-bus-centric.
 //
 // CPU is the Motorola 68000 (the Z80 sound CPU is out of scope for the asm-first
-// validation). Toolchain is clownassembler (asm68k syntax, #145). The emulator
-// (Musashi core) + the m68k debug adapter follow as the next Phase-A pieces; this
-// plugin lists their planned ids in the compatible* hints.
+// validation). Toolchain is clownassembler (asm68k syntax); emulator is Genesis
+// Plus GX (gpgx, full system); debug is the m68k adapter — all named below in the
+// compatible* hints and resolved through the PluginRegistry at runtime.
 //
 // ROM bundling is an emulator concern (no `rom` field here), same as ZX/C64.
 export const machineGenesis: MachinePlugin = {
@@ -93,10 +93,9 @@ export const machineGenesis: MachinePlugin = {
 
   defaultPanels: ['memory', 'registers', 'variables', 'output'],
   compatibleToolchains: ['clownassembler'],
-  // gpgx (full system: VDP/sound/Z80/IO) is the primary backend (#145, Phase B);
-  // genesis-musashi (headless CPU + flat bus) stays as a fallback. Resolved
-  // through the PluginRegistry at runtime — first available wins.
-  compatibleEmulators: ['genesis-gpgx', 'genesis-musashi'],
+  // gpgx (full system: VDP/sound/Z80/IO) is the Genesis backend (#145, Phase B),
+  // resolved through the PluginRegistry at runtime.
+  compatibleEmulators: ['genesis-gpgx'],
   compatibleDebugAdapters: ['m68k-debug'],
 
   // Common Genesis equates injected into new clownassembler projects (asm68k

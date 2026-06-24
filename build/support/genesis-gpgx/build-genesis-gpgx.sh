@@ -8,13 +8,12 @@
 #   GPGX       Genesis-Plus-GX source checkout
 #   WASI_SDK   wasi-sdk dir (bin/clang, share/wasi-sysroot)
 #   OUT        dir to install genesis-gpgx.wasm into
-#   SUPPORT    this dir (osd.h + genesis-gpgx-system.c)
-#   MUSASHI_SHIM  dir holding the setjmp shim (build/support/musashi/shim)
+#   SUPPORT    this dir (osd.h + genesis-gpgx-system.c + shim/)
 set -euo pipefail
 
 : "${GPGX:?}" "${WASI_SDK:?}" "${OUT:?}"
 SUPPORT="${SUPPORT:-$(cd "$(dirname "$0")" && pwd)}"
-MUSASHI_SHIM="${MUSASHI_SHIM:-$SUPPORT/../musashi/shim}"
+SHIM="$SUPPORT/shim"
 SR="$WASI_SDK/share/wasi-sysroot"
 CC="$WASI_SDK/bin/clang"
 CORE="$GPGX/core"
@@ -41,7 +40,7 @@ SOURCES=(
 # it for the dormant address-error trap), then our osd.h (must win over
 # libretro/osd.h), then the core subtrees, then libretro/ for scrc32.h.
 INCLUDES=(
-  -I "$MUSASHI_SHIM"
+  -I "$SHIM"
   -I "$SUPPORT"
   -I "$CORE"
   -I "$CORE"/z80

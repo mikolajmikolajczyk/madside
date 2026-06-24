@@ -11,7 +11,6 @@ import { clownassemblerToolchain } from '@madside/toolchain-clownassembler'
 import { jsnesEmulator } from '@madside/emulator-nes-jsnes'
 import { chipsC64Emulator } from '@madside/emulator-c64-chips'
 import { chipsZxEmulator } from '@madside/emulator-zx-chips'
-import { genesisMusashiEmulator } from '@madside/emulator-genesis-musashi'
 import { genesisGpgxEmulator } from '@madside/emulator-genesis-gpgx'
 import { altirraEmulator } from '@adapters/emu'
 import { atari6502DebugAdapter } from '@madside/debug-atari-6502'
@@ -54,7 +53,6 @@ export const builtinPlugins: readonly PluginBase[] = [
   chipsC64Emulator,
   chipsZxEmulator,
   genesisGpgxEmulator,
-  genesisMusashiEmulator,
   // debug adapters
   atari6502DebugAdapter,
   zxZ80DebugAdapter,

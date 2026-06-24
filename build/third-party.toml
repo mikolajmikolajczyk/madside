@@ -153,18 +153,6 @@ license    = "AGPL-3.0-or-later"
 artifact   = "packages/wasm-clownassembler/clownassembler.wasm"
 built_with = "wasi-sdk clang (wasm32-wasip1), single pass — committed flex/bison output (no flex/bison) + wasi-clean (no shm/fork/system/mmap), no patches. See wiki/agents/clownassembler-wasm-build.md."
 
-[source.musashi]
-name       = "Musashi (M68000 core)"
-role       = "Motorola 68000 CPU emulator core — Sega Genesis/Mega Drive backend (#145, Phase A)"
-upstream   = "https://github.com/kstenerud/Musashi"
-source     = "https://github.com/kstenerud/Musashi"
-ref        = "313ebf1bd9f4d0d93341eb5ce21fd8a119e9dbdd"
-version    = "snapshot (git)"
-license    = "MIT"
-license_note = "Musashi is MIT. The bundled softfloat/ (FPU) is John R. Hauser's SoftFloat — a permissive custom licence (redistribution allowed with the legal notice, no warranty)."
-artifact   = "packages/wasm-musashi/musashi.wasm"
-built_with = "host cc runs m68kmake to generate the opcode tables, then wasi-sdk clang builds m68kcpu.c + m68kops.c + softfloat/softfloat.c + our musashi-system.c harness as a wasm32 reactor (a setjmp shim stands in for wasi-sdk's SjLj-gated <setjmp.h>). See wiki/agents/musashi-wasm-build.md."
-
 [source.genesis-plus-gx]
 name       = "Genesis Plus GX"
 role       = "Full Sega Mega Drive / Genesis system emulator (VDP + YM2612/PSG + Z80 + I/O) — Genesis run/display backend, Phase B (#145)"
@@ -175,7 +163,7 @@ version    = "snapshot (git)"
 license    = "Non-commercial (Genesis Plus GX — Charles MacDonald / Eke-Eke; some portions MAME)"
 license_note = "NON-COMMERCIAL: redistributions may not be sold or used in a commercial product. Shipped as a SEPARATE, aggregated emulator-core wasm (the app instantiates + calls it over an API boundary, not linked into the AGPL code) — same footing as the chips/altirra cores. madside's own code stays AGPL-3.0; the bundled core keeps this licence. Consequence: the assembled madside distribution is not commercially redistributable. NB this restricts only the IDE — games users BUILD with madside contain no emulator code and are unaffected. Uses Musashi internally, so the existing m68k-debug adapter works."
 artifact   = "packages/wasm-genesis-gpgx/genesis-gpgx.wasm"
-built_with = "Phase B (planned, not built yet): wasi-sdk clang reactor over core/ (base Genesis only — cd_hw/libchdr excluded) + a minimal osd glue + a custom frontend (load-from-buffer / frame / bitmap / m68k debug exports). Setjmp shim as for Musashi. Full plan: wiki/agents/genesis-gpgx-wasm-build.md."
+built_with = "wasi-sdk clang reactor (single pass — gpgx commits its m68k opcode tables, no host m68kmake) over core/*.c incl. cd_hw, excluding only cd_hw/libchdr (CHD) + sound/tremor (Vorbis). A minimal osd.h replaces libretro-common and a custom frontend harness (genesis-gpgx-system.c) replaces libretro.c (load-from-buffer / frame / bitmap→pixels / m68k_get_reg + read_byte debug / audio / input). Setjmp shim under build/support/genesis-gpgx/shim. See wiki/agents/genesis-gpgx-wasm-build.md."
 
 [builddep.fpc]
 upstream = "https://gitlab.com/freepascal.org/fpc/source.git"

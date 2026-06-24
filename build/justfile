@@ -367,35 +367,6 @@ verify-clownassembler-wasm:
     @echo "smoke.bin bytes (expect 30 3c 12 34):"
     @xxd /tmp/clownasm-verify/smoke.bin | head -1
 
-# === Musashi 68000 core (Sega Genesis emulator backend, MIT) — #145 Phase A ===
-musashi_build_dir := root / "_notes/musashi-wasm-spike/build"
-musashi_src_dir   := musashi_build_dir / "musashi"
-musashi_out_dir   := root / "packages/wasm-musashi"
-musashi_support   := support / "musashi"
-musashi_repo      := `python3 ../scripts/third-party.py get source.musashi.upstream`
-musashi_commit    := `python3 ../scripts/third-party.py get source.musashi.ref`
-
-# Build the Musashi 68000 core + Genesis system harness -> wasm32 reactor. Host
-# m68kmake generates the opcode tables, then wasi-sdk clang compiles. See
-# wiki/agents/musashi-wasm-build.md.
-build-musashi-wasm: fetch-wasi-sdk clone-musashi compile-musashi-wasm verify-musashi-wasm
-
-clone-musashi:
-    if [ ! -d "{{musashi_src_dir}}/.git" ]; then \
-        git clone "{{musashi_repo}}" "{{musashi_src_dir}}"; \
-    fi
-    cd "{{musashi_src_dir}}" && git fetch origin "{{musashi_commit}}" && git checkout "{{musashi_commit}}"
-
-compile-musashi-wasm:
-    MUSASHI="{{musashi_src_dir}}" WASI_SDK="{{wasi_sdk_dir}}" OUT="{{musashi_out_dir}}" \
-        SCRATCH="{{musashi_build_dir}}/gen" SUPPORT="{{musashi_support}}" \
-        bash "{{musashi_support}}/build-musashi.sh"
-    @ls -lh "{{musashi_out_dir}}/"*.wasm
-
-# Smoke: run a hand-built ROM (move.l #$12345678,d0) and check D0.
-verify-musashi-wasm:
-    node --no-warnings "{{musashi_support}}/smoke.mjs" "{{musashi_out_dir}}/musashi.wasm"
-
 # === Genesis Plus GX (full Sega Mega Drive emulator) — #145 Phase B ===
 # Full-system backend (VDP + YM2612/PSG + Z80 + I/O), aggregated + disclosed
 # (non-commercial licence — see third-party.toml + wiki/agents/genesis-gpgx-wasm-build.md).
@@ -407,8 +378,8 @@ gpgx_repo      := `python3 ../scripts/third-party.py get source.genesis-plus-gx.
 gpgx_commit    := `python3 ../scripts/third-party.py get source.genesis-plus-gx.ref`
 
 # Build gpgx + the madside frontend harness to a wasm32 reactor. Single wasi-sdk
-# clang pass (gpgx commits its m68k tables — no host m68kmake). setjmp shim
-# reused from the Musashi build.
+# clang pass (gpgx commits its m68k tables — no host m68kmake). Uses the setjmp
+# shim under build/support/genesis-gpgx/shim.
 build-genesis-gpgx-wasm: fetch-wasi-sdk clone-genesis-gpgx compile-genesis-gpgx-wasm verify-genesis-gpgx-wasm
 
 clone-genesis-gpgx:
@@ -419,7 +390,7 @@ clone-genesis-gpgx:
 
 compile-genesis-gpgx-wasm:
     GPGX="{{gpgx_src_dir}}" WASI_SDK="{{wasi_sdk_dir}}" OUT="{{gpgx_out_dir}}" \
-        SUPPORT="{{gpgx_support}}" MUSASHI_SHIM="{{support}}/musashi/shim" \
+        SUPPORT="{{gpgx_support}}" \
         bash "{{gpgx_support}}/build-genesis-gpgx.sh"
     @ls -lh "{{gpgx_out_dir}}/"*.wasm
 

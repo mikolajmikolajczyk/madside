@@ -16,7 +16,6 @@
     "packages/emulator-c64-chips/src/**/*",
     "packages/emulator-nes-jsnes/src/**/*",
     "packages/emulator-zx-chips/src/**/*",
-    "packages/emulator-genesis-musashi/src/**/*",
     "packages/emulator-genesis-gpgx/src/**/*",
     "packages/debug-atari-6502/src/**/*",
     "packages/debug-zx-z80/src/**/*",

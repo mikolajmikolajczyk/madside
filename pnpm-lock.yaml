@@ -171,9 +171,6 @@ importers:
       '@madside/emulator-genesis-gpgx':
         specifier: workspace:*
         version: link:../../packages/emulator-genesis-gpgx
-      '@madside/emulator-genesis-musashi':
-        specifier: workspace:*
-        version: link:../../packages/emulator-genesis-musashi
       '@madside/emulator-nes-jsnes':
         specifier: workspace:*
         version: link:../../packages/emulator-nes-jsnes
@@ -258,9 +255,6 @@ importers:
       '@madside/wasm-mads':
         specifier: workspace:*
         version: link:../../packages/wasm-mads
-      '@madside/wasm-musashi':
-        specifier: workspace:*
-        version: link:../../packages/wasm-musashi
       '@madside/wasm-z88dk':
         specifier: workspace:*
         version: link:../../packages/wasm-z88dk
@@ -372,18 +366,6 @@ importers:
       '@madside/wasm-genesis-gpgx':
         specifier: workspace:*
         version: link:../wasm-genesis-gpgx
-
-  packages/emulator-genesis-musashi:
-    dependencies:
-      '@madside/core':
-        specifier: workspace:*
-        version: link:../core
-      '@madside/ports':
-        specifier: workspace:*
-        version: link:../ports
-      '@madside/wasm-musashi':
-        specifier: workspace:*
-        version: link:../wasm-musashi
 
   packages/emulator-nes-jsnes:
     dependencies:
@@ -639,8 +621,6 @@ importers:
   packages/wasm-genesis-gpgx: {}
 
   packages/wasm-mads: {}
-
-  packages/wasm-musashi: {}
 
   packages/wasm-z88dk: {}
 
