@@ -70,6 +70,10 @@ export interface Z88dkBuildResult {
   ok: boolean
   /** Bootable 48K .sna snapshot (absent on failure). */
   binary?: Uint8Array
+  /** z80asm list file (`-l`) — per-line addresses for the source map (#87). */
+  lis?: string
+  /** z80asm map file (`-m`) — section bases + labels for the source map (#87). */
+  map?: string
   stdout: string
   stderr: string
   exitCode: number
@@ -139,16 +143,20 @@ export async function buildZ88dk(main: string, files: Z88dkFile[], opts: Z88dkOp
 
   const binPath = `${stem(main)}.bin`
   const objPath = `${stem(main)}.o`
+  // z80asm writes the list (-l) + map (-m) next to the main source; these drive
+  // source-level debugging (#87) — line↔addr + labels, parsed by the toolchain.
+  const lisPath = `${stem(main)}.lis`
+  const mapPath = `${stem(main)}.map`
 
   const project = new MemoryProvider(
     files.map((f) => [f.path, typeof f.content === 'string' ? encoder.encode(f.content) : f.content] as const),
   )
   const vfs = createVfs([{ prefix: '', provider: project, ro: false }])
-  const root = await vfsToPreopen(vfs, { outputs: [binPath, objPath] })
+  const root = await vfsToPreopen(vfs, { outputs: [binPath, objPath, lisPath, mapPath] })
 
   let stdout = ''
   let stderr = ''
-  const r = await runTool(z80asmMod, root, ['z80asm', '-b', '-mz80', ...(opts.z80asmArgs ?? []), main])
+  const r = await runTool(z80asmMod, root, ['z80asm', '-b', '-l', '-m', '-mz80', ...(opts.z80asmArgs ?? []), main])
   if (r.stdout.trim()) stdout += `[z80asm] ${r.stdout}`
   if (r.stderr.trim()) stderr += `[z80asm] ${r.stderr}`
   if (r.exitCode !== 0) return { ok: false, stdout, stderr, exitCode: r.exitCode }
@@ -165,7 +173,12 @@ export async function buildZ88dk(main: string, files: Z88dkFile[], opts: Z88dkOp
       exitCode: 1,
     }
   }
-  return { ok: true, binary: buildSna48k(binary, org, sp), stdout, stderr, exitCode: 0 }
+  const decoder = new TextDecoder()
+  const lisBytes = readFromPreopen(root, lisPath)
+  const mapBytes = readFromPreopen(root, mapPath)
+  const lis = lisBytes ? decoder.decode(lisBytes) : undefined
+  const map = mapBytes ? decoder.decode(mapBytes) : undefined
+  return { ok: true, binary: buildSna48k(binary, org, sp), lis, map, stdout, stderr, exitCode: 0 }
 }
 
 // ---------------------------------------------------------------------------
