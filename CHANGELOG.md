@@ -1,3 +1,48 @@
+## [0.17.0] - 2026-06-24
+
+### 🚀 Features
+
+- *(plugins)* Consent gate + content-hash trust for project-local plugins (#142)
+- *(toolchain)* Clownassembler ToolchainPlugin — M68k assembler (#145, Phase A)
+- *(machine)* Machine-genesis — Sega Mega Drive / 68000 MachinePlugin (#145, Phase A)
+- *(emulator)* Genesis-musashi EmulatorPlugin + RunBackend (#145, Phase A)
+- *(debug)* M68k DebugAdapter — completes Genesis Phase A (#145)
+- *(emulator)* Genesis-gpgx EmulatorPlugin + RunBackend (#145, Phase B)
+- *(toolchain)* Clownassembler line<->address source map (#145)
+- *(template)* Sega Genesis hello-world (clownassembler) (#145)
+
+### 🐛 Bug Fixes
+
+- *(docker)* Correct build paths for the apps/ monorepo (#89)
+- *(workbench)* Wire genesis into machine selection + media (#145)
+
+### 💼 Other
+
+- *(toolchain)* Clownassembler.wasm — M68k/Genesis assembler (#145, Phase A)
+- *(emulator)* Musashi.wasm — 68000 core for Genesis (#145, Phase A)
+- *(genesis)* Gpgx full-system core -> wasm32 reactor (#145, Phase B)
+
+### 🚜 Refactor
+
+- *(debug)* Make the address seam width/space-aware (#133, 88A)
+
+### 📚 Documentation
+
+- *(status)* Record the Genesis/68000 backend (Phase A) + full contract-harness coverage
+- *(genesis)* Pin gpgx + Phase B build plan (#145)
+- *(genesis)* Record gpgx Phase B (build doc, status, license table)
+- *(public)* Add the Sega Genesis machine across the docs site
+- *(agents)* Bring the wiki current with the Genesis backend
+
+### 🧪 Testing
+
+- *(contracts)* Cover the newer plugins (zx machine, variables panel, z80 adapter)
+- *(integration)* End-to-end Genesis 68000 chain (#145, Phase A capstone)
+
+### ⚙️ Miscellaneous Tasks
+
+- *(tsconfig)* Add the Genesis packages to the plugins project
+- *(genesis)* Remove the redundant bare-Musashi backend
 ## [0.16.0] - 2026-06-23
 
 ### 🚀 Features
