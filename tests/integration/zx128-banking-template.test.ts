@@ -104,8 +104,8 @@ describe('ZX128 banking template builds + runs + debugs end-to-end (ADR-0014)', 
         for (let i = 0; i < 100; i++) { backend.advanceFrame(at); if (at()) return true }
         return false
       }
-      const liveSpace = () => {
-        const m = backend.bankMap!()
+      const liveSpaceOf = (b: { bankMap?: () => ReturnType<NonNullable<typeof backend.bankMap>> }) => {
+        const m = b.bankMap!()
         return breakpointFires(0xc000, splitBreakpoints([{ addr: 0xc000, space: 'bank1' }]), m) ? 'bank1'
           : breakpointFires(0xc000, splitBreakpoints([{ addr: 0xc000, space: 'bank3' }]), m) ? 'bank3'
             : null
@@ -113,14 +113,32 @@ describe('ZX128 banking template builds + runs + debugs end-to-end (ADR-0014)', 
 
       // First visit: RAM bank 1 paged, source line resolves to bank1_entry.
       expect(runToWindow()).toBe(true)
-      expect(liveSpace()).toBe('bank1')
+      expect(liveSpaceOf(backend)).toBe('bank1')
       expect(resolvePcLoc(sourceMap, 0xc000, 'bank1')!.line).toBe(b1Line)
 
       // Flow to bank 3.
       backend.step()
       expect(runToWindow()).toBe(true)
-      expect(liveSpace()).toBe('bank3')
+      expect(liveSpaceOf(backend)).toBe('bank3')
       expect(resolvePcLoc(sourceMap, 0xc000, 'bank3')!.line).toBe(b3Line)
+
+      // Now drive it like the real Emulator loop: a BANK BREAKPOINT on bank 3's
+      // $C000 line (the editor input). It must NOT fire at the bank-1 visit and
+      // must fire at the bank-3 visit — exercising the backend's BankBreakpoint
+      // handling (the addr-extraction that, missing, silently broke all bank BPs)
+      // + the bank-aware predicate over the live bankMap.
+      const bp = resolveBreakpoints(sourceMap, new Map([['src/main.asm', new Set([b3Line])]]))
+      expect([...bp]).toContainEqual({ addr: 0xc000, space: 'bank3' })
+      const split = splitBreakpoints(bp)
+      const fresh = await chipsZxEmulator.createBackend(machineZx128.banks)
+      fresh.loadMedia('z80', z80)
+      fresh.setBreakpoints([...bp]) // a BankBreakpoint object — must register $C000
+      const trap = () => fresh.isAtInstrBoundary() && breakpointFires(fresh.getPC(), split, fresh.bankMap!())
+      let trapped = false
+      for (let i = 0; i < 200 && !trapped; i++) { fresh.advanceFrame(trap); if (trap()) trapped = true }
+      expect(trapped, 'bank-3 breakpoint never fired').toBe(true)
+      expect(fresh.getPC()).toBe(0xc000)
+      expect(liveSpaceOf(fresh)).toBe('bank3') // fired in bank 3, skipped bank 1
     } finally {
       globalThis.fetch = originalFetch
     }

@@ -8,7 +8,7 @@
 // tape API and its quickload is a .z80 loader; appmake emits .sna directly).
 
 import { AudioPushPump } from '@core/audio'
-import type { BankProjection, BankWindow, CpuZ80State, RunBackend } from '@ports'
+import type { BankBreakpoint, BankProjection, BankWindow, CpuZ80State, RunBackend } from '@ports'
 
 import { createZxCore, zxWasmUrl } from '@madside/wasm-chips'
 // Amstrad-redistributable ZX ROMs — bundled, handed to the core at init. The
@@ -194,8 +194,11 @@ export class ChipsZxBackend implements RunBackend {
     return this.core.readMem(addr & 0xffff, len).slice()
   }
 
-  setBreakpoints(addrs: Iterable<number>): void {
-    this.core.setBreakpoints([...addrs].map((a) => a & 0xffff))
+  setBreakpoints(addrs: Iterable<number | BankBreakpoint>): void {
+    // A bare number is a cpu-space PC breakpoint; a BankBreakpoint registers its
+    // CPU addr (the bank match is host-side via bankMap(), ADR-0014). Without the
+    // extraction `obj & 0xffff` is NaN and the breakpoint silently never fires.
+    this.core.setBreakpoints([...addrs].map((a) => (typeof a === 'number' ? a : a.addr) & 0xffff))
   }
 
   sendKey(keyCode: number, _charCode: number, isDown: boolean): void {
