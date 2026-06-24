@@ -226,6 +226,95 @@ parser) and does NOT compound from app features (#134's thesis).
 4. **First target** — 130XE (cleanest) vs NES (highest demand). Recommend 130XE
    for the clean contract, NES second.
 
+## Phase 1 execution plan — Atari 130XE (the reference target)
+
+> **Self-contained handoff.** Phase 0 (capture) shipped: `SourceLoc.space?/offset?`
+> + cc65 `.dbg` (`seg.bank`/`ooffs` → `space:'bank{N}'`, offset) + MADS `.lst`
+> (`BB,AAAA` prefix → `space:'bank{N}'`, no offset). Both verified from real output,
+> flat builds untouched, 550 tests. ADR-0014 is the decided model. This section is
+> everything needed to execute Phase 1 end-to-end.
+
+### Goal
+A MADS 130XE banked program → build (bank already captured into the source map) →
+run on Altirra → a **line breakpoint in bank-switched code fires only when that
+bank is live**, the current-line highlight resolves the right bank, and the memory
+viewer can show the active bank. This validates the ADR-0014 contract for one
+target, the way the 68000 validated the plugin contracts.
+
+### Why 130XE is the clean first target
+- **Single fixed window** `$4000–$7FFF` (16K), **4 ext banks**, selected by **PORTB
+  `$D301` bits 2–3** (CPE bit 4 gates the CPU, VBE bit 5 gates ANTIC; OS/BASIC/
+  self-test overlays on bits 0/1/7 are separate).
+- **PORTB `$D301` is bus-readable** (PIA port B) — so the live bank = `readMem(0xD301)`
+  + decode bits 2–3. **No new emulator-core API needed** (NES mapper latches / ZX
+  `$7FFD` are write-only — Atari is the easy case). **Verified:** the Altirra
+  backend (`apps/ide/src/adapters/emu/altirra.ts`) already has
+  `core.readMem(addr, len)`.
+- **MADS is the native banking toolchain** (`OPT B+` = hardware banks over the
+  `$4000–$7FFF` window; `lmb`/`nmb`/`rmb` set the bank counter) and Phase 0 already
+  captures its `.lst` bank prefix. (cc65 130XE banking is manual via a custom
+  linker config with `bank=` MEMORY areas — secondary.)
+- **No physical offset needed from the toolchain**: for a 130XE bank the offset is
+  `bank * 0x4000 + (addr − 0x4000)`, derivable from `(bank, addr)`. So MADS's
+  space-only capture suffices; compute the offset in the decode.
+
+### Steps (ordered, de-risk first)
+1. **Verify the real banked-MADS shape for the actual window (½ day).** Assemble a
+   130XE program with `OPT B+` + code at `$4000` switched across banks via `lmb/nmb`;
+   confirm the `.lst` emits `BB,4xxx` prefixes that the Phase-0 parser captures
+   (the Phase-0 test used `lmb` at `$2000`, not the hardware window). Confirm
+   `readMem(0xD301)` on the Altirra backend returns the live PORTB. Optionally probe
+   whether Altirra can read a *non-live* ext bank's bytes (for the viewer "show
+   other bank" feature) — if not, the viewer shows the live bank only; BP still works.
+2. **`machine-atari-xl`: declare the banking.** Add the `ext-ram` domain + the
+   switchable window `$4000–$7FFF` + how to derive the live bank from `$D301`
+   (which bits). Decide the declarative shape: extend `memorySpaces` with a
+   bank-window descriptor, or add a small `banks` field (ADR-0014 open question 1 —
+   `space` overload vs new field; the ADR leans `space`).
+3. **Contract: `bankMap()` + `(space, addr)` breakpoints.** Add to `RunBackend` /
+   `DebugTarget` (`@ports`): `bankMap()` returning the live window→`(space, offset)`
+   projection; extend `setBreakpoints` to carry `space`. Default `space:'cpu'` =
+   today's behavior verbatim (every flat machine unchanged).
+4. **Altirra backend: implement `bankMap()` + the BP hit-test.** `bankMap()` =
+   `readMem(0xD301)` → decode bits 2–3 (+ CPE) → `{ window:[0x4000,0x7fff],
+   space:'bank'+n, bankOffset:n*0x4000 }`. Prefer the **physical-offset BP** (map
+   `cpuPC ∈ $4000–$7FFF` → `(bank, offset)` via live PORTB, compare to the BP's
+   captured `(space, offset)`); the live-bank predicate is the fallback.
+5. **`debug-service` + storage + UI hooks: thread `space`.** Keep breakpoints stored
+   as source lines (bank-agnostic at rest — ADR-0014 decision 3); resolve to
+   `(space, addr)` at sync time using the Phase-0 source-map `space`. `useBreakpointAddrs`
+   resolves `(file, line)` → `(space, addr)`. `useRunControls`/`useCursorMemory`
+   current-line: `cpuPC` + live `bankMap()` → physical → `addrToLoc`.
+6. **UI: bank selector + annotated gutter/labels.** MemoryPanel gains a bank/domain
+   picker (BizHawk-domains style); the gutter shows `$4000 [bank 3]`. Hex widening
+   already handled by #133.
+7. **Template + integration test.** A MADS 130XE banked hello (`atari-130xe-bank`?);
+   integration test: build → run → BP in bank N fires only when PORTB selects N →
+   PC/line/D0 correct; current-line resolves the right bank.
+
+### Risks / open questions to resolve in Phase 1
+- **OPT B+ window capture** — verify step 1 (the `$4000` hardware path, not just `lmb`).
+- **`space` overload vs `banks` field** — ADR-0014 open question 1; decide when wiring step 2/3.
+- **Non-live bank reads** — Altirra core support for the viewer's "other bank"; BP doesn't need it.
+- **cc65 130XE** — leave manual/secondary; MADS is the Phase-1 path.
+
+### Change surface (from the audit, §"What's already true in the code")
+`@ports`: `source-map.ts` (done, Phase 0), `services/run-service.ts` (RunBackend +
+`bankMap` + `setBreakpoints` space), `plugin-debug.ts` (DebugTarget). `workbench-core/
+debug-service.ts` (breakpoint set + sync). `apps/ide/src/adapters/emu/altirra.ts`
+(bankMap + hit-test). `debug-atari-6502` adapter (forward space, stop masking ext
+window). `useBreakpointAddrs`/`useRunControls`/`useCursorMemory`/`useProjectLabels`/
+Editor gutter/MemoryPanel (thread space). `toolchain-mads` (already captures; may
+add the in-bank offset compute). Storage stays line-based.
+
+### Verified facts to carry into Phase 1
+- Altirra backend has `core.readMem(addr, len)`; `$D301` is bus-readable → live bank
+  needs no new core API.
+- MADS `.lst` bank format: `BB,AAAA` (bank≠0), plain `AAAA` (bank 0). `.lab`:
+  `BB<TAB>AAAA<TAB>NAME` (bank always, incl `00`). Phase 0 captures the `.lst` form.
+- cc65 `.dbg` `seg` carries `bank` + `ooffs` (Phase 0 captures both).
+- 130XE: window `$4000–$7FFF`, 4 banks, PORTB `$D301` bits 2–3 (+CPE bit 4 / VBE bit 5).
+
 ## Sources
 
 Per-target hardware: atariarchives.org / Altirra (PORTB), nesdev.org wiki
