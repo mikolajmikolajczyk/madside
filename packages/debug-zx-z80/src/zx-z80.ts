@@ -10,6 +10,11 @@ const attach = (backend: RunBackend): DebugTarget => ({
   registers: Z80_REGISTERS,
   flags: Z80_FLAGS,
 
+  // Forward the live bank projection when the backend exposes one (ADR-0014) —
+  // the zx128 backend does (the $7FFD-paged $C000 window); the 48K backend
+  // doesn't, so this is undefined and the UI treats 48K as unbanked.
+  bankMap: backend.bankMap ? () => backend.bankMap!() : undefined,
+
   async readRegisters() {
     const cpu = backend.cpuState() as CpuZ80State
     return {

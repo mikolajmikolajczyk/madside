@@ -139,6 +139,17 @@ license    = "Amstrad-redistributable (1999 grant: free redistribution for emula
 artifact   = "src/plugins/emulator-zx-chips/roms/48.rom"
 built_with = "Extracted verbatim from floooh/chips-test's embedded dump; Amstrad granted free redistribution of the Sinclair ROMs for emulator use."
 
+[source.zx128_rom]
+name       = "ZX Spectrum 128K ROMs"
+role       = "Sinclair ZX Spectrum 128K system ROMs (editor + 48K BASIC banks) — handed to the chips zx core at init for the zx128 machine"
+upstream   = "https://github.com/floooh/chips-test"
+source     = "https://github.com/floooh/chips-test/blob/master/examples/roms/zx-roms.h"
+ref        = "dump_amstrad_zx128k_0_bin (SHA1 4f4b11ec22326280bdb96e3baf9db4b4cb1d02c5) + dump_amstrad_zx128k_1_bin (SHA1 80080644289ed93d71a1103992a154cc9802b2fa), 16384 bytes each"
+version    = "Sinclair 128K (1985)"
+license    = "Amstrad-redistributable (1999 grant: free redistribution for emulation)"
+artifact   = "src/plugins/emulator-zx-chips/roms/128-0.rom + 128-1.rom"
+built_with = "Extracted verbatim from floooh/chips-test's embedded dump (same source + grant as the 48K ROM)."
+
 # === build-time toolchains — the justfile reads these; NOT shipped, NOT in the
 #     table (they compile the artifacts above, they aren't part of the product) ===
 

@@ -52,6 +52,7 @@ constexpr int SCREEN_H = 256;
 zx_t g_sys;
 zx_t g_snapshot;   // scratch backing saveState()/loadState()
 bool g_inited = false;
+std::vector<uint8_t> g_rom0, g_rom1;   // 128K ROM banks, kept alive past init
 
 // RGBA8888 output cropped to the visible screen. The chips palette is already
 // 0xFFBBGGRR (canvas-native little-endian RGBA), so the host blits it with a
@@ -146,21 +147,48 @@ inline uint16_t rd16(const uint8_t* p) { return (uint16_t)(p[0] | (p[1] << 8)); 
 
 class ZxCore {
 public:
-    // Boot the 48K machine with the host-supplied 16K ROM. Safe to call again.
+    // Boot the faithful 48K machine with the host-supplied 16K ROM. The real 48K
+    // has no $7FFD paging port, so a 48K program that hits it does nothing (on a
+    // 128K it would page and could crash) — that fidelity is why 48K and 128K are
+    // separate machines. Safe to call again.
     void init(val rom48k) {
-        std::vector<uint8_t> rom = vec_from_val(rom48k);
+        g_rom0 = vec_from_val(rom48k);
         zx_desc_t desc = {};
         desc.type = ZX_TYPE_48K;
         desc.audio.callback = { audio_cb, nullptr };
         desc.audio.sample_rate = 44100;
         desc.debug.callback = { debug_cb, nullptr };
         desc.debug.stopped = &g_stopped;
-        desc.roms.zx48k = { rom.data(), rom.size() };
+        desc.roms.zx48k = { g_rom0.data(), g_rom0.size() };
         zx_init(&g_sys, &desc);
         g_inited = true;
         g_audio_len = 0;
         render();
     }
+
+    // Boot the 128K machine with the two 16K ROM banks (editor + 48K BASIC). The
+    // $7FFD-paged $C000-$FFFF RAM window is what enables bank-aware debugging.
+    void init128(val rom128_0, val rom128_1) {
+        g_rom0 = vec_from_val(rom128_0);
+        g_rom1 = vec_from_val(rom128_1);
+        zx_desc_t desc = {};
+        desc.type = ZX_TYPE_128;
+        desc.audio.callback = { audio_cb, nullptr };
+        desc.audio.sample_rate = 44100;
+        desc.debug.callback = { debug_cb, nullptr };
+        desc.debug.stopped = &g_stopped;
+        desc.roms.zx128_0 = { g_rom0.data(), g_rom0.size() };
+        desc.roms.zx128_1 = { g_rom1.data(), g_rom1.size() };
+        zx_init(&g_sys, &desc);
+        g_inited = true;
+        g_audio_len = 0;
+        render();
+    }
+
+    // Last value written to port $7FFD — the 128K memory-paging latch. Bits 0-2
+    // select the RAM bank paged into $C000-$FFFF (write-only on the bus, so the
+    // host reads it here for bankMap()). Stays 0 on the 48K machine. ADR-0014.
+    int getMemConfig() { return g_sys.last_mem_config; }
 
     void reset() { zx_reset(&g_sys); }
 
@@ -290,12 +318,14 @@ EMSCRIPTEN_BINDINGS(zx_core) {
     class_<ZxCore>("ZxCore")
         .constructor<>()
         .function("init", &ZxCore::init)
+        .function("init128", &ZxCore::init128)
         .function("reset", &ZxCore::reset)
         .function("loadSNA", &ZxCore::loadSNA)
         .function("advanceFrame", &ZxCore::advanceFrame)
         .function("step", &ZxCore::step)
         .function("setBreakpoints", &ZxCore::setBreakpoints)
         .function("getPC", &ZxCore::getPC)
+        .function("getMemConfig", &ZxCore::getMemConfig)
         .function("getAF", &ZxCore::getAF)
         .function("getBC", &ZxCore::getBC)
         .function("getDE", &ZxCore::getDE)

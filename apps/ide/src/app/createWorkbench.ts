@@ -43,7 +43,7 @@ import { filterTrustedConverterFiles } from './plugin-trust'
 import { atariXl } from '@madside/machine-atari-xl'
 import { machineNes } from '@madside/machine-nes'
 import { machineC64 } from '@madside/machine-c64'
-import { machineZx } from '@madside/machine-zx'
+import { machineZx, machineZx128 } from '@madside/machine-zx'
 import { machineGenesis } from '@madside/machine-genesis'
 import { madsToolchain } from '@madside/toolchain-mads'
 
@@ -236,6 +236,11 @@ export function createWorkbench(deps: WorkbenchDeps): Workbench {
       machine: machineZx,
       backendFactory: resolveEmulatorBackend(machineZx),
       debugAdapter: deps.debugAdapter ?? resolveDebugAdapter(machineZx),
+    },
+    zx128: {
+      machine: machineZx128,
+      backendFactory: resolveEmulatorBackend(machineZx128),
+      debugAdapter: deps.debugAdapter ?? resolveDebugAdapter(machineZx128),
     },
     genesis: {
       machine: machineGenesis,

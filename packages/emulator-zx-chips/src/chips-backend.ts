@@ -8,16 +8,23 @@
 // tape API and its quickload is a .z80 loader; appmake emits .sna directly).
 
 import { AudioPushPump } from '@core/audio'
-import type { CpuZ80State, RunBackend } from '@ports'
+import type { BankProjection, BankWindow, CpuZ80State, RunBackend } from '@ports'
 
 import { createZxCore, zxWasmUrl } from '@madside/wasm-chips'
-// Amstrad-redistributable ZX 48K ROM — bundled, handed to the core at init.
+// Amstrad-redistributable ZX ROMs — bundled, handed to the core at init. The
+// 48K image boots ZX_TYPE_48K; the two 128K images boot ZX_TYPE_128 (editor +
+// 48K BASIC banks) for the zx128 machine.
 import romUrl from './roms/48.rom?url'
+import rom128_0Url from './roms/128-0.rom?url'
+import rom128_1Url from './roms/128-1.rom?url'
 
 // The Embind ZxCore class (wasm/zx-core.cpp). All typed-array returns are views
 // into wasm memory — copy before the next core call (growth detaches them).
 interface ZxCoreInstance {
   init(rom48k: Uint8Array): void
+  init128(rom0: Uint8Array, rom1: Uint8Array): void
+  /** Last $7FFD write — 128K paging latch (bits 0-2 = $C000 RAM bank). 0 on 48K. */
+  getMemConfig(): number
   reset(): void
   loadSNA(bytes: Uint8Array): boolean
   advanceFrame(): number
@@ -74,6 +81,9 @@ export class ChipsZxBackend implements RunBackend {
   readonly pixels = new Uint32Array(ZX_WIDTH * ZX_HEIGHT)
 
   private readonly core: ZxCoreInstance
+  // Switchable bank window declared by the 128K machine (ADR-0014). Empty for
+  // the faithful 48K machine (no $7FFD paging) — bankMap() is then omitted.
+  private readonly banks: readonly BankWindow[]
 
   // Beeper audio tap (same drain model as the C64 SID / Altirra POKEY taps).
   private readonly audioPump = new AudioPushPump('chips-zx-audio', {
@@ -84,12 +94,29 @@ export class ChipsZxBackend implements RunBackend {
     },
   })
 
-  constructor(core: ZxCoreInstance) {
+  constructor(core: ZxCoreInstance, banks: readonly BankWindow[] = []) {
     this.core = core
+    this.banks = banks
   }
 
   private refreshPixels(): void {
     this.pixels.set(this.core.pixels())
+  }
+
+  bankMap(): BankProjection[] {
+    // 128K only: the $7FFD latch (bits 0-2) selects the RAM bank paged into the
+    // declared window ($C000-$FFFF). Write-only on the bus, so the live bank
+    // comes from the core's tracked last_mem_config, not a register read.
+    return this.banks.map((w) => {
+      const bank = this.core.getMemConfig() & 0x07
+      return {
+        window: w.id,
+        start: w.start,
+        end: w.end,
+        space: `${w.spacePrefix ?? 'bank'}${bank}`,
+        bankOffset: bank * (w.end - w.start + 1),
+      }
+    })
   }
 
   loadMedia(format: string, bytes: Uint8Array): void {
@@ -195,11 +222,19 @@ function loadModule(): Promise<ZxModule> {
   return modulePromise
 }
 
-/** Backend factory matching RunBackendFactory. Loads the wasm module, fetches
- *  the bundled 48K ROM, and boots the core ready for frame-loop wiring. */
-export async function createChipsZxBackend(): Promise<RunBackend> {
-  const [mod, rom] = await Promise.all([loadModule(), fetchBytes(romUrl)])
+/** Backend factory matching RunBackendFactory. The machine's bank windows
+ *  (ADR-0014) pick the mode: the zx128 machine declares the $C000 window → boot
+ *  ZX_TYPE_128 with the two 128K ROM banks + a live bankMap(); the 48K machine
+ *  declares none → boot the faithful ZX_TYPE_48K with the single 48K ROM (no
+ *  $7FFD paging, so a 48K program that hits the port does nothing). */
+export async function createChipsZxBackend(banks?: readonly BankWindow[]): Promise<RunBackend> {
+  const mod = await loadModule()
   const core = new mod.ZxCore()
-  core.init(rom)
+  if (banks && banks.length > 0) {
+    const [r0, r1] = await Promise.all([fetchBytes(rom128_0Url), fetchBytes(rom128_1Url)])
+    core.init128(r0, r1)
+    return new ChipsZxBackend(core, banks)
+  }
+  core.init(await fetchBytes(romUrl))
   return new ChipsZxBackend(core)
 }

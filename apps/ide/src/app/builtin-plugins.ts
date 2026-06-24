@@ -2,7 +2,7 @@ import type { PluginBase } from '@ports'
 import { atariXl } from '@madside/machine-atari-xl'
 import { machineNes } from '@madside/machine-nes'
 import { machineC64 } from '@madside/machine-c64'
-import { machineZx } from '@madside/machine-zx'
+import { machineZx, machineZx128 } from '@madside/machine-zx'
 import { machineGenesis } from '@madside/machine-genesis'
 import { madsToolchain } from '@madside/toolchain-mads'
 import { cc65Toolchain } from '@madside/toolchain-ca65'
@@ -40,6 +40,7 @@ export const builtinPlugins: readonly PluginBase[] = [
   machineNes,
   machineC64,
   machineZx,
+  machineZx128,
   machineGenesis,
   // toolchains
   madsToolchain,
