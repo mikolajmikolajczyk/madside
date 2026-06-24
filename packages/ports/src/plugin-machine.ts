@@ -69,6 +69,52 @@ export interface MemorySpace {
   size: number
 }
 
+/** A switchable bank window on the CPU bus (ADR-0014, bank-aware debugging).
+ *  Distinct from {@link MemorySpace}: a MemorySpace is a *separate flat space*
+ *  (NES PPU VRAM, OAM) addressed `[0, size)`; a BankWindow *overlays a range of
+ *  CPU-bus addresses* whose backing store switches among `bankCount` banks,
+ *  selected live by a hardware register. The debugger projects a CPU address in
+ *  `[start, end]` to the physical key `(space:'<prefix><N>', offset)` using the
+ *  live selector, and the toolchain source map already tags banked code with the
+ *  matching `space:'<prefix><N>'` (Phase 0). So `space` stays the one debug key
+ *  (ADR-0014 decision); this only declares *how a machine's window maps to it*.
+ *
+ *  130XE: one window `$4000–$7FFF`, 4 banks, selector PORTB `$D301` bits 2–3.
+ *
+ *  The `selector` models the **bus-readable** case (Atari PORTB is a PIA port,
+ *  read back via `readMem`). Machines whose bank latch is **write-only** (NES
+ *  mapper registers, ZX `$7FFD`) can't use a register read — their phase adds a
+ *  core-state path and may leave `selector` undefined; not modelled here to
+ *  avoid pre-empting later targets. */
+export interface BankWindow {
+  /** Stable id for the window. Single-window machines use 'main'. */
+  id: string
+  /** CPU-bus range the window overlays (inclusive). 130XE: 0x4000–0x7fff. */
+  start: number
+  end: number
+  /** Number of banks that can map into the window. 130XE: 4. */
+  bankCount: number
+  /** Space-id prefix; bank N → `${spacePrefix}${N}`, matching the source map's
+   *  capture (MADS/cc65 emit 'bank{N}'). Defaults to 'bank'. */
+  spacePrefix?: string
+  /** How to read the live bank index from a bus-readable selector register.
+   *  The backend reads `readMem(reg, 1)`, masks, shifts → 0-based bank index.
+   *  Omitted for write-only-selector machines (see interface note). */
+  selector?: {
+    /** CPU-bus address of the selector register. 130XE: 0xd301 (PORTB). */
+    reg: number
+    /** Mask applied to the register byte. 130XE: 0x0c (bits 2–3). */
+    mask: number
+    /** Right-shift after masking → 0-based bank index. 130XE: 2. */
+    shift: number
+    /** Optional gate: the window holds an ext bank only when
+     *  `(reg & enableMask) === enableValue`; otherwise it shows main RAM (no
+     *  ext bank active). 130XE CPE = bit 4 must be 0 for CPU ext access. */
+    enableMask?: number
+    enableValue?: number
+  }
+}
+
 export interface MachineDisplay {
   width: number
   height: number
@@ -136,6 +182,11 @@ export interface MachinePlugin extends PluginBase {
    *  most machines only have the implicit 'cpu' space. Viewer panels read
    *  these via `DebugTarget.readMemory(addr, len, space)`. */
   readonly memorySpaces?: MemorySpace[]
+  /** Switchable bank windows on the CPU bus (ADR-0014). Optional — flat
+   *  machines omit it. Each window declares its CPU range, bank count, and
+   *  (when bus-readable) the live-bank selector. The debugger uses these to
+   *  project a CPU address to its physical `(space, offset)` key. */
+  readonly banks?: BankWindow[]
   readonly devices: DeviceDescriptor[]
   readonly display: MachineDisplay
   readonly audio: MachineAudio

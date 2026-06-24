@@ -49,8 +49,18 @@ is the bank/domain dimension** — reusing the existing seam, not adding a paral
 `bank` field. A *space* names either an orthogonal memory (today's `ppu`/`oam`/
 `vram`) or a **physical memory domain** that backs a bank-switched CPU window
 (e.g. NES `prg-rom` / `wram` / `save-ram`; Atari `ext-ram`). The offset is into
-that domain and **may exceed 16 bits**. Machines declare their domains by
-extending `memorySpaces`. The live CPU view is the `space: 'cpu'` window.
+that domain and **may exceed 16 bits**. The live CPU view is the `space: 'cpu'`
+window.
+
+> **Phase 1 refinement (machine-atari-xl).** The *key* stays `(space, offset)` as
+> decided. But machines do **not** declare a switchable window by extending
+> `memorySpaces`: a `MemorySpace` is a *flat* `[0, size)` space (PPU VRAM/OAM) with
+> no window range and no live selector. A bank-switched CPU window needs both, so
+> it's declared via a dedicated `MachinePlugin.banks: BankWindow[]` descriptor
+> (CPU range + bank count + a bus-readable `selector` reg/mask/shift). `space`
+> remains the one debug key; `BankWindow` only declares *how a window projects to
+> it*. This resolves the "`space` overload vs new field" open question: a new
+> *declaration* field, the same *key*. `MemorySpace` is untouched.
 
 Flat machines (Atari-flat, C64, ZX48, Genesis, NES-NROM) use only `cpu` with an
 identity offset — so **this decision is a no-op for every machine until its

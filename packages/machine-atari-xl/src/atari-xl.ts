@@ -41,6 +41,22 @@ export const atariXl: MachinePlugin = {
     { start: 0xd800, end: 0xffff, name: 'Kernel ROM', kind: 'rom', writable: false },
   ],
 
+  // 130XE extended-RAM banking (ADR-0014). The $4000–$7FFF window maps one of
+  // 4 ext banks, selected by PORTB ($D301) bits 2–3; bit 4 (CPE) low enables
+  // CPU access to the ext bank (high → window shows main RAM). MADS `OPT B+` +
+  // lmb/nmb targets exactly this window; the source map tags banked code
+  // 'bank{N}'. PORTB is a PIA port, read back via readMem — no new core API.
+  banks: [
+    {
+      id: 'main',
+      start: 0x4000,
+      end: 0x7fff,
+      bankCount: 4,
+      spacePrefix: 'bank',
+      selector: { reg: 0xd301, mask: 0x0c, shift: 2, enableMask: 0x10, enableValue: 0x00 },
+    },
+  ],
+
   devices: [
     { id: 'antic', name: 'ANTIC', ioRange: { start: 0xd400, end: 0xd4ff } },
     { id: 'gtia',  name: 'GTIA',  ioRange: { start: 0xd000, end: 0xd0ff } },

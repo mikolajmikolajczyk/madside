@@ -85,6 +85,7 @@ export type {
   CpuId,
   DeviceDescriptor,
   InputLayout,
+  BankWindow,
   InputLayoutKind,
   MachineAudio,
   MachineDisplay,

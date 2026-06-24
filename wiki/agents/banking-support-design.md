@@ -284,11 +284,19 @@ target, the way the 68000 validated the plugin contracts.
      running core.)
    - Non-live ext-bank reads (viewer "show other bank") not probed — deferred to
      the viewer step; BP/debug path does not need it.
-2. **`machine-atari-xl`: declare the banking.** Add the `ext-ram` domain + the
-   switchable window `$4000–$7FFF` + how to derive the live bank from `$D301`
-   (which bits). Decide the declarative shape: extend `memorySpaces` with a
-   bank-window descriptor, or add a small `banks` field (ADR-0014 open question 1 —
-   `space` overload vs new field; the ADR leans `space`).
+2. **`machine-atari-xl`: declare the banking. — DONE.** Resolved ADR open-Q1: a
+   `MemorySpace` is a *flat* `[0,size)` space with no window/selector, so it can't
+   model a switchable CPU window. Added a dedicated `MachinePlugin.banks:
+   BankWindow[]` descriptor (`@ports/plugin-machine.ts`): CPU range + `bankCount` +
+   a bus-readable `selector` (`reg`/`mask`/`shift` + optional enable gate).
+   `space` stays the one debug key (ADR decision intact); `BankWindow` only
+   declares *how a window projects to it*. `atari-xl` now carries
+   `banks:[{ id:'main', start:0x4000, end:0x7fff, bankCount:4, spacePrefix:'bank',
+   selector:{ reg:0xd301, mask:0x0c, shift:2, enableMask:0x10, enableValue:0 } }]`.
+   Write-only-selector machines (NES/ZX) leave `selector` undefined — their phase
+   adds a core-state path; not modelled now (no pre-empting). Typecheck clean,
+   field optional so every flat machine is untouched. ADR-0014 decision 1 carries
+   the refinement note.
 3. **Contract: `bankMap()` + `(space, addr)` breakpoints.** Add to `RunBackend` /
    `DebugTarget` (`@ports`): `bankMap()` returning the live window→`(space, offset)`
    projection; extend `setBreakpoints` to carry `space`. Default `space:'cpu'` =
