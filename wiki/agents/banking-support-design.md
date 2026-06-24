@@ -502,6 +502,20 @@ jsnes fork, no bus read. This is the core-state path for write-only selectors.
      `bank{N}` matches the live `bankMap()` `bank{N}`). For UxROM that's automatic
      (writing N to `$8000` → `loadRomBank(N)`); for an 8 KB mapper the cfg must use
      8 KB banks to match. MADS has no NES multi-bank mode, so cc65 is the NES path.
+6. **Runnable template + joined live test. — DONE.**
+   - **Template** `apps/ide/templates/nes-banking/` (cc65, UxROM): two routines at
+     the same `$8000` in PRG bank 0 + 1 (blue/green), `reset` (fixed `$C000` bank)
+     enters bank 0 then trampolines to bank 1. `project.json` points
+     `build.options.config` at the banked `src/banked.cfg`. Verified the madside
+     cc65 toolchain path: a project-relative `config` is passed to `ld65 -C`, and
+     linking the always-included `nes.lib` is a no-op for the self-contained asm.
+   - **Joined gold test** `tests/integration/nes-banking-template.test.ts`: builds
+     the **actual template** with real ca65+ld65, then runs the ROM on the **real
+     jsnes core**, and asserts the editor side (cc65 `.dbg` bank tags) and the
+     runtime side (jsnes `bankMap()`) **agree** — the source line resolved for the
+     live bank is `b0Line` at the first `$8000` stop (bank 0) and `b1Line` at the
+     second (bank 1). Both halves of NES banking proven on real tools + core, end
+     to end.
 
 ### Risks / open questions to resolve in Phase 1
 - **OPT B+ window capture** — verify step 1 (the `$4000` hardware path, not just `lmb`).

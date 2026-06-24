@@ -1,0 +1,6 @@
+{
+  "name": "NES — PRG Banking (UxROM)",
+  "description": "Two routines at the same address $8000 in different PRG-ROM banks. Demonstrates UxROM bank switching and bank-aware debugging: set a breakpoint in each bank and watch it fire only while that bank is mapped. cc65 (ca65 + ld65) with a banked linker config.",
+  "machine": "nes",
+  "order": 5
+}

@@ -1,0 +1,9 @@
+{
+  "version": 2,
+  "name": "nes-banking",
+  "main": "src/main.s",
+  "machine": "nes",
+  "toolchain": "cc65",
+  "build": { "options": { "config": "src/banked.cfg" } },
+  "run": { "default": { "audio": false } }
+}
