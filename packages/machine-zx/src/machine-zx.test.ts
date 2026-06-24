@@ -40,5 +40,11 @@ describe('machine-zx', () => {
       expect(detect(1024)).toBeUndefined()
       expect(machineZx.media!.defaultFormat).toBe('tap')
     })
+    it('the z88dk build output (.sna) must export as .sna, not the .tap default (#138)', () => {
+      // The toolchain emits a 48K .sna, but the machine default-loads .tap — so
+      // Export must name the file by detecting the bytes, not by defaultFormat.
+      expect(machineZx.media!.defaultFormat).toBe('tap') // the trap
+      expect(detect(49179)).toBe('sna') // ...what export must actually use
+    })
   })
 })

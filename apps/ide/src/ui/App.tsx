@@ -664,7 +664,11 @@ export default function App() {
   // project + the active machine's output format.
   const handleExportBinary = useCallback(() => {
     if (!project.loaded || !result?.ok || !result.xex) return;
-    const ext = machine.media?.defaultFormat ?? "bin";
+    // Extension must match the BYTES, not the machine's default load format (#138):
+    // the ZX z88dk build emits a .sna while the machine default is .tap, so name
+    // the file by magic-detecting the built binary first (same as RunService does),
+    // falling back to the default only when detection is inconclusive.
+    const ext = machine.media?.detect(result.xex) ?? machine.media?.defaultFormat ?? "bin";
     const blob = new Blob([result.xex as BlobPart], { type: "application/octet-stream" });
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
