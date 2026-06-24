@@ -1,4 +1,4 @@
-import type { Cpu68kState, RunBackend } from '@ports'
+import type { Cpu68kState, CpuZ80State, RunBackend } from '@ports'
 import { loadWasmModule } from '@core/vfs'
 import { AudioPushPump } from '@core/audio'
 import { gpgxWasmUrl } from '@madside/wasm-genesis-gpgx'
@@ -51,6 +51,9 @@ interface GpgxExports {
   fb_y(): number
   get_reg(r: number): number
   read_byte(addr: number): number
+  // Z80 sound-coprocessor debug surface (#147 Phase 2).
+  z80_get_reg(r: number): number
+  z80_read_byte(addr: number): number
   audio_ptr(): number
   audio_update(): number
   set_input(port: number, buttons: number): void
@@ -192,6 +195,48 @@ class GenesisGpgxBackend implements RunBackend {
 
   getPC(): number {
     return this.core.get_reg(REG_PC) >>> 0
+  }
+
+  // ---- Z80 sound coprocessor debug surface (dual-CPU debug, #147 Phase 2) ----
+  // The second CPU: its registers, PC, and 8 KB RAM ($0000-$1FFF) read straight
+  // off gpgx's live Z80 state. A z80-debug DebugTarget reads these as a focused
+  // CPU alongside the m68k.
+  z80State(): CpuZ80State {
+    const z = (r: number) => this.core.z80_get_reg(r)
+    const af = z(2) & 0xffff
+    const f = af & 0xff
+    return {
+      pc: z(0) & 0xffff,
+      sp: z(1) & 0xffff,
+      af,
+      bc: z(3) & 0xffff,
+      de: z(4) & 0xffff,
+      hl: z(5) & 0xffff,
+      ix: z(6) & 0xffff,
+      iy: z(7) & 0xffff,
+      ir: ((z(12) & 0xff) << 8) | (z(13) & 0xff),
+      af2: z(8) & 0xffff,
+      bc2: z(9) & 0xffff,
+      de2: z(10) & 0xffff,
+      hl2: z(11) & 0xffff,
+      im: z(14) & 0xff,
+      iff1: !!z(15),
+      iff2: !!z(16),
+      flags: {
+        s: !!(f & 0x80), z: !!(f & 0x40), h: !!(f & 0x10),
+        pv: !!(f & 0x04), n: !!(f & 0x02), c: !!(f & 0x01),
+      },
+    }
+  }
+
+  z80PC(): number {
+    return this.core.z80_get_reg(0) & 0xffff
+  }
+
+  readZ80Mem(addr: number, len: number): Uint8Array {
+    const out = new Uint8Array(len)
+    for (let i = 0; i < len; i++) out[i] = this.core.z80_read_byte((addr + i) & 0xffff) & 0xff
+    return out
   }
 
   isAtInstrBoundary(): boolean {

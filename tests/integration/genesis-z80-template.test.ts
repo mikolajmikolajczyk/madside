@@ -65,5 +65,16 @@ describe('Genesis Z80 sound template — build + boot (#147)', () => {
     const audio = (backend as unknown as { audioQueue: number[] }).audioQueue
     const peak = audio.reduce((m, v) => Math.max(m, Math.abs(v)), 0)
     expect(peak, 'Z80 produced no PSG audio').toBeGreaterThan(0.01)
+
+    // Dual-CPU debug surface (#147 Phase 2): read the live Z80 directly. The
+    // 68000 copied the driver into Z80 RAM (di = $F3 at $0000), and the Z80 is
+    // executing it — parked in the `Loop:` jp-to-self at $0010 ($C3 = jp).
+    const z80 = backend as unknown as {
+      z80PC(): number
+      readZ80Mem(addr: number, len: number): Uint8Array
+    }
+    expect(z80.readZ80Mem(0x0000, 1)[0]).toBe(0xf3) // di, copied into Z80 RAM
+    expect(z80.readZ80Mem(0x0010, 1)[0]).toBe(0xc3) // jp at Loop
+    expect(z80.z80PC()).toBe(0x0010) // the Z80 is spinning in the driver's loop
   })
 })

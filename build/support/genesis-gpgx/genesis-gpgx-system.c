@@ -203,6 +203,42 @@ EXPORT("read_byte") unsigned int sys_read_byte(unsigned int a)
   return READ_BYTE(m->base, a & 0xffff);
 }
 
+/* ---- Z80 sound coprocessor debug surface (dual-CPU debug, #147 Phase 2) ----
+ * Read a Z80 register by index. PAIR is LSB_FIRST here, so `.w.l` is the 16-bit
+ * register. Order: PC SP AF BC DE HL IX IY AF' BC' DE' HL' I R IM IFF1 IFF2. */
+EXPORT("z80_get_reg") unsigned int sys_z80_get_reg(int r)
+{
+  switch (r) {
+    case 0:  return Z80.pc.w.l;
+    case 1:  return Z80.sp.w.l;
+    case 2:  return Z80.af.w.l;
+    case 3:  return Z80.bc.w.l;
+    case 4:  return Z80.de.w.l;
+    case 5:  return Z80.hl.w.l;
+    case 6:  return Z80.ix.w.l;
+    case 7:  return Z80.iy.w.l;
+    case 8:  return Z80.af2.w.l;
+    case 9:  return Z80.bc2.w.l;
+    case 10: return Z80.de2.w.l;
+    case 11: return Z80.hl2.w.l;
+    case 12: return Z80.i;
+    case 13: return Z80.r;
+    case 14: return Z80.im;
+    case 15: return Z80.iff1;
+    case 16: return Z80.iff2;
+    default: return 0;
+  }
+}
+
+/* Read one byte of Z80 address space: the 8 KB RAM directly ($0000-$1FFF,
+ * mirrored through $3FFF), else via the Z80 read map (YM2612 / bank window). */
+EXPORT("z80_read_byte") unsigned int sys_z80_read_byte(unsigned int a)
+{
+  a &= 0xffff;
+  if (a < 0x4000) return zram[a & 0x1fff];
+  return z80_readmem ? z80_readmem(a) : 0;
+}
+
 /* Pull one frame of resampled stereo audio. Returns the number of stereo
  * sample frames written into audio_ptr(). */
 EXPORT("audio_ptr") int16_t *sys_audio_ptr(void) { return audio_buffer_; }
