@@ -146,3 +146,45 @@ parser) and does not compound from app features — #134's thesis.
   width work already did the address-math half).
 - **#134 now has a contract to implement against** rather than a blank design;
   #88's umbrella is correspondingly narrowed.
+
+## Extension boundary — how to add bank support to a new machine
+
+The seam is **`bankMap(): BankProjection[]`**. Everything above it is unified and
+written once; the only per-machine code is the backend method that reads the live
+bank off *that* core. This is the plugin-architecture thesis applied to banking:
+the workbench core stays machine-agnostic; each machine's quirk is confined behind
+a uniform port.
+
+**Unified — same for every machine, never touched when adding one (`@ports`):**
+- The contract: `RunBackend.bankMap()` / `DebugTarget.bankMap()`, and the data
+  shapes `BankProjection { window, start, end, space, bankOffset }` /
+  `BankBreakpoint { addr, space }`. `space` is the one debug key.
+- The engine: `bank-match.ts` (`splitBreakpoints` / `liveSpaceAt` /
+  `breakpointFires`) and `source-map.ts` (`resolvePcLoc` / `resolveLineSpace` /
+  `bankedAddrToLoc`).
+- The consumers: the Emulator run-loop trap test, the current-line / follow-PC
+  resolution, the MemoryPanel bank badge, the editor gutter, the debug-adapter
+  `bankMap()` forward. These see only `BankProjection` — never a `$D301` or a
+  mapper register.
+
+**Per-machine — the only custom code: the backend's `bankMap()` body.** It reads
+the live bank from the core and returns `BankProjection[]`. Two realised shapes:
+- **Bus-readable selector + fixed window (Atari 130XE).** The window and the
+  PORTB `$D301` decode are *declared as data* in `MachinePlugin.banks`
+  (`BankWindow` with a `selector` reg/mask/shift), and the backend reuses the
+  shared `decodeBankWindow(window, regByte)` — so even the `bankMap()` body is
+  mostly shared. Add a machine like this with **no new logic**, only data.
+- **Write-only latch / per-mapper layout (NES mappers).** The bank register can't
+  be read off the bus and the window layout is per-ROM, so `MachinePlugin.banks`
+  is left undefined and the backend derives the live bank from core state — for
+  jsnes, by wrapping the mapper's bank-load primitives. This is the genuinely
+  custom path; it is ~a dozen lines, confined to the backend.
+
+**The one branch that decides which path:** *is the bank selector readable from
+the CPU bus and is the window layout fixed?* Yes → declare `banks` data, reuse
+`decodeBankWindow`. No → derive in the backend. Nothing else fans out per machine.
+
+Evidence this holds: NES (Phase 2) reused `bank-match.ts`, the source-map
+resolvers, the `atari-6502` adapter's `bankMap()` forward, and the entire UI/run
+loop **unchanged** — the only NES-specific code is the jsnes backend's bank
+tracking.

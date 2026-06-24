@@ -82,6 +82,53 @@ On a breakpoint hit, `RunService` pauses and emits `debug:bp-hit`; a completed s
 
 `readMem(addr, len, space?)` reads a named memory space; `space` defaults to the CPU bus. If the paired machine declares extra spaces in `MachinePlugin.memorySpaces` (NES `ppu`/`oam`, …), serve them here and throw on an unknown space id. See [Machine plugins](/docs/extending/machine/#memory-spaces).
 
+## Bank-aware debugging (optional)
+
+Machines that bank memory — where one CPU address maps to different physical bytes
+depending on a bank register (Atari 130XE extended RAM, NES mapper PRG banks, ZX
+128K paging) — get bank-aware breakpoints and current-line resolution by
+implementing **one** optional method:
+
+```ts
+bankMap?(): BankProjection[]
+// BankProjection = { window, start, end, space: string | null, bankOffset: number | null }
+```
+
+`bankMap()` returns, for each switchable CPU window, which bank is live *right
+now* — `start`/`end` are the CPU address range, `space` names the bank (e.g.
+`'bank3'`), `bankOffset` is its base offset into the physical memory. That's the
+**entire** per-emulator surface. Everything downstream — a breakpoint firing only
+while its bank is mapped, the editor highlighting the right source line when two
+lines share an address in different banks, the memory panel's live-bank badge — is
+machine-agnostic workbench code that consumes only `BankProjection`. You never
+write that logic; you only report the live bank.
+
+Flat emulators omit `bankMap()` entirely and behave exactly as before.
+
+How you read the live bank depends on the hardware:
+
+- **The bank register is readable from the CPU bus and the window is fixed** (Atari
+  130XE: PORTB `$D301` selects the `$4000–$7FFF` window). Declare the window as
+  *data* on the machine — `MachinePlugin.banks: BankWindow[]` with a `selector`
+  (register address + bit mask + shift) — and reuse the shared
+  `decodeBankWindow(window, registerByte)` helper. Almost no code: read the
+  register with `readMem`, decode, return the projection.
+- **The bank register is write-only or the window layout is per-program** (NES
+  mappers: the latch can't be read back, and a mapper banks PRG in 8 KB or 16 KB
+  units depending on the cartridge). Leave `MachinePlugin.banks` undefined and
+  derive the live bank from your core's own state — for jsnes, by intercepting the
+  mapper's bank-load calls. This is the only case that needs custom code, and it
+  stays confined to your backend.
+
+When the build also carries bank information in its source map (a banked toolchain
+build tags each line with its bank), breakpoints set on source lines resolve to
+the correct bank automatically — your `bankMap()` is what tells the workbench which
+bank is live at run time.
+
+Source: `BankProjection` / `BankBreakpoint` in `@ports/services/run-service.ts`,
+`BankWindow` in `@ports/plugin-machine.ts`, `decodeBankWindow` in the Atari
+backend.
+
 ## Registering + wiring
 
 ```ts

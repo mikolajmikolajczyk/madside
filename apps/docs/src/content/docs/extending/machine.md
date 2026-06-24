@@ -70,6 +70,29 @@ memorySpaces: [
 
 A `MemorySpace` is `{ id, label, size }` (the range is `[0, size)`). Viewer panels read a space by passing its `id` to `DebugTarget.readMemory(addr, len, space)`; the backend serves it (and throws on an unknown space). This keeps the workbench core free of any per-device contract — a machine adds a weird space by declaring it here and honouring it in its backend. See the [panel guide](/docs/extending/panel/#memory-spaces) and the [Reference](/docs/reference/) memory-space table.
 
+## Bank windows (optional)
+
+A `MemorySpace` is a *flat* extra space. A machine that **banks** the CPU bus — a
+window whose backing store switches between banks under a hardware register (Atari
+130XE extended RAM at `$4000–$7FFF`) — declares that instead with `banks:
+BankWindow[]`:
+
+```ts
+banks: [{
+  id: 'main', start: 0x4000, end: 0x7fff, bankCount: 4, spacePrefix: 'bank',
+  // bank = (registerByte & mask) >> shift; the window holds an ext bank only
+  // when (registerByte & enableMask) === enableValue
+  selector: { reg: 0xd301, mask: 0x0c, shift: 2, enableMask: 0x10, enableValue: 0 },
+}]
+```
+
+This is only for machines whose bank register is **readable from the CPU bus** and
+whose window is fixed — the emulator backend then reads the register and reuses the
+shared decode, no custom logic. Machines whose bank latch is write-only or whose
+window layout depends on the loaded program (NES mappers) omit `banks` and have
+their backend derive the live bank instead. Either way the debugger consumes the
+same `bankMap()` projection — see [Bank-aware debugging](/docs/extending/emulator/#bank-aware-debugging-optional) in the emulator guide.
+
 ## Devices
 
 `devices` is an array of optional sub-chip hints — `{ id, name, ioRange? }` for POKEY, ANTIC, GTIA, PPU, etc. Purely descriptive; surfaced wherever the UI lists devices.
