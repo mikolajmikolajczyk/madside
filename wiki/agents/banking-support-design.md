@@ -380,21 +380,29 @@ target, the way the 68000 validated the plugin contracts.
      **`readMem($D301)` returns the live PIA PORTB, so bankMap() tracks the
      program's bank switches on the actual core.** ~0.5 s. (Supersedes the old
      "Altirra can't boot headless" note in build-run-pipeline.)
-   - **Template deferred — needs a verified `@BANK_ADD`.** A runnable banked XEX
-     needs the load-time PORTB switch glue (`@BANK_ADD` macro); an **empty**
-     macro assembles + captures fine (what the test uses) but produces **no
-     runtime bank switching**. Shipping a "banked" template that doesn't switch
-     at runtime is a half-feature. Deferred until the real `@BANK_ADD` loader is
-     verified against a running core (the mads memory-banks doc describes the
-     directives but not a canonical loader body).
+   - **Template — DONE (runnable, real loader).** `apps/ide/templates/atari-130xe-bank/`:
+     two routines at the **same `$4000`** in bank 1 + bank 2 (red/green), main
+     enters bank 1 then hands off through a bank-0 trampoline to bank 2. The
+     load-time bank loader is the **canonical MADS `@BANK_ADD`** (from the
+     MAD-Assembler examples) in `src/bankmac.a65`, with `@TAB_MEM_BANKS` filled
+     with the 130XE PORTB values (`$E3 | bank<<2`, CPE on) — mads does NOT
+     auto-fill that table (the xms_banks example relies on a runtime
+     `@mem_detect`; we fill it statically so the template is self-contained).
+     **Enabling change:** `atariXl.hardwareConfig.memoryMode` bumped `2 → 3`
+     (64K → 128K/130XE) — memoryMode 2 does **not** bank (verified); flat 64K
+     programs run identically. Proven end-to-end test
+     (`tests/integration/atari-130xe-template.test.ts`): builds the real
+     template, boots the real core, and watches the **same `$4000` breakpoint
+     resolve to bank 1 then bank 2** as execution flows between them.
 
-### Phase 1 status — DONE (Steps 1–7, template deferred)
+### Phase 1 status — DONE (Steps 1–7, incl. runnable template)
 Steps 1–6 + the Step-7 tests are merged. Bank-aware debugging works end-to-end
 for Atari 130XE: capture → resolve → breakpoint match → current-line → UI
 indicators, plus a **live-core test** that boots the real Altirra wasm and
 confirms `bankMap()` tracks PORTB on the actual core. 576 tests, tsc + lint
-clean. The only deferred piece is the runnable banked **template** (needs the
-`@BANK_ADD` loader glue).
+clean — plus a **runnable banked template** with the real `@BANK_ADD` loader,
+proven by a live-core test that catches the same `$4000` breakpoint in bank 1
+then bank 2. Nothing deferred.
 
 ### Known limitations / follow-ups
 - **MADS bank 0 is implicit** — its `.lst` lines carry no `BB,` prefix, so bank-0
@@ -405,7 +413,8 @@ clean. The only deferred piece is the runnable banked **template** (needs the
   could cross-reference it.
 - **Non-live ext-bank reads** unverified — the memory viewer shows the live bus +
   names the bank; an arbitrary-bank picker needs Altirra non-live read support.
-- **`@BANK_ADD` loader** — runnable banked XEX + the deferred template.
+- **`@TAB_MEM_BANKS` filled statically** in the template (130XE PORTB values) —
+  mads doesn't auto-fill it; a more portable program would runtime-`@mem_detect`.
 - **cc65 130XE** banking is manual (linker config) — MADS is the Phase-1 path; the
   cc65 `.dbg` capture (Phase 0) already feeds the same `bankedAddrToLoc`.
 

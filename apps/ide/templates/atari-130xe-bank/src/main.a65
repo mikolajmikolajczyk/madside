@@ -1,0 +1,57 @@
+; Atari 130XE memory-bank demo (ADR-0014 — bank-aware debugging).
+;
+; Two routines live at the SAME address $4000, in two DIFFERENT extended-RAM
+; banks. The window $4000–$7FFF shows whichever bank PORTB ($D301) selects.
+; The program enters bank 1 (sets a red background), then hands off through a
+; bank-0 trampoline to bank 2 (green background), which loops forever.
+;
+; Try the debugger: set a breakpoint on `bank1_loop` and another on
+; `bank2_loop`. Both sit at $4000 — but the gutter tags each with its bank
+; (`b1` / `b2`), and each breakpoint fires only while ITS bank is the live one.
+; The memory panel's bank badge shows the live bank too. That is bank-aware
+; debugging: same address, different banks, told apart by the live PORTB.
+;
+; OPT B+ + LMB/NMB drive the banking; the load-time loader that places each
+; bank's code into its extended-RAM bank lives in bankmac.a65.
+
+        opt b+
+        icl 'bankmac.a65'
+
+        org $2000
+main
+        lda @TAB_MEM_BANKS+1     ; select extended bank 1 in the window
+        sta $d301
+        jmp $4000               ; run bank 1's code
+
+to_bank2                        ; bank-0 trampoline (outside the window, so it
+        lda @TAB_MEM_BANKS+2     ; can switch the window safely from under no PC)
+        sta $d301
+        jmp $4000               ; run bank 2's code
+
+        run main
+
+
+; ─── extended bank 1 ($4000) ───────────────────────────────────────────────
+        lmb #1
+        org $4000
+bank1_entry
+        lda #$34                ; red
+        sta $2c8                ; COLBK shadow — sticks past the OS VBI
+        ldx #0
+        ldy #0
+bank1_loop
+        inx
+        bne bank1_loop
+        iny
+        bne bank1_loop
+        jmp to_bank2            ; leave the window, switch to bank 2
+
+
+; ─── extended bank 2 ($4000) — SAME address, different bank ─────────────────
+        lmb #2
+        org $4000
+bank2_entry
+        lda #$c8                ; green
+        sta $2c8
+bank2_loop
+        jmp bank2_loop         ; loop forever in bank 2

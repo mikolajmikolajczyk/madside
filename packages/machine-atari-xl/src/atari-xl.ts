@@ -129,12 +129,15 @@ export const atariXl: MachinePlugin = {
   programLoadRange: parseXexLoadRange,
 
   // Numeric values track ATHardwareMode / ATMemoryMode in
-  // Altirra/h/constants.h. 800XL = 1, 64K = 2. kernel left undefined so the
-  // wasm boot path's hardcoded LLEXL pick stands; project manifest can
-  // override later.
+  // Altirra/h/constants.h. 800XL = 1, 128K = 3. The machine is the "800XL /
+  // 130XE" — 128K makes the name honest AND enables the $4000–$7FFF ext-RAM
+  // banking (ADR-0014): flat 64K programs run identically (the extra RAM only
+  // appears when PORTB ext bits are poked), and memoryMode 2 (64K) does NOT
+  // bank — verified on the real Altirra core. kernel left undefined so the wasm
+  // boot path's hardcoded LLEXL pick stands; project manifest can override later.
   hardwareConfig: {
     hardwareMode: 1, // kATHardwareMode_800XL
-    memoryMode: 2,   // kATMemoryMode_64K
+    memoryMode: 3,   // kATMemoryMode_128K (130XE)
     basic: false,
   },
 

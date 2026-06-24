@@ -1,0 +1,42 @@
+; 130XE memory-bank support (ADR-0014 demo).
+;
+; MADS `OPT B+` (hardware banks) extends LMB/NMB/RMB to invoke the @BANK_ADD
+; macro below. @BANK_ADD emits, at @PROC_ADD_BANK, a tiny routine that pokes
+; PORTB ($D301) with the bank's value from @TAB_MEM_BANKS, and registers it as a
+; load-time INIT (`ini`) so the loader selects the bank *before* that bank's
+; bytes are written into the $4000–$7FFF window. That is how each bank's code
+; lands in its own extended-RAM bank.
+;
+; @TAB_MEM_BANKS holds the PORTB value per bank. For the 130XE the ext bank is
+; selected by bits 2–3, bit 4 (CPE) = 0 enables CPU ext access, and the OS-ROM /
+; BASIC / video bits are kept set: $E3 | (bank << 2).
+;
+; @BANK_ADD is the canonical macro from the MAD-Assembler examples
+; (examples/MACROS/@bank_add.mac, by Tebe — the MADS author).
+
+@TAB_MEM_BANKS  equ $0480
+@PROC_ADD_BANK  equ $0600
+
+        org @TAB_MEM_BANKS
+        .byte $e3, $e7, $eb, $ef   ; PORTB for banks 0,1,2,3 (130XE)
+
+.macro @BANK_ADD
+ ift :1='R'
+   ift :0>1
+     org :2
+   els
+     org $8000
+   eif
+  .exit
+ eif
+ org @PROC_ADD_BANK
+ lda @TAB_MEM_BANKS+(=*)
+ sta $d301
+ rts
+ ini @PROC_ADD_BANK
+ ift :0>1
+   org :2
+ els
+   org $4000
+ eif
+.endm

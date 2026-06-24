@@ -1,0 +1,6 @@
+{
+  "name": "Atari 130XE — Memory Banking",
+  "description": "Two routines at the same address $4000 in different extended-RAM banks. Demonstrates 130XE banking (OPT B+ / LMB) and bank-aware debugging: set a breakpoint in each bank and watch it fire only while that bank is live.",
+  "machine": "atari-xl",
+  "order": 3
+}
