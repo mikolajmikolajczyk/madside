@@ -2,20 +2,13 @@ import { describe, expect, it } from 'vitest'
 import { Z80, getCpuLanguage } from './index'
 
 describe('Z80 cpu language', () => {
-  it('derives the opcode set from the docs keys (no drift)', () => {
-    expect(Z80.opcodes.size).toBe(Object.keys(Z80.opcodeDocs).length)
-    for (const op of Z80.opcodes) {
-      expect(Z80.opcodeDocs[op]).toBeDefined()
-    }
+  it('carries the Z80 opcode set, distinct from the 6502', () => {
     // Spot-check Z80-distinctive mnemonics the 6502 set lacks.
     expect(Z80.opcodes.has('LD')).toBe(true)
     expect(Z80.opcodes.has('LDIR')).toBe(true)
     expect(Z80.opcodes.has('EXX')).toBe(true)
     expect(Z80.opcodes.has('DJNZ')).toBe(true)
-    expect(Z80.opcodeDocs.LDIR).toEqual({
-      desc: 'Load and increment, repeat (block copy up)',
-      flags: 'H P/V N',
-    })
+    expect(Z80.opcodes.has('JMP')).toBe(false) // 6502, not Z80
   })
 
   it('resolves the z80 machine cpu to the Z80 vocabulary', () => {

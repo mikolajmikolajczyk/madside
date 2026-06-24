@@ -7,7 +7,7 @@ import { MOS6502 } from "./mos6502";
 import { Z80 } from "./z80";
 import type { CpuLanguage } from "./mos6502";
 
-export type { CpuLanguage, OpcodeDoc } from "./mos6502";
+export type { CpuLanguage } from "./mos6502";
 export { MOS6502 } from "./mos6502";
 export { Z80 } from "./z80";
 

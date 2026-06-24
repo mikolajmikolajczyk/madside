@@ -30,7 +30,6 @@ const escapeRe = (s: string) => s.replace(/[.*+?^${}()|[\]\\/]/g, "\\$&");
 
 interface LangSpec {
   opcodes: ReadonlySet<string>;
-  opcodeDocs: CpuLanguage["opcodeDocs"];
   directives: ReadonlySet<string>;
   commentRe: RegExp; // matches a whole line-comment at the cursor
   snippets: readonly { label: string; detail: string; template: string }[];
@@ -41,7 +40,6 @@ function toSpec(cpu: CpuLanguage, lang: ToolchainLanguage): LangSpec {
   const commentRe = new RegExp(`^(?:${markers.map(escapeRe).join("|")})[^\n]*`);
   return {
     opcodes: cpu.opcodes,
-    opcodeDocs: cpu.opcodeDocs,
     directives: new Set([...lang.directives].map((d) => d.toUpperCase())),
     commentRe,
     snippets: lang.snippets ?? [],
@@ -90,8 +88,10 @@ function makeCompletions(spec: LangSpec) {
       boost?: number;
     }[] = [];
 
+    // Bare opcode keywords — descriptions + addressing modes come from the asm
+    // LSP's completion (#140); the StreamLanguage just lists the vocabulary.
     for (const op of spec.opcodes) {
-      options.push({ label: op.toLowerCase(), type: "keyword", detail: spec.opcodeDocs[op]?.desc });
+      options.push({ label: op.toLowerCase(), type: "keyword" });
     }
     for (const d of spec.directives) options.push({ label: d.toLowerCase(), type: "keyword", detail: "directive" });
 
@@ -258,27 +258,8 @@ function makeHover(spec: LangSpec) {
     const word = view.state.wordAt(pos);
     if (!word) return null;
     const text = view.state.doc.sliceString(word.from, word.to);
-    const upper = text.toUpperCase();
-    const opDoc = spec.opcodeDocs[upper];
-    if (opDoc) {
-      return {
-        pos: word.from,
-        end: word.to,
-        above: true,
-        create() {
-          const dom = document.createElement("div");
-          dom.className = "cm-mads-hover";
-          const head = document.createElement("strong");
-          head.textContent = upper;
-          const body = document.createElement("span");
-          body.textContent = "  " + opDoc.desc + (opDoc.flags ? "   flags: " + opDoc.flags : "");
-          dom.appendChild(head);
-          dom.appendChild(body);
-          return { dom };
-        },
-      };
-    }
-
+    // Opcode hover (description + flags + addressing modes) is served by the asm
+    // LSP (#140); the StreamLanguage handles only label/equate hover below.
     const labels = view.state.field(projectLabelsField, false);
     const info = labels?.get(text);
     if (info) {
