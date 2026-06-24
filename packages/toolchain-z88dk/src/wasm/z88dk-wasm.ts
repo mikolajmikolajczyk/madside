@@ -176,7 +176,7 @@ export async function buildZ88dk(main: string, files: Z88dkFile[], opts: Z88dkOp
     // — there is no single flat binary. Place each section's bytes into its RAM
     // bank (BANK_n → bank n at $C000; $4000→bank 5, $8000→bank 2) and wrap into a
     // .z80 the 128K core can page in. (ADR-0014.)
-    const snap = buildBanked128(stem(main), root, map, org, sp)
+    const snap = buildBanked128(main, root, map, org, sp)
     if (!snap.ok) return { ok: false, stdout, stderr: stderr + '\n' + snap.error, exitCode: 1 }
     return { ok: true, binary: snap.z80, format: 'z80', lis, map, stdout, stderr, exitCode: 0 }
   }
@@ -199,11 +199,27 @@ export async function buildZ88dk(main: string, files: Z88dkFile[], opts: Z88dkOp
 const SECTION_HEAD_RE = /^__(?:(.+)_)?head\s*=\s*\$([0-9A-Fa-f]+)/
 const BANK_NAME_RE = /^BANK_?(\d+)$/i
 
+/** A directory node in the WASI preopen tree (browser_wasi_shim) — just the
+ *  `contents` map we walk. */
+interface DirNode { contents: Map<string, unknown> }
+
+/** Walk `path` (POSIX) from `dir`, returning the directory there or undefined. */
+function readDir(dir: DirNode, path: string): DirNode | undefined {
+  let cur: DirNode = dir
+  for (const seg of path.split('/')) {
+    if (!seg) continue
+    const next = cur.contents.get(seg)
+    if (!next || typeof next !== 'object' || !('contents' in next)) return undefined
+    cur = next as DirNode
+  }
+  return cur
+}
+
 /** Map z80asm's per-section binaries into 128K RAM banks and build a .z80. A
  *  section's RAM bank comes from its name (`BANK_n` → bank n) or its load
  *  address ($4000→5, $8000→2, $C000→0). */
 function buildBanked128(
-  stemName: string,
+  main: string,
   root: PreopenDirectory,
   map: string | undefined,
   org: number,
@@ -222,12 +238,18 @@ function buildBanked128(
     if (!img) { img = new Uint8Array(0x4000); banks.set(bank, img) }
     img.set(bytes.subarray(0, 0x4000 - offset), offset)
   }
-  // Each `<stem>_<SECTION>.bin` the assembler emitted.
-  const prefix = `${stemName}_`
+  // z80asm writes one binary per SECTION as `<base>_<SECTION>.bin` IN THE
+  // SOURCE'S DIRECTORY (next to main), so enumerate that dir, not the root.
+  const dir = main.includes('/') ? main.slice(0, main.lastIndexOf('/')) : ''
+  const base = stem(main.slice(main.lastIndexOf('/') + 1)) // filename stem, no dir
+  const rootDir = root.dir as unknown as DirNode
+  const srcDir = dir ? readDir(rootDir, dir) : rootDir
+  if (!srcDir) return { ok: false, error: `[z88dk] 128K banked build: source dir '${dir}' not found` }
+  const prefix = `${base}_`
   let placed = 0
-  for (const name of root.dir.contents.keys()) {
+  for (const name of srcDir.contents.keys()) {
     if (!name.startsWith(prefix) || !name.endsWith('.bin')) continue
-    const bytes = readFromPreopen(root, name)
+    const bytes = readFromPreopen(root, dir ? `${dir}/${name}` : name)
     if (!bytes) continue
     const section = name.slice(prefix.length, -'.bin'.length)
     const head = headOf.get(section) ?? 0

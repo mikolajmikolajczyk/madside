@@ -10,7 +10,7 @@
 import { readFile } from 'node:fs/promises'
 import { fileURLToPath } from 'node:url'
 import { describe, expect, it } from 'vitest'
-import { WASI, File, OpenFile, ConsoleStdout, PreopenDirectory } from '@bjorn3/browser_wasi_shim'
+import { WASI, File, OpenFile, ConsoleStdout, PreopenDirectory, Directory } from '@bjorn3/browser_wasi_shim'
 import { parseZ80asmDebug, buildZ80Snapshot } from '@madside/toolchain-z88dk'
 import { machineZx128 } from '@madside/machine-zx'
 import { chipsZxEmulator } from '@madside/emulator-zx-chips'
@@ -28,19 +28,16 @@ const BANK_NAME = /^BANK_?(\d+)$/i
 describe('ZX128 banking template builds + runs + debugs end-to-end (ADR-0014)', () => {
   it('the same $C000 breakpoint resolves to RAM bank 1, then bank 3, as the program pages between them', async () => {
     // --- assemble the actual template with z80asm (-b -l -m) ---
+    // Mount under src/ exactly like the real toolchain: z80asm writes its
+    // per-section binaries + list/map INTO the source's directory.
     const main = await readFile(repo('apps/ide/templates/zx128-banking/src/main.asm'))
-    const files = new Map<string, File>([
-      ['main.asm', new File(main)],
-      ['main.bin', new File([])],
-      ['main.lis', new File([])],
-      ['main.map', new File([])],
-    ])
-    const dir = new PreopenDirectory('.', files)
-    const wasi = new WASI(['z80asm', '-b', '-l', '-m', '-mz80', 'main.asm'], [], [
+    const srcDir = new Directory([['main.asm', new File(main)]] as [string, File][])
+    const root = new PreopenDirectory('.', [['src', srcDir]] as [string, Directory][])
+    const wasi = new WASI(['z80asm', '-b', '-l', '-m', '-mz80', 'src/main.asm'], [], [
       new OpenFile(new File([])),
       ConsoleStdout.lineBuffered(() => {}),
       ConsoleStdout.lineBuffered(() => {}),
-      dir,
+      root,
     ])
     const inst = new WebAssembly.Instance(new WebAssembly.Module(await readFile(Z80ASM)), {
       wasi_snapshot_preview1: wasi.wasiImport,
@@ -50,8 +47,10 @@ describe('ZX128 banking template builds + runs + debugs end-to-end (ADR-0014)', 
     } catch { /* proc_exit */ }
 
     const dec = new TextDecoder()
-    const lis = dec.decode(files.get('main.lis')!.data)
-    const map = dec.decode(files.get('main.map')!.data)
+    const fileData = (name: string): Uint8Array =>
+      (srcDir.contents.get(name) as File | undefined)?.data ?? new Uint8Array()
+    const lis = dec.decode(fileData('main.lis'))
+    const map = dec.decode(fileData('main.map'))
 
     // --- editor side: bank-tagged source map ---
     const { sourceMap } = parseZ80asmDebug(lis, map, ['src/main.asm'])
@@ -74,9 +73,9 @@ describe('ZX128 banking template builds + runs + debugs end-to-end (ADR-0014)', 
       if (!img) { img = new Uint8Array(0x4000); banks.set(bank, img) }
       img.set(bytes.subarray(0, 0x4000 - off), off)
     }
-    for (const name of dir.dir.contents.keys()) {
+    for (const name of srcDir.contents.keys()) {
       if (!name.startsWith('main_') || !name.endsWith('.bin')) continue
-      const bytes = files.get(name)!.data
+      const bytes = fileData(name)
       if (!bytes.length) continue
       const section = name.slice('main_'.length, -'.bin'.length)
       const head = heads.get(section) ?? 0
