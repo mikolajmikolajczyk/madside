@@ -7,6 +7,7 @@ const TOOLCHAIN_TO_DIALECT: Record<string, string> = {
   mads: 'mads',
   ca65: 'ca65',
   z88dk: 'z80asm',
+  clownassembler: 'clownassembler',
 }
 
 /** The asm LSP dialect id for a toolchain id, or undefined if unsupported. */

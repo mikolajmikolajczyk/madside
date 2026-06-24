@@ -15,7 +15,7 @@ import type {
 import type { AsmDialect } from '../dialect'
 import type { OpcodeInfo } from '../cpu'
 import type { AsmIndex } from './types'
-import { normalize, parseLine, wordAt, type SemKind } from './tokenize'
+import { isOpcodeTok, mnemonicBase, normalize, parseLine, wordAt, type SemKind } from './tokenize'
 
 /** Semantic-token legend — index = the SemKind's position here. The host client
  *  maps these names to editor highlight styles. */
@@ -24,7 +24,7 @@ export const SEM_LEGEND: SemKind[] = [
 ]
 const LEGEND_INDEX = new Map(SEM_LEGEND.map((k, i) => [k, i]))
 
-const isOpcode = (name: string, d: AsmDialect) => d.cpu.mnemonics.has(name.toUpperCase())
+const isOpcode = isOpcodeTok
 const isRegister = (name: string, d: AsmDialect) => d.registers.has(name.toUpperCase())
 const isDirective = (name: string, d: AsmDialect) => {
   const bare = d.directivePrefix && name.startsWith(d.directivePrefix) ? name.slice(d.directivePrefix.length) : name
@@ -104,9 +104,10 @@ export function hoverAt(index: AsmIndex, d: AsmDialect, _uri: string, text: stri
     if (def.kind === 'equate' && def.value) return `${head}\n\n= \`${def.value}\`\n\n${where}`
     return `${head}\n\n${where}`
   }
-  if (isOpcode(w.name, d)) {
-    const info = d.cpu.info[w.name.toUpperCase()]
-    if (info) return formatOpcode(w.name.toUpperCase(), info)
+  const base = mnemonicBase(w.name, d)
+  if (base) {
+    const info = d.cpu.info[base]
+    if (info) return formatOpcode(base, info)
   }
   return null
 }

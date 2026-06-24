@@ -51,14 +51,16 @@ describe('cpu opcode-hint tables', () => {
     expect(getCpuOpcodes('ricoh-2a03')).toBe(MOS6502) // NES 2A03
     expect(getCpuOpcodes('mos6510')).toBe(MOS6502) // C64
     expect(getCpuOpcodes('z80')).toBe(Z80)
+    expect(getCpuOpcodes('m68000')?.info.MOVE.desc).toMatch(/move/i) // Genesis 68000
     expect(getCpuOpcodes('unknown')).toBeUndefined()
   })
 })
 
 describe('asm dialect profiles', () => {
-  it('registers mads / ca65 / z80asm', () => {
-    expect(ASM_DIALECTS.sort()).toEqual(['ca65', 'mads', 'z80asm'])
+  it('registers mads / ca65 / z80asm / clownassembler', () => {
+    expect(ASM_DIALECTS.sort()).toEqual(['ca65', 'clownassembler', 'mads', 'z80asm'])
     expect(getAsmDialect('mads')).toBe(madsDialect)
+    expect(getAsmDialect('clownassembler')?.cpu.mnemonics.has('MOVE')).toBe(true)
     expect(getAsmDialect('nope')).toBeUndefined()
   })
 

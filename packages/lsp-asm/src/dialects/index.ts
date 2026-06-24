@@ -6,16 +6,19 @@
 import { madsDialect } from './mads'
 import { ca65Dialect } from './ca65'
 import { z80asmDialect } from './z80asm'
+import { clownassemblerDialect } from './clownassembler'
 import type { AsmDialect } from '../dialect'
 
 export { madsDialect } from './mads'
 export { ca65Dialect } from './ca65'
 export { z80asmDialect } from './z80asm'
+export { clownassemblerDialect } from './clownassembler'
 
 const REGISTRY: Record<string, AsmDialect> = {
   mads: madsDialect,
   ca65: ca65Dialect,
   z80asm: z80asmDialect,
+  clownassembler: clownassemblerDialect,
 }
 
 /** All known dialect ids. */

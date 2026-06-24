@@ -54,7 +54,9 @@ export interface ParsedLine {
   instr?: LineInstr
 }
 
-const IDENT = /[A-Za-z_@?][A-Za-z0-9_@?.]*/g
+// An optional leading '.' lets m68k local labels (`.regloop`) be one token; the
+// trailing class keeps a mnemonic's size suffix (`move.w`) together too.
+const IDENT = /\.?[A-Za-z_@?][A-Za-z0-9_@?.]*/g
 const NUMBER = /(?:\$[0-9A-Fa-f]+|%[01]+|\d[0-9A-Fa-f]*[hH]?|0[xX][0-9A-Fa-f]+)/g
 
 /** Normalize a symbol name to its index key (case-folded for case-insensitive
@@ -63,11 +65,25 @@ export function normalize(name: string, dialect: AsmDialect): string {
   return dialect.caseInsensitive ? name.toUpperCase() : name
 }
 
-const isOpcode = (t: string, d: AsmDialect) => d.cpu.mnemonics.has(t.toUpperCase())
+// Strip an operand-size suffix (`.b`/`.w`/`.l`/`.s`) the mnemonic/directive may
+// carry (m68k: `move.w` → `move`, `dc.l` → `dc`). No-op unless the dialect uses
+// size suffixes. A leading-dot local label (`.loop`) has no trailing size suffix,
+// so it's untouched.
+const stripSize = (t: string, d: AsmDialect): string => (d.sizeSuffix ? t.replace(/\.[bwls]$/i, '') : t)
+
+/** The uppercase base mnemonic if `t` is an opcode (size suffix stripped), else
+ *  null. Shared so hover/validation resolve `move.w` → MOVE like the tokenizer. */
+export function mnemonicBase(t: string, d: AsmDialect): string | null {
+  const base = stripSize(t, d).toUpperCase()
+  return d.cpu.mnemonics.has(base) ? base : null
+}
+
+export const isOpcodeTok = (t: string, d: AsmDialect): boolean => mnemonicBase(t, d) !== null
+const isOpcode = isOpcodeTok
 const isRegister = (t: string, d: AsmDialect) => d.registers.has(t.toUpperCase())
 const isDirective = (t: string, d: AsmDialect): boolean => {
   const bare = d.directivePrefix && t.startsWith(d.directivePrefix) ? t.slice(d.directivePrefix.length) : t
-  return d.directives.has(bare.toLowerCase())
+  return d.directives.has(stripSize(bare, d).toLowerCase())
 }
 
 /** Find where the line-comment starts, respecting single/double-quoted strings.
@@ -155,7 +171,7 @@ export function parseLine(line: string, lineStart: number, d: AsmDialect): Parse
   let def: LineDef | undefined
   let rest = code
   let restBase = 0
-  const colon = /^(\s*)([A-Za-z_@?][\w@?.]*)\s*:/.exec(code)
+  const colon = /^(\s*)(\.?[A-Za-z_@?][\w@?.]*)\s*:/.exec(code)
   if (colon) {
     const name = colon[2]
     const start = lineStart + colon[1].length
@@ -210,6 +226,6 @@ export function wordAt(text: string, offset: number): { name: string; start: num
   while (e < text.length && isWord(text[e])) e++
   if (s === e) return null
   const name = text.slice(s, e)
-  if (!/^[A-Za-z_@?]/.test(name)) return null
+  if (!/^\.?[A-Za-z_@?]/.test(name)) return null
   return { name, start: s, end: e }
 }

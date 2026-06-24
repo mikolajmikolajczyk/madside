@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { createAsmProvider, madsDialect, z80asmDialect, SEM_LEGEND } from '../src'
+import { createAsmProvider, madsDialect, z80asmDialect, clownassemblerDialect, SEM_LEGEND } from '../src'
 import type { SourceFile } from '@madside/lsp-core'
 
 // A small MADS program exercising labels, an equate, and a forward reference to
@@ -154,6 +154,36 @@ describe('cross-file + case-insensitivity (mads) and z80asm', () => {
     const p = createAsmProvider(z80asmDialect)
     p.configure({})
     p.update([{ path: 'm.asm', text: src }])
+    expect(p.diagnose('m.asm').filter((d) => d.severity === 'error')).toEqual([])
+  })
+
+  it('clownassembler (m68k): size suffixes, local labels, registers', () => {
+    const src = [
+      'Start:',
+      '\tlea\tVDP_CTRL,a1',
+      '\tmove.w\t#$8000,d0',
+      '.regloop:',
+      '\tmove.b\t(a0)+,d0',
+      '\tdbra\td1,.regloop',
+      '\tbra\tStart',
+      'VDP_CTRL\tequ\t$C00004',
+    ].join('\n')
+    const p = createAsmProvider(clownassemblerDialect)
+    p.configure({})
+    p.update([{ path: 'm.asm', text: src }])
+
+    // size suffix stripped: `move.w` hovers as MOVE, `move.b` too, `lea` as LEA
+    expect(p.hover('m.asm', src, src.indexOf('move.w') + 2)).toContain('Move data')
+    expect(p.hover('m.asm', src, src.indexOf('lea') + 1)).toContain('effective address')
+    // local label `.regloop`: definition + the `dbra d1,.regloop` reference
+    const dotOff = src.indexOf('.regloop:') + 2
+    expect(p.references('m.asm', src, dotOff, false).length).toBe(1)
+    // top-level `Start` referenced by `bra Start`
+    expect(p.references('m.asm', src, src.indexOf('Start:'), false).length).toBe(1)
+    // equate hover shows the value; registers/opcodes are not flagged undefined
+    expect(p.hover('m.asm', src, src.indexOf('VDP_CTRL'))).toContain('$C00004')
+    expect(p.diagnose('m.asm').filter((d) => d.message.includes('a1') || d.message.includes('d0'))).toEqual([])
+    // no addressing-mode validation for m68k (forms too varied) → no errors
     expect(p.diagnose('m.asm').filter((d) => d.severity === 'error')).toEqual([])
   })
 

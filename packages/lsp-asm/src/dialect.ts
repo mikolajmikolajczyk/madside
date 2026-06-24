@@ -17,9 +17,13 @@ export interface AsmDialect {
   readonly registers: ReadonlySet<string>
   /** Enable addressing-mode validation diagnostics (an opcode used with a mode it
    *  doesn't support). True for the 6502 dialects, whose modes are syntactically
-   *  unambiguous; false for z80, whose operand forms are too varied to validate
-   *  without false positives. */
+   *  unambiguous; false for z80 / m68k, whose operand forms are too varied to
+   *  validate without false positives. */
   readonly addressingModes: boolean
+  /** The mnemonic may carry an operand-size suffix (`.b`/`.w`/`.l`/`.s`) that
+   *  isn't part of the opcode name — strip it before the opcode lookup (m68k:
+   *  `move.w` → MOVE). False for 6502 / z80. */
+  readonly sizeSuffix: boolean
   /** Line-comment marker(s), e.g. [';'] or [';', '//']. */
   readonly lineComment: readonly string[]
   /** Directive names (lowercase, WITHOUT any prefix). Used for completion +

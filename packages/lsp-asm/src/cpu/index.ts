@@ -6,17 +6,20 @@
 
 import { MOS6502 } from './mos6502'
 import { Z80 } from './z80'
+import { M68000 } from './m68k'
 import type { CpuOpcodes } from './types'
 
 export type { CpuOpcodes, OpcodeInfo, OpcodeMode } from './types'
 export { MOS6502 } from './mos6502'
 export { Z80 } from './z80'
+export { M68000 } from './m68k'
 
 const REGISTRY: Record<string, CpuOpcodes> = {
   'mos6502': MOS6502, // Atari 8-bit
   'ricoh-2a03': MOS6502, // NES 2A03 = 6502 with decimal mode disabled
   'mos6510': MOS6502, // C64 6510 = 6502 + on-chip I/O port
   'z80': Z80, // ZX Spectrum + Z80 family
+  'm68000': M68000, // Sega Genesis / Mega Drive
 }
 
 /** Resolve the opcode hint table for a CPU id, or undefined if unknown. */

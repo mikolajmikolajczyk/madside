@@ -16,6 +16,7 @@ export const madsDialect: AsmDialect = {
   cpu: MOS6502,
   registers: REG_6502,
   addressingModes: true,
+  sizeSuffix: false,
   lineComment: [';', '//'],
   directives: new Set(DIRECTIVES),
   directivePrefix: '',
