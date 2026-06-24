@@ -1,4 +1,4 @@
-; Atari 130XE memory-bank demo (ADR-0014 — bank-aware debugging).
+; Atari 130XE memory-bank demo — bank-aware debugging.
 ;
 ; Two routines live at the SAME address $4000, in two DIFFERENT extended-RAM
 ; banks. The window $4000–$7FFF shows whichever bank PORTB ($D301) selects.

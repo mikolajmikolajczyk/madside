@@ -1,4 +1,4 @@
-; 130XE memory-bank support (ADR-0014 demo).
+; 130XE memory-bank support.
 ;
 ; MADS `OPT B+` (hardware banks) extends LMB/NMB/RMB to invoke the @BANK_ADD
 ; macro below. @BANK_ADD emits, at @PROC_ADD_BANK, a tiny routine that pokes
