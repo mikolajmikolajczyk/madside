@@ -507,11 +507,15 @@ export default function App() {
   // window. Lets the current-line highlight disambiguate same-addr lines that
   // live in different banks.
   const liveSpaceAt = useCallback((pc: number): string | null => {
-    const map = workbench.run.backend()?.bankMap?.();
+    // Use the FOCUSED CPU's bank projection: the Genesis Z80's $8000-$FFFF window
+    // is exposed via auxCpu('z80').bankMap(), not the primary backend's, so a
+    // banked Z80 current-line resolves to the right bank (#147 Phase 3).
+    const backend = workbench.run.backend();
+    const map = (focusedCpu ? backend?.auxCpu?.(focusedCpu)?.bankMap?.() : backend?.bankMap?.());
     if (!map) return null;
     for (const w of map) if (pc >= w.start && pc <= w.end) return w.space;
     return null;
-  }, [workbench]);
+  }, [workbench, focusedCpu]);
 
   const pcLine = useMemo(() => {
     // During run the PC moves too fast to track in the editor — hide

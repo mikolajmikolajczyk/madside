@@ -21,13 +21,18 @@ export interface SplitBreakpoints {
   bankReqByAddr: Map<number, Set<string>>;
 }
 
-/** Split a mixed breakpoint set into cpu-space addrs + per-addr required banks. */
+/** Split a mixed breakpoint set into cpu-space addrs + per-addr required banks.
+ *  Addresses are kept at native width (no 16-bit mask, ADR-0011 / #133): the
+ *  Genesis 68000 runs a 24-bit bus, so a breakpoint past $FFFF must compare
+ *  against the full PC the backend reports — masking here dropped the high bits
+ *  and the JS fire-check would never match a >64K breakpoint (≤64K CPUs are
+ *  unaffected: their PC is already ≤$FFFF). */
 export function splitBreakpoints(bps: Iterable<number | BankBreakpoint>): SplitBreakpoints {
   const cpuAddrs = new Set<number>();
   const bankReqByAddr = new Map<number, Set<string>>();
   for (const bp of bps) {
-    if (typeof bp === "number") { cpuAddrs.add(bp & 0xffff); continue; }
-    const a = bp.addr & 0xffff;
+    if (typeof bp === "number") { cpuAddrs.add(bp >>> 0); continue; }
+    const a = bp.addr >>> 0;
     const set = bankReqByAddr.get(a) ?? new Set<string>();
     set.add(bp.space);
     bankReqByAddr.set(a, set);

@@ -51,6 +51,13 @@ if ! grep -q 'md_z80_bp_check' "$CORE/z80/z80.c"; then
     "$CORE/z80/z80.c"
 fi
 
+# Fail loudly if either patch did NOT land — a gpgx bump that renames the anchor
+# strings would otherwise no-op the sed silently and ship a .wasm whose CPU loops
+# never call the breakpoint check (breakpoints silently stop trapping, build
+# still green). The smoke test also exercises a real breakpoint as a second guard.
+grep -q 'md_bp_check' "$CORE/m68k/m68kcpu.c" || { echo "FATAL: m68k breakpoint patch did not apply (anchor moved in m68kcpu.c?)" >&2; exit 1; }
+grep -q 'md_z80_bp_check' "$CORE/z80/z80.c" || { echo "FATAL: z80 breakpoint patch did not apply (anchor moved in z80.c?)" >&2; exit 1; }
+
 # Core source set: every core/*.c subtree EXCEPT cd_hw/libchdr (CHD/zstd/lzma —
 # SegaCD only) and sound/tremor (OGG Vorbis — CD audio only). minimp3 is header-
 # only. cd_hw/*.c itself compiles (USE_LIBCHDR / USE_LIBVORBIS left undefined).

@@ -61,7 +61,17 @@ console.log(`D0 after frames: $${d0.toString(16).padStart(8, '0')} (expect $1234
 console.log(`read_byte($200): $${byte200.toString(16).padStart(2, '0')} (expect $20)`)
 console.log(`framebuffer:     ${exports.fb_width()}x${exports.fb_height()} @ pitch ${exports.fb_pitch()}`)
 
-if (ok !== 1 || pcAfterReset !== 0x200 || d0 !== 0x12345678 || byte200 !== 0x20) {
+// Breakpoint guard (#146): the per-instruction patch in m68k_run must trap. Set
+// a breakpoint on the spin loop ($206), run a frame, and require run_frame to
+// report the trap (0) with PC parked at the breakpoint. Catches a sed patch that
+// silently failed to apply on a gpgx bump.
+new Uint32Array(exports.memory.buffer, exports.bp_ptr(), exports.bp_capacity())[0] = 0x206
+exports.set_bp_count(1)
+const trapped = exports.run_frame()         // expect 0 (trapped)
+const bpPC = exports.get_reg(M68K_REG_PC) >>> 0
+console.log(`breakpoint:      run_frame=${trapped} (expect 0), PC=$${bpPC.toString(16)} (expect $206)`)
+
+if (ok !== 1 || pcAfterReset !== 0x200 || d0 !== 0x12345678 || byte200 !== 0x20 || trapped !== 0 || bpPC !== 0x206) {
   console.error('✗ genesis-gpgx smoke FAILED')
   process.exit(1)
 }

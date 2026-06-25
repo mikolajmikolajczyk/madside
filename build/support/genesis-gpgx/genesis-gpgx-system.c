@@ -20,6 +20,11 @@
 
 #define EXPORT(name) __attribute__((export_name(name)))
 
+/* Clear all debugger state (breakpoint counts, skip/last-trap PCs, step flags) —
+ * called on reset + ROM load so a stale last-trap PC can't wrongly skip a
+ * breakpoint after the machine restarts. Defined after the globals below. */
+static void md_reset_debug_state(void);
+
 /* ---- frontend globals the core links against (libretro.c equivalents) --- */
 t_config config;
 
@@ -165,6 +170,7 @@ EXPORT("load_rom_buffer") int sys_load_rom_buffer(int len)
   system_init();
   system_reset();
   m68k.aerr_enabled = 0;      /* keep the address-error longjmp path dormant */
+  md_reset_debug_state();
   return ok;
 }
 
@@ -172,6 +178,7 @@ EXPORT("reset") void sys_reset(void)
 {
   system_reset();
   m68k.aerr_enabled = 0;
+  md_reset_debug_state();
 }
 
 /* ---- 68000 breakpoints (instruction-granular trap, #146) -----------------
@@ -293,6 +300,23 @@ EXPORT("run_frame") int sys_run_frame(void)
   g_z80_skip_pc = (g_z80_bp_count > 0 && zpc == g_z80_last_trap_pc) ? zpc : 0xFFFFFFFFu;
   system_frame_gen(0);
   return (g_m68k_trapped || g_z80_trapped) ? 0 : 1;
+}
+
+/* Clear the TRANSIENT debugger state on reset / ROM load. The breakpoint set
+ * (g_*_bps + counts) is JS-owned and left intact, so breakpoints survive a
+ * reset. The skip / last-trap PCs are invalidated so the post-reset entry
+ * instruction can't be wrongly skipped (a stale last-trap PC could otherwise
+ * equal the new entry PC); the step + trapped flags are cleared. */
+static void md_reset_debug_state(void)
+{
+  g_m68k_trapped = 0;
+  g_z80_trapped = 0;
+  g_skip_pc = 0xFFFFFFFFu;
+  g_z80_skip_pc = 0xFFFFFFFFu;
+  g_last_trap_pc = 0xFFFFFFFFu;
+  g_z80_last_trap_pc = 0xFFFFFFFFu;
+  g_step_mode = 0;
+  g_z80_step_mode = 0;
 }
 
 /* Execute exactly one 68000 instruction (debugger single-step). Runs only the

@@ -56,6 +56,10 @@ export function setAsmDialect(id: string): void {
     connection.dispose()
     connection = null
     ready = null
+    // Drop the old dialect's diagnostics — they'd otherwise linger in the store
+    // (the store only clears a path when a clean re-analysis pushes an empty set,
+    // which never happens for a file the new dialect's worker doesn't open).
+    for (const path of docs.keys()) setLspDiagnostics(path, [])
     docs.clear()
   }
 }
@@ -138,6 +142,10 @@ export async function syncAsmDocs(files: { path: string; text: string }[]): Prom
     if (!incoming.has(path)) {
       conn.sendNotification('textDocument/didClose', { textDocument: { uri: entry.uri } })
       docs.delete(path)
+      // Closing drops the doc from the worker; clear its diagnostics too, else a
+      // file dropped while carrying (now-irrelevant) diagnostics keeps stale
+      // squiggles the worker will never publish over.
+      setLspDiagnostics(path, [])
     }
   }
   for (const f of files) openOrChange(conn, f.path, f.text)

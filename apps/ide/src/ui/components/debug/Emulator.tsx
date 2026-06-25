@@ -273,6 +273,19 @@ export function Emulator({ breakpoints, onState, blockedMsg }: Props) {
     return () => { void workbench.run.suspendAudio(); };
   }, [running, status, workbench]);
 
+  // Track the focused CPU reactively so the frame loop below re-arms when the
+  // user switches CPU *while running* (otherwise it keeps routing breakpoints +
+  // the trap predicate to the old CPU). setFocusedCpu emits debug:step-done.
+  const [focusedCpuId, setFocusedCpuId] = useState<string | null>(() => workbench.debug.focusedCpu());
+  useEffect(() => {
+    const sync = () => setFocusedCpuId(workbench.debug.focusedCpu());
+    const offs = [
+      workbench.events.on("debug:step-done", sync),
+      workbench.events.on("run:state", sync),
+    ];
+    return () => { for (const off of offs) off(); };
+  }, [workbench]);
+
   // Frame loop while running
   useEffect(() => {
     const emu = emuRef.current;
@@ -287,7 +300,7 @@ export function Emulator({ breakpoints, onState, blockedMsg }: Props) {
     // breakpoints + traps on its PC; the addresses come from the focused CPU's
     // source map. Only the focused CPU's set is live, so a prior focus doesn't
     // keep trapping the other CPU.
-    const focused = workbench.debug.focusedCpu();
+    const focused = focusedCpuId;
     const auxView = focused ? emu.auxCpu?.(focused) : undefined;
     const focusedPC = () => (auxView ? auxView.getPC() : emu.getPC());
     if (auxView?.setBreakpoints) {
@@ -339,7 +352,7 @@ export function Emulator({ breakpoints, onState, blockedMsg }: Props) {
     // would tear down + restart the rAF loop every render (and thrash audio).
     // The loop's lifecycle is keyed on run-state + breakpoints above.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [running, status, breakpoints, onState, workbench]);
+  }, [running, status, breakpoints, onState, workbench, focusedCpuId]);
 
   return (
     <div

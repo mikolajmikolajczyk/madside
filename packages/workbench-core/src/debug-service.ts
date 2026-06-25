@@ -12,9 +12,11 @@ import type {
 } from '@ports'
 
 // Present a backend's secondary-CPU view (registers/PC/memory) as a RunBackend so
-// an existing DebugAdapter can attach to it. Control (step/run/breakpoints) stays
-// on the REAL backend — stepping the machine advances every CPU together — only
-// the CPU-state reads come from the aux view.
+// an existing DebugAdapter can attach to it. Reads (cpuState/getPC/memory) + the
+// aux CPU's breakpoints + bankMap route to the view; `run` (advanceFrame) stays
+// on the real backend (it advances the whole machine). `step` routes to the
+// aux CPU's own single-step when it has one (the Genesis Z80 steps independently
+// of the 68000), else falls back to the real backend's step.
 function auxBackend(real: RunBackend, view: AuxCpuView): RunBackend {
   return {
     width: real.width,
