@@ -36,6 +36,26 @@ function hay(query: string, ...fields: string[]): boolean {
   return q === "" || fields.some((f) => f.toLowerCase().includes(q));
 }
 
+/** Coarse "opened N ago" label for a project's last-touched timestamp. */
+function timeAgo(ts: number): string {
+  const s = Math.max(0, Math.round((Date.now() - ts) / 1000));
+  if (s < 45) return "just now";
+  const m = Math.round(s / 60);
+  if (m < 60) return `${m} min ago`;
+  const h = Math.round(m / 60);
+  if (h < 24) return `${h} hour${h > 1 ? "s" : ""} ago`;
+  const d = Math.round(h / 24);
+  if (d < 30) return `${d} day${d > 1 ? "s" : ""} ago`;
+  const mo = Math.round(d / 30);
+  if (mo < 12) return `${mo} month${mo > 1 ? "s" : ""} ago`;
+  const y = Math.round(mo / 12);
+  return `${y} year${y > 1 ? "s" : ""} ago`;
+}
+
+// SVG glyphs for the per-card hover actions (download / delete).
+const ICON_DOWNLOAD = "M12 3v12m0 0l-4-4m4 4l4-4M5 21h14";
+const ICON_DELETE = "M4 7h16M9 7V4h6v3m-7 0v13h8V7";
+
 /** Search box + per-machine filter chips, shared by the template + course
  *  sections. Chips appear only when there's more than one machine to pick. */
 function CardFilter({ query, onQuery, machines, machine, onMachine, placeholder, testid }: {
@@ -143,7 +163,11 @@ export function Welcome({ onOpen, projects = [], onDeleteProject }: Props) {
   const [emptyOpen, setEmptyOpen] = useState(false);
   const [templatesOpen, setTemplatesOpen] = useState(false);
   const [coursesOpen, setCoursesOpen] = useState(false);
-  const projectsD = useDisclosure(plainProjects, 2);
+  const projectsD = useDisclosure(plainProjects, 6);
+  const startedD = useDisclosure(startedCourseGroups, 6);
+  // Two-column layout: left = your projects + started courses, right = start-new.
+  // First run (nothing on the left) collapses to a single centred column.
+  const hasLeft = plainProjects.length > 0 || startedCourseGroups.length > 0;
 
   const [tplQuery, setTplQuery] = useState("");
   const [tplMachine, setTplMachine] = useState<string | null>(null);
@@ -168,6 +192,9 @@ export function Welcome({ onOpen, projects = [], onDeleteProject }: Props) {
     () => courses.filter((c) => (!courseMachine || c.machine === courseMachine) && hay(courseQuery, c.title, c.description, c.machine)),
     [courses, courseQuery, courseMachine],
   );
+  // Same "show 6 then more" cap as Your projects, applied per course list.
+  const featuredD = useDisclosure(filteredFeatured, 6);
+  const installedD = useDisclosure(filteredCourses, 6);
 
   const createBlank = async () => {
     setBusy("blank");
@@ -351,37 +378,53 @@ export function Welcome({ onOpen, projects = [], onDeleteProject }: Props) {
     <div key={p.id} className="welcome__card-wrap">
       <button
         type="button"
-        className="welcome__card"
+        className="welcome__card welcome__card--project"
         disabled={busy != null}
         onClick={() => { setBusy(`open:${p.id}`); onOpen(p.id); }}
         data-testid={`welcome.project.${p.id}`}
       >
         <span className="welcome__card-head">
           <span className="welcome__card-name">{p.name}</span>
+          {p.machine && <span className="welcome__card-machine label">{p.machine}</span>}
         </span>
+        {(p.toolchain || p.main) && (
+          <span className="welcome__card-meta">
+            {p.toolchain && <span><span className="welcome__meta-k">toolchain</span> {p.toolchain}</span>}
+            {p.main && <span><span className="welcome__meta-k">main</span> {p.main}</span>}
+          </span>
+        )}
         {subline && <span className="welcome__card-files">{subline}</span>}
-        {busy === `open:${p.id}` && <span className="welcome__card-busy">opening…</span>}
-        {busy === `export:${p.id}` && <span className="welcome__card-busy">exporting…</span>}
-        {busy === `delete:${p.id}` && <span className="welcome__card-busy">deleting…</span>}
+        <span className="welcome__card-opened">
+          {busy === `open:${p.id}` ? "opening…"
+            : busy === `export:${p.id}` ? "exporting…"
+            : busy === `delete:${p.id}` ? "deleting…"
+            : `opened ${timeAgo(p.updatedAt)}`}
+        </span>
       </button>
       <div className="welcome__card-actions">
         <button
           type="button"
-          className="welcome__card-action"
+          className="welcome__iconbtn"
           title="Export as ZIP"
+          aria-label="Export as ZIP"
           disabled={busy != null}
           onClick={() => void exportProject(p.id)}
           data-testid={`welcome.project-export.${p.id}`}
-        >⤓</button>
+        >
+          <svg viewBox="0 0 24 24" aria-hidden><path d={ICON_DOWNLOAD} /></svg>
+        </button>
         {onDeleteProject && (
           <button
             type="button"
-            className="welcome__card-action welcome__card-action--danger"
+            className="welcome__iconbtn welcome__iconbtn--danger"
             title="Delete project"
+            aria-label="Delete project"
             disabled={busy != null}
             onClick={() => setConfirmDelete({ name: p.name, ids: [p.id] })}
             data-testid={`welcome.project-delete.${p.id}`}
-          >×</button>
+          >
+            <svg viewBox="0 0 24 24" aria-hidden><path d={ICON_DELETE} /></svg>
+          </button>
         )}
       </div>
     </div>
@@ -390,14 +433,20 @@ export function Welcome({ onOpen, projects = [], onDeleteProject }: Props) {
   return (
     <div className="welcome" data-testid="welcome">
       <div className="welcome__head">
-        <h1 className="welcome__title">madside</h1>
-        <p className="welcome__sub">Start a new project, or open an existing one.</p>
-        <p className="welcome__version">v{__APP_VERSION__} · alpha</p>
+        <div className="welcome__hero">
+          <h1 className="welcome__title">madside<span className="welcome__title-dot" aria-hidden>_</span></h1>
+          <span className="welcome__version">v{__APP_VERSION__} · alpha</span>
+        </div>
+        <p className="welcome__sub">A browser IDE for retro machines. Open a project to pick up where you left off, or start something new.</p>
       </div>
+
+      <div className={"welcome__cols" + (hasLeft ? "" : " welcome__cols--single")}>
+        {hasLeft && (
+          <div className="welcome__col welcome__col--left">
 
       {plainProjects.length > 0 && (
         <section className="welcome__templates">
-          <div className="welcome__section-title label">Your projects</div>
+          <div className="welcome__section-title label">Your projects <span className="welcome__section-count">· {plainProjects.length}</span></div>
           <div className="welcome__grid">
             {projectsD.visible.map((p) => renderProjectCard(p))}
           </div>
@@ -411,9 +460,9 @@ export function Welcome({ onOpen, projects = [], onDeleteProject }: Props) {
 
       {startedCourseGroups.length > 0 && (
         <section className="welcome__templates">
-          <div className="welcome__section-title label">Started courses</div>
+          <div className="welcome__section-title label">Started courses <span className="welcome__section-count">· {startedCourseGroups.length}</span></div>
           <div className="welcome__grid">
-            {startedCourseGroups.map((g) => (
+            {startedD.visible.map((g) => (
               <div key={g.courseId} className="welcome__card-wrap">
                 <button
                   type="button"
@@ -436,19 +485,34 @@ export function Welcome({ onOpen, projects = [], onDeleteProject }: Props) {
                   <div className="welcome__card-actions">
                     <button
                       type="button"
-                      className="welcome__card-action welcome__card-action--danger"
+                      className="welcome__iconbtn welcome__iconbtn--danger"
                       title="Remove course progress (all lessons)"
+                      aria-label="Remove course progress"
                       disabled={busy != null}
                       onClick={() => setConfirmDelete({ name: g.title, ids: g.projects.map((p) => p.id) })}
                       data-testid={`welcome.started-course-delete.${g.courseId}`}
-                    >×</button>
+                    >
+                      <svg viewBox="0 0 24 24" aria-hidden><path d={ICON_DELETE} /></svg>
+                    </button>
                   </div>
                 )}
               </div>
             ))}
           </div>
+          {startedD.hasMore && (
+            <button type="button" className="welcome__more" onClick={startedD.toggle} data-testid="welcome.started-courses-more">
+              {startedD.expanded ? "Show less" : `More (${startedD.hiddenCount})`}
+            </button>
+          )}
         </section>
       )}
+
+          </div>
+        )}
+
+        <div className="welcome__col welcome__col--right">
+
+      <div className="welcome__section-title label welcome__start-label">Start something new</div>
 
       <section className="welcome__blank">
         <button
@@ -602,7 +666,7 @@ export function Welcome({ onOpen, projects = [], onDeleteProject }: Props) {
         )}
         {filteredFeatured.length > 0 && (
           <div className="welcome__grid">
-            {filteredFeatured.map((c) => (
+            {featuredD.visible.map((c) => (
               <div key={c.id} className="welcome__card-wrap">
                 <button
                   type="button"
@@ -623,9 +687,14 @@ export function Welcome({ onOpen, projects = [], onDeleteProject }: Props) {
             ))}
           </div>
         )}
+        {featuredD.hasMore && (
+          <button type="button" className="welcome__more" onClick={featuredD.toggle} data-testid="welcome.featured-more">
+            {featuredD.expanded ? "Show less" : `More (${featuredD.hiddenCount})`}
+          </button>
+        )}
         {filteredCourses.length > 0 && (
           <div className="welcome__grid">
-            {filteredCourses.map((c) => {
+            {installedD.visible.map((c) => {
               const remote = c.source.kind === "github";
               return (
                 <div key={c.id} className="welcome__card-wrap">
@@ -662,12 +731,20 @@ export function Welcome({ onOpen, projects = [], onDeleteProject }: Props) {
             })}
           </div>
         )}
+        {installedD.hasMore && (
+          <button type="button" className="welcome__more" onClick={installedD.toggle} data-testid="welcome.courses-more">
+            {installedD.expanded ? "Show less" : `More (${installedD.hiddenCount})`}
+          </button>
+        )}
             {(featured.length > 0 || courses.length > 0) && filteredFeatured.length === 0 && filteredCourses.length === 0 && (
               <div className="welcome__empty-hint">No courses match.</div>
             )}
           </div>
         )}
       </section>
+
+        </div>
+      </div>
 
       {error && <div className="welcome__error">{error}</div>}
 

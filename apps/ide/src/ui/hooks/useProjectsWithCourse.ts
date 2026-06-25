@@ -5,6 +5,12 @@ export interface AnnotatedProject {
   id: string;
   name: string;
   updatedAt: number;
+  /** Manifest fields surfaced on the welcome card (machine/toolchain badge +
+   *  entry file). Loaded for free — the manifest is read here anyway. Absent if
+   *  the load failed. */
+  machine?: string;
+  toolchain?: string;
+  main?: string;
   /** Set when the project is a course lesson (`manifest.course`) — used to split
    *  course progress out of the plain project list on the welcome screen. */
   course?: { id: string; lesson: string };
@@ -33,7 +39,8 @@ export function useProjectsWithCourse(storage: StorageBackend, rows: ProjectRowL
         rows.map(async (r): Promise<AnnotatedProject> => {
           try {
             const loaded = await storage.projects.load(r.id);
-            return { id: r.id, name: r.name, updatedAt: r.updatedAt, course: loaded?.manifest.course };
+            const m = loaded?.manifest;
+            return { id: r.id, name: r.name, updatedAt: r.updatedAt, machine: m?.machine, toolchain: m?.toolchain, main: m?.main, course: m?.course };
           } catch {
             return { id: r.id, name: r.name, updatedAt: r.updatedAt };
           }
