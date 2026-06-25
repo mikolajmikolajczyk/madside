@@ -76,8 +76,13 @@ export interface Z88dkBuildResult {
   format?: 'sna' | 'z80'
   /** z80asm list file (`-l`) — per-line addresses for the source map (#87). */
   lis?: string
-  /** z80asm map file (`-m`) — section bases + labels for the source map (#87). */
+  /** z80asm map file (`-m`) — section bases + labels for the source map (#87).
+   *  On the C path this is the final LINK map (absolute section bases + public
+   *  symbols), paired with `cLists` to build the C source map (#135). */
   map?: string
+  /** C path only (#135): the z80asm listings carrying `C_LINE` markers (one per
+   *  compiled .c). With `map`, parseZ88dkCDebug turns these into a C source map. */
+  cLists?: string[]
   stdout: string
   stderr: string
   exitCode: number
@@ -412,6 +417,13 @@ function runSubTool(
   return code ?? 0
 }
 
+/** Insert `-l -m` right after the tool name so z80asm writes a list + map next
+ *  to each object — drives the C source map (C_LINE → addr). Idempotent. */
+function injectListMap(args: string[]): string[] {
+  if (args.includes('-l') && args.includes('-m')) return args
+  return [args[0]!, '-l', '-m', ...args.slice(1)]
+}
+
 /** Compile + link a C program for the ZX Spectrum with the z88dk C toolchain,
  *  then wrap the linked binary into a bootable 48K .sna. Project sources mount
  *  RW at the root; the bundled +zx sysroot mounts read-only at /z88dk. */
@@ -450,6 +462,19 @@ export async function buildZ88dkC(main: string, files: Z88dkFile[], opts: Z88dkO
 
   const outBase = stem(main).split('/').pop()!
 
+  // Source-level debug capture (#135): zcc deletes its /tmp intermediates after
+  // linking, so snapshot in-flight. `cLists` = z80asm listings carrying C_LINE
+  // (one per compiled .c); `linkMap` = the final link map (section bases +
+  // public symbols). parseZ88dkCDebug turns them into a C source map.
+  const dbgDec = new TextDecoder()
+  const cLists: string[] = []
+  let linkMap: string | undefined
+  const readText = (path: string | null | undefined): string | undefined => {
+    if (!path) return undefined
+    const b = readFile(root.dir, path)
+    return b ? dbgDec.decode(b) : undefined
+  }
+
   const zccRef: { inst?: { exports: { memory: WebAssembly.Memory } } } = {}
   const dispatch = (ptr: number): number => {
     const mem = new Uint8Array(zccRef.inst!.exports.memory.buffer)
@@ -480,7 +505,25 @@ export async function buildZ88dkC(main: string, files: Z88dkFile[], opts: Z88dkO
       log.push(`[zcc] internal: no wasm for sub-tool '${tool ?? '(empty)'}' — ${cmd}`)
       return 127
     }
-    return runSubTool(mod, root, args, inF, outF, log)
+    // z80asm: emit a list + map per object so we can build a C source map.
+    const finalArgs = tool === 'z88dk-z80asm' ? injectListMap(args) : args
+    const code = runSubTool(mod, root, finalArgs, inF, outF, log)
+    if (tool === 'z88dk-z80asm') {
+      // Per-object assemble: keep any listing that carries C_LINE (the compiled
+      // .c). The listing is named after the input source (`<stem>.lis`).
+      for (const a of finalArgs) {
+        if (!/\.(asm|o)$/i.test(a)) continue
+        const lis = readText(`${stem(a)}.lis`)
+        if (lis && lis.includes('C_LINE')) cLists.push(lis)
+      }
+      // The link step (`-b` + `-o NAME`) writes the final map as `NAME.map`.
+      const oi = finalArgs.findIndex((x) => x === '-o' || x.startsWith('-o'))
+      if (finalArgs.includes('-b') && oi >= 0) {
+        const oArg = finalArgs[oi] === '-o' ? finalArgs[oi + 1] : finalArgs[oi].slice(2)
+        linkMap = readText(`${stem(oArg!)}.map`) ?? linkMap
+      }
+    }
+    return code
   }
 
   // zx.cfg's `default` clib links only -lzx_clib; the release zx_clib references
@@ -526,5 +569,13 @@ export async function buildZ88dkC(main: string, files: Z88dkFile[], opts: Z88dkO
     }
   }
   // A successful build can still carry warnings — pass them through for diagnostics.
-  return { ok: true, binary: buildSna48k(binary, org, sp), stdout: '', stderr: diagLog, exitCode: 0 }
+  return {
+    ok: true,
+    binary: buildSna48k(binary, org, sp),
+    cLists: cLists.length ? cLists : undefined,
+    map: linkMap,
+    stdout: '',
+    stderr: diagLog,
+    exitCode: 0,
+  }
 }

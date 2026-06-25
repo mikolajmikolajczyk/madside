@@ -2,6 +2,7 @@ import type { BuildDiagnostic, ToolchainBuildOutput, ToolchainPlugin } from '@po
 import type { VfsProvider } from '@core/vfs'
 import { buildZ88dk, buildZ88dkC, sysrootFor, type Z88dkFile, type Z88dkOptions } from './wasm/z88dk-wasm'
 import { parseZ80asmDebug } from './z80asm-debug'
+import { parseZ88dkCDebug } from './z88dk-c-debug'
 
 /** Validate the z88dk slice of `manifest.build.options`. The manifest passes the
  *  bag through untyped — the toolchain owns its schema. */
@@ -132,12 +133,14 @@ export const z88dkToolchain: ToolchainPlugin = {
     if (!r.ok || !r.binary) {
       return { ok: false, stdout: r.stdout, stderr: r.stderr, diagnostics, exitCode: r.exitCode !== 0 ? r.exitCode : 1 }
     }
-    // Source-level debugging (#87): the asm path emits a z80asm list + map, which
-    // we parse into line↔addr + labels so ZX gets the same gutter / source
+    // Source-level debugging: the asm path emits a z80asm list + map (#87); the C
+    // path emits per-.c listings with C_LINE markers + the link map (#135). Both
+    // parse into line↔addr + labels so ZX gets the same gutter / source
     // breakpoints / current-line as the cc65 + MADS toolchains.
-    const dbg = r.lis && r.map
-      ? parseZ80asmDebug(r.lis, r.map, input.files.map((f) => f.path))
-      : undefined
+    const projectFiles = input.files.map((f) => f.path)
+    const dbg = isC
+      ? (r.cLists && r.map ? parseZ88dkCDebug(r.cLists, r.map, projectFiles) : undefined)
+      : (r.lis && r.map ? parseZ80asmDebug(r.lis, r.map, projectFiles) : undefined)
     return {
       ok: true,
       binary: r.binary,

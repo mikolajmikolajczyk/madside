@@ -25,7 +25,7 @@
 | MachinePlugin port + Atari-XL first impl | ✅ (v0.4.0 a6c310d) |
 | ToolchainPlugin port + MADS first impl + manifest-driven dispatch | ✅ (v0.5.0 87f03ad + 443eaed) |
 | Second ToolchainPlugin — cc65/ca65/ld65 wasm (`packages/toolchain-ca65`) — C + ca65 asm → NES `.nes` / Atari `.xex` | ✅ (GH #1, #52) |
-| Third ToolchainPlugin — z88dk z80asm/sccz80 wasm (`packages/toolchain-z88dk`) — C → ZX Spectrum; z80asm **source-debug shipped** (line↔addr + labels, `parseZ80asmDebug`, #87/#135); sccz80 C path still binary-only | ✅ (#114, #135) |
+| Third ToolchainPlugin — z88dk z80asm/sccz80 wasm (`packages/toolchain-z88dk`) — C → ZX Spectrum; **source-debug shipped for BOTH paths** — z80asm asm (line↔addr + labels, `parseZ80asmDebug`, #87) and **sccz80 C** (`C_LINE` markers in the listing + link map → `parseZ88dkCDebug`, function-grained, #135) | ✅ (#114, #135) |
 | Private workspace package extractions — `workbench-core` (services), `storage-idb` (IDB backend) — enforce ADR-0002 layers without npm publish | ✅ (#123, #125) |
 | DebugAdapterPlugin port + atari-6502 first impl | ✅ (v0.6.0 2810a62) |
 | PanelPlugin port + built-in panels (registers/memory/output/ppu, **variables**, outline, references) — own dock surfaces | ✅ (v0.7.0 5ddf99e; ppu v0.8.0 93c218b; variables #121; outline/references #120) |
