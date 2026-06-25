@@ -46,8 +46,31 @@ export function RegistersPanel({ ctx }: { ctx: PanelContext }) {
   const regsVals = cpu?.regs ?? {}
   const flagState = cpu?.flags ?? {}
 
+  // Multi-CPU machines (Genesis 68000 + Z80) get a CPU switch: picking one routes
+  // the registers + memory + current-line through that CPU (#147 Phase 2). The
+  // primary CPU focuses as null; an aux CPU by its id.
+  const cpus = ctx.machine.cpus ?? []
+  const focused = ctx.debug.focusedCpu()
+
   return (
     <div className="debug__panel">
+      {cpus.length > 1 && (
+        <div className="debug__cpuTabs">
+          {cpus.map((c) => {
+            const id = c.aux ? c.id : null
+            return (
+              <button
+                key={c.id}
+                type="button"
+                className={'debug__cpuTab' + (focused === id ? ' is-active' : '')}
+                onClick={() => ctx.debug.setFocusedCpu(id)}
+              >
+                {c.label}
+              </button>
+            )
+          })}
+        </div>
+      )}
       <div className="debug__title label">Registers</div>
       <div className="debug__rows">
         {registers.map((d) => {

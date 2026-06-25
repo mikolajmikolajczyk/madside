@@ -198,6 +198,8 @@ export function createDebugService(deps: DebugServiceDeps): DebugService {
       // target() re-attaches because focusedCpuId !== cachedCpuId; re-apply the
       // (shared) breakpoint set to the newly focused CPU's target.
       syncBreakpoints()
+      // Nudge the debug panels to re-read registers/memory through the new focus.
+      deps.events.emit('debug:step-done', { pc: target()?.getPC() ?? 0 })
     },
 
     target,

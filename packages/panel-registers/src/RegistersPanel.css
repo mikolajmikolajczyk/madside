@@ -45,3 +45,24 @@
   color: var(--accent-mint);
   border-color: var(--accent-mint);
 }
+
+/* CPU switch for multi-CPU machines (Genesis 68000 + Z80, #147 Phase 2). */
+.debug__cpuTabs {
+  display: flex;
+  gap: 4px;
+  margin-bottom: 6px;
+}
+.debug__cpuTab {
+  font-size: 11px;
+  padding: 2px 8px;
+  border: 1px solid var(--border-default);
+  border-radius: 3px;
+  background: transparent;
+  color: var(--text-tertiary);
+  cursor: pointer;
+}
+.debug__cpuTab:hover { color: var(--text-primary); }
+.debug__cpuTab.is-active {
+  color: var(--accent-mint);
+  border-color: var(--accent-mint);
+}
