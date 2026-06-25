@@ -20,7 +20,7 @@ The project file tree. Add files (`+f`) and folders (`+/`), rename, delete, and 
 
 ## Editor
 
-A CodeMirror editor. For **assembly**: highlighting, autocomplete (opcodes, directives, your labels), hover docs (hover an opcode for what it does, a label for its definition), and go-to-definition (Ctrl-click a label). For **C** (cc65 or z88dk projects): highlighting, autocomplete of the standard library and your own functions across files (auto-`#include`d when accepted), hover, go-to-def / references / rename, and [clang-format](/docs/using/editor/) on save (Ctrl+S) or with Shift+Alt+F. Brackets auto-close as you type. The gutter shows line numbers + the emit address of each line; click it to toggle a breakpoint.
+A CodeMirror editor. For **assembly**: highlighting plus a language server — autocomplete (opcodes, directives, your labels, and on MADS the pseudo-instructions + illegal opcodes), hover (an opcode's description, flags, and addressing modes; a label's value and definition), go-to-definition / find-references / rename across files, and inline diagnostics (undefined or duplicate labels, invalid addressing modes). For **C** (cc65 or z88dk projects): highlighting, autocomplete of the standard library and your own functions across files (auto-`#include`d when accepted), hover, go-to-def / references / rename, and [clang-format](/docs/using/editor/) on save (Ctrl+S) or with Shift+Alt+F. Brackets auto-close as you type. The gutter shows line numbers + the emit address of each line; click it to toggle a breakpoint.
 
 ## Emulator & debug panels
 

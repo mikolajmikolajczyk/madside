@@ -154,3 +154,20 @@ Relates to ADR-0002 (layering — these are leaf libs outside the layer model),
 ADR-0006 (AGPL — scoped MIT carve-out), and #30 (host-supplied defines, the
 agnosticism that makes `lsp-c` reusable). Tracking epic + migration steps live in
 GitHub issues.
+
+## Update (2026-06-25, #140) — Assembly LSP, a second language
+
+`@madside/lsp-asm` is the second language on the agnostic core, validating the
+decision: a generic line-oriented assembly engine + `createAsmProvider(dialect)`,
+dropped onto `lsp-core` without touching it (same as the z80 C server did).
+
+**Divergence from the C LSP, decided here:** asm **dialect profiles are pure DATA
+in ONE package** (`lsp-asm/src/dialects/{mads,ca65,z80asm,clownassembler}.ts`,
+selected by id at runtime), NOT per-dialect packages (`lsp-cc65`/`lsp-z80`). Why:
+an asm dialect is data only (CPU opcode-hint table + comment/label/equate/include/
+macro syntax + directive vocab + register set) with no per-dialect deps, so a
+single `asm-lsp.worker` serves all four and **adding a target = adding a profile
+object**. The C dialects stay separate packages because each worker statically
+bundles a dialect with heavier deps. The CPU opcode-hint data (desc + flags +
+addressing modes) lives in `lsp-asm/src/cpu`, so `@core/cpu` slimmed to the bare
+mnemonic set (editor intelligence loads only in the language worker).

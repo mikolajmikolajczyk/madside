@@ -4,10 +4,12 @@ import type { MachinePlugin } from '@ports'
 // "final validation" target: a 32-bit, alien-ISA CPU over a 24-bit bus. Proves the
 // machine/toolchain/emulator/debug contracts aren't 8-bit/16-bit-bus-centric.
 //
-// CPU is the Motorola 68000 (the Z80 sound CPU is out of scope for the asm-first
-// validation). Toolchain is clownassembler (asm68k syntax); emulator is Genesis
-// Plus GX (gpgx, full system); debug is the m68k adapter — all named below in the
-// compatible* hints and resolved through the PluginRegistry at runtime.
+// Primary CPU is the Motorola 68000; the Z80 sound coprocessor is the second CPU
+// (#147) — programmable (opt-in z80asm composite, `build.options.z80`) + debuggable
+// (focused-CPU switch, see `cpus` below). Toolchain is clownassembler (asm68k
+// syntax); emulator is Genesis Plus GX (gpgx, full system); debug is the m68k +
+// zx-z80 adapters — all named below in the compatible* hints and resolved through
+// the PluginRegistry at runtime.
 //
 // ROM bundling is an emulator concern (no `rom` field here), same as ZX/C64.
 export const machineGenesis: MachinePlugin = {

@@ -63,3 +63,7 @@ The browser-reload keys (F5, Ctrl+R, and friends) are deliberately **not** bound
 ## Audio
 
 Audio is driven through the Web Audio API, which browsers only allow to start after a user gesture. The first **Run** counts as that gesture, so sound begins playing then. Audio is suspended while the emulator is paused or stopped.
+
+:::note
+On iPhone/iPad Safari, audio only works over **HTTPS** — iOS requires a secure connection for the audio engine. The hosted madside site is HTTPS, so sound just works there. If you self-host or use a local dev server over plain `http://`, iOS Safari loads madside fine but stays silent; serve it over HTTPS (a local tunnel or proxy) to hear audio on iOS.
+:::

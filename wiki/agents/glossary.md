@@ -27,6 +27,9 @@
 - **`.bin`** — flat Genesis ROM (also accepts `.md` / `.gen`; `.smd` is the interleaved dump format, de-interleaved on load).
 - **Genesis Plus GX (gpgx)** — Eke-Eke's full-system Mega Drive emulator (non-commercial). `genesis-gpgx.wasm` is the run/display backend; it embeds Musashi as its 68000 core, so `debug-m68k` reads its CPU state directly.
 - **Musashi** — Karl Stenerud's portable M68000 interpreter core. madside uses it only as the CPU inside gpgx (the standalone bare-Musashi backend was removed once gpgx shipped).
+- **Z80 sound coprocessor** — the Genesis' second CPU, a Zilog Z80 with 8 KB RAM (`$0000-$1FFF`), driving the YM2612 + PSG. madside programs it in Z80 assembly (`.s80`, opt-in `build.options.z80` → assembled by z80asm and embedded in the ROM; or a pre-built driver `.bin` via `incbin`). The 68000 copies the driver to the Z80's RAM (`$A00000` from the 68000 side) and releases it. Template `genesis-z80-sound`.
+- **Dual-CPU debug (#147)** — the Genesis debugger inspects both CPUs. A **focused-CPU** switch in the registers panel toggles 68000 ↔ Z80; the focused CPU's registers, memory, current-line (its own source map), and line breakpoints apply. Contract: `MachinePlugin.cpus`, `RunBackend.auxCpu(id)`, `DebugService.focusedCpu/setFocusedCpu`. The CPU-generic `zx-z80` adapter is reused for the Z80.
+- **`$6000` bank window** — the Z80's `$8000-$FFFF` (32 KB) is a banked window into 68000 address space, selected by the write-only `$6000` latch (9-bit, one bit per write). gpgx exposes the live bank (`z80_bank`); the debugger projects it as a bank window (ADR-0014 `bankMap`). Banks DATA access; Z80 code itself lives in the unbanked RAM.
 
 ## Plugin architecture terms
 

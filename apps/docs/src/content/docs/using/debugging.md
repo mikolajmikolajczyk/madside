@@ -8,7 +8,7 @@ sidebar:
 madside debugs at the source level: breakpoints are set on source lines, the editor highlights the current instruction, and the [registers, memory, and variables panels](/docs/using/panels/) update whenever the emulator stops.
 
 :::note
-Source-level debugging relies on the [source map](/docs/using/building/#the-source-map-and-labels). The **mads** toolchain emits it for assembly, and **cc65** emits it for C and ca65 (its `.dbg` maps `.c` lines to addresses) — so you can set breakpoints and step on C source lines. The **clownassembler** (Genesis) toolchain emits a line↔address source map too, so Genesis M68k assembly debugs at the source level (line breakpoints + current-line highlight). The **z88dk** (ZX Spectrum) toolchain doesn't emit source debug info yet, so ZX projects debug at the machine level only (emulator, registers, memory, and stepping still work).
+Source-level debugging relies on the [source map](/docs/using/building/#the-source-map-and-labels). The **mads** toolchain emits it for assembly, and **cc65** emits it for C and ca65 (its `.dbg` maps `.c` lines to addresses) — so you can set breakpoints and step on C source lines. The **clownassembler** (Genesis) toolchain emits a line↔address source map too, so Genesis M68k assembly debugs at the source level. The **z88dk** toolchain emits one for **z80 assembly** as well, so ZX Spectrum assembly debugs at the source level (line breakpoints + current-line highlight). The sccz80 **C** path on z88dk is still binary-only (machine-level: registers, memory, stepping).
 :::
 
 ## Breakpoints
@@ -30,6 +30,8 @@ Frame temporarily ignores breakpoints while it advances, so it always completes 
 ## Registers and flags
 
 The **Registers** panel lists the CPU's registers and condition flags. The exact set comes from the active machine's debug adapter — for the 6502 machines (Atari, NES, C64) that's A / X / Y / PC / SP plus the processor-status flags; for the ZX Spectrum it's the Z80 set (PC / SP / AF / BC / DE / HL / IX / IY / IR plus the shadow registers); for the Genesis it's the Motorola 68000 set (D0–D7 data / A0–A7 address, A7 = SP / PC / SR plus the condition flags X N Z V C). The panel renders correctly for whichever machine the project targets. Values update on every step, frame, and breakpoint hit.
+
+The Genesis has two CPUs — the 68000 and a Z80 sound coprocessor — so its Registers panel shows a **CPU switch** at the top. Pick the Z80 to inspect its registers (PC / SP / AF / BC / DE / HL / IX / IY) and 8&nbsp;KB of RAM, see its current line in the sound driver, and set breakpoints on it; switch back to the 68000 for the main program. The memory view and current-line follow whichever CPU you've selected.
 
 ## Variables
 

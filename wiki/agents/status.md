@@ -25,7 +25,7 @@
 | MachinePlugin port + Atari-XL first impl | ✅ (v0.4.0 a6c310d) |
 | ToolchainPlugin port + MADS first impl + manifest-driven dispatch | ✅ (v0.5.0 87f03ad + 443eaed) |
 | Second ToolchainPlugin — cc65/ca65/ld65 wasm (`packages/toolchain-ca65`) — C + ca65 asm → NES `.nes` / Atari `.xex` | ✅ (GH #1, #52) |
-| Third ToolchainPlugin — z88dk z80asm/sccz80 wasm (`packages/toolchain-z88dk`) — C → ZX Spectrum (binary only; no source-debug yet, #135) | ✅ (#114) |
+| Third ToolchainPlugin — z88dk z80asm/sccz80 wasm (`packages/toolchain-z88dk`) — C → ZX Spectrum; z80asm **source-debug shipped** (line↔addr + labels, `parseZ80asmDebug`, #87/#135); sccz80 C path still binary-only | ✅ (#114, #135) |
 | Private workspace package extractions — `workbench-core` (services), `storage-idb` (IDB backend) — enforce ADR-0002 layers without npm publish | ✅ (#123, #125) |
 | DebugAdapterPlugin port + atari-6502 first impl | ✅ (v0.6.0 2810a62) |
 | PanelPlugin port + built-in panels (registers/memory/output/ppu, **variables**, outline, references) — own dock surfaces | ✅ (v0.7.0 5ddf99e; ppu v0.8.0 93c218b; variables #121; outline/references #120) |
@@ -37,7 +37,7 @@
 | Service ↔ UI sync FSM + EventBus + useSyncExternalStore (ADR-0007) | ✅ (v0.7.5 M7.5 epic 152abfd — Run lifecycle reference impl, contract test, dev event logger, property fuzz) |
 | Second MachinePlugin — NES (`packages/machine-nes`) | ✅ (v0.8.0 481d76b) — manifest-driven machine selection (1972a36) |
 | Second emulator backend — jsnes (`packages/emulator-nes-jsnes`) | ✅ (v0.8.0 b41098c) |
-| **Genesis / 68000 backend (#145)** — the full plugin stack for a 32-bit, alien-ISA CPU over a 24-bit bus, the "final contract validation": `toolchain-clownassembler` (asm68k wasm), `machine-genesis` (24-bit memory map), `debug-m68k` adapter (D0–D7/A0–A7/PC/SR). **Phase B**: `emulator-genesis-gpgx` — full-system Genesis Plus GX (VDP + YM2612/PSG + Z80 + I/O) as a wasi reactor + RunBackend (video, mono-downmix audio, pad input). Runs in-app (template → build → run → debug) with a clownassembler line↔addr source map for line-debug; build→run→debug proven end-to-end (`tests/integration/genesis-68k`). See [`genesis-gpgx-wasm-build.md`](genesis-gpgx-wasm-build.md). | ✅ Phase A + Phase B — follow-ups in [#146](https://github.com/mikolajmikolajczyk/madside/issues/146): instruction-granular step (M68K_INSTRUCTION_HOOK), VDP-space reads, full save-state; the clang-m68k C path (then external SGDK-on-clang) remains |
+| **Genesis / 68000 backend (#145)** — the full plugin stack for a 32-bit, alien-ISA CPU over a 24-bit bus, the "final contract validation": `toolchain-clownassembler` (asm68k wasm), `machine-genesis` (24-bit memory map), `debug-m68k` adapter (D0–D7/A0–A7/PC/SR). **Phase B**: `emulator-genesis-gpgx` — full-system Genesis Plus GX (VDP + YM2612/PSG + Z80 + I/O) as a wasi reactor + RunBackend (video, mono-downmix audio, pad input). Runs in-app (template → build → run → debug) with a clownassembler line↔addr source map for line-debug; build→run→debug proven end-to-end (`tests/integration/genesis-68k`). See [`genesis-gpgx-wasm-build.md`](genesis-gpgx-wasm-build.md). **Z80 sound coprocessor (#147)**: programmable (opt-in `build.options.z80` → composite z80asm `.s80`, or pre-built blob via incbin; template `genesis-z80-sound`) + **dual-CPU debug** (focused-CPU switch 68000↔Z80 in the registers panel; Z80 regs+8KB RAM, per-CPU source map → `.s80` current-line, Z80 line breakpoints; `$6000` bank window via `auxCpu`/`bankMap`). | ✅ Phase A + Phase B + Z80 (#147) — follow-ups in [#146](https://github.com/mikolajmikolajczyk/madside/issues/146): instruction-granular step (M68K_INSTRUCTION_HOOK), VDP-space reads, full save-state; the clang-m68k C path (then external SGDK-on-clang) remains |
 | Named memory-space mechanism (`MachinePlugin.memorySpaces`, `readMemory(addr,len,space)` — cpu/ppu/oam) | ✅ (v0.8.0 93c218b) |
 | Editor language generalization — toolchain+CPU-driven (`@core/cpu/mos6502`, `ToolchainPlugin.language`) | ✅ (v0.8.7 1f08b2c, 6ba97ca, 5ee1a42) |
 | Bundled templates — `apps/ide/templates/<id>/` via Vite glob, `apps/ide/src/app/templates.ts`, Welcome picker | ✅ (v0.8.5 71acac1, 505492d) |
@@ -82,7 +82,7 @@
 | Phase 2 — typed globals + expandable struct/array/pointer tree, value decode by type | ✅ (#130) |
 | Watch expressions (`pos.x`, `*ptr`, `arr[3]`, `p->next`) — persisted per project, live | ✅ (#132) |
 | Frame/locals contract — `DebugFrame` (memptr/reg) + `DebugScope` + `functionLocals`, `parseDbg` scope/csym parse | ✅ contract + foundation only (ADR-0012, #131) |
-| **Locals of current frame** | ❌ deferred — cc65 is frameless (`c_sp` moves, no per-PC delta in dbginfo); reliable path is sccz80 IX (#136), gated on z88dk source-debug (#135) |
+| **Locals of current frame** | ❌ deferred — cc65 is frameless (`c_sp` moves, no per-PC delta in dbginfo); reliable path is sccz80 IX (#136) — now unblocked (z88dk source-debug shipped, #135), still deferred |
 
 ## Editor UX
 
@@ -104,6 +104,17 @@
 - clang-format C formatting via `@wasm-fmt/clang-format` wasm — on Ctrl+S and Format Document (Shift+Alt+F); auto-close brackets + InsertBraces (GH #60)
 - Inline C compile errors — cc65 gcc-style `file:line:` diagnostics parse + mark the editor; ld65 ANSI stripped (GH #61)
 - Configurable indent (`editor.tabWidth`), manual build trigger (`build.trigger`, manual default), format style (`editor.format`) — all via manifest (GH #59)
+
+### Assembly editor support (#140)
+
+> Assembly gets the same in-Worker LSP treatment as C, via **`@madside/lsp-asm`** on the agnostic `lsp-core` (ADR-0009 validated by a second language). Unlike the C LSP's per-dialect packages, asm **dialect profiles are pure DATA in ONE package** — adding a target = adding a profile object. Four dialects: **mads / ca65 / z80asm / clownassembler** (6502 / Z80 / M68k).
+
+- **Hover** — opcode description + affected flags + **addressing modes** (6502 classic set; z80/m68k operand forms); or a symbol's kind + value + definition site
+- **Completion** — CPU opcodes (with docs), assembler directives, project labels/equates/macros, plus **MADS pseudo-instructions** (`mva`/`mwa`/`jeq`…) + **illegal 6502 opcodes** (`sax`/`lax`…)
+- **Go-to-definition / find-references / rename** — cross-file, on labels (Ctrl+click / Shift-F12 / F2)
+- **Semantic-token coloring** — label-definition vs symbol-reference vs macro (what the lexer can't see), over the StreamLanguage base
+- **Diagnostics** — undefined symbol, duplicate definition, **invalid 6502 addressing mode** (e.g. `JMP #5`)
+- M68k size suffixes (`move.w`→MOVE) + leading-dot local labels handled; opcode hint data lives here (`@core/cpu` slimmed to the bare mnemonic set)
 
 ## Storage + plugins + history
 

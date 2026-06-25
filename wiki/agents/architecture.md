@@ -15,8 +15,8 @@ packages/                # workspace libraries (each: src/ + package.json)
     audio.ts             # shared audio helpers
     mads-tokens.ts       # MADS directive set (MADS_DIRECTIVES) + LabelInfo shape (shared @ui + @app)
     vfs/                 # in-memory virtual filesystem helpers
-    cpu/                 # CPU instruction vocabularies, resolved by MachinePlugin.cpu (epic 78b12bf)
-      mos6502.ts         # MOS6502 CpuLanguage — opcodes Set + opcodeDocs (drives editor highlight/hover)
+    cpu/                 # CPU instruction vocabularies (BARE opcode mnemonic set), resolved by MachinePlugin.cpu — mos6502/z80/m68000; rich opcode hints (desc/flags/addressing modes) moved to lsp-asm (#140)
+      mos6502.ts         # MOS6502 CpuLanguage — just the opcodes Set (label-scan + StreamLanguage highlight)
       index.ts           # getCpuLanguage(cpuId) registry — mos6502 + ricoh-2a03 (NES 2A03) → MOS6502
 
   ports/                 # @ports — interfaces only (impls in apps/ide adapters + plugin packages) (src/)
@@ -65,11 +65,11 @@ packages/                # workspace libraries (each: src/ + package.json)
   machine-c64/           # MachinePlugin — Commodore 64; src/machine-c64.ts
   machine-nes/           # MachinePlugin (v0.8.0) — NES; cpu ricoh-2a03, memorySpaces [ppu (PPU VRAM 0x4000), oam (0x100)], devices ppu/apu; pairs with jsnes backend
   machine-zx/            # MachinePlugin — ZX Spectrum; src/machine-zx.ts
-  machine-genesis/       # MachinePlugin — Sega Genesis; cpu m68000, 24-bit memoryMap, memorySpaces [vram/cram/vsram], media{bin,md,gen,smd}, programLoadRange parses reset vector; pairs with genesis-gpgx
+  machine-genesis/       # MachinePlugin — Sega Genesis; cpu m68000 + cpus [m68000, z80] (dual-CPU, #147), 24-bit memoryMap, memorySpaces [vram/cram/vsram], media{bin,md,gen,smd}, programLoadRange parses reset vector; pairs with genesis-gpgx. Z80 sound: opt-in build.options.z80 (clownassembler composite assembles .s80 with z80asm → incbin)
   emulator-c64-chips/    # EmulatorPlugin — Chips c64-core backend; src/chips-backend.ts + src/{roms,wasm}/
   emulator-nes-jsnes/    # RunBackend (v0.8.0) over the jsnes npm package; readMem(addr,len,space) serves cpu/ppu/oam; lazy-imported (code-split)
   emulator-zx-chips/     # EmulatorPlugin — Chips zx-core backend; src/chips-backend.ts + src/{roms,wasm}/
-  emulator-genesis-gpgx/ # EmulatorPlugin — Genesis Plus GX full-system backend (VDP/sound/Z80/IO); src/gpgx-backend.ts (wasi reactor, viewport→pixels, mono audio); embeds Musashi → reuses debug-m68k
+  emulator-genesis-gpgx/ # EmulatorPlugin — Genesis Plus GX full-system backend (VDP/sound/Z80/IO); src/gpgx-backend.ts (wasi reactor, viewport→pixels, mono audio); embeds Musashi → reuses debug-m68k. Dual-CPU debug (#147): wasm exports z80_get_reg/z80_read_byte/z80_bank; backend exposes auxCpu('z80')→{cpuState/getPC/readMem/setBreakpoints/bankMap}. DebugService.focusedCpu routes the focused CPU's adapter to RunBackend.auxCpu(id) via an aux-view wrapper; the CPU-generic zx-z80 adapter is reused for the Z80
   debug-atari-6502/      # DebugAdapter v0.6.0 — wraps AltirraBackend; exports MOS6502_REGISTERS/FLAGS (reused for NES — both setups share this adapter)
   debug-zx-z80/          # DebugAdapter — Z80; src/zx-z80.ts + src/z80.ts
   debug-m68k/            # DebugAdapter — Motorola 68000 (Genesis); D0–D7/A0–A7/PC/SR + X N Z V C; reads Cpu68kState, native 24-bit memory
@@ -88,11 +88,12 @@ packages/                # workspace libraries (each: src/ + package.json)
   storage-idb/           # @madside/storage-idb — IDB StorageBackend impl (projects/files/meta/snapshots/blobs/breakpoints/courses) + migrations (was apps/ide/src/adapters/storage-idb/)
   storage-shared/        # @madside/storage-shared — storage helpers shared across backends (snapshot diff, manifest serialize, id mint)
 
-# --- C language intelligence (LSP), MIT-licensed leaf libs — ADR-0009 ---
+# --- Language intelligence (LSP), MIT-licensed leaf libs — ADR-0009 ---
   lsp-core/              # @madside/lsp-core — language-AGNOSTIC LSP framework: startServer(connection, provider), transports (browser worker / node stdio), doc sync, request router + the LanguageProvider contract (zero language knowledge)
   lsp-c/                 # @madside/lsp-c — generic C engine (src/engine/* = the former @cc65-intel/core) implementing LanguageProvider via createCProvider(dialect: CDialect); dialect supplies decorators + diagnostic sources, host supplies sysroot headers + defines (#30)
   lsp-cc65/              # @madside/lsp-cc65 — cc65 (6502) dialect profile + browser-worker / node-stdio server entries (consumed by the IDE CodeMirror LSP adapter)
-  lsp-z80/               # @madside/lsp-z80 — sccz80 / z88dk (ZX Spectrum) dialect profile + server entries (#114). Second dialect on the agnostic core — proved lsp-core ⊥ language (boundary lint-enforced, 868bc7e)
+  lsp-z80/               # @madside/lsp-z80 — sccz80 / z88dk (ZX Spectrum) dialect profile + server entries (#114). Second LANGUAGE on the agnostic core — proved lsp-core ⊥ language (boundary lint-enforced, 868bc7e)
+  lsp-asm/               # @madside/lsp-asm — generic ASSEMBLY engine + createAsmProvider(dialect) + CPU opcode-hint tables (mos6502/z80/m68k) on lsp-core (#140). Dialect profiles are pure DATA in ONE package (mads/ca65/z80asm/clownassembler) — not per-dialect packages. hover (desc+flags+addressing modes) / completion / go-to-def / refs / rename / semantic tokens / diagnostics (incl. invalid-addressing-mode). One worker, dialect by id. asm-client.ts in apps/ide mirrors the C client
 
 apps/
   ide/                   # @madside/ide — the Vite app (everything below was the old src/ non-lib layers)

@@ -21,6 +21,12 @@ the `mads` and `cc65` toolchains and the `atari-6502-debug` adapter (a generic M
 own Z80 adapter; the Sega Genesis runs the Motorola 68000 (`clownassembler`
 assembler + the `genesis-gpgx` full-system emulator) with the `m68k-debug` adapter.
 
+The Genesis is **dual-CPU**: alongside the 68000 it has a Z80 sound coprocessor,
+which you can program in Z80 assembly and debug with a CPU switch in the debugger
+(it adds the `zx-z80-debug` adapter for the Z80). See the
+[`genesis-z80-sound` template](/docs/using/templates/) and
+[dual-CPU debugging](/docs/using/debugging/#registers-and-flags).
+
 Each value comes from the machine plugin's `id`, `cpu`, `compatibleToolchains`,
 `compatibleEmulators`, and `compatibleDebugAdapters`.
 

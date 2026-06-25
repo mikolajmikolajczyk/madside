@@ -5,7 +5,7 @@ sidebar:
   order: 2
 ---
 
-madside edits source in a [CodeMirror](https://codemirror.net/)-based editor. Assembly files (`.a65` / `.asm` / `.inc` / `.s` / `.mac`) get syntax highlighting, completion, and the debug gutters; C/C++ sources (`.c` / `.h` / `.cc` / `.cpp` / `.hpp`) in cc65 projects get their own highlighting, completion, hover, and formatting (see [C/C++ editing](#cc-editing)); JavaScript converter files (`.js` / `.ts`) and `.json` get their own language support.
+madside edits source in a [CodeMirror](https://codemirror.net/)-based editor. Assembly files (`.a65` / `.asm` / `.inc` / `.s` / `.mac` / `.s80`) get syntax highlighting plus a language server: completion, hover with opcode docs + addressing modes, go-to-definition, find-references, rename, and diagnostics (see [Assembly intelligence](#assembly-intelligence)); C/C++ sources (`.c` / `.h` / `.cc` / `.cpp` / `.hpp`) in cc65 projects get their own highlighting, completion, hover, and formatting (see [C/C++ editing](#cc-editing)); JavaScript converter files (`.js` / `.ts`) and `.json` get their own language support.
 
 ## Indentation
 
@@ -73,7 +73,18 @@ There's no format-on-type — formatting only runs when you trigger it with Ctrl
 
 ## Hover
 
-Hovering a known label or opcode shows a tooltip with its documentation and, where available, a short preview.
+Hover an opcode to see what it does, which status flags it affects, and which addressing modes it accepts. Hover a label or constant to see its kind, value, and where it's defined. For C, hover shows types and signatures.
+
+## Assembly intelligence
+
+Assembly editing is backed by a language server (the same kind that powers the C support below), so it understands your code, not just its colours:
+
+- **Completion** — CPU opcodes (with one-line descriptions), the assembler's directives, and your own labels, equates, and macros. For MADS it also offers the extended pseudo-instructions (`mva`, `mwa`, `jeq`, …) and the undocumented 6502 opcodes.
+- **Hover** — opcode description + flags + addressing modes, or a label/constant's value and definition.
+- **Go-to-definition** (Ctrl/Cmd-click), **find all references** (Shift-F12), and **rename** (F2) — all work across files.
+- **Diagnostics** — an undefined or duplicate label is flagged inline, and on the 6502 an opcode used with an addressing mode it doesn't support (e.g. `JMP #5`).
+
+It works for every assembler madside ships — the Atari/NES/C64 6502 assemblers (mads, ca65), the ZX Spectrum z80 assembler, and the Genesis 68000 assembler — picking the right instruction set and syntax for your project automatically.
 
 ## Breakpoints
 
