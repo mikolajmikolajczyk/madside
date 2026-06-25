@@ -239,6 +239,11 @@ EXPORT("z80_read_byte") unsigned int sys_z80_read_byte(unsigned int a)
   return z80_readmem ? z80_readmem(a) : 0;
 }
 
+/* The Z80 $8000-$FFFF bank window's base in the 68000 address space — the live
+ * value of the write-only $6000 bank register (bits 15-23). A Z80 address $8000+
+ * reads the 68000 byte at `z80_bank() | (addr & 0x7FFF)` (#147 Phase 3). */
+EXPORT("z80_bank") unsigned int sys_z80_bank(void) { return zbank; }
+
 /* Pull one frame of resampled stereo audio. Returns the number of stereo
  * sample frames written into audio_ptr(). */
 EXPORT("audio_ptr") int16_t *sys_audio_ptr(void) { return audio_buffer_; }

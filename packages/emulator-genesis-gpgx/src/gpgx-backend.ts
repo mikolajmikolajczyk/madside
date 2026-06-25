@@ -1,4 +1,4 @@
-import type { AuxCpuView, Cpu68kState, CpuZ80State, RunBackend } from '@ports'
+import type { AuxCpuView, BankProjection, Cpu68kState, CpuZ80State, RunBackend } from '@ports'
 import { loadWasmModule } from '@core/vfs'
 import { AudioPushPump } from '@core/audio'
 import { gpgxWasmUrl } from '@madside/wasm-genesis-gpgx'
@@ -54,6 +54,7 @@ interface GpgxExports {
   // Z80 sound-coprocessor debug surface (#147 Phase 2).
   z80_get_reg(r: number): number
   z80_read_byte(addr: number): number
+  z80_bank(): number
   audio_ptr(): number
   audio_update(): number
   set_input(port: number, buttons: number): void
@@ -239,6 +240,13 @@ class GenesisGpgxBackend implements RunBackend {
     return this.core.z80_get_reg(0) & 0xffff
   }
 
+  /** The Z80 $8000-$FFFF bank window projection (#147 Phase 3): the live $6000
+   *  bank register, as a (space, offset) into 68000 space. */
+  z80BankMap(): BankProjection[] {
+    const base = this.core.z80_bank() >>> 0
+    return [{ window: 'z80bank', start: 0x8000, end: 0xffff, space: `bank${base >>> 15}`, bankOffset: base }]
+  }
+
   readZ80Mem(addr: number, len: number): Uint8Array {
     const out = new Uint8Array(len)
     for (let i = 0; i < len; i++) out[i] = this.core.z80_read_byte((addr + i) & 0xffff) & 0xff
@@ -258,6 +266,7 @@ class GenesisGpgxBackend implements RunBackend {
       getPC: () => this.z80PC(),
       readMem: (addr, len) => this.readZ80Mem(addr, len),
       setBreakpoints: (addrs) => this.setZ80Breakpoints(addrs),
+      bankMap: () => this.z80BankMap(),
     }
   }
 
