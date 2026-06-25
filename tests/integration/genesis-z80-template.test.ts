@@ -72,9 +72,16 @@ describe('Genesis Z80 sound template — build + boot (#147)', () => {
     const z80 = backend as unknown as {
       z80PC(): number
       readZ80Mem(addr: number, len: number): Uint8Array
+      setZ80Breakpoints(addrs: number[]): void
     }
     expect(z80.readZ80Mem(0x0000, 1)[0]).toBe(0xf3) // di, copied into Z80 RAM
     expect(z80.readZ80Mem(0x0010, 1)[0]).toBe(0xc3) // jp at Loop
     expect(z80.z80PC()).toBe(0x0010) // the Z80 is spinning in the driver's loop
+
+    // A Z80 line breakpoint at the driver's loop traps the frame loop (#147
+    // Phase 2d-2): advanceFrame returns 0 when the Z80 PC hits a Z80 breakpoint.
+    expect(backend.advanceFrame()).toBe(1) // no Z80 breakpoints yet
+    z80.setZ80Breakpoints([0x0010])
+    expect(backend.advanceFrame()).toBe(0) // trapped on the Z80 PC ($0010)
   })
 })

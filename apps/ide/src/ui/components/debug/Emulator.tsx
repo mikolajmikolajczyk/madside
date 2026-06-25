@@ -276,14 +276,28 @@ export function Emulator({ breakpoints, onState, blockedMsg }: Props) {
     // C++ on the instruction boundary — zero JS roundtrip cost per cycle. Bank
     // breakpoints register their CPU addr too (the core is bank-blind); the
     // bank match is re-checked host-side below (ADR-0014).
-    emu.setBreakpoints(breakpoints ?? []);
+    // Route breakpoints + the trap to the FOCUSED CPU (#147 Phase 2): on a
+    // multi-CPU machine (Genesis 68000 + Z80) focusing the Z80 sets its
+    // breakpoints + traps on its PC; the addresses come from the focused CPU's
+    // source map. Only the focused CPU's set is live, so a prior focus doesn't
+    // keep trapping the other CPU.
+    const focused = workbench.debug.focusedCpu();
+    const auxView = focused ? emu.auxCpu?.(focused) : undefined;
+    const focusedPC = () => (auxView ? auxView.getPC() : emu.getPC());
+    if (auxView?.setBreakpoints) {
+      auxView.setBreakpoints(breakpoints ?? []);
+      emu.setBreakpoints([]);
+    } else {
+      emu.setBreakpoints(breakpoints ?? []);
+      for (const c of workbench.machine.cpus ?? []) if (c.aux) emu.auxCpu?.(c.id)?.setBreakpoints?.([]);
+    }
     // Split the set into cpu-space addrs (fire on PC) and bank-aware ones (fire
     // only when the live bank matches). The match re-checks bankMap() each stop;
     // a wrong-bank stop fails the predicate → the loop resumes (FCEUX-style).
     const split = splitBreakpoints(breakpoints ?? []);
     const hasBP = split.cpuAddrs.size > 0 || split.bankReqByAddr.size > 0;
     const trap = hasBP
-      ? () => emu.isAtInstrBoundary() && breakpointFires(emu.getPC(), split, emu.bankMap?.())
+      ? () => emu.isAtInstrBoundary() && breakpointFires(focusedPC(), split, emu.bankMap?.())
       : undefined;
 
     // Throttle the cpu/mem snapshot so we don't pay the readMem cost every
@@ -296,7 +310,7 @@ export function Emulator({ breakpoints, onState, blockedMsg }: Props) {
       blit();
       if (trap && trap()) {
         emit(emu);
-        workbench.events.emit('debug:bp-hit', { pc: emu.getPC() });
+        workbench.events.emit('debug:bp-hit', { pc: focusedPC() });
         return;
       }
       if (++snapshotTick >= SNAPSHOT_EVERY_FRAMES) {

@@ -98,6 +98,9 @@ class GenesisGpgxBackend implements RunBackend {
   readonly sampleRate = SAMPLE_RATE
   readonly pixels = new Uint32Array(WIDTH * HEIGHT) // 0xAARRGGBB (xrgb8888)
   private breakpoints = new Set<number>()
+  // Z80 sound-coprocessor breakpoints (#147 Phase 2d): checked against the Z80 PC
+  // at the frame boundary, like the 68000's. Set when the user focuses the Z80.
+  private z80Breakpoints = new Set<number>()
   private padState = 0
   private loaded = false
   private readonly core: GpgxExports
@@ -175,6 +178,9 @@ class GenesisGpgxBackend implements RunBackend {
     this.refreshPixels()
     this.pumpAudio()
     if (this.breakpoints.has(this.getPC())) return 0
+    // Z80 breakpoints trap on the Z80 PC at the frame boundary (same fidelity as
+    // the 68000 — gpgx is frame-scheduled, #146).
+    if (this.z80Breakpoints.size > 0 && this.z80Breakpoints.has(this.z80PC())) return 0
     if (trap) trap()
     return 1
   }
@@ -241,12 +247,17 @@ class GenesisGpgxBackend implements RunBackend {
 
   /** Secondary-CPU debug view: the Z80 sound coprocessor. The DebugService
    *  attaches a Z80 DebugAdapter to this when the user focuses the Z80. */
+  setZ80Breakpoints(addrs: Iterable<number | { addr: number }>): void {
+    this.z80Breakpoints = new Set([...addrs].map((a) => (typeof a === 'number' ? a : a.addr) & 0xffff))
+  }
+
   auxCpu(id: string): AuxCpuView | undefined {
     if (id !== 'z80') return undefined
     return {
       cpuState: () => this.z80State(),
       getPC: () => this.z80PC(),
       readMem: (addr, len) => this.readZ80Mem(addr, len),
+      setBreakpoints: (addrs) => this.setZ80Breakpoints(addrs),
     }
   }
 

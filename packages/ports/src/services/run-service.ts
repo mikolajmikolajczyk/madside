@@ -62,6 +62,9 @@ export interface AuxCpuView {
   cpuState(): unknown
   getPC(): number
   readMem(addr: number, len: number, space?: string): Uint8Array
+  /** Replace this CPU's breakpoint set (its own PC space). Optional — present
+   *  when the backend can trap on the aux CPU's PC. */
+  setBreakpoints?(addrs: Iterable<number | BankBreakpoint>): void
 }
 
 export interface RunBackend {
