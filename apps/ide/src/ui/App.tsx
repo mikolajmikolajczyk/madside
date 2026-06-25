@@ -527,10 +527,17 @@ export default function App() {
   // tab to that file so the highlighted line is visible.
   const projectFilesRef = project.loaded ? project.files : null;
   const setActivePathFn = project.loaded ? project.setActivePath : null;
+  // The last PC we auto-followed. The effect re-runs whenever activePath changes
+  // too, so without this it would yank the editor back to the PC's file the
+  // instant the user manually switched away — making it impossible to browse
+  // other files while paused. Only follow when the PC itself moves (pause/step).
+  const lastFollowPcRef = useRef<number | null>(null);
   useEffect(() => {
     if (running || !cpu || !sourceMap || !projectFilesRef || !setActivePathFn) return;
+    if (cpu.regs.pc === lastFollowPcRef.current) return; // a manual switch, not a new stop
     const loc = resolvePcLoc(sourceMap, cpu.regs.pc, liveSpaceAt(cpu.regs.pc));
     if (!loc) return;
+    lastFollowPcRef.current = cpu.regs.pc;
     if (loc.file === activePath) return;
     // SourceMap keys are full project paths post-30be0cf — exact-match the
     // file in the project tree, no basename fallback needed.

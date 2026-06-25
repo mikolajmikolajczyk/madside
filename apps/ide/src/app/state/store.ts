@@ -89,13 +89,22 @@ export function useProject(storage: StorageBackend, events?: EventBus) {
           content: f.content,
         }));
         files.sort((a, b) => a.path.localeCompare(b.path));
-        const activePath = preferredActivePath(files, loaded.manifest);
-        setState({
-          projectId: loaded.project.id,
-          manifest: loaded.manifest,
-          files,
-          activePath,
-          breakpoints: bps,
+        setState((prev) => {
+          // Preserve the user's open file across a reload. A reload fires on
+          // every file edit/save, manifest update, snapshot restore, and build
+          // (all bump reloadKey) — re-deriving the active path each time would
+          // snap the editor back to `main` and clobber a manual file switch.
+          // Only fall back to the preferred file on a genuine project switch or
+          // when the open file no longer exists (deleted / renamed).
+          const keep =
+            prev != null && prev.projectId === loaded.project.id && files.some((f) => f.path === prev.activePath);
+          return {
+            projectId: loaded.project.id,
+            manifest: loaded.manifest,
+            files,
+            activePath: keep ? prev.activePath : preferredActivePath(files, loaded.manifest),
+            breakpoints: bps,
+          };
         });
         setProjects(list);
         setSnapshots(snaps);
