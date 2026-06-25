@@ -289,10 +289,12 @@ class GenesisGpgxBackend implements RunBackend {
     return out
   }
 
-  setBreakpoints(addrs: Iterable<number>): void {
+  setBreakpoints(addrs: Iterable<number | { addr: number }>): void {
     // Write the 68000 breakpoint addresses into the core's bp buffer and set the
-    // count; the patched m68k_run loop checks them per instruction (#146).
-    const list = [...addrs].map((a) => a >>> 0)
+    // count; the patched m68k_run loop checks them per instruction (#146). A
+    // banked entry ({addr,space}, ADR-0014) registers its CPU addr — the core is
+    // bank-blind; the host re-checks the live bank in breakpointFires().
+    const list = [...addrs].map((a) => (typeof a === 'number' ? a : a.addr) >>> 0)
     const cap = this.core.bp_capacity()
     const n = Math.min(list.length, cap)
     // Re-derive the view each call — wasm memory growth detaches it.
