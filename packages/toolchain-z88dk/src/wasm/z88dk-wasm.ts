@@ -144,27 +144,37 @@ export interface Z80FlatResult {
   ok: boolean
   /** Raw flat binary z80asm emits (`-b`), absent on failure. */
   binary?: Uint8Array
+  /** z80asm list (`-l`) + map (`-m`) text — drive a Z80 source map
+   *  (parseZ80asmDebug) for source-level debugging of the embedded blob. */
+  lis?: string
+  map?: string
   stderr: string
 }
 
 /** Assemble Z80 source to a RAW flat binary — `z80asm -b`, no snapshot wrap and
  *  no ZX-RAM org constraints. For embedding a Z80 blob (e.g. a Genesis sound
  *  driver) into another build via `incbin` (#147). `main` is the entry source;
- *  `files` carries it plus any includes. The org comes from the source itself. */
+ *  `files` carries it plus any includes. The org comes from the source itself.
+ *  Also returns the list/map text so the host can build a Z80 source map. */
 export async function assembleZ80Flat(main: string, files: Z88dkFile[], extraArgs: string[] = []): Promise<Z80FlatResult> {
   const z80asmMod = await loadWasmModule(z80asmWasmUrl)
   const binPath = `${stem(main)}.bin`
+  const lisPath = `${stem(main)}.lis`
+  const mapPath = `${stem(main)}.map`
   const project = new MemoryProvider(
     files.map((f) => [f.path, typeof f.content === 'string' ? encoder.encode(f.content) : f.content] as const),
   )
   const vfs = createVfs([{ prefix: '', provider: project, ro: false }])
-  const root = await vfsToPreopen(vfs, { outputs: [binPath] })
-  const r = await runTool(z80asmMod, root, ['z80asm', '-b', '-mz80', ...extraArgs, main])
+  const root = await vfsToPreopen(vfs, { outputs: [binPath, lisPath, mapPath] })
+  const r = await runTool(z80asmMod, root, ['z80asm', '-b', '-l', '-m', '-mz80', ...extraArgs, main])
   const stderr = r.stderr.trim() ? `[z80asm] ${r.stderr}` : ''
   if (r.exitCode !== 0) return { ok: false, stderr }
   const binary = readFromPreopen(root, binPath)
   if (!binary || binary.length === 0) return { ok: false, stderr: `${stderr}\n[z80asm] no binary produced` }
-  return { ok: true, binary, stderr }
+  const dec = new TextDecoder()
+  const lisB = readFromPreopen(root, lisPath)
+  const mapB = readFromPreopen(root, mapPath)
+  return { ok: true, binary, lis: lisB ? dec.decode(lisB) : undefined, map: mapB ? dec.decode(mapB) : undefined, stderr }
 }
 
 export async function buildZ88dk(main: string, files: Z88dkFile[], opts: Z88dkOptions = {}, banked = false): Promise<Z88dkBuildResult> {

@@ -113,6 +113,7 @@ const toolchainToBuildHook = (plugin: ToolchainPlugin): ToolchainAssembleFn =>
       stdout: out.stdout,
       stderr: out.stderr,
       sourceMap: out.sourceMap,
+      sourceMaps: out.sourceMaps,
       labels: out.labels,
       debugInfo: out.debugInfo,
       diagnostics: out.diagnostics,

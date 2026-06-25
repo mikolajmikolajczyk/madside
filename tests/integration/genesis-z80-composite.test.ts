@@ -76,6 +76,13 @@ describe('Genesis Z80 — composite own-source build (#147 Phase 1B)', () => {
     const inRom = Array.from(built.binary!.slice(off!, off! + expected.binary!.length))
     expect(inRom).toEqual(Array.from(expected.binary!))
     expect(built.labels?.get('Z80DriverEnd')).toBe(off! + expected.binary!.length)
+
+    // The composite also emits a Z80 source map (#147 Phase 2d) so the .s80 gets
+    // source-level debugging. The `di` at Z80 addr $0 maps back to driver.s80.
+    const z80map = built.sourceMaps?.z80
+    expect(z80map, 'no z80 source map').toBeDefined()
+    expect(z80map!.addrToLoc.get(0)?.file).toBe('src/sound/driver.s80')
+    expect((z80map!.locToAddr.get('src/sound/driver.s80')?.size ?? 0)).toBeGreaterThan(0)
   })
 
   it('without the flag, the .s80 is ignored (no .bin injected → incbin fails)', async () => {

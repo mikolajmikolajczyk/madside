@@ -39,8 +39,12 @@ export interface ToolchainBuildOutput {
   stdout: string
   stderr: string
   /** Parsed source map — toolchains that emit a listing produce one here so
-   *  BuildService can skip per-toolchain parsing. */
+   *  BuildService can skip per-toolchain parsing. The PRIMARY CPU's map. */
   sourceMap?: SourceMap
+  /** Per-CPU source maps for a multi-CPU build (Genesis: `{ z80: … }`), keyed by
+   *  cpu id. The focused-CPU debugger picks the map matching the focused CPU; the
+   *  primary stays in `sourceMap`. Omitted for single-CPU builds. */
+  sourceMaps?: Record<string, SourceMap>
   /** Parsed label dump — `name → address`. Toolchain plugin owns the parse so
    *  the workbench never sees raw `.lab` / `.sym` text. */
   labels?: Map<string, number>

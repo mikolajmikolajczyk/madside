@@ -148,6 +148,8 @@ export interface StoredBuild {
   ok: boolean
   binary?: Uint8Array
   sourceMap?: SourceMap
+  /** Per-CPU source maps for a multi-CPU build (Genesis Z80, #147). */
+  sourceMaps?: Record<string, SourceMap>
   labels?: Map<string, number>
   debugInfo?: DebugInfo
   diagnostics?: BuildDiagnostic[]

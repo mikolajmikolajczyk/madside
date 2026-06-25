@@ -21,8 +21,12 @@ export interface BuildResult {
   stdout: string
   /** Toolchain stderr — present even on success when warnings emit. */
   stderr: string
-  /** Parsed source map (PC ↔ source loc). Toolchain plugin owns the parse. */
+  /** Parsed source map (PC ↔ source loc). Toolchain plugin owns the parse. The
+   *  PRIMARY CPU's map. */
   sourceMap?: SourceMap
+  /** Per-CPU source maps for a multi-CPU build (Genesis: `{ z80: … }`). The
+   *  focused-CPU debugger picks the map matching the focused CPU. */
+  sourceMaps?: Record<string, SourceMap>
   /** Parsed label dump — `name → address`. Toolchain plugin owns the parse. */
   labels?: Map<string, number>
   /** Typed-symbol model for the debugger (ADR-0011, #130). */

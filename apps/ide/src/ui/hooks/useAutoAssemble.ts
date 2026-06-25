@@ -33,6 +33,7 @@ const toStored = (o: AutoAssembleOutcome): StoredBuild => ({
   ok: o.ok,
   binary: o.xex,
   sourceMap: o.sourceMap,
+  sourceMaps: o.sourceMaps,
   labels: o.labels,
   debugInfo: o.debugInfo,
   diagnostics: o.diagnostics,
@@ -46,6 +47,7 @@ export const outcomeFromStored = (b: StoredBuild): AutoAssembleOutcome => ({
   ok: b.ok,
   xex: b.binary,
   sourceMap: b.sourceMap,
+  sourceMaps: b.sourceMaps,
   labels: b.labels,
   debugInfo: b.debugInfo,
   diagnostics: b.diagnostics,
@@ -61,6 +63,8 @@ export interface AutoAssembleOutcome {
   ok: boolean;
   xex?: Uint8Array;
   sourceMap?: SourceMap;
+  /** Per-CPU source maps for a multi-CPU build (Genesis Z80, #147 Phase 2d). */
+  sourceMaps?: Record<string, SourceMap>;
   labels?: Map<string, number>;
   /** Typed-symbol model for the Variables panel (#130). */
   debugInfo?: DebugInfo;
@@ -85,6 +89,7 @@ const toOutcome = (r: BuildResult): AutoAssembleOutcome => ({
   ok: true,
   xex: r.binary,
   sourceMap: r.sourceMap,
+  sourceMaps: r.sourceMaps,
   labels: r.labels,
   debugInfo: r.debugInfo,
   diagnostics: r.diagnostics,

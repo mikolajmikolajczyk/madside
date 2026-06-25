@@ -3,7 +3,8 @@ import { assemble, type SourceFile } from "./wasm-clownassembler";
 import { parseListingLabels } from "./labParser";
 import { parseListingSourceMap } from "./sourceMap";
 import { parseClownDiagnostics } from "./diagnostics";
-import { assembleZ80Flat } from "@madside/toolchain-z88dk";
+import { assembleZ80Flat, parseZ80asmDebug } from "@madside/toolchain-z88dk";
+import type { SourceMap } from "@ports";
 
 // clownassembler — Clownacy's AGPLv3+ Motorola 68000 assembler (asm68k/SN-68k
 // syntax), the Sega Genesis/Mega Drive toolchain (#145). Wraps the
@@ -55,6 +56,7 @@ export const clownassemblerToolchain: ToolchainPlugin = {
     // `.s80`; `z80: "path.s80"` builds just that entry. This is the same
     // multi-tool-under-one-plugin pattern as cc65/z88dk — clownassembler IS the
     // Genesis build, internally orchestrating both assemblers.
+    let z80SourceMap: SourceMap | undefined;
     const z80opt = (input.options as { z80?: unknown } | undefined)?.z80;
     if (z80opt) {
       const z80files = input.files.map((f) => ({ path: f.path, content: f.content }));
@@ -67,6 +69,8 @@ export const clownassemblerToolchain: ToolchainPlugin = {
           return { ok: false, stdout: "", stderr: blob.stderr, diagnostics: [], exitCode: 1 };
         }
         sources.push({ path: entry.replace(/\.s80$/i, ".bin"), content: blob.binary });
+        // Z80 source map for source-level debugging of the driver (#147 Phase 2d).
+        if (blob.lis && blob.map) z80SourceMap = parseZ80asmDebug(blob.lis, blob.map, [entry]).sourceMap;
       }
     }
 
@@ -94,6 +98,7 @@ export const clownassemblerToolchain: ToolchainPlugin = {
       stderr: r.stderr,
       labels,
       sourceMap,
+      sourceMaps: z80SourceMap ? { z80: z80SourceMap } : undefined,
       diagnostics,
       extras: r.listing ? { lst: r.listing } : undefined,
       exitCode: r.exitCode,

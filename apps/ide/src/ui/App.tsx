@@ -211,7 +211,11 @@ export default function App() {
     [project],
   );
 
-  const sourceMap = result?.sourceMap ?? null;
+  // The focused CPU's source map drives current-line + line breakpoints. On a
+  // multi-CPU machine (Genesis 68000 + Z80) focusing the Z80 swaps to its map so
+  // the .s80 lights up; the primary CPU uses the default map (#147 Phase 2d).
+  const focusedCpu = workbench.debug.focusedCpu();
+  const sourceMap = (focusedCpu ? result?.sourceMaps?.[focusedCpu] : null) ?? result?.sourceMap ?? null;
 
   // Editor language is driven by the machine CPU + the project's toolchain
   // (epic 78b12bf) — not hardcoded MADS. Resolve both for the editor +

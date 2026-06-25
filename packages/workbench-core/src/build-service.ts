@@ -36,6 +36,7 @@ export interface ToolchainAssembleResult {
   stdout: string
   stderr: string
   sourceMap?: SourceMap
+  sourceMaps?: Record<string, SourceMap>
   labels?: Map<string, number>
   /** Typed-symbol model for the debugger (ADR-0011, #130). */
   debugInfo?: DebugInfo
@@ -170,6 +171,7 @@ export function createBuildService(deps: BuildServiceDeps): BuildService {
         stdout: assembleResult.stdout,
         stderr: assembleResult.stderr,
         sourceMap: assembleResult.sourceMap,
+        sourceMaps: assembleResult.sourceMaps,
         labels: assembleResult.labels,
         debugInfo: assembleResult.debugInfo,
         diagnostics: assembleResult.diagnostics,
