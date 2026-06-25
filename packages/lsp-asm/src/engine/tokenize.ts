@@ -112,25 +112,53 @@ function splitComment(line: string, markers: readonly string[]): { codeEnd: numb
   return { codeEnd: line.length, commentAt: -1 }
 }
 
-/** Scan operand text for register/symbol/number tokens, collecting refs + tokens. */
-function scanOperand(operand: string, base: number, d: AsmDialect, refs: LineRef[], tokens: SemTok[]): void {
+/** Scan operand text for register/symbol/number/string tokens, collecting refs +
+ *  tokens. Strings are masked first (their interior is never a symbol/number),
+ *  then numbers; an identifier overlapping either span is skipped — so hex with
+ *  letter digits (`$bff0`) and string contents (`icl 'nes.a65'`) are not mistaken
+ *  for undefined symbols. `skipRefs` suppresses reference collection (still
+ *  tokenizes) for directives whose operand is not symbols (MADS `opt h-`). */
+function scanOperand(operand: string, base: number, d: AsmDialect, refs: LineRef[], tokens: SemTok[], skipRefs = false): void {
+  // 1. Mask quoted strings ('...' / "..."); tokenize them, exclude their interior.
+  const strSpans: [number, number][] = []
+  for (let i = 0; i < operand.length; i++) {
+    const q = operand[i]
+    if (q !== '"' && q !== "'") continue
+    let j = i + 1
+    while (j < operand.length && operand[j] !== q) j++
+    const end = j < operand.length ? j + 1 : operand.length // include the close quote
+    strSpans.push([i, end])
+    tokens.push({ kind: 'string', start: base + i, end: base + end })
+    i = end - 1
+  }
+  const inSpan = (spans: [number, number][], pos: number): boolean => spans.some(([s, e]) => pos >= s && pos < e)
+
+  // 2. Numbers outside strings (hex/bin/dec). Record spans so the ident scan can
+  //    skip the letter digits of a hex literal ($bff0 → don't re-read `bff0`).
+  const numSpans: [number, number][] = []
   NUMBER.lastIndex = 0
   for (let m = NUMBER.exec(operand); m; m = NUMBER.exec(operand)) {
+    if (inSpan(strSpans, m.index)) continue
+    numSpans.push([m.index, m.index + m[0].length])
     tokens.push({ kind: 'number', start: base + m.index, end: base + m.index + m[0].length })
   }
+
+  // 3. Identifiers: registers, opcodes, else symbol references.
   IDENT.lastIndex = 0
   for (let m = IDENT.exec(operand); m; m = IDENT.exec(operand)) {
     const name = m[0]
-    const start = base + m.index
-    // Skip an identifier that's actually the tail of a number we already tagged
-    // (e.g. the `h` of `10h`) — numbers are scanned first; an ident starting
-    // mid-number is rare, ignore for P1.
+    const idx = m.index
+    if (inSpan(strSpans, idx) || inSpan(numSpans, idx)) continue
+    // MADS data type-prefix: a single letter glued to a string (`dta c"NES"`,
+    // `a"..."`) is a value type, not a symbol.
+    if (name.length === 1 && (operand[idx + 1] === '"' || operand[idx + 1] === "'")) continue
+    const start = base + idx
     if (isRegister(name, d)) {
       tokens.push({ kind: 'register', start, end: start + name.length })
     } else if (isOpcode(name, d)) {
       tokens.push({ kind: 'opcode', start, end: start + name.length })
     } else {
-      refs.push({ name, start, end: start + name.length })
+      if (!skipRefs) refs.push({ name, start, end: start + name.length })
       tokens.push({ kind: 'symbol', start, end: start + name.length })
     }
   }
@@ -207,18 +235,23 @@ export function parseLine(line: string, lineStart: number, d: AsmDialect): Parse
     const tokTxt = mn[2]
     const tokStart = lineStart + restBase + mn[1].length
     const opEnd = restBase + mn[1].length + tokTxt.length
+    // Directives whose operand is options/flags, not symbols (MADS `opt h-`) —
+    // tokenize the operand but don't collect it as undefined-able references.
+    let skipRefs = false
     if (isOpcode(tokTxt, d)) {
       tokens.push({ kind: 'opcode', start: tokStart, end: tokStart + tokTxt.length })
       instr = { mnemonic: tokTxt, operand: code.slice(opEnd).trim(), start: tokStart, end: tokStart + tokTxt.length }
     } else if (isDirective(tokTxt, d)) {
       tokens.push({ kind: 'directive', start: tokStart, end: tokStart + tokTxt.length })
+      const bare = d.directivePrefix && tokTxt.startsWith(d.directivePrefix) ? tokTxt.slice(d.directivePrefix.length) : tokTxt
+      skipRefs = d.rawOperandDirectives?.has(stripSize(bare, d).toLowerCase()) ?? false
     } else if (/[.A-Za-z_@?]/.test(tokTxt[0])) {
       // A bare identifier in the mnemonic slot = a macro / pseudo-op invocation →
       // reference (flagged mnemonic-slot so diagnose won't undefined-flag it).
       refs.push({ name: tokTxt, start: tokStart, end: tokStart + tokTxt.length, mnemonic: true })
       tokens.push({ kind: 'macro', start: tokStart, end: tokStart + tokTxt.length })
     }
-    scanOperand(code.slice(opEnd), lineStart + opEnd, d, refs, tokens)
+    scanOperand(code.slice(opEnd), lineStart + opEnd, d, refs, tokens, skipRefs)
   }
 
   return { def, refs, tokens, instr }

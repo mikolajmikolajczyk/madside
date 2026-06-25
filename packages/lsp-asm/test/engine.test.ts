@@ -106,6 +106,39 @@ describe('asm engine via createAsmProvider (mads)', () => {
     expect(kindAt(MADS.indexOf('loop'))).toBe('label')
     expect(kindAt(at('sta SCREEN', 4) + 1)).toBe('symbol')
   })
+
+  it('does not flag hex literals, string/option operands, or dta type prefixes', () => {
+    // Regression: the NES-template header lines were mis-read as undefined
+    // symbols — hex with letter digits ($bff0), an `icl` filename, an `opt`
+    // flag, and a `dta` char-type prefix.
+    const src = `        icl 'nes.a65'
+        opt h-
+        org $bff0
+        dta c"NES",$1a
+        ldx #$ff
+        org $c000
+        lda #$3f
+reset
+        rts
+`
+    const p = provider([{ path: 'm.asm', text: src }])
+    const diags = p.diagnose('m.asm')
+    // None of the operands above are symbols → zero diagnostics.
+    expect(diags).toEqual([])
+    // A genuine undefined operand symbol is still flagged.
+    const p2 = provider([{ path: 'm.asm', text: '        lda nope\n' }])
+    expect(p2.diagnose('m.asm').some((d) => d.message.includes('nope'))).toBe(true)
+  })
+
+  it('tokenizes a hex literal with letter digits as a single number', () => {
+    const p = provider([{ path: 'm.asm', text: '        org $bff0\n' }])
+    const toks = p.semanticTokens('m.asm', '        org $bff0\n')
+    const at = '        org $bff0\n'.indexOf('$bff0')
+    const t = toks.find((tk) => tk.start <= at && at < tk.end)
+    expect(t && SEM_LEGEND[t.tokenType]).toBe('number')
+    // and the `bff0` tail is NOT a separate symbol token
+    expect(toks.filter((tk) => tk.start <= at + 1 && at + 1 < tk.end).map((tk) => SEM_LEGEND[tk.tokenType])).toEqual(['number'])
+  })
 })
 
 describe('cross-file + case-insensitivity (mads) and z80asm', () => {

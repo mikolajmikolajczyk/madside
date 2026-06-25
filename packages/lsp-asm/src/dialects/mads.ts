@@ -22,6 +22,8 @@ export const madsDialect: AsmDialect = {
   lineComment: [';', '//'],
   directives: new Set(DIRECTIVES),
   directivePrefix: '',
+  // `opt` takes compiler-option flags (`opt h-`, `opt f+`), not symbols.
+  rawOperandDirectives: new Set(['opt']),
   caseInsensitive: true,
   labelColon: false,
   equate: /^\s*(\w+)\s*(?:=|\bequ\b)/i,

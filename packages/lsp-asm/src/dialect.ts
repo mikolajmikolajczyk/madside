@@ -37,6 +37,10 @@ export interface AsmDialect {
   /** Prefix a directive carries in source, e.g. '.' for ca65 (`.segment`). '' if
    *  directives are written bare (mads, z80asm). */
   readonly directivePrefix: string
+  /** Directives (lowercase, unprefixed) whose operand is options/flags rather
+   *  than symbols, so its identifiers must NOT be undefined-flagged (MADS
+   *  `opt h-`). Omit when none apply. */
+  readonly rawOperandDirectives?: ReadonlySet<string>
   /** True when the assembler folds case for symbols (mads). When false, labels
    *  are case-sensitive (ca65, z80asm). */
   readonly caseInsensitive: boolean
