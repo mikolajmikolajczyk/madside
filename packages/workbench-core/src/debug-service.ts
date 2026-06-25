@@ -1,4 +1,5 @@
 import type {
+  AuxCpuView,
   DebugAdapterPlugin,
   DebugService,
   DebugTarget,
@@ -6,8 +7,36 @@ import type {
   FlagState,
   Logger,
   RegState,
+  RunBackend,
   RunService,
 } from '@ports'
+
+// Present a backend's secondary-CPU view (registers/PC/memory) as a RunBackend so
+// an existing DebugAdapter can attach to it. Control (step/run/breakpoints) stays
+// on the REAL backend — stepping the machine advances every CPU together — only
+// the CPU-state reads come from the aux view.
+function auxBackend(real: RunBackend, view: AuxCpuView): RunBackend {
+  return {
+    width: real.width,
+    height: real.height,
+    sampleRate: real.sampleRate,
+    pixels: real.pixels,
+    loadMedia: (f, b) => real.loadMedia(f, b),
+    advanceFrame: (t) => real.advanceFrame(t),
+    step: () => real.step(),
+    cpuState: () => view.cpuState(),
+    getPC: () => view.getPC(),
+    isAtInstrBoundary: () => real.isAtInstrBoundary(),
+    readMem: (a, l, s) => view.readMem(a, l, s),
+    setBreakpoints: (a) => real.setBreakpoints(a),
+    bankMap: real.bankMap ? () => real.bankMap!() : undefined,
+    sendKey: (k, c, d, m) => real.sendKey(k, c, d, m),
+    saveState: () => real.saveState(),
+    loadState: (s) => real.loadState(s),
+    startAudio: () => real.startAudio(),
+    suspendAudio: () => real.suspendAudio(),
+  }
+}
 
 // DebugService delegates to the active DebugAdapterPlugin. The adapter wraps
 // the RunBackend and exposes a CPU-agnostic surface (descriptors + step + BP
@@ -18,6 +47,9 @@ export interface DebugServiceDeps {
   events: EventBus
   run: RunService
   adapter: DebugAdapterPlugin
+  /** Per-aux-cpu DebugAdapters for multi-CPU machines (Genesis: `{ z80: zxZ80 }`).
+   *  The focused-CPU switch attaches these to the backend's `auxCpu(id)` view. */
+  auxAdapters?: Record<string, DebugAdapterPlugin>
   logger?: Logger
 }
 
@@ -26,9 +58,22 @@ export function createDebugService(deps: DebugServiceDeps): DebugService {
   const breakpoints = new Set<number>()
   let cachedTarget: DebugTarget | null = null
   let cachedBackendId: object | null = null
+  let cachedCpuId: string | null = null
   // Mutable so machine selection can swap the adapter without recreating the
   // service (keeps the breakpoint set intact).
   let adapter = deps.adapter
+  // Focused CPU for a multi-CPU machine (null = primary). Routes target() to the
+  // aux adapter + the backend's auxCpu(id) view.
+  let focusedCpuId: string | null = null
+
+  const attachFor = (backend: RunBackend, cpuId: string | null): DebugTarget => {
+    if (cpuId) {
+      const auxAdapter = deps.auxAdapters?.[cpuId]
+      const view = backend.auxCpu?.(cpuId)
+      if (auxAdapter && view) return auxAdapter.attach(auxBackend(backend, view))
+    }
+    return adapter.attach(backend)
+  }
 
   const target = (): DebugTarget | null => {
     const backend = deps.run.backend()
@@ -37,9 +82,10 @@ export function createDebugService(deps: DebugServiceDeps): DebugService {
       cachedBackendId = null
       return null
     }
-    if (backend !== cachedBackendId) {
-      cachedTarget = adapter.attach(backend)
+    if (backend !== cachedBackendId || focusedCpuId !== cachedCpuId) {
+      cachedTarget = attachFor(backend, focusedCpuId)
       cachedBackendId = backend
+      cachedCpuId = focusedCpuId
     }
     return cachedTarget
   }
@@ -134,9 +180,24 @@ export function createDebugService(deps: DebugServiceDeps): DebugService {
     setAdapter(next) {
       adapter = next
       // Force re-attach on next target() — the cached one is bound to the old
-      // adapter (and likely a now-unloaded backend).
+      // adapter (and likely a now-unloaded backend). Reset the focus to the new
+      // machine's primary CPU.
+      focusedCpuId = null
       cachedTarget = null
       cachedBackendId = null
+      cachedCpuId = null
+    },
+
+    focusedCpu() {
+      return focusedCpuId
+    },
+
+    setFocusedCpu(id) {
+      if (id === focusedCpuId) return
+      focusedCpuId = id
+      // target() re-attaches because focusedCpuId !== cachedCpuId; re-apply the
+      // (shared) breakpoint set to the newly focused CPU's target.
+      syncBreakpoints()
     },
 
     target,

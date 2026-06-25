@@ -55,6 +55,15 @@ export interface BankProjection {
 
 /** Minimal facade the UI loops touch directly. RunService delegates here for
  *  per-frame work; DebugService (M6) will tighten this further. */
+/** A secondary CPU's debug view (registers + PC + memory), read off a multi-CPU
+ *  backend via {@link RunBackend.auxCpu}. Mirrors the CPU-state slice of
+ *  RunBackend so an existing DebugAdapter can attach to it. */
+export interface AuxCpuView {
+  cpuState(): unknown
+  getPC(): number
+  readMem(addr: number, len: number, space?: string): Uint8Array
+}
+
 export interface RunBackend {
   readonly width: number
   readonly height: number
@@ -84,6 +93,12 @@ export interface RunBackend {
    *  backends for machines that declare `MachinePlugin.banks` implement it; flat
    *  backends omit it. Returns one entry per window. */
   bankMap?(): BankProjection[]
+  /** A secondary CPU's debug view, by cpu id (e.g. the Genesis Z80 sound
+   *  coprocessor, `'z80'`). Optional — only multi-CPU backends implement it. The
+   *  focused-CPU debugger reads each aux CPU as its own register/memory surface;
+   *  control (step/run/breakpoints) stays on the primary backend, since stepping
+   *  the machine advances every CPU together. Returns undefined for unknown ids. */
+  auxCpu?(id: string): AuxCpuView | undefined
   sendKey(keyCode: number, charCode: number, isDown: boolean, modifiers?: number): void
   saveState(): unknown
   loadState(snapshot: unknown): void

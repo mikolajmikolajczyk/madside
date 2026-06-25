@@ -36,6 +36,15 @@ export interface DebugService {
    *  new backend with the new adapter. Breakpoints carry over. */
   setAdapter(adapter: DebugAdapterPlugin): void
 
+  /** The focused CPU id for a multi-CPU machine (Genesis 68000 ↔ Z80). Null /
+   *  the primary cpu = the default adapter on the backend; an aux id routes
+   *  registers / memory / current-line through that CPU's adapter + the
+   *  backend's `auxCpu(id)` view. */
+  focusedCpu(): string | null
+  /** Focus a CPU by id (null = primary). Drops the cached target so the next
+   *  target() re-attaches for the selected CPU. */
+  setFocusedCpu(id: string | null): void
+
   /** Live handle to the attached DebugTarget. Null until RunService.boot()
    *  completes. UI consumers read `target()?.registers` / `target()?.flags`
    *  for the descriptor lists shown in the panel. */

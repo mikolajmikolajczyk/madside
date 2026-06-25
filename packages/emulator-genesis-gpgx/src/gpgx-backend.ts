@@ -1,4 +1,4 @@
-import type { Cpu68kState, CpuZ80State, RunBackend } from '@ports'
+import type { AuxCpuView, Cpu68kState, CpuZ80State, RunBackend } from '@ports'
 import { loadWasmModule } from '@core/vfs'
 import { AudioPushPump } from '@core/audio'
 import { gpgxWasmUrl } from '@madside/wasm-genesis-gpgx'
@@ -237,6 +237,17 @@ class GenesisGpgxBackend implements RunBackend {
     const out = new Uint8Array(len)
     for (let i = 0; i < len; i++) out[i] = this.core.z80_read_byte((addr + i) & 0xffff) & 0xff
     return out
+  }
+
+  /** Secondary-CPU debug view: the Z80 sound coprocessor. The DebugService
+   *  attaches a Z80 DebugAdapter to this when the user focuses the Z80. */
+  auxCpu(id: string): AuxCpuView | undefined {
+    if (id !== 'z80') return undefined
+    return {
+      cpuState: () => this.z80State(),
+      getPC: () => this.z80PC(),
+      readMem: (addr, len) => this.readZ80Mem(addr, len),
+    }
   }
 
   isAtInstrBoundary(): boolean {

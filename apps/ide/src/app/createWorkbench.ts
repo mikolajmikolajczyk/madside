@@ -264,11 +264,23 @@ export function createWorkbench(deps: WorkbenchDeps): Workbench {
     hardwareConfig: atariXl.hardwareConfig,
     media: atariXl.media,
   })
+  // Aux-CPU debug adapters for multi-CPU machines (Genesis: z80 → zx-z80-debug),
+  // collected from every machine's `cpus` aux entries → resolved from the
+  // registry. The focused-CPU switch picks one by cpu id (#147 Phase 2).
+  const auxAdapters: Record<string, DebugAdapterPlugin> = {}
+  for (const setup of Object.values(machineSetups)) {
+    for (const c of setup.machine.cpus ?? []) {
+      if (!c.aux) continue
+      const a = plugins.get<DebugAdapterPlugin>('debug-adapter', c.adapter)
+      if (a) auxAdapters[c.id] = a
+    }
+  }
   const debug = createDebugService({
     events,
     logger: deps.logger,
     run,
     adapter: machineSetups['atari-xl']!.debugAdapter,
+    auxAdapters,
   })
 
   const setActiveMachine = (machineId: string): void => {

@@ -15,6 +15,12 @@ export const machineGenesis: MachinePlugin = {
   id: 'genesis',
   name: 'Sega Mega Drive / Genesis',
   cpu: 'm68000',
+  // Dual CPU: the 68000 main + the Z80 sound coprocessor. The debugger offers a
+  // focused-CPU switch across both (#147 Phase 2).
+  cpus: [
+    { id: 'm68000', label: 'Motorola 68000', adapter: 'm68k-debug' },
+    { id: 'z80', label: 'Z80 (sound)', adapter: 'zx-z80-debug', aux: true },
+  ],
 
   display: {
     // VDP active display: 320×224 (NTSC H40 mode). The emulator backend is the
@@ -96,7 +102,7 @@ export const machineGenesis: MachinePlugin = {
   // gpgx (full system: VDP/sound/Z80/IO) is the Genesis backend (#145, Phase B),
   // resolved through the PluginRegistry at runtime.
   compatibleEmulators: ['genesis-gpgx'],
-  compatibleDebugAdapters: ['m68k-debug'],
+  compatibleDebugAdapters: ['m68k-debug', 'zx-z80-debug'],
 
   // Common Genesis equates injected into new clownassembler projects (asm68k
   // syntax, `include "src/genesis.inc"`).

@@ -172,11 +172,29 @@ export interface BootEquates {
   content: string
 }
 
+/** A CPU the debugger can focus, for multi-CPU machines (Genesis 68000 + Z80). */
+export interface CpuDescriptor {
+  /** CPU id — the primary matches `MachinePlugin.cpu`; an aux is e.g. `'z80'`. */
+  readonly id: string
+  /** Display label for the CPU switch, e.g. 'Motorola 68000', 'Z80 (sound)'. */
+  readonly label: string
+  /** The DebugAdapter id (from `compatibleDebugAdapters`) that reads this CPU. */
+  readonly adapter: string
+  /** True for a secondary CPU read via `RunBackend.auxCpu(id)`; the primary CPU
+   *  reads the backend directly (omit / false). */
+  readonly aux?: boolean
+}
+
 export interface MachinePlugin extends PluginBase {
   readonly kind: 'machine'
   readonly id: string
   readonly name: string
   readonly cpu: CpuId
+  /** Secondary CPUs beyond the primary `cpu` (e.g. the Genesis Z80 sound
+   *  coprocessor). Optional — single-CPU machines omit it. The debugger offers a
+   *  focused-CPU switch across the primary + these; each `id` resolves a
+   *  DebugAdapter (from `compatibleDebugAdapters`) + the backend's `auxCpu(id)`. */
+  readonly cpus?: CpuDescriptor[]
   readonly memoryMap: MemoryRegion[]
   /** Extra address spaces beyond the CPU bus (NES 'ppu'/'oam', …). Optional —
    *  most machines only have the implicit 'cpu' space. Viewer panels read
