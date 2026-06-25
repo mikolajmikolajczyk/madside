@@ -192,6 +192,11 @@ static int g_m68k_trapped = 0;
 /* When resuming from a parked breakpoint, the instruction AT the trapped PC must
  * run once without re-trapping, else the program can't make progress. One-shot. */
 static uint32_t g_skip_pc = 0xFFFFFFFFu;
+/* The PC we last trapped at. run_frame only skips the parked instruction when the
+ * current PC equals this — i.e. we're genuinely resuming from that breakpoint.
+ * Otherwise a breakpoint on the entry point (the reset PC) would be skipped on
+ * the very first run instead of trapping. */
+static uint32_t g_last_trap_pc = 0xFFFFFFFFu;
 
 static int md_bp_hit(uint32_t pc)
 {
@@ -206,7 +211,7 @@ int md_bp_check(unsigned int pc)
 {
   if (g_m68k_bp_count == 0) return 0;
   if (pc == g_skip_pc) { g_skip_pc = 0xFFFFFFFFu; return 0; } /* resumed instr */
-  if (md_bp_hit((uint32_t)pc)) { g_m68k_trapped = 1; return 1; }
+  if (md_bp_hit((uint32_t)pc)) { g_m68k_trapped = 1; g_last_trap_pc = pc; return 1; }
   return 0;
 }
 
@@ -226,17 +231,11 @@ EXPORT("set_bp_count") void sys_set_bp_count(int n)
 EXPORT("run_frame") int sys_run_frame(void)
 {
   g_m68k_trapped = 0;
-  if (g_m68k_bp_count > 0)
-  {
-    /* If we're parked on a breakpoint (resume / step), skip re-trapping the very
-     * first instruction so the program advances. */
-    unsigned int pc = m68k_get_reg(M68K_REG_PC);
-    g_skip_pc = md_bp_hit((uint32_t)pc) ? pc : 0xFFFFFFFFu;
-  }
-  else
-  {
-    g_skip_pc = 0xFFFFFFFFu;
-  }
+  /* Skip the parked instruction ONLY when resuming from the breakpoint we last
+   * trapped at (current PC == g_last_trap_pc). A fresh run whose entry PC merely
+   * happens to be a breakpoint still traps immediately. */
+  unsigned int pc = m68k_get_reg(M68K_REG_PC);
+  g_skip_pc = (g_m68k_bp_count > 0 && pc == g_last_trap_pc) ? pc : 0xFFFFFFFFu;
   system_frame_gen(0);
   return g_m68k_trapped ? 0 : 1;
 }

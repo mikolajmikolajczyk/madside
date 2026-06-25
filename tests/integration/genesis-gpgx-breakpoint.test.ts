@@ -105,6 +105,23 @@ describe('genesis-gpgx 68000 breakpoints (#146)', () => {
     expect(core.get_reg(M68K_REG_D0) >>> 0).toBe(0x12345679)
   })
 
+  it('traps on a breakpoint at the entry point on the very first frame', async () => {
+    // Regression: a breakpoint on the reset/entry PC was skipped on the first run
+    // (mistaken for resuming past a parked breakpoint) instead of trapping.
+    const core = await loadCore()
+    load(core)
+    setBreakpoint(core, 0x200) // the entry instruction (move.l), reset PC
+
+    expect(core.run_frame()).toBe(0) // traps immediately, before executing it
+    expect(core.get_reg(M68K_REG_PC) >>> 0).toBe(0x200)
+    expect(core.get_reg(M68K_REG_D0) >>> 0).toBe(0) // move.l has NOT run yet
+
+    // Resume steps past the entry breakpoint; with no other breakpoint the loop
+    // runs free, so move.l has run (D0 >= its immediate) and the loop advanced it.
+    core.run_frame()
+    expect(core.get_reg(M68K_REG_D0) >>> 0).toBeGreaterThanOrEqual(0x12345678)
+  })
+
   it('runs the full frame once the breakpoint is cleared', async () => {
     const core = await loadCore()
     load(core)
