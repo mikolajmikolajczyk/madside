@@ -1,3 +1,74 @@
+## [0.18.0] - 2026-06-25
+
+### 🚀 Features
+
+- *(toolchain)* Capture cc65 segment bank/offset into the source map (ADR-0014 Phase 0)
+- *(toolchain)* Capture MADS .lst bank prefix into the source map (ADR-0014 Phase 0)
+- *(machine)* Declare 130XE bank window (BankWindow descriptor, ADR-0014 Phase 1 Step 2) (#134)
+- *(ports)* BankMap() + bank-aware breakpoints contract (ADR-0014 Phase 1 Step 3) (#134)
+- *(emu)* Altirra bankMap() + bank-aware breakpoints (ADR-0014 Phase 1 Step 4) (#134)
+- *(debug)* Bank-aware breakpoints + current-line end-to-end (ADR-0014 Phase 1 Step 5) (#134)
+- *(ui)* Live-bank indicator + gutter bank annotation (ADR-0014 Phase 1 Step 6) (#134)
+- *(template)* Runnable Atari 130XE banking demo + real @BANK_ADD loader (ADR-0014 Phase 1) (#134)
+- *(nes)* PRG bank-aware debugging via write-only-latch tracking (ADR-0014 Phase 2) (#134)
+- *(nes)* Banked source map from cc65 — close the editor-side of NES banking (ADR-0014 Phase 2 step 5) (#134)
+- *(template)* Runnable NES PRG-banking demo (UxROM) + joined live test (ADR-0014 Phase 2) (#134)
+- *(zx128)* ZX Spectrum 128K machine + bank-aware debugging (ADR-0014) (#134)
+- *(z88dk)* Source-level debugging for ZX from z80asm list+map (#87) (#134)
+- *(z88dk)* ZX128 bank-aware source map via BANK_n section convention (ADR-0014) (#134)
+- *(zx)* LoadZ80 (.z80 v2/v3 snapshot) for 128K banked loading (ADR-0014) (#134)
+- *(zx128)* Runnable banked template + 128K .z80 generator + joined test (ADR-0014) (#134)
+- *(lsp-asm)* Opcode-hint tables + dialect profiles foundation (#140)
+- *(lsp-asm)* Line-oriented engine + LanguageProvider (def/refs/rename/hover/diag) (#140)
+- *(ide)* Wire asm LSP hover + completion into the editor (#140)
+- *(ide)* Asm LSP go-to-definition + find-references + rename + cross-file sync (#140)
+- *(ide)* Asm LSP semantic-token coloring + inline analysis diagnostics (#140)
+- *(lsp-asm)* Addressing-mode validation diagnostics (6502) (#140)
+- *(lsp-asm)* M68000 / clownassembler dialect — complete the assembler set (#140)
+- *(lsp-asm)* Recognize MADS pseudo-ops + illegal opcodes (custom mnemonics) (#140)
+- *(genesis)* Opt-in Z80 composite build — assemble own Z80 source into the ROM (#147 Phase 1B)
+- *(genesis)* Runnable Z80 sound template (#147 Phase 1 complete)
+- *(genesis)* Expose the Z80 in gpgx for dual-CPU debug (#147 Phase 2a)
+- *(debug)* Focused-CPU routing in DebugService — dual-CPU engine (#147 Phase 2bc)
+- *(ui)* CPU switch in the registers panel for dual-CPU machines (#147 Phase 2e)
+- *(genesis)* Per-CPU source map + focused-CPU current-line (#147 Phase 2d)
+- *(genesis)* Z80 line breakpoints that trap — Phase 2 complete (#147 Phase 2d-2)
+- *(genesis)* Z80 $6000 bank window — Phase 3, #147 complete
+
+### 🐛 Bug Fixes
+
+- *(z88dk)* Map zx128 machine to the +zx target (banked build was rejected) (#134)
+- *(z88dk)* Read banked section binaries from the source dir, not root (#134)
+- *(zx)* Chips backend setBreakpoints must extract BankBreakpoint addr (#134)
+- *(export)* Name the exported binary by detecting its bytes, not the machine default (#138)
+- *(audio)* IOS-safe AudioContext — gesture unlock, native rate, worklet resampling
+
+### 🚜 Refactor
+
+- *(nes)* Derive PRG bank windows from the loaded mapper, not a static declaration (ADR-0014 Phase 2) (#134)
+- *(lsp)* Rename cc65* C-LSP client surface to c* (serves both cc65 + z80)
+- *(core)* Slim @core/cpu to the bare opcode set, hints move to the LSP (#140)
+
+### 📚 Documentation
+
+- *(adr)* ADR-0014 bank-aware addressing + design gathering (#134, #88)
+- *(banking)* Phase 1 execution plan — Atari 130XE (ADR-0014, #134)
+- *(banking)* Phase 1 Step 1 verified — OPT B+ .lst/.lab shape + readMem($D301) (#134)
+- *(template)* Drop internal ADR ref from 130xe-bank template comments
+- *(third-party)* Drop internal phase/issue refs from public lib descriptions
+- *(banking)* Record jsnes mapper coverage audit — all 20 use the wrapped PRG primitives (#134)
+- *(banking)* Document the bank-aware extension boundary (ADR-0014 + plugin-author docs)
+- *(banking)* ZX128 runtime done + editor-side findings (z88dk has no source map yet, #87) (#134)
+- *(banking)* ZX editor-side source map done (#87 + BANK_n convention) (#134)
+- Refresh wiki + user docs for asm LSP, Genesis Z80, iOS audio
+
+### 🧪 Testing
+
+- *(banking)* Atari 130XE bank-aware debug integration + extract bank-match (ADR-0014 Phase 1 Step 7) (#134)
+- *(banking)* Live Altirra-core proof that bankMap() tracks PORTB (ADR-0014 Phase 1) (#134)
+- *(banking)* Full live BP-trap proof on real Altirra 130XE core (ADR-0014 Phase 1) (#134)
+- *(genesis)* De-risk the pre-built Z80 driver incbin path on the real toolchain (#147)
+- *(genesis)* Assert the Z80 sound template drives non-silent PSG audio (#147)
 ## [0.17.0] - 2026-06-24
 
 ### 🚀 Features
