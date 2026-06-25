@@ -7,6 +7,7 @@ import { autocompletion, completionKeymap, closeBrackets, closeBracketsKeymap } 
 import { lintGutter, setDiagnostics, type Diagnostic } from "@codemirror/lint";
 import { buildAssemblyLanguage, projectLabelsField, setProjectLabels, formatCView, isCFile, warmFormatter, resolveCStyle, editorTheme, editorHighlight } from "@ui/codemirror";
 import { asmDialectFor } from "@app/asmLsp";
+import { setActiveEditor, clearActiveEditor } from "@ui/codemirror";
 import { getCpuLanguage } from "@core";
 import type { CpuLanguage, LabelInfo } from "@core";
 import type { BuildDiagnostic, ToolchainLanguage } from "@ports";
@@ -415,6 +416,14 @@ export function Editor({ value, onChange, filename, pcLine, breakpointLines, lin
         // matching close is inserted; typing over it or backspacing the pair is
         // handled by closeBracketsKeymap. Language-aware (skips inside strings).
         closeBrackets(),
+        // Input hygiene for soft keyboards (#144): code is not prose — stop the
+        // OSK capitalizing, autocorrecting, autocompleting, or squiggling it.
+        EditorView.contentAttributes.of({
+          autocapitalize: "off",
+          autocorrect: "off",
+          autocomplete: "off",
+          spellcheck: "false",
+        }),
         EditorView.domEventHandlers({
           mousedown(e, view) {
             if (!(e.ctrlKey || e.metaKey)) return false;
@@ -514,11 +523,18 @@ export function Editor({ value, onChange, filename, pcLine, breakpointLines, lin
         }),
       ],
     });
-    viewRef.current = new EditorView({ state, parent: hostRef.current });
-    onViewReady?.(viewRef.current);
+    const view = new EditorView({ state, parent: hostRef.current });
+    viewRef.current = view;
+    onViewReady?.(view);
+    // Register as the active editor on focus so the app-level OSK symbol bar
+    // (#144) inserts into this buffer.
+    const onFocus = () => setActiveEditor(view);
+    view.contentDOM.addEventListener("focus", onFocus);
     return () => {
       onViewReady?.(null);
-      viewRef.current?.destroy();
+      view.contentDOM.removeEventListener("focus", onFocus);
+      clearActiveEditor(view);
+      view.destroy();
       viewRef.current = null;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps

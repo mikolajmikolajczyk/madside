@@ -1,0 +1,76 @@
+/* OSK accessory bar (#144) — a single app-level element that floats just above
+   the soft keyboard. `bottom` is set inline to the keyboard's occluded height
+   (from the visualViewport API) so it tracks the OSK instead of hiding behind it
+   on iOS. Only rendered on touch-primary devices while the keyboard is open. */
+.cm-symbolbar {
+  position: fixed;
+  left: 0;
+  right: 0;
+  /* bottom is set inline (occluded keyboard height). */
+  z-index: 50;
+  display: flex;
+  align-items: stretch;
+  padding: 5px 6px;
+  background: var(--bg-secondary);
+  border-top: 1px solid var(--border-default);
+  box-shadow: 0 -4px 12px rgba(0, 0, 0, 0.25);
+}
+
+/* Symbols scroll horizontally in the flexible part. */
+.cm-symbolbar__scroll {
+  display: flex;
+  gap: 4px;
+  align-items: stretch;
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow-x: auto;
+  overflow-y: hidden;
+  -webkit-overflow-scrolling: touch;
+  white-space: nowrap;
+  scrollbar-width: none;
+}
+.cm-symbolbar__scroll::-webkit-scrollbar { display: none; }
+
+/* Navigation keys (Tab / arrows / Home / End / Esc) stay pinned on the right. */
+.cm-symbolbar__fixed {
+  display: flex;
+  gap: 4px;
+  align-items: stretch;
+  flex: 0 0 auto;
+  padding-left: 6px;
+  margin-left: 4px;
+  border-left: 1px solid var(--border-muted);
+}
+
+.cm-symbolbar__key {
+  flex: 0 0 auto;
+  min-width: 34px;
+  height: 38px;
+  padding: 0 8px;
+  display: grid;
+  place-items: center;
+  background: var(--bg-tertiary);
+  border: 1px solid var(--border-default);
+  border-radius: 6px;
+  color: var(--text-primary);
+  font-family: var(--font-mono);
+  font-size: 16px;
+  line-height: 1;
+  cursor: pointer;
+  user-select: none;
+  -webkit-user-select: none;
+  touch-action: manipulation;
+}
+.cm-symbolbar__key--wide {
+  font-size: 12px;
+  letter-spacing: 0.3px;
+}
+.cm-symbolbar__key--arrow {
+  min-width: 42px;
+  font-size: 24px;
+}
+.cm-symbolbar__key:active {
+  background: var(--accent-mint);
+  color: var(--bg-primary);
+  border-color: var(--accent-mint);
+}

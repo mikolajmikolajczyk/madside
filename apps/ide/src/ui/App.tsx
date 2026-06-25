@@ -42,6 +42,9 @@ import { usePluginEditor } from "./hooks/usePluginEditor";
 import { useProjectLabels } from "./hooks/useProjectLabels";
 import { useProjectCDocuments } from "./hooks/useProjectCDocuments";
 import { useProjectAsmDocuments } from "./hooks/useProjectAsmDocuments";
+import { useTouchPrimary, useOskViewport } from "@app/touch";
+import { SymbolBar } from "./components/editor/SymbolBar";
+import { getActiveEditor } from "@ui/codemirror";
 import { useLspDiagnostics } from "./hooks/useLspDiagnostics";
 import { useManifestMachineSync } from "./hooks/useManifestMachineSync";
 import { useEmuStateReset } from "./hooks/useEmuStateReset";
@@ -108,6 +111,13 @@ export default function App() {
   const workbench = useWorkbench();
   const toast = useToast();
   const project = useProject(workbench.storage, workbench.events);
+
+  // Touch / on-screen-keyboard state (#144): mirror onto the document root so CSS
+  // can adapt, and drive the floating symbol bar below.
+  const touchPrimary = useTouchPrimary();
+  const osk = useOskViewport();
+  useEffect(() => { document.documentElement.toggleAttribute("data-touch", touchPrimary); }, [touchPrimary]);
+  useEffect(() => { document.documentElement.toggleAttribute("data-osk-open", osk.open); }, [osk.open]);
 
   // Hydrate the project-local plugin trust set (ADR-0013) so editor/converter
   // gates reflect persisted consent from the first render.
@@ -1225,6 +1235,11 @@ export default function App() {
   return (
     <TooltipProvider delayDuration={300} skipDelayDuration={100}>
     <div className="app">
+      {/* OSK symbol bar (#144): floats above the soft keyboard on touch devices
+          while the keyboard is open, inserting into the focused editor. */}
+      {touchPrimary && osk.open && (
+        <SymbolBar getView={getActiveEditor} bottomPx={osk.occludedHeight} />
+      )}
       <MenuBar
         projects={project.projects}
         activeProjectId={project.projectId}

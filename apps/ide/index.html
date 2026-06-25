@@ -3,7 +3,11 @@
   <head>
     <meta charset="UTF-8" />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <!-- interactive-widget=resizes-content: shrink the layout when the soft
+         keyboard opens (Chrome/Android), so panels don't sit behind it. The OSK
+         symbol bar (#144) floats above the keyboard via the visualViewport API,
+         which also covers iOS (where this hint is ignored). -->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, interactive-widget=resizes-content" />
     <title>madside</title>
   </head>
   <body>

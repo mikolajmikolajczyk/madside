@@ -15,6 +15,10 @@ madside edits source in a [CodeMirror](https://codemirror.net/)-based editor. As
 
 Typing an opening `{`, `(`, `[`, or `"` inserts the matching close and leaves the cursor between them. It's bracket- and string-aware — typing the close over an auto-inserted one steps past it instead of doubling it, and backspacing over the pair removes both.
 
+## On a tablet
+
+When you edit code on a touch device, a **symbol bar** floats just above the on-screen keyboard — a scrollable row of the characters retro code leans on (`# $ @ . ( ) [ ] { } ; : * + - …`) plus **Tab**, arrow keys, **Home/End**, and **Esc**. Tap one to insert it at the cursor without dismissing the keyboard, so you don't have to dig through the keyboard's symbol pages. The editor also turns off autocapitalize, autocorrect, and spellcheck so the keyboard doesn't fight your code.
+
 ## Autocomplete
 
 Completion fires as you type and is built from:
