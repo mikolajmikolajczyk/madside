@@ -44,6 +44,8 @@ interface GpgxExports {
   reset(): void
   // Returns 1 on a completed frame, 0 if a 68000 breakpoint trapped (#146).
   run_frame(): number
+  // Execute exactly one 68000 instruction (single-step); returns its cycles.
+  step(): number
   // 68000 breakpoints: write up to bp_capacity() addresses into bp_ptr()[0..n),
   // then set_bp_count(n). 0 disables the per-instruction check (full speed).
   bp_ptr(): number
@@ -192,10 +194,9 @@ class GenesisGpgxBackend implements RunBackend {
   }
 
   step(): number {
-    // No instruction-granular single-step yet (the breakpoint check stops the
-    // frame, but a bare step has no target PC); advance a whole frame so the
-    // UI's Step still makes progress.
-    return this.advanceFrame()
+    // One 68000 instruction (#146). Only the 68000 advances — the screen/audio
+    // stay put, so no refreshPixels/pumpAudio here.
+    return this.core.step()
   }
 
   cpuState(): Cpu68kState {

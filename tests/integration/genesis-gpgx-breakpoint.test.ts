@@ -21,6 +21,7 @@ interface Core {
   rom_ptr(): number
   load_rom_buffer(len: number): number
   run_frame(): number
+  step(): number
   get_reg(r: number): number
   bp_ptr(): number
   bp_capacity(): number
@@ -120,6 +121,22 @@ describe('genesis-gpgx 68000 breakpoints (#146)', () => {
     // runs free, so move.l has run (D0 >= its immediate) and the loop advanced it.
     core.run_frame()
     expect(core.get_reg(M68K_REG_D0) >>> 0).toBeGreaterThanOrEqual(0x12345678)
+  })
+
+  it('single-steps one 68000 instruction at a time (not a whole frame)', async () => {
+    // Regression: step() advanced a whole frame, blowing past everything to the
+    // idle loop. It now executes exactly one instruction.
+    const core = await loadCore()
+    load(core)
+    expect(core.get_reg(M68K_REG_PC) >>> 0).toBe(0x200)
+
+    core.step() // move.l #imm,d0
+    expect(core.get_reg(M68K_REG_PC) >>> 0).toBe(0x206)
+    expect(core.get_reg(M68K_REG_D0) >>> 0).toBe(0x12345678)
+
+    core.step() // addq.l #1,d0
+    expect(core.get_reg(M68K_REG_PC) >>> 0).toBe(0x208)
+    expect(core.get_reg(M68K_REG_D0) >>> 0).toBe(0x12345679)
   })
 
   it('runs the full frame once the breakpoint is cleared', async () => {

@@ -197,6 +197,10 @@ static uint32_t g_skip_pc = 0xFFFFFFFFu;
  * Otherwise a breakpoint on the entry point (the reset PC) would be skipped on
  * the very first run instead of trapping. */
 static uint32_t g_last_trap_pc = 0xFFFFFFFFu;
+/* Single-instruction step (set by sys_step): md_bp_check returns 0 so the step
+ * runs exactly one instruction regardless of breakpoints — the cycle budget,
+ * not a breakpoint, stops it. */
+static int g_step_mode = 0;
 
 static int md_bp_hit(uint32_t pc)
 {
@@ -209,6 +213,7 @@ static int md_bp_hit(uint32_t pc)
  * stop the loop with PC left at `pc` (a breakpoint), 0 to keep running. */
 int md_bp_check(unsigned int pc)
 {
+  if (g_step_mode) return 0; /* a single-instruction step ignores breakpoints */
   if (g_m68k_bp_count == 0) return 0;
   if (pc == g_skip_pc) { g_skip_pc = 0xFFFFFFFFu; return 0; } /* resumed instr */
   if (md_bp_hit((uint32_t)pc)) { g_m68k_trapped = 1; g_last_trap_pc = pc; return 1; }
@@ -238,6 +243,19 @@ EXPORT("run_frame") int sys_run_frame(void)
   g_skip_pc = (g_m68k_bp_count > 0 && pc == g_last_trap_pc) ? pc : 0xFFFFFFFFu;
   system_frame_gen(0);
   return g_m68k_trapped ? 0 : 1;
+}
+
+/* Execute exactly one 68000 instruction (debugger single-step). Runs only the
+ * 68000 (Z80/VDP/audio stay put) by giving m68k_run a 1-cycle budget: the loop
+ * always runs at least one instruction, then the cycle check stops it. Returns
+ * the cycles that instruction took. Breakpoints are ignored for the step. */
+EXPORT("step") int sys_step(void)
+{
+  unsigned int before = m68k.cycles;
+  g_step_mode = 1;
+  m68k_run(m68k.cycles + 1);
+  g_step_mode = 0;
+  return (int)(m68k.cycles - before);
 }
 
 /* Framebuffer access (32bpp ARGB, alpha=0xFF). */

@@ -74,6 +74,7 @@ Replaces `libretro.c`. Supplies the frontend globals (`config`, BIOS strings,
   writes up to `bp_capacity()` addresses into `bp_ptr()[0..n)`, then `set_bp_count(n)`.
   `md_bp_check(pc)` (called per instruction from the patched `m68k_run` loop)
   trips on a match.
+- `step()` — execute exactly one 68000 instruction (single-step); returns its cycles.
 - `framebuffer()` + `fb_width/height/pitch/x/y()` — the live viewport within the
   720×576 bitmap.
 - `get_reg(r)` — `m68k_get_reg(r)` (**1-arg** in gpgx). `read_byte(addr)` — decodes
@@ -132,10 +133,11 @@ flag-and-break design never unwinds.
 
 ## Caveats / Phase-B follow-ups
 
-- **No sub-frame single-step.** `step()` still advances a whole frame (a bare
-  step has no target PC). Breakpoints, however, now trap instruction-granularly
-  (above). The Z80 coprocessor has no execute hook, so its breakpoints stay
-  frame-boundary.
+- **Single-step** runs exactly one 68000 instruction via the `step` export
+  (`m68k_run(m68k.cycles + 1)` — the loop always runs ≥1 instruction, then the
+  cycle budget stops it; `g_step_mode` makes the breakpoint check a no-op for the
+  step). Only the 68000 advances — Z80/VDP/audio stay put. The Z80 coprocessor
+  has no execute hook, so its breakpoints stay frame-boundary.
 - **VDP-space reads** (`readMem(.., 'vram'|'cram'|'vsram')`) throw — not yet wired.
 - **save/loadState** carry CPU regs only — full snapshot needs `state.c` through a
   buffer export.
