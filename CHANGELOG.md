@@ -1,3 +1,21 @@
+## [0.19.0] - 2026-06-25
+
+### 🚀 Features
+
+- *(ide)* Welcome screen redesign — token-driven reskin + two-column layout
+- *(z88dk)* Sccz80 C source-level debug — C_LINE + link map → source map (#135)
+- *(genesis)* True single-instruction 68000 step (#146)
+- *(genesis)* Full Z80 debugging — breakpoints, single-step, dialect, current-line (#146)
+
+### 🐛 Bug Fixes
+
+- *(ide)* Keep the open file across reloads + stop PC-follow yanking it back
+- *(lsp-asm)* Stop flagging hex digits, strings, and option operands as undefined symbols
+- *(ide)* Highlight size-suffixed m68k opcodes + data directives
+- *(genesis)* Instruction-granular 68000 breakpoints (#146)
+- *(genesis)* Handle BankBreakpoint objects in gpgx setBreakpoints (#146)
+- *(genesis)* Trap a breakpoint on the entry point on the first run (#146)
+- *(genesis)* Harden the dual-CPU debugger after audit (#146)
 ## [0.18.0] - 2026-06-25
 
 ### 🚀 Features
