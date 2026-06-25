@@ -174,8 +174,72 @@ EXPORT("reset") void sys_reset(void)
   m68k.aerr_enabled = 0;
 }
 
-/* Emulate one full video frame (CPU/Z80/VDP/sound interleaved). */
-EXPORT("run_frame") void sys_run_frame(void) { system_frame_gen(0); }
+/* ---- 68000 breakpoints (instruction-granular trap, #146) -----------------
+ * gpgx is frame-scheduled, so a frame-boundary PC check almost never lands on a
+ * breakpoint. Instead, a one-line patch in the core's m68k_run loop
+ * (build-genesis-gpgx.sh) calls md_bp_check(REG_PC) before each instruction is
+ * fetched + executed; on a breakpoint match it `break`s the loop, so the CPU
+ * stops with PC exactly at the breakpoint (NOT executed). The remaining in-frame
+ * m68k_run calls re-break immediately at the same PC, freezing the 68000 for the
+ * rest of the frame while VDP/Z80/audio finish it. (gpgx ships a fuller HOOK_CPU
+ * hook, but enabling it inlines hook calls into every memory access and bloats
+ * codegen past a wasi-sdk clang crash — this single execute check is enough.) */
+#define MD_BP_CAP 64
+static uint32_t g_m68k_bps[MD_BP_CAP];
+static int g_m68k_bp_count = 0;
+/* Set by md_bp_check on a hit; read by sys_run_frame to report the trap. */
+static int g_m68k_trapped = 0;
+/* When resuming from a parked breakpoint, the instruction AT the trapped PC must
+ * run once without re-trapping, else the program can't make progress. One-shot. */
+static uint32_t g_skip_pc = 0xFFFFFFFFu;
+
+static int md_bp_hit(uint32_t pc)
+{
+  for (int i = 0; i < g_m68k_bp_count; i++)
+    if (g_m68k_bps[i] == pc) return 1;
+  return 0;
+}
+
+/* Called from the patched m68k_run loop before each instruction. Returns 1 to
+ * stop the loop with PC left at `pc` (a breakpoint), 0 to keep running. */
+int md_bp_check(unsigned int pc)
+{
+  if (g_m68k_bp_count == 0) return 0;
+  if (pc == g_skip_pc) { g_skip_pc = 0xFFFFFFFFu; return 0; } /* resumed instr */
+  if (md_bp_hit((uint32_t)pc)) { g_m68k_trapped = 1; return 1; }
+  return 0;
+}
+
+/* JS writes up to bp_capacity() breakpoint addresses into bp_ptr()[0..n), then
+ * calls set_bp_count(n). A count of 0 disables the check (full-speed run). */
+EXPORT("bp_ptr") uint32_t *sys_bp_ptr(void) { return g_m68k_bps; }
+EXPORT("bp_capacity") int sys_bp_capacity(void) { return MD_BP_CAP; }
+EXPORT("set_bp_count") void sys_set_bp_count(int n)
+{
+  if (n < 0) n = 0;
+  if (n > MD_BP_CAP) n = MD_BP_CAP;
+  g_m68k_bp_count = n;
+}
+
+/* Emulate one full video frame (CPU/Z80/VDP/sound interleaved). Returns 1 on a
+ * completed frame, 0 if a 68000 breakpoint trapped (PC left at the breakpoint). */
+EXPORT("run_frame") int sys_run_frame(void)
+{
+  g_m68k_trapped = 0;
+  if (g_m68k_bp_count > 0)
+  {
+    /* If we're parked on a breakpoint (resume / step), skip re-trapping the very
+     * first instruction so the program advances. */
+    unsigned int pc = m68k_get_reg(M68K_REG_PC);
+    g_skip_pc = md_bp_hit((uint32_t)pc) ? pc : 0xFFFFFFFFu;
+  }
+  else
+  {
+    g_skip_pc = 0xFFFFFFFFu;
+  }
+  system_frame_gen(0);
+  return g_m68k_trapped ? 0 : 1;
+}
 
 /* Framebuffer access (32bpp ARGB, alpha=0xFF). */
 EXPORT("framebuffer") uint8_t *sys_framebuffer(void) { return bitmap.data; }

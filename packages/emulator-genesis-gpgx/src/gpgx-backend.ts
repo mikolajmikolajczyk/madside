@@ -42,7 +42,13 @@ interface GpgxExports {
   rom_capacity(): number
   load_rom_buffer(len: number): number
   reset(): void
-  run_frame(): void
+  // Returns 1 on a completed frame, 0 if a 68000 breakpoint trapped (#146).
+  run_frame(): number
+  // 68000 breakpoints: write up to bp_capacity() addresses into bp_ptr()[0..n),
+  // then set_bp_count(n). 0 disables the per-instruction check (full speed).
+  bp_ptr(): number
+  bp_capacity(): number
+  set_bp_count(n: number): void
   framebuffer(): number
   fb_width(): number
   fb_height(): number
@@ -98,7 +104,6 @@ class GenesisGpgxBackend implements RunBackend {
   readonly height = HEIGHT
   readonly sampleRate = SAMPLE_RATE
   readonly pixels = new Uint32Array(WIDTH * HEIGHT) // 0xAARRGGBB (xrgb8888)
-  private breakpoints = new Set<number>()
   // Z80 sound-coprocessor breakpoints (#147 Phase 2d): checked against the Z80 PC
   // at the frame boundary, like the 68000's. Set when the user focuses the Z80.
   private z80Breakpoints = new Set<number>()
@@ -171,24 +176,25 @@ class GenesisGpgxBackend implements RunBackend {
   }
 
   advanceFrame(trap?: () => boolean): number {
-    // gpgx is frame-scheduled — no sub-frame instruction stepping. With
-    // breakpoints/trap active, check at the frame boundary; instruction-granular
-    // single-step / line-debug is a follow-up that needs M68K_INSTRUCTION_HOOK
-    // (#146).
-    this.core.run_frame()
+    // 68000 breakpoints trap inside the frame (instruction-granular, #146): the
+    // patched m68k_run loop stops with PC exactly at the breakpoint and run_frame
+    // returns 0. The frame's VDP/Z80/audio still complete (the 68000 is just
+    // frozen at the breakpoint for the rest of it).
+    const completed = this.core.run_frame()
     this.refreshPixels()
     this.pumpAudio()
-    if (this.breakpoints.has(this.getPC())) return 0
-    // Z80 breakpoints trap on the Z80 PC at the frame boundary (same fidelity as
-    // the 68000 — gpgx is frame-scheduled, #146).
+    if (completed === 0) return 0
+    // The Z80 has no instruction hook, so its breakpoints stay frame-boundary
+    // (checked against the Z80 PC where the frame happened to end).
     if (this.z80Breakpoints.size > 0 && this.z80Breakpoints.has(this.z80PC())) return 0
     if (trap) trap()
     return 1
   }
 
   step(): number {
-    // No instruction-granular step yet (needs the m68k instruction hook); advance
-    // a whole frame so the UI's Step still makes progress.
+    // No instruction-granular single-step yet (the breakpoint check stops the
+    // frame, but a bare step has no target PC); advance a whole frame so the
+    // UI's Step still makes progress.
     return this.advanceFrame()
   }
 
@@ -284,7 +290,15 @@ class GenesisGpgxBackend implements RunBackend {
   }
 
   setBreakpoints(addrs: Iterable<number>): void {
-    this.breakpoints = new Set([...addrs].map((a) => a >>> 0))
+    // Write the 68000 breakpoint addresses into the core's bp buffer and set the
+    // count; the patched m68k_run loop checks them per instruction (#146).
+    const list = [...addrs].map((a) => a >>> 0)
+    const cap = this.core.bp_capacity()
+    const n = Math.min(list.length, cap)
+    // Re-derive the view each call — wasm memory growth detaches it.
+    const view = new Uint32Array(this.core.memory.buffer, this.core.bp_ptr(), cap)
+    for (let i = 0; i < n; i++) view[i] = list[i]!
+    this.core.set_bp_count(n)
   }
 
   sendKey(keyCode: number, _charCode: number, isDown: boolean): void {

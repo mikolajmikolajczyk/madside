@@ -68,7 +68,12 @@ Replaces `libretro.c`. Supplies the frontend globals (`config`, BIOS strings,
   (extension "BIN" → `SYSTEM_MD`), then audio_init/system_init/system_reset.
   ROM load is **buffer-based**: `load_archive` memcpy's `g_rom_data` → `cart.rom`
   (libretro's `g_rom_data` fast path) — no filesystem.
-- `reset()`, `run_frame()` (`system_frame_gen(0)`).
+- `reset()`, `run_frame()` — `system_frame_gen(0)`; **returns `1` on a completed
+  frame, `0` if a 68000 breakpoint trapped** (PC left at the breakpoint).
+- `bp_ptr()` / `bp_capacity()` / `set_bp_count(n)` — 68000 breakpoints (#146). JS
+  writes up to `bp_capacity()` addresses into `bp_ptr()[0..n)`, then `set_bp_count(n)`.
+  `md_bp_check(pc)` (called per instruction from the patched `m68k_run` loop)
+  trips on a match.
 - `framebuffer()` + `fb_width/height/pitch/x/y()` — the live viewport within the
   720×576 bitmap.
 - `get_reg(r)` — `m68k_get_reg(r)` (**1-arg** in gpgx). `read_byte(addr)` — decodes
@@ -95,11 +100,42 @@ throws rather than no-ops.
 - `machine-genesis`: `pixelFormat: 'xrgb8888'`, `compatibleEmulators:
   ['genesis-gpgx']`. Registered in `builtin-plugins.ts`.
 
+## 68000 breakpoints (instruction-granular, #146)
+
+gpgx is frame-scheduled, so a frame-boundary PC check almost never lands on a
+breakpoint. `build-genesis-gpgx.sh` injects a one-line patch into the core's
+`m68k_run` loop (right after `/* Decode next instruction */`, before the fetch):
+
+```c
+{ extern int md_bp_check(unsigned int); if (md_bp_check(REG_PC)) { m68k.cycles = cycles; break; } }
+```
+
+`md_bp_check` (in the harness) returns 1 on a breakpoint, stopping the loop with
+PC **at** the breakpoint (not executed). Setting `m68k.cycles = cycles` first
+consumes the timeslice — `m68k.cycles` is the shared 68k/Z80 time base, so
+breaking without advancing it leaves the CPU perpetually behind and it never
+resumes. The remaining in-frame `m68k_run` calls re-break at the same PC,
+freezing the 68000 for the rest of the frame (VDP/Z80/audio still finish it). On
+resume, `run_frame` sets a one-shot skip for the parked PC so the program can
+step past its own breakpoint.
+
+Why not gpgx's `HOOK_CPU` subsystem (which has a ready `cpu_hook(HOOK_M68K_E,…)`
+in this exact spot)? Enabling `-DHOOK_CPU` also compiles the read/write hook
+sites inlined into every memory accessor — that bloats codegen past a **wasi-sdk
+clang-22 crash**. The single injected execute check sidesteps it. The patch is
+idempotent and re-applied each build (the script `git checkout`s the pristine
+core file first, since `git checkout <commit>` is a no-op when already on it and
+won't discard a prior patch).
+
+The build also needs no `setjmp`/`longjmp` (unavailable on wasm) — the
+flag-and-break design never unwinds.
+
 ## Caveats / Phase-B follow-ups
 
-- **No sub-frame stepping.** gpgx is frame-scheduled; `step()` advances a whole
-  frame and breakpoints/trap are checked at the frame boundary. Instruction-granular
-  line-debug needs Musashi's `M68K_INSTRUCTION_HOOK` (enable in `m68kconf.h`).
+- **No sub-frame single-step.** `step()` still advances a whole frame (a bare
+  step has no target PC). Breakpoints, however, now trap instruction-granularly
+  (above). The Z80 coprocessor has no execute hook, so its breakpoints stay
+  frame-boundary.
 - **VDP-space reads** (`readMem(.., 'vram'|'cram'|'vsram')`) throw — not yet wired.
 - **save/loadState** carry CPU regs only — full snapshot needs `state.c` through a
   buffer export.
