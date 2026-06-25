@@ -28,11 +28,35 @@ export const projectLabelsField = StateField.define<Map<string, LabelInfo>>({
 const hex4 = (n: number) => "$" + n.toString(16).toUpperCase().padStart(4, "0");
 const escapeRe = (s: string) => s.replace(/[.*+?^${}()|[\]\\/]/g, "\\$&");
 
-interface LangSpec {
+export interface LangSpec {
   opcodes: ReadonlySet<string>;
   directives: ReadonlySet<string>;
   commentRe: RegExp; // matches a whole line-comment at the cursor
   snippets: readonly { label: string; detail: string; template: string }[];
+}
+
+// An m68k mnemonic / data directive carries an operand-size suffix (`move.w`,
+// `dc.l`) that isn't part of its name. The 6502 / z80 sets have no such suffix,
+// so stripping a trailing `.b/.w/.l/.s` is a no-op there — it only ever turns a
+// real suffixed token into the base name the opcode/directive set actually holds.
+const stripSizeSuffix = (upper: string) => upper.replace(/\.[BWLS]$/, "");
+
+/** True if `upper` (already upper-cased) is an opcode — directly or once its
+ *  operand-size suffix is stripped (`MOVE.W` → `MOVE`). */
+export function isOpcodeTok(upper: string, spec: LangSpec): boolean {
+  return spec.opcodes.has(upper) || spec.opcodes.has(stripSizeSuffix(upper));
+}
+
+/** True if `upper` is a directive — honouring both a leading-dot form (`.WORD`)
+ *  and an operand-size suffix (`DC.L` → `DC`). */
+export function isDirectiveTok(upper: string, spec: LangSpec): boolean {
+  const bare = upper.replace(/^\./, "");
+  return (
+    spec.directives.has(upper) ||
+    spec.directives.has(bare) ||
+    spec.directives.has(stripSizeSuffix(upper)) ||
+    spec.directives.has(stripSizeSuffix(bare))
+  );
 }
 
 function toSpec(cpu: CpuLanguage, lang: ToolchainLanguage): LangSpec {
@@ -62,8 +86,8 @@ function makeStream(spec: LangSpec) {
       const m = stream.match(/[A-Za-z_.][A-Za-z0-9_.]*/) as RegExpMatchArray | null;
       if (m) {
         const upper = m[0].toUpperCase();
-        if (spec.opcodes.has(upper)) return "keyword";
-        if (spec.directives.has(upper) || spec.directives.has(upper.replace(/^\./, ""))) return "atom";
+        if (isOpcodeTok(upper, spec)) return "keyword";
+        if (isDirectiveTok(upper, spec)) return "atom";
         return "variableName";
       }
       stream.next();
@@ -198,8 +222,8 @@ function tokenizeLine(line: string, target: HTMLElement, spec: LangSpec) {
     if (im) {
       const upper = im[0].toUpperCase();
       let cls: string;
-      if (spec.opcodes.has(upper)) cls = "keyword";
-      else if (spec.directives.has(upper) || spec.directives.has(upper.replace(/^\./, ""))) cls = "directive";
+      if (isOpcodeTok(upper, spec)) cls = "keyword";
+      else if (isDirectiveTok(upper, spec)) cls = "directive";
       else cls = "ident";
       appendTok(target, im[0], cls);
       i += im[0].length;
