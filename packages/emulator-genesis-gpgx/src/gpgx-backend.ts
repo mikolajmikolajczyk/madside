@@ -63,6 +63,11 @@ interface GpgxExports {
   z80_get_reg(r: number): number
   z80_read_byte(addr: number): number
   z80_bank(): number
+  // Z80 breakpoints + single-step (#146) — same shape as the 68000's.
+  z80_bp_ptr(): number
+  z80_bp_capacity(): number
+  set_z80_bp_count(n: number): void
+  z80_step(): number
   audio_ptr(): number
   audio_update(): number
   set_input(port: number, buttons: number): void
@@ -106,9 +111,6 @@ class GenesisGpgxBackend implements RunBackend {
   readonly height = HEIGHT
   readonly sampleRate = SAMPLE_RATE
   readonly pixels = new Uint32Array(WIDTH * HEIGHT) // 0xAARRGGBB (xrgb8888)
-  // Z80 sound-coprocessor breakpoints (#147 Phase 2d): checked against the Z80 PC
-  // at the frame boundary, like the 68000's. Set when the user focuses the Z80.
-  private z80Breakpoints = new Set<number>()
   private padState = 0
   private loaded = false
   private readonly core: GpgxExports
@@ -182,13 +184,12 @@ class GenesisGpgxBackend implements RunBackend {
     // patched m68k_run loop stops with PC exactly at the breakpoint and run_frame
     // returns 0. The frame's VDP/Z80/audio still complete (the 68000 is just
     // frozen at the breakpoint for the rest of it).
+    // run_frame returns 0 when EITHER CPU trapped mid-frame at a breakpoint
+    // (68000 or Z80, #146) — both are checked per instruction in the wasm.
     const completed = this.core.run_frame()
     this.refreshPixels()
     this.pumpAudio()
     if (completed === 0) return 0
-    // The Z80 has no instruction hook, so its breakpoints stay frame-boundary
-    // (checked against the Z80 PC where the frame happened to end).
-    if (this.z80Breakpoints.size > 0 && this.z80Breakpoints.has(this.z80PC())) return 0
     if (trap) trap()
     return 1
   }
@@ -263,7 +264,14 @@ class GenesisGpgxBackend implements RunBackend {
   /** Secondary-CPU debug view: the Z80 sound coprocessor. The DebugService
    *  attaches a Z80 DebugAdapter to this when the user focuses the Z80. */
   setZ80Breakpoints(addrs: Iterable<number | { addr: number }>): void {
-    this.z80Breakpoints = new Set([...addrs].map((a) => (typeof a === 'number' ? a : a.addr) & 0xffff))
+    // Write into the core's Z80 bp buffer; the patched z80_run loop checks them
+    // per instruction (#146), so a Z80 breakpoint traps mid-frame like the 68000.
+    const list = [...addrs].map((a) => (typeof a === 'number' ? a : a.addr) & 0xffff)
+    const cap = this.core.z80_bp_capacity()
+    const n = Math.min(list.length, cap)
+    const view = new Uint32Array(this.core.memory.buffer, this.core.z80_bp_ptr(), cap)
+    for (let i = 0; i < n; i++) view[i] = list[i]!
+    this.core.set_z80_bp_count(n)
   }
 
   auxCpu(id: string): AuxCpuView | undefined {
@@ -273,6 +281,7 @@ class GenesisGpgxBackend implements RunBackend {
       getPC: () => this.z80PC(),
       readMem: (addr, len) => this.readZ80Mem(addr, len),
       setBreakpoints: (addrs) => this.setZ80Breakpoints(addrs),
+      step: () => this.core.z80_step(),
       bankMap: () => this.z80BankMap(),
     }
   }

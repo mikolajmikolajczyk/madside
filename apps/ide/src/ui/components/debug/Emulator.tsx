@@ -103,8 +103,14 @@ export function Emulator({ breakpoints, onState, blockedMsg }: Props) {
       a: number; x: number; y: number; pc: number; sp: number;
       flags: Record<string, boolean>;
     };
+    // On a multi-CPU machine (Genesis 68000 + Z80) the current-line highlight
+    // must track the FOCUSED CPU's PC, not the primary's — `pcLine` resolves it
+    // against the focused CPU's source map. Read the aux CPU's PC when focused.
+    const focused = workbench.debug.focusedCpu();
+    const aux = focused ? emu.auxCpu?.(focused) : undefined;
+    const pc = aux ? aux.getPC() : raw.pc;
     onState?.({
-      regs: { a: raw.a, x: raw.x, y: raw.y, pc: raw.pc, sp: raw.sp },
+      regs: { a: raw.a, x: raw.x, y: raw.y, pc, sp: raw.sp },
       flags: { ...raw.flags },
     });
   };

@@ -23,7 +23,7 @@ function auxBackend(real: RunBackend, view: AuxCpuView): RunBackend {
     pixels: real.pixels,
     loadMedia: (f, b) => real.loadMedia(f, b),
     advanceFrame: (t) => real.advanceFrame(t),
-    step: () => real.step(),
+    step: () => (view.step ? view.step() : real.step()),
     cpuState: () => view.cpuState(),
     getPC: () => view.getPC(),
     isAtInstrBoundary: () => real.isAtInstrBoundary(),

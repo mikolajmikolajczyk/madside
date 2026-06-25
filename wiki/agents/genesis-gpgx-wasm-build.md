@@ -75,6 +75,9 @@ Replaces `libretro.c`. Supplies the frontend globals (`config`, BIOS strings,
   `md_bp_check(pc)` (called per instruction from the patched `m68k_run` loop)
   trips on a match.
 - `step()` — execute exactly one 68000 instruction (single-step); returns its cycles.
+- `z80_bp_ptr()` / `z80_bp_capacity()` / `set_z80_bp_count(n)` / `z80_step()` — the
+  same breakpoint + single-step surface for the Z80 sound coprocessor (#146). The
+  patched `z80_run` loop calls `md_z80_bp_check(Z80.pc.w.l)` per instruction.
 - `framebuffer()` + `fb_width/height/pitch/x/y()` — the live viewport within the
   720×576 bitmap.
 - `get_reg(r)` — `m68k_get_reg(r)` (**1-arg** in gpgx). `read_byte(addr)` — decodes
@@ -136,8 +139,9 @@ flag-and-break design never unwinds.
 - **Single-step** runs exactly one 68000 instruction via the `step` export
   (`m68k_run(m68k.cycles + 1)` — the loop always runs ≥1 instruction, then the
   cycle budget stops it; `g_step_mode` makes the breakpoint check a no-op for the
-  step). Only the 68000 advances — Z80/VDP/audio stay put. The Z80 coprocessor
-  has no execute hook, so its breakpoints stay frame-boundary.
+  step). Only the 68000 advances — Z80/VDP/audio stay put. The **Z80** has the
+  same treatment (`z80_run` patched the same way, `z80_step` export), so its
+  breakpoints + single-step are instruction-granular too.
 - **VDP-space reads** (`readMem(.., 'vram'|'cram'|'vsram')`) throw — not yet wired.
 - **save/loadState** carry CPU regs only — full snapshot needs `state.c` through a
   buffer export.

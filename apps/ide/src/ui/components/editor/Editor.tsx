@@ -7,8 +7,23 @@ import { autocompletion, completionKeymap, closeBrackets, closeBracketsKeymap } 
 import { lintGutter, setDiagnostics, type Diagnostic } from "@codemirror/lint";
 import { buildAssemblyLanguage, projectLabelsField, setProjectLabels, formatCView, isCFile, warmFormatter, resolveCStyle, editorTheme, editorHighlight } from "@ui/codemirror";
 import { asmDialectFor } from "@app/asmLsp";
+import { getCpuLanguage } from "@core";
 import type { CpuLanguage, LabelInfo } from "@core";
 import type { BuildDiagnostic, ToolchainLanguage } from "@ports";
+
+// z80asm vocabulary for a Genesis `.s80` driver's StreamLanguage highlight — the
+// project toolchain (clownassembler/M68k) is the wrong one for these files. Bare
+// z80asm directives + `;` comments; opcodes come from the z80 CpuLanguage.
+const Z80_ASM_LANG: ToolchainLanguage = {
+  directives: [
+    "org", "defb", "db", "defw", "dw", "defs", "ds", "defm", "defc", "equ",
+    "include", "incbin", "binary", "module", "section", "public", "extern",
+    "global", "macro", "endm", "rept", "endr", "if", "else", "endif", "ifdef",
+    "ifndef", "align", "end",
+  ],
+  lineComment: ";",
+  snippets: [],
+};
 import type { DefinitionTarget, ReferenceLocation } from "../../codemirror/lsp/client";
 import "./Editor.css";
 
@@ -147,8 +162,13 @@ async function loadLanguagePack(
   // label hover + project-symbol completion on top (the StreamLanguage keeps the
   // base syntax coloring; the LSP adds intelligence the lexer can't).
   if (cpu && toolchain) {
-    const base = buildAssemblyLanguage(cpu, toolchain);
-    const dialect = asmDialectFor(toolchainId);
+    // A `.s80` source is the Genesis Z80 driver — z80 ISA, not the project's
+    // M68k. Colour + analyse it with the z80 vocab regardless of the toolchain.
+    const isZ80File = /\.s80$/i.test(lower);
+    const asmCpu = isZ80File ? (getCpuLanguage("z80") ?? cpu) : cpu;
+    const asmLang = isZ80File ? Z80_ASM_LANG : toolchain;
+    const base = buildAssemblyLanguage(asmCpu, asmLang);
+    const dialect = asmDialectFor(toolchainId, path);
     if (!dialect) return [base];
     const [{ autocompletion }, asm, { asmSemanticTokens }] = await Promise.all([
       import("@codemirror/autocomplete"),
@@ -293,7 +313,7 @@ export function Editor({ value, onChange, filename, pcLine, breakpointLines, lin
   const tabWidthRef = useRef(tabWidth);
   // The active asm LSP dialect (or undefined), so the once-built nav handlers can
   // route asm files to the language server (#140).
-  const asmDialectRef = useRef(asmDialectFor(toolchainId));
+  const asmDialectRef = useRef(asmDialectFor(toolchainId, filename));
   useEffect(() => {
     onChangeRef.current = onChange;
     onToggleRef.current = onToggleBreakpoint;
@@ -305,7 +325,7 @@ export function Editor({ value, onChange, filename, pcLine, breakpointLines, lin
     filenameRef.current = filename;
     cFormatStyleRef.current = cFormatStyle;
     tabWidthRef.current = tabWidth;
-    asmDialectRef.current = asmDialectFor(toolchainId);
+    asmDialectRef.current = asmDialectFor(toolchainId, filename);
   });
 
   // Format the active document: C/C++ → clang-format (wasm, VS Code parity);

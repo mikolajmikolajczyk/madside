@@ -231,18 +231,68 @@ EXPORT("set_bp_count") void sys_set_bp_count(int n)
   g_m68k_bp_count = n;
 }
 
+/* ---- Z80 breakpoints (same design as the 68000, on the patched z80_run loop).
+ * The Z80 is a 16-bit-PC sound coprocessor; breakpoints are its own addresses. */
+static uint32_t g_z80_bps[MD_BP_CAP];
+static int g_z80_bp_count = 0;
+static int g_z80_trapped = 0;
+static uint32_t g_z80_skip_pc = 0xFFFFFFFFu;
+static uint32_t g_z80_last_trap_pc = 0xFFFFFFFFu;
+static int g_z80_step_mode = 0;
+
+static int md_z80_bp_hit(uint32_t pc)
+{
+  for (int i = 0; i < g_z80_bp_count; i++)
+    if (g_z80_bps[i] == pc) return 1;
+  return 0;
+}
+
+/* Called from the patched z80_run loop before each instruction. */
+int md_z80_bp_check(unsigned int pc)
+{
+  if (g_z80_step_mode) return 0;
+  if (g_z80_bp_count == 0) return 0;
+  if (pc == g_z80_skip_pc) { g_z80_skip_pc = 0xFFFFFFFFu; return 0; }
+  if (md_z80_bp_hit((uint32_t)pc)) { g_z80_trapped = 1; g_z80_last_trap_pc = pc; return 1; }
+  return 0;
+}
+
+EXPORT("z80_bp_ptr") uint32_t *sys_z80_bp_ptr(void) { return g_z80_bps; }
+EXPORT("z80_bp_capacity") int sys_z80_bp_capacity(void) { return MD_BP_CAP; }
+EXPORT("set_z80_bp_count") void sys_set_z80_bp_count(int n)
+{
+  if (n < 0) n = 0;
+  if (n > MD_BP_CAP) n = MD_BP_CAP;
+  g_z80_bp_count = n;
+}
+
+/* Single-step one Z80 instruction (z80_run always runs >=1, the cycle budget
+ * stops it; g_z80_step_mode makes the breakpoint check a no-op). */
+EXPORT("z80_step") int sys_z80_step(void)
+{
+  unsigned int before = Z80.cycles;
+  g_z80_step_mode = 1;
+  z80_run(Z80.cycles + 1);
+  g_z80_step_mode = 0;
+  return (int)(Z80.cycles - before);
+}
+
 /* Emulate one full video frame (CPU/Z80/VDP/sound interleaved). Returns 1 on a
- * completed frame, 0 if a 68000 breakpoint trapped (PC left at the breakpoint). */
+ * completed frame, 0 if a 68000 OR Z80 breakpoint trapped (that CPU's PC is left
+ * at the breakpoint). */
 EXPORT("run_frame") int sys_run_frame(void)
 {
   g_m68k_trapped = 0;
+  g_z80_trapped = 0;
   /* Skip the parked instruction ONLY when resuming from the breakpoint we last
-   * trapped at (current PC == g_last_trap_pc). A fresh run whose entry PC merely
+   * trapped at (current PC == last-trap PC). A fresh run whose entry PC merely
    * happens to be a breakpoint still traps immediately. */
   unsigned int pc = m68k_get_reg(M68K_REG_PC);
   g_skip_pc = (g_m68k_bp_count > 0 && pc == g_last_trap_pc) ? pc : 0xFFFFFFFFu;
+  unsigned int zpc = Z80.pc.w.l;
+  g_z80_skip_pc = (g_z80_bp_count > 0 && zpc == g_z80_last_trap_pc) ? zpc : 0xFFFFFFFFu;
   system_frame_gen(0);
-  return g_m68k_trapped ? 0 : 1;
+  return (g_m68k_trapped || g_z80_trapped) ? 0 : 1;
 }
 
 /* Execute exactly one 68000 instruction (debugger single-step). Runs only the

@@ -65,6 +65,10 @@ export interface AuxCpuView {
   /** Replace this CPU's breakpoint set (its own PC space). Optional — present
    *  when the backend can trap on the aux CPU's PC. */
   setBreakpoints?(addrs: Iterable<number | BankBreakpoint>): void
+  /** Single-step one instruction of THIS CPU; returns its cycles. Optional —
+   *  present when the backend can step the aux CPU independently (else a focused
+   *  step falls back to the primary CPU). */
+  step?(): number
   /** This CPU's live bank projection (e.g. the Genesis Z80 `$8000-$FFFF` window
    *  via the `$6000` latch, ADR-0014). Optional. */
   bankMap?(): BankProjection[]

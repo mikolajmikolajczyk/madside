@@ -31,7 +31,7 @@ mkdir -p "$OUT"
 # Restore the pristine core file first: `git checkout <commit>` in clone is a
 # no-op when already on that commit, so a prior patch survives and the sed below
 # would not re-apply (or would stack). Force it back to HEAD, then patch fresh.
-git -C "$GPGX" checkout -- core/m68k/m68kcpu.c 2>/dev/null || true
+git -C "$GPGX" checkout -- core/m68k/m68kcpu.c core/z80/z80.c 2>/dev/null || true
 if ! grep -q 'md_bp_check' "$CORE/m68k/m68kcpu.c"; then
   # On a breakpoint, consume the rest of the timeslice (m68k.cycles = cycles)
   # before breaking — m68k.cycles is the shared 68k/Z80 time base, so breaking
@@ -41,6 +41,14 @@ if ! grep -q 'md_bp_check' "$CORE/m68k/m68kcpu.c"; then
   sed -i \
     '/\/\* Decode next instruction \*\//a\    { extern int md_bp_check(unsigned int); if (md_bp_check(REG_PC)) { m68k.cycles = cycles; break; } }' \
     "$CORE/m68k/m68kcpu.c"
+fi
+# Same per-instruction breakpoint check for the Z80 sound coprocessor, injected
+# into z80_run before the (unique) instruction fetch/execute. Z80.cycles shares
+# the same time base, so consume the timeslice before breaking (as above).
+if ! grep -q 'md_z80_bp_check' "$CORE/z80/z80.c"; then
+  sed -i \
+    '/EXEC_INLINE(op,ROP());/i\    { extern int md_z80_bp_check(unsigned int); if (md_z80_bp_check(Z80.pc.w.l)) { Z80.cycles = cycles; break; } }' \
+    "$CORE/z80/z80.c"
 fi
 
 # Core source set: every core/*.c subtree EXCEPT cd_hw/libchdr (CHD/zstd/lzma —

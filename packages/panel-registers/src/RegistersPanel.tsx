@@ -13,14 +13,16 @@ interface CpuSnapshot {
  *  active DebugAdapter so the panel renders identically across 6502 machines
  *  (Atari today, NES at M9). */
 export function RegistersPanel({ ctx }: { ctx: PanelContext }) {
-  const target = ctx.debug.target()
-  const registers = target?.registers ?? []
-  const flags = target?.flags ?? []
   const [cpu, setCpu] = useState<CpuSnapshot | null>(null)
+  // The focused CPU is reactive state, not just an inline read — switching it
+  // (or a focus change driven elsewhere) must re-render the panel so the CPU
+  // tab highlight + the register descriptors below both reflect the new CPU.
+  const [focused, setFocused] = useState<string | null>(() => ctx.debug.focusedCpu())
 
   useEffect(() => {
     let cancelled = false
     const refresh = async () => {
+      setFocused(ctx.debug.focusedCpu())
       if (!ctx.debug.target()) return
       try {
         const [regs, flagState] = await Promise.all([ctx.debug.registers(), ctx.debug.flags()])
@@ -31,6 +33,7 @@ export function RegistersPanel({ ctx }: { ctx: PanelContext }) {
     }
     void refresh()
     const offs = [
+      // setFocusedCpu emits debug:step-done, so this also re-syncs the highlight.
       ctx.events.on('debug:step-done', () => void refresh()),
       ctx.events.on('debug:bp-hit', () => void refresh()),
       ctx.events.on('run:state', (p) => {
@@ -43,6 +46,9 @@ export function RegistersPanel({ ctx }: { ctx: PanelContext }) {
     }
   }, [ctx.debug, ctx.events])
 
+  const target = ctx.debug.target()
+  const registers = target?.registers ?? []
+  const flags = target?.flags ?? []
   const regsVals = cpu?.regs ?? {}
   const flagState = cpu?.flags ?? {}
 
@@ -50,7 +56,6 @@ export function RegistersPanel({ ctx }: { ctx: PanelContext }) {
   // the registers + memory + current-line through that CPU (#147 Phase 2). The
   // primary CPU focuses as null; an aux CPU by its id.
   const cpus = ctx.machine.cpus ?? []
-  const focused = ctx.debug.focusedCpu()
 
   return (
     <div className="debug__panel">
@@ -63,7 +68,7 @@ export function RegistersPanel({ ctx }: { ctx: PanelContext }) {
                 key={c.id}
                 type="button"
                 className={'debug__cpuTab' + (focused === id ? ' is-active' : '')}
-                onClick={() => ctx.debug.setFocusedCpu(id)}
+                onClick={() => { ctx.debug.setFocusedCpu(id); setFocused(id) }}
               >
                 {c.label}
               </button>

@@ -73,15 +73,26 @@ describe('Genesis Z80 sound template — build + boot (#147)', () => {
       z80PC(): number
       readZ80Mem(addr: number, len: number): Uint8Array
       setZ80Breakpoints(addrs: number[]): void
+      auxCpu(id: string): { step?(): number } | undefined
     }
     expect(z80.readZ80Mem(0x0000, 1)[0]).toBe(0xf3) // di, copied into Z80 RAM
     expect(z80.readZ80Mem(0x0010, 1)[0]).toBe(0xc3) // jp at Loop
     expect(z80.z80PC()).toBe(0x0010) // the Z80 is spinning in the driver's loop
 
-    // A Z80 line breakpoint at the driver's loop traps the frame loop (#147
-    // Phase 2d-2): advanceFrame returns 0 when the Z80 PC hits a Z80 breakpoint.
+    // A Z80 breakpoint traps the frame loop instruction-granularly (#146): the
+    // patched z80_run stops with the Z80 PC exactly at the breakpoint.
     expect(backend.advanceFrame()).toBe(1) // no Z80 breakpoints yet
     z80.setZ80Breakpoints([0x0010])
     expect(backend.advanceFrame()).toBe(0) // trapped on the Z80 PC ($0010)
+    expect(z80.z80PC()).toBe(0x0010)
+    // Resume re-traps on the next loop iteration (skip-one lets it step off).
+    expect(backend.advanceFrame()).toBe(0)
+    expect(z80.z80PC()).toBe(0x0010)
+    // Clearing lets the frame complete again.
+    z80.setZ80Breakpoints([])
+    expect(backend.advanceFrame()).toBe(1)
+    // Single-step the Z80 (jp Loop → back to $0010) advances real cycles.
+    expect(z80.auxCpu('z80')?.step?.()).toBeGreaterThan(0)
+    expect(z80.z80PC()).toBe(0x0010)
   })
 })
