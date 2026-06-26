@@ -1,0 +1,72 @@
+name: Pages
+
+# Publish the official madside site (IDE at /, docs at /docs) to GitHub Pages.
+# Fires once per release so the live site tracks the latest tagged version, not
+# every main commit. workflow_dispatch is the manual escape hatch (re-deploy an
+# existing release, or push a hotfix to the site without cutting a new tag).
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+
+# Pages needs id-token (OIDC) + pages write; contents read for checkout.
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# Never run two deploys at once; let an in-flight one finish (don't cancel a
+# half-applied deployment).
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  build:
+    name: build site (app + docs)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 11.5.1
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+
+      # Builds @madside/ide (-> apps/ide/dist, base '/') and @madside/docs
+      # (-> apps/docs/dist, base '/docs').
+      - name: Build (app + docs)
+        run: pnpm -r build
+
+      # Assemble one Pages artifact: IDE at the root, docs nested under /docs/
+      # (astro emits pages at dist root but links them under its '/docs' base).
+      - name: Assemble site
+        run: |
+          mkdir -p site
+          cp -r apps/ide/dist/. site/
+          mkdir -p site/docs
+          cp -r apps/docs/dist/. site/docs/
+          # Custom apex domain. Pages serves the site at madside.dev once DNS
+          # points here; keep this in sync with the repo Pages setting.
+          echo 'madside.dev' > site/CNAME
+
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: site
+
+  deploy:
+    name: deploy to Pages
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4
