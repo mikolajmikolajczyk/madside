@@ -1,3 +1,19 @@
+## [0.20.0] - 2026-06-27
+
+### 🚀 Features
+
+- *(ide)* On-screen-keyboard symbol bar for touch devices (#144)
+- *(ci)* Publish site to GitHub Pages on release
+- *(genesis)* VDP memory viewer — CRAM palette + VRAM tile grid (#146)
+- *(genesis)* VDP sprite viewer + iPad viewport scroll fix
+- *(genesis)* 2-player input, stereo audio, macro-aware source map (#146)
+- *(zx-c)* Variables locals + per-line breakpoints + step-over for sccz80 (#136)
+
+### 🐛 Bug Fixes
+
+- *(z88dk)* Re-enable copt peephole with a circular-equate guard (#105)
+- *(lsp-c)* Resolve macros/enums/exprs in array sizes + macro-sized field names
+- *(lsp-c)* Resolve typedef-to-array types (typedef int Row[N])
 ## [0.19.0] - 2026-06-25
 
 ### 🚀 Features
