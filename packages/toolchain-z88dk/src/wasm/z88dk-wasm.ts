@@ -83,6 +83,10 @@ export interface Z88dkBuildResult {
   /** C path only (#135): the z80asm listings carrying `C_LINE` markers (one per
    *  compiled .c). With `map`, parseZ88dkCDebug turns these into a C source map. */
   cLists?: string[]
+  /** C path only (#136): sccz80 asm carrying cdb `__CDBINFO__` frame records (one
+   *  per compiled .c). With `map`, buildZ88dkDebugInfo turns these into typed
+   *  per-function scopes (IX-relative locals) for the Variables panel. */
+  cdbAsms?: string[]
   stdout: string
   stderr: string
   exitCode: number
@@ -499,6 +503,7 @@ export async function buildZ88dkC(main: string, files: Z88dkFile[], opts: Z88dkO
   // public symbols). parseZ88dkCDebug turns them into a C source map.
   const dbgDec = new TextDecoder()
   const cLists: string[] = []
+  const cdbAsms: string[] = [] // sccz80 asm carrying cdb frame records (#136)
   let linkMap: string | undefined
   const readText = (path: string | null | undefined): string | undefined => {
     if (!path) return undefined
@@ -528,7 +533,23 @@ export async function buildZ88dkC(main: string, files: Z88dkFile[], opts: Z88dkO
       return 127
     }
     // z80asm: emit a list + map per object so we can build a C source map.
-    const finalArgs = tool === 'z88dk-z80asm' ? injectListMap(args) : args
+    let finalArgs = tool === 'z88dk-z80asm' ? injectListMap(args) : args
+    // sccz80 debug build (#136): `-frameix` makes IX a real frame pointer (set
+    // once in the prologue, stable across the body) so locals resolve reliably,
+    // and `-debug-defc` emits SDCC-cdb records (frame-relative offsets) we parse
+    // for the Variables panel.
+    // GATED OFF pending a breakpoint regression report (#136): with these flags a
+    // user's ZX C build showed BP dots that didn't trap. They change codegen +
+    // C_LINE granularity (per-statement); off ⇒ ZX C is identical to the #105
+    // state (per-function map, known-good BP) and cdbAsms stays empty (no scopes).
+    // sccz80 debug build: `-debug-defc` makes sccz80 emit a C_LINE per *statement*
+    // (default is one per function) — without it ZX C breakpoints are function-
+    // grained (only the `int main` line traps). It also emits SDCC-cdb frame
+    // records, which `-frameix` (a real IX frame pointer, stable across the body)
+    // turns into reliable per-function locals for the Variables panel (#136).
+    // Both always on — madside is debugging-first; neither changes emitted code
+    // meaningfully (cdb defc are link-time constants; the frame prologue is tiny).
+    if (tool === 'z88dk-sccz80') finalArgs = [finalArgs[0]!, '-frameix', '-debug-defc', ...finalArgs.slice(1)]
     // copt peephole guard (#105): the real copt.wasm optimises correctly almost
     // always, but z80rules.1 has an upstream bug where two co-located labels
     // collapse into a *circular* equate (`defc A = B` + `defc B = A`), dropping
@@ -536,6 +557,13 @@ export async function buildZ88dkC(main: string, files: Z88dkFile[], opts: Z88dkO
     // a pass leaves a label unresolvable that the input resolved, revert that one
     // pass to unoptimised (the rest of the chain still optimises).
     const coptIn = tool === 'z88dk-copt' && inF ? (readFile(root.dir, inF) ?? new Uint8Array()) : null
+    if (coptIn) {
+      // The first copt pass's input is fresh sccz80 asm, still carrying the cdb
+      // `__CDBINFO__` frame records (#136); copt's later passes/z80asm drop them.
+      // Capture each distinct one (one per compiled .c) for buildZ88dkDebugInfo.
+      const asm = dbgDec.decode(coptIn)
+      if (asm.includes('__CDBINFO__') && !cdbAsms.includes(asm)) cdbAsms.push(asm)
+    }
     const code = runSubTool(mod, root, finalArgs, inF, outF, log)
     if (tool === 'z88dk-copt' && coptIn && outF) {
       const after = readFile(root.dir, outF) ?? new Uint8Array()
@@ -609,6 +637,7 @@ export async function buildZ88dkC(main: string, files: Z88dkFile[], opts: Z88dkO
     ok: true,
     binary: buildSna48k(binary, org, sp),
     cLists: cLists.length ? cLists : undefined,
+    cdbAsms: cdbAsms.length ? cdbAsms : undefined,
     map: linkMap,
     stdout: '',
     stderr: diagLog,

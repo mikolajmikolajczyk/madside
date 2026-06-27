@@ -79,6 +79,13 @@ describe('arrays — exact size + struct offsets (the silent-wrong cases)', () =
     expect(t).toMatchObject({ kind: 'array', count: 2, bytes: 6 })
     expect(t.of).toMatchObject({ kind: 'array', count: 3, bytes: 3 })
   })
+  it('a #define-sized array resolves its count (not 0)', () => {
+    const t = typeOf('#define N 3\nint arr[N];', 'arr') as Extract<ResolvedType, { kind: 'array' }>
+    expect(t).toMatchObject({ kind: 'array', count: 3, bytes: 6 })
+    // The size identifier must not be confused with the declarator name.
+    const a = typeOf('#define COUNT 4\nstruct P { int x; }; struct P items[COUNT];', 'items') as Extract<ResolvedType, { kind: 'array' }>
+    expect(a).toMatchObject({ kind: 'array', count: 4, bytes: 8 })
+  })
 })
 
 describe('per-declarator types — no pointer/array bleed', () => {

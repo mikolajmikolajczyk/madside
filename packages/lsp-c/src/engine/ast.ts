@@ -101,11 +101,21 @@ export function baseSpecText(decl: SyntaxNode, text: string): string {
 
 // Numeric size of an ArrayDeclarator (`[10]`), or 0 when absent/non-literal
 // (`[]`, VLA) — a 0-count array decodes to nothing, never mis-sized.
-function arrayCount(node: SyntaxNode, text: string): number {
+function arrayCount(node: SyntaxNode, text: string): number | string {
   const num = node.getChild('Number')
-  if (!num) return 0
-  const n = Number(slice(text, num))
-  return Number.isFinite(n) && n >= 0 ? n : 0
+  if (num) {
+    const n = Number(slice(text, num))
+    return Number.isFinite(n) && n >= 0 ? n : 0
+  }
+  // A macro/constant size like `[N]` — keep the token; resolveType evaluates it
+  // against the macro table once the index is available. The size Identifier is
+  // NOT the declarator's own name Identifier, so skip the inner declarator.
+  const inner = innerDeclarator(node)
+  for (let ch = node.firstChild; ch; ch = ch.nextSibling) {
+    if (inner && ch.from === inner.from) continue
+    if (ch.name === 'Identifier') return slice(text, ch)
+  }
+  return 0
 }
 
 // The declarator child that wraps the identifier (skips the type spec children).
@@ -142,7 +152,7 @@ export function buildDType(node: SyntaxNode | null, base: DType, text: string): 
       // Lezer nests `a[2][3]` as Array(3, Array(2, id)) — the inner C dimension
       // outermost. Gather the dim chain, then fold so the leftmost `[2]` ends up
       // the OUTER array (`array 2 of array 3`).
-      const dims: number[] = []
+      const dims: (number | string)[] = []
       let cur: SyntaxNode | null = node
       while (cur && cur.name === 'ArrayDeclarator') {
         dims.push(arrayCount(cur, text))

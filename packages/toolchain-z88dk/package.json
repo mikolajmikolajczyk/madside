@@ -9,6 +9,7 @@
   },
   "dependencies": {
     "@madside/core": "workspace:*",
+    "@madside/lsp-c": "workspace:*",
     "@madside/ports": "workspace:*",
     "@madside/wasm-z88dk": "workspace:*",
     "@bjorn3/browser_wasi_shim": "^0.4.2"

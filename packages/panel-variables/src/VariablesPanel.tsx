@@ -21,8 +21,10 @@ const MAX_DEPTH = 6 // pointer-deref depth guard (cycles)
 
 export function VariablesPanel({ ctx }: { ctx: PanelContext }) {
   const data = (ctx.data.variables as VariablesUiData | undefined) ?? null
-  const symbols = data?.debugInfo?.symbols
-  if (symbols && symbols.length > 0) return <TypedVars ctx={ctx} symbols={symbols} />
+  const di = data?.debugInfo
+  if (di && ((di.symbols && di.symbols.length > 0) || (di.scopes && di.scopes.length > 0))) {
+    return <TypedVars ctx={ctx} symbols={di.symbols} scopes={di.scopes} />
+  }
   return <RawVars ctx={ctx} labels={data?.labels} />
 }
 
@@ -32,7 +34,7 @@ function loadWatches(pid: string): string[] {
 }
 
 // ── Typed view (#130) — expandable tree over the DebugInfo type model ────────
-function TypedVars({ ctx, symbols }: { ctx: PanelContext; symbols: DebugInfo['symbols'] }) {
+function TypedVars({ ctx, symbols, scopes }: { ctx: PanelContext; symbols: DebugInfo['symbols']; scopes?: DebugInfo['scopes'] }) {
   const [filter, setFilter] = useState('')
   const [values, setValues] = useState<Map<string, Uint8Array>>(new Map())
   // Bumped on every debug event so expanded pointer-deref rows re-read too.
@@ -105,6 +107,7 @@ function TypedVars({ ctx, symbols }: { ctx: PanelContext; symbols: DebugInfo['sy
           <WatchRow key={expr} ctx={ctx} tick={tick} expr={expr} symbols={symbols} onRemove={() => setWatchList(watches.filter((w) => w !== expr))} />
         ))}
         {watches.length > 0 && <div className="vars__sep" />}
+        {scopes && scopes.length > 0 && <LocalsSection ctx={ctx} scopes={scopes} />}
         {shown.map((s) => {
           const b = values.get(s.name)
           if (!b) return null
@@ -115,6 +118,65 @@ function TypedVars({ ctx, symbols }: { ctx: PanelContext; symbols: DebugInfo['sy
         )}
       </div>
     </div>
+  )
+}
+
+// ── Locals (#136) — the current stack frame's variables ──────────────────────
+// Picks the scope whose PC range covers the live PC, resolves the frame base from
+// its DebugFrame (sccz80: the IX register; cc65-style memptr: a word in memory),
+// and renders each local at base + offset through the same typed VarRow tree.
+function LocalsSection({ ctx, scopes }: { ctx: PanelContext; scopes: NonNullable<DebugInfo['scopes']> }) {
+  const [tick, setTick] = useState(0)
+  const [frame, setFrame] = useState<{ name: string; base: number; locals: { name: string; type: DebugType; bytes: Uint8Array; addr: number }[] } | null>(null)
+
+  useEffect(() => {
+    let cancelled = false
+    const refresh = async () => {
+      if (!ctx.debug.target()) return
+      try {
+        const regs = await ctx.debug.registers()
+        const pc = regs.pc ?? 0
+        const scope = scopes.find((s) => pc >= s.pc.start && pc < s.pc.end)
+        if (!scope) { if (!cancelled) setFrame(null); return }
+        // Resolve the frame base from the scope's frame model.
+        let base: number
+        if (scope.frame.kind === 'reg') {
+          base = regs[scope.frame.reg] ?? 0
+        } else {
+          const w = await ctx.debug.readMemory(scope.frame.addr, scope.frame.bytes, scope.frame.space)
+          base = scope.frame.endian === 'le'
+            ? w.reduce((a, b, i) => a | (b << (8 * i)), 0)
+            : w.reduce((a, b) => (a << 8) | b, 0)
+        }
+        const locals = await Promise.all(scope.locals.map(async (l) => {
+          const addr = (base + l.offset) & 0xffff
+          const bytes = await ctx.debug.readMemory(addr, Math.min(l.type.bytes || 1, MAX_READ))
+          return { name: l.name, type: l.type, bytes: bytes ?? new Uint8Array(), addr }
+        }))
+        if (!cancelled) { setFrame({ name: scope.name, base, locals }); setTick((t) => t + 1) }
+      } catch {
+        // Not booted / running at speed (no stable PC) — clear.
+        if (!cancelled) setFrame(null)
+      }
+    }
+    void refresh()
+    const offs = [
+      ctx.events.on('debug:step-done', () => void refresh()),
+      ctx.events.on('debug:bp-hit', () => void refresh()),
+      ctx.events.on('run:state', (p) => { if (p.status === 'paused' || p.status === 'loaded') void refresh() }),
+    ]
+    return () => { cancelled = true; for (const off of offs) off() }
+  }, [ctx.debug, ctx.events, scopes])
+
+  if (!frame) return null
+  return (
+    <>
+      <div className="vars__scope" title={`frame @ $${hex(frame.base, 4)}`}>{frame.name}()</div>
+      {frame.locals.map((l) => (
+        <VarRow key={l.name} ctx={ctx} tick={tick} depth={0} name={l.name} type={l.type} bytes={l.bytes} addr={l.addr} />
+      ))}
+      <div className="vars__sep" />
+    </>
   )
 }
 

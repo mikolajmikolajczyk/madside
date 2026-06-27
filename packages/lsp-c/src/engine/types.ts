@@ -18,7 +18,9 @@ export interface SourceFile {
 export type DType =
   | { k: 'base'; text: string }
   | { k: 'ptr'; to: DType }
-  | { k: 'array'; count: number; of: DType }
+  // count is a literal (`[3]`) or, for a macro/constant size (`[N]`), the raw
+  // token resolved against the macro table at layout time (resolveType).
+  | { k: 'array'; count: number | string; of: DType }
 
 export type CSymbolKind = 'function' | 'macro' | 'type' | 'global' | 'field'
 
@@ -59,6 +61,9 @@ export interface CSymbol {
   type?: string
   /** Structured type for debug-info layout (#129) — exact pointer/array shape. */
   dtype?: DType
+  /** Object-like macro body (`#define N 3` → "3") — lets array sizes written as
+   *  `[N]` resolve their element count at layout time. */
+  value?: string
   /** One-line signature/detail for completion + hover. */
   detail?: string
   /** For functions: each parameter as written (drives signature help). A lone

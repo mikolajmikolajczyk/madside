@@ -123,6 +123,34 @@ export function createDebugService(deps: DebugServiceDeps): DebugService {
       deps.events.emit('debug:step-done', { pc })
     },
 
+    async stepOver(targetAddrs, maxFrames = 600) {
+      const t = requireTarget()
+      const stop = new Set<number>()
+      for (const a of targetAddrs) stop.add(a >>> 0)
+      const isUserBp = (pc: number): boolean => breakpoints.has(pc)
+      // Advance one instruction first, so a breakpoint parked at the current PC
+      // doesn't re-trap immediately and we make guaranteed progress off the line.
+      let pc = await t.step()
+      if (!stop.has(pc) && stop.size > 0) {
+        // Run with the other lines' entries (+ the user's BPs) as stops.
+        // stepFrame() advances a full frame honouring breakpoints AND servicing
+        // interrupts, so a library call that HALTs for the 50 Hz interrupt
+        // (printf → ROM) completes and returns to the caller's next line — where
+        // the nearest forward target traps. No single-step getting stuck; no
+        // overshoot (the first line reached wins).
+        t.setBreakpoints([...breakpoints, ...stop])
+        try {
+          for (let i = 0; i < maxFrames; i++) {
+            pc = await t.stepFrame()
+            if (stop.has(pc) || isUserBp(pc)) break
+          }
+        } finally {
+          t.setBreakpoints(breakpoints)
+        }
+      }
+      deps.events.emit('debug:step-done', { pc })
+    },
+
     async stepFrame() {
       const t = requireTarget()
       // Mirror the temporary-disable pattern the JS-side Frame button used

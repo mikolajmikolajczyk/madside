@@ -3,6 +3,7 @@ import type { VfsProvider } from '@core/vfs'
 import { buildZ88dk, buildZ88dkC, sysrootFor, type Z88dkFile, type Z88dkOptions } from './wasm/z88dk-wasm'
 import { parseZ80asmDebug } from './z80asm-debug'
 import { parseZ88dkCDebug } from './z88dk-c-debug'
+import { buildZ88dkDebugInfo } from './z88dk-debuginfo'
 
 /** Validate the z88dk slice of `manifest.build.options`. The manifest passes the
  *  bag through untyped — the toolchain owns its schema. */
@@ -141,11 +142,17 @@ export const z88dkToolchain: ToolchainPlugin = {
     const dbg = isC
       ? (r.cLists && r.map ? parseZ88dkCDebug(r.cLists, r.map, projectFiles) : undefined)
       : (r.lis && r.map ? parseZ80asmDebug(r.lis, r.map, projectFiles) : undefined)
+    // Typed-symbol model for the Variables panel (#136): globals + per-function
+    // IX-frame scopes/locals from sccz80's cdb records. C path only.
+    const debugInfo = isC && dbg?.labels && r.cdbAsms
+      ? buildZ88dkDebugInfo(input.files, dbg.labels, r.cdbAsms.join('\n'))
+      : undefined
     return {
       ok: true,
       binary: r.binary,
       sourceMap: dbg?.sourceMap,
       labels: dbg?.labels,
+      debugInfo,
       stdout: r.stdout,
       stderr: r.stderr,
       diagnostics,

@@ -20,6 +20,13 @@ export interface DebugService {
    *  different source line, so no-source library code (cc65 `clrscr` etc) runs
    *  through transparently instead of trapping the user inside it (#49). */
   stepLine(shouldStop: (pc: number) => boolean, max?: number): Promise<void>
+  /** Step over the current source line: advance one instruction, then *run*
+   *  (frame-stepping, so interrupts are serviced) until the PC reaches one of
+   *  `targetAddrs` — the entry addresses of the other source lines — or a user
+   *  breakpoint, or `maxFrames` elapse. Unlike `stepLine`'s single-stepping, this
+   *  passes through a library call that waits on an interrupt (e.g. a ROM `HALT`
+   *  inside `printf`) instead of getting stuck. */
+  stepOver(targetAddrs: Iterable<number>, maxFrames?: number): Promise<void>
   setBreakpoint(addr: number): void
   clearBreakpoint(addr: number): void
   breakpoints(): ReadonlySet<number>

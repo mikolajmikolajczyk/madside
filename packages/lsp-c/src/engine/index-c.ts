@@ -260,7 +260,7 @@ function collectSymbols(
     const arg = n.getChild('PreprocArg')
     const tag = arg ? REGISTER_CAST.exec(slice(text, arg))?.[1] : undefined
     if (tag) add({ label, kind: 'global', type: tag, detail: `struct ${tag}`, file, loc, ...hdr })
-    else add({ label, kind: 'macro', file, loc, ...hdr })
+    else add({ label, kind: 'macro', file, loc, ...(arg ? { value: slice(text, arg).trim() } : {}), ...hdr })
   })
 
   // Enum constants — completable identifiers (rendered as constants), tagged

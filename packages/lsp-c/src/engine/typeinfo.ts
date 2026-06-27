@@ -105,9 +105,26 @@ function resolveD(d: DType, ctx: Ctx): ResolvedType {
       return { kind: 'pointer', bytes: ctx.sizes.pointer, to: resolveD(d.to, ctx) }
     case 'array': {
       const of = resolveD(d.of, ctx)
-      return { kind: 'array', count: d.count, of, bytes: d.count * sizeOf(of) }
+      const count = resolveCount(d.count, ctx)
+      return { kind: 'array', count, of, bytes: count * sizeOf(of) }
     }
   }
+}
+
+/** Resolve an array's element count: a literal as-is, or a macro/constant size
+ *  (`#define N 3` → `[N]`) looked up in the index. Follows one macro→macro hop;
+ *  anything non-numeric (an expression) falls back to 0 (raw display). */
+function resolveCount(c: number | string, ctx: Ctx): number {
+  if (typeof c === 'number') return c
+  let tok = c
+  for (let hop = 0; hop < 4; hop++) {
+    const n = Number(tok)
+    if (Number.isFinite(n) && n >= 0) return n
+    const v = ctx.index.symbols.get(tok)?.value
+    if (v == null) return 0
+    tok = v.trim()
+  }
+  return 0
 }
 
 /** Resolve a structured declared type (DType) into a laid-out type. */

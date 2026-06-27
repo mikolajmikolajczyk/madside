@@ -630,6 +630,9 @@ importers:
       '@madside/core':
         specifier: workspace:*
         version: link:../core
+      '@madside/lsp-c':
+        specifier: workspace:*
+        version: link:../lsp-c
       '@madside/ports':
         specifier: workspace:*
         version: link:../ports

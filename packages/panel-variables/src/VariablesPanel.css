@@ -70,6 +70,13 @@
 .vars__watchbar { display: flex; padding: 0 0 4px; }
 .vars__watchbar .vars__filter { width: 100%; margin-left: 0; }
 .vars__sep { height: 1px; background: var(--border-default); margin: 4px 0; }
+.vars__scope {
+  padding: 2px 6px;
+  font-size: 11px;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+}
 .vars__row--err .vars__name { color: var(--text-tertiary); }
 .vars__val--err { color: var(--accent-coral); white-space: nowrap; }
 .vars__x {

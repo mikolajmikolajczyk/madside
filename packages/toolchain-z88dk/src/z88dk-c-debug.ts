@@ -21,7 +21,12 @@
 import type { SourceLoc, SourceMap } from '@ports'
 import { basename } from '@core/path'
 
-const C_LINE = /^\s*C_LINE\s+(\d+)\s*,\s*"([^"]+)"/
+// In the *listing*, z80asm prefixes most lines with a line-number column (and the
+// C_LINE directive often carries one), so a C_LINE row reads
+// `     2                       C_LINE 3,"file"` — allow that optional leading
+// `<num> <pad>` before `C_LINE`, else `file` never tracks into the .c body and
+// every statement is misattributed (function-grained fallback to map anchors).
+const C_LINE = /^\s*(?:\d+\s+)?C_LINE\s+(\d+)\s*,\s*"([^"]+)"/
 const SECTION_LINE = /^\s*\d+\s+SECTION\s+(\S+)/
 const CODE_LINE = /^\s*(\d+)\s+([0-9A-Fa-f]{4})\s+[0-9A-Fa-f]{2}/
 const SECTION_HEAD = /^__(?:(.+)_)?head\s*=\s*\$([0-9A-Fa-f]+)/
@@ -42,7 +47,13 @@ export interface Z88dkCDebug {
 export function parseZ88dkCDebug(lists: readonly string[], map: string, projectFiles: readonly string[]): Z88dkCDebug {
   const byBase = new Map<string, string>()
   for (const p of projectFiles) if (!byBase.has(basename(p))) byBase.set(basename(p), p)
-  const resolve = (f: string): string => byBase.get(basename(f)) ?? f
+  // Resolve a C_LINE filename to a PROJECT path, or null if it isn't one of the
+  // project's own files. The z88dk C library is itself compiled from .c with
+  // C_LINE markers (fputc_callee.c, fchkstd.c, …); mapping those would put the
+  // debugger inside library source — and worse, "step over" a printf would stop
+  // on the first mapped library line instead of running the call to completion.
+  // Only the user's files belong in the source map.
+  const resolve = (f: string): string | null => byBase.get(basename(f)) ?? null
 
   // Section bases + labels from the link map; symbol→(file,line) anchors too.
   const sectionBase = new Map<string, number>()
@@ -56,7 +67,7 @@ export function parseZ88dkCDebug(lists: readonly string[], map: string, projectF
     const addr = parseInt(l[2], 16)
     labels.set(l[1], addr)
     const loc = SYM_LOC.exec(line)
-    if (loc) anchors.push({ file: resolve(loc[1]), line: parseInt(loc[2], 10), addr })
+    if (loc) { const f = resolve(loc[1]); if (f) anchors.push({ file: f, line: parseInt(loc[2], 10), addr }) }
   }
 
   const addrToLoc = new Map<number, SourceLoc>()
@@ -71,10 +82,12 @@ export function parseZ88dkCDebug(lists: readonly string[], map: string, projectF
   // Per-line mapping from each listing: C_LINE sets the file, the column-1 line
   // is the C line, offset+section-base is the address.
   for (const lis of lists) {
-    let file = ''
+    let file: string | null = ''
     let section = ''
     for (const raw of lis.split(/\r?\n/)) {
       const cl = C_LINE.exec(raw)
+      // null file = a non-project (library) C_LINE → its instructions aren't
+      // recorded, so library code stays "no source" (step-over runs through it).
       if (cl) { file = resolve(cl[2].split('::')[0]); continue }
       const sec = SECTION_LINE.exec(raw)
       if (sec) { section = sec[1]; continue }

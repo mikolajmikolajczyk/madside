@@ -7,5 +7,8 @@ export { assembleZ80Flat, type Z80FlatResult } from './wasm/z88dk-wasm'
 export { parseZ80asmDebug, type Z80asmDebug } from './z80asm-debug'
 // z88dk C path: per-.c listings (C_LINE) + link map → C SourceMap + labels (#135).
 export { parseZ88dkCDebug, type Z88dkCDebug } from './z88dk-c-debug'
+// sccz80 typed DebugInfo: globals + IX-frame scopes/locals for Variables (#136).
+export { buildZ88dkDebugInfo } from './z88dk-debuginfo'
+export { parseCdbFrameVars, type CdbFrameVar } from './z88dk-cdb'
 // 128K .z80 snapshot builder (banked zx128 output, ADR-0014).
 export { buildZ80Snapshot, type Z80SnapshotInput } from './z80snapshot'

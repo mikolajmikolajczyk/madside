@@ -100,21 +100,16 @@ export function useRunControls({
     }
     const startPc = cpu?.regs.pc;
     const start = startPc != null ? sourceMap.addrToLoc.get(startPc) : undefined;
-    const startKey = start ? `${start.file}:${start.line}` : null;
-    // Track addresses we've executed *on the start line*: if one repeats, the
-    // line loops back on itself (e.g. `while (1) {}`) and there is no "next
-    // line" — stop there instead of spinning to the cap. No-source library code
-    // (clrscr) isn't tracked, so a library loop still runs through transparently.
-    const seenOnStartLine = new Set<number>();
-    void workbench.debug.stepLine((pc) => {
-      const a = pc; // native-width PC for source-map lookup (#133/88A)
-      const loc = sourceMap.addrToLoc.get(a);
-      if (loc == null) return false; // no source — keep running (library)
-      if (`${loc.file}:${loc.line}` !== startKey) return true; // reached a new line
-      if (seenOnStartLine.has(a)) return true; // looped back on the same line
-      seenOnStartLine.add(a);
-      return false;
-    });
+    const lineMap = start ? sourceMap.locToAddr.get(start.file) : undefined;
+    if (!start || !lineMap) { void workbench.debug.step(); return; }
+    // Step over = run to the entry of any *other* source line (so a call on this
+    // line runs to completion first). Frame-stepping in stepOver services
+    // interrupts, so a printf that HALTs for the ROM's 50 Hz tick completes
+    // instead of single-step getting stuck. The nearest line reached wins, so a
+    // forward step lands on the next line and a backward branch on its target.
+    const targets: number[] = [];
+    for (const [line, addr] of lineMap) if (line !== start.line) targets.push(addr);
+    void workbench.debug.stepOver(targets);
   }, [workbench, sourceMap, cpu]);
 
   const onStop = useCallback(() => {
