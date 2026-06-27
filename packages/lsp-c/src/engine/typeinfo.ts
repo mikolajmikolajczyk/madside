@@ -91,6 +91,7 @@ function resolveBase(text: string, ctx: Ctx): ResolvedType {
   const scalar = scalarOf(t, ctx.sizes)
   if (scalar) return scalar
   const ct = lookupType(ctx.index, typeKey(t))
+  if (ct?.dtype) return resolveD(ct.dtype, ctx) // array/pointer typedef
   if (ct) return resolveCType(ct, ctx)
   const alias = ctx.index.aliases.get(typeKey(t))
   if (alias) return resolveBase(alias, ctx)

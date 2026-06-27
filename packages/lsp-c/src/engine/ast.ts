@@ -124,7 +124,10 @@ function innerDeclarator(node: SyntaxNode): SyntaxNode | null {
       ch.name === 'Identifier' ||
       ch.name === 'PointerDeclarator' ||
       ch.name === 'ArrayDeclarator' ||
-      ch.name === 'FieldIdentifier'
+      ch.name === 'FieldIdentifier' ||
+      // In a typedef the declared name is a TypeIdentifier (`typedef int Row[N]`
+      // → ArrayDeclarator(TypeIdentifier Row, …)); treat it as the name node.
+      ch.name === 'TypeIdentifier'
     ) {
       return ch
     }
@@ -142,6 +145,7 @@ export function buildDType(node: SyntaxNode | null, base: DType, text: string): 
   switch (node.name) {
     case 'Identifier':
     case 'FieldIdentifier':
+    case 'TypeIdentifier': // typedef name leaf (`typedef int Row[N]`)
       return base
     case 'InitDeclarator':
       return buildDType(innerDeclarator(node), base, text)
@@ -170,7 +174,7 @@ export function buildDType(node: SyntaxNode | null, base: DType, text: string): 
  *  chain to the leaf Identifier/FieldIdentifier — never an array-size identifier. */
 function declaratorNameNode(ch: SyntaxNode): SyntaxNode | null {
   let cur: SyntaxNode | null = ch
-  while (cur && cur.name !== 'Identifier' && cur.name !== 'FieldIdentifier') {
+  while (cur && cur.name !== 'Identifier' && cur.name !== 'FieldIdentifier' && cur.name !== 'TypeIdentifier') {
     cur = innerDeclarator(cur)
   }
   return cur

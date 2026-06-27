@@ -48,6 +48,10 @@ export interface CType {
   name: string
   kind: 'struct' | 'union' | 'enum' | 'typedef'
   fields: CField[]
+  /** For a typedef whose underlying is an array/pointer (`typedef int Row[N]`):
+   *  the structured type, resolved at layout time. Absent for named/struct
+   *  typedefs (those use `fields` / the alias map). */
+  dtype?: DType
   /** Source file basename the type was found in (hover provenance). */
   file: string
   /** Definition location of the type tag (go-to-definition). */

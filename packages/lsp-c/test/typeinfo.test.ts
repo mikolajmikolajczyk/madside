@@ -104,6 +104,16 @@ describe('arrays — exact size + struct offsets (the silent-wrong cases)', () =
     // A value macro must NOT masquerade as a type.
     expect(typeOf('#define N 3\nN y;', 'y')).toMatchObject({ kind: 'unknown' })
   })
+  it('a typedef to an array lays out element type + count', () => {
+    const t = typeOf('#define N 4\ntypedef int Row[N];\nRow r;', 'r') as Extract<ResolvedType, { kind: 'array' }>
+    expect(t).toMatchObject({ kind: 'array', count: 4, bytes: 8 })
+    expect(t.of).toMatchObject({ kind: 'scalar', repr: 'int' })
+    // 2D + struct element.
+    expect(typeOf('typedef char Grid[2][3];\nGrid g;', 'g')).toMatchObject({ kind: 'array', count: 2, bytes: 6 })
+    const s = typeOf('typedef struct { int x, y; } P;\ntypedef P Line[2];\nLine l;', 'l') as Extract<ResolvedType, { kind: 'array' }>
+    expect(s).toMatchObject({ kind: 'array', count: 2, bytes: 8 })
+    expect(s.of).toMatchObject({ kind: 'struct', name: 'P' })
+  })
 })
 
 describe('per-declarator types — no pointer/array bleed', () => {

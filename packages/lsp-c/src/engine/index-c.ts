@@ -145,6 +145,18 @@ function collectTypes(
         }
         return
       }
+      // Array typedef: `typedef int Row[N];` / `typedef Ball Grid[3][2];`. The
+      // underlying is a structured array type, not a named alias — capture its
+      // DType (element type + dims) so a `Row r;` lays out exactly. declaredVars
+      // gives the typedef name + the array DType from the same declarator path.
+      if (n.getChild('ArrayDeclarator')) {
+        for (const v of declaredVars(n, text)) {
+          if (v.dtype.k === 'array' && !into.has(v.name)) {
+            into.set(v.name, { name: v.name, kind: 'typedef', fields: [], dtype: v.dtype, file, loc: { uri, start: v.from, end: v.to } })
+          }
+        }
+        return
+      }
       // Non-inline alias: `typedef struct S *SP;` / `typedef struct S SP;` /
       // `typedef Foo Bar;` — record `alias → underlying` so member resolution
       // can follow it to the real struct.
