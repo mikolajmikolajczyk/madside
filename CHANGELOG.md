@@ -1,3 +1,16 @@
+## [0.20.1] - 2026-06-27
+
+### 🚀 Features
+
+- *(ide)* Project-plugin inventory — discoverable transparency view (#69)
+
+### 🐛 Bug Fixes
+
+- *(ide)* Drop hardcoded 6502 cpu-state cast in Emulator.emit (#149)
+
+### 🚜 Refactor
+
+- *(asm-lsp)* Worker-per-dialect for mixed-dialect projects (#148)
 ## [0.20.0] - 2026-06-27
 
 ### 🚀 Features
