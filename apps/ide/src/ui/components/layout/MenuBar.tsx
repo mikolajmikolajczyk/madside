@@ -48,6 +48,7 @@ export interface MenuBarProps {
   onOpenHistory?: () => void;
   onSnapshotNow?: () => void;
   onAbout?: () => void;
+  onProjectPlugins?: () => void;
   onCommandPalette?: () => void;
   /** Present only in dockview layout mode — drives the View menu (panel
    *  show/hide + reset). */
@@ -266,6 +267,7 @@ export function MenuBar(p: MenuBarProps) {
           <MenuItem data-testid="menu.help.palette" onSelect={p.onCommandPalette} shortcut="Ctrl+K">
             Command Palette
           </MenuItem>
+          <MenuItem data-testid="menu.help.plugins" onSelect={p.onProjectPlugins}>Project plugins…</MenuItem>
           <MenuItem data-testid="menu.help.about" onSelect={p.onAbout}>About</MenuItem>
         </MenuContent>
       </Menu>

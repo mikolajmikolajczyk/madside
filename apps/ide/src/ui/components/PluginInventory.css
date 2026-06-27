@@ -1,0 +1,53 @@
+/* Plugin inventory dialog (#69) — read-only transparency list. */
+.plugins__empty,
+.plugins__intro {
+  margin: 0 0 10px;
+  color: var(--text-secondary);
+  font-size: 12px;
+}
+.plugins__list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.plugins__row {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  grid-template-areas: "path trust" "trigger trigger";
+  gap: 2px 10px;
+  align-items: center;
+  padding: 8px 10px;
+  background: var(--bg-tertiary);
+  border: 1px solid var(--border-default);
+  border-radius: 6px;
+}
+.plugins__path {
+  grid-area: path;
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: var(--text-primary);
+}
+.plugins__kind {
+  grid-area: path;
+  justify-self: end;
+  margin-right: 90px;
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+  color: var(--text-tertiary);
+}
+.plugins__trigger {
+  grid-area: trigger;
+  font-size: 11px;
+  color: var(--text-secondary);
+}
+.plugins__trust {
+  grid-area: trust;
+  font-size: 11px;
+  font-weight: 600;
+}
+.plugins__trust--ok { color: var(--accent-mint); }
+.plugins__trust--no { color: var(--accent-coral); }

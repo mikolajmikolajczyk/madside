@@ -58,6 +58,7 @@ import { useActiveMachine } from "./hooks/useActiveMachine";
 import { useWorkbench } from "@app";
 import { applyTheme, loadThemeId, saveThemeId, hydrateTrustedPlugins } from "@app";
 import { PluginTrustBanner } from "./components/PluginTrustBanner";
+import { PluginInventory } from "./components/PluginInventory";
 import { addLessonInFiles, getCourse, getDraftCourse, openLesson, readCourseMeta, refreshCourseFromGitHub, resetLessonToStarter, runChecks, saveDraftCourse, scanEquates, setLessonStarterInFiles, starterFilesForMachine } from "@app";
 import { useCourses } from "./hooks/useCourses";
 import type { CheckReport, CheckRunDeps } from "@app";
@@ -864,6 +865,7 @@ export default function App() {
 
   const [historyOpen, setHistoryOpen] = useState(false);
   const [aboutOpen, setAboutOpen] = useState(false);
+  const [pluginsOpen, setPluginsOpen] = useState(false);
 
   const handleSnapshotNow = useCallback(() => {
     if (!project.loaded) return;
@@ -1271,6 +1273,7 @@ export default function App() {
         onSnapshotNow={handleSnapshotNow}
         onOpenHistory={() => setHistoryOpen(true)}
         onAbout={() => setAboutOpen(true)}
+        onProjectPlugins={() => setPluginsOpen(true)}
         onCommandPalette={() => setPaletteOpen(true)}
         viewMenu={viewMenu}
       />
@@ -1396,6 +1399,12 @@ export default function App() {
               <span className="about__muted">AGPL-3.0</span>
             </p>
           </div>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={pluginsOpen} onOpenChange={setPluginsOpen}>
+        <DialogContent title="Project plugins">
+          <PluginInventory files={project.loaded ? project.files : null} />
         </DialogContent>
       </Dialog>
 
