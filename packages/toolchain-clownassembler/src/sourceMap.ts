@@ -15,15 +15,26 @@ import type { SourceFile } from "./wasm-clownassembler";
 // only real code/data anchors an address. Long rows are truncated with a trailing
 // `+` (still one listing line), so the one-line-per-source-line invariant holds.
 //
-// Known gap: macro / rept expansions turn one source line into many listing lines,
-// breaking the lockstep for code *inside* the expansion — line-debug there is
-// approximate. Same best-effort spirit as the optional cc65 multi-range map.
+// clownassembler *collapses* macro / rept expansions: each invocation, body, and
+// closing directive is still exactly one listing line, so the lockstep — and so
+// line-debug *outside* expansions — holds (the per-iteration bytes of a `rept`
+// get folded onto the `endr` line). The one residual gap is the body itself: a
+// macro-invocation line carries its address but no inline byte column (the
+// expansion emitted the bytes), so EMIT_RE alone would leave the call site
+// unmapped. We recover it by detecting macro names from their definitions and
+// mapping each invocation line to its (correct) address — so a breakpoint on a
+// macro call resolves. The per-line interior of a rept body stays approximate.
 
 const ADDR_RE = /^([0-9A-Fa-f]{8})/;
 // An address followed by a space and at least one hex byte pair => emits bytes.
 const EMIT_RE = /^[0-9A-Fa-f]{8} [0-9A-Fa-f]{2}/;
 // `[label[:]] include "path"` (asm68k style; label prefix is rare but allowed).
 const INCLUDE_RE = /^\s*(?:[A-Za-z_.@][\w.$@]*:?\s+)?include\s+["']([^"']+)["']/i;
+// `name[:] macro` — a macro definition (asm68k). Captures the macro's name.
+const MACRO_DEF_RE = /^\s*([A-Za-z_.@][\w.$@]*):?\s+macro\b/i;
+// First mnemonic token of a source line: skip an optional leading `label[:]`,
+// then capture the next word — a macro invocation uses the macro name here.
+const MNEMONIC_RE = /^\s*(?:[A-Za-z_.@][\w.$@]*:?\s+)?([A-Za-z_.@][\w.$@]*)/;
 
 interface ListLine {
   addr: number;
@@ -56,6 +67,27 @@ export function parseListingSourceMap(
     return { addr: m ? parseInt(m[1], 16) : -1, emits: EMIT_RE.test(l) };
   });
 
+  // Macro names, collected from every source file's definitions. A source line
+  // whose mnemonic is one of these is an invocation whose bytes the listing folds
+  // away — we map it to its line's address even though it shows no byte column.
+  const macroNames = new Set<string>();
+  for (const lines of text.values()) {
+    for (const l of lines) {
+      const m = MACRO_DEF_RE.exec(l);
+      if (m) macroNames.add(m[1]!);
+    }
+  }
+
+  const record = (addr: number, path: string, lineNo: number): void => {
+    if (!addrToLoc.has(addr)) addrToLoc.set(addr, { file: path, line: lineNo });
+    let fileMap = locToAddr.get(path);
+    if (!fileMap) {
+      fileMap = new Map();
+      locToAddr.set(path, fileMap);
+    }
+    if (!fileMap.has(lineNo)) fileMap.set(lineNo, addr);
+  };
+
   // Resolve an include target against the known files: literal, then relative to
   // the including file's dir, then by basename.
   const resolve = (inc: string, fromPath: string): string | undefined => {
@@ -86,15 +118,17 @@ export function parseListingSourceMap(
           if (target) walk(target, seen);
           continue;
         }
-        if (ll!.emits && ll!.addr >= 0) {
+        if (ll!.addr >= 0) {
           const lineNo = n + 1;
-          if (!addrToLoc.has(ll!.addr)) addrToLoc.set(ll!.addr, { file: path, line: lineNo });
-          let fileMap = locToAddr.get(path);
-          if (!fileMap) {
-            fileMap = new Map();
-            locToAddr.set(path, fileMap);
+          if (ll!.emits) {
+            record(ll!.addr, path, lineNo);
+          } else if (macroNames.size > 0) {
+            // A macro invocation emits via the (collapsed) expansion, so the line
+            // has an address but no inline bytes — map it by name so the call site
+            // is breakpointable.
+            const mn = MNEMONIC_RE.exec(lines[n]!);
+            if (mn && macroNames.has(mn[1]!)) record(ll!.addr, path, lineNo);
           }
-          if (!fileMap.has(lineNo)) fileMap.set(lineNo, ll!.addr);
         }
       }
     }

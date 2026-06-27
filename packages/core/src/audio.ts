@@ -20,8 +20,11 @@ class PcmQueueProcessor extends AudioWorkletProcessor {
     // 48000). So run the context at its native rate and resample here instead.
     const src = (options && options.processorOptions && options.processorOptions.sourceRate) || sampleRate
     this.step = src / sampleRate
-    this.buf = new Float32Array(0)  // unconsumed samples
-    this.pos = 0                    // fractional read index into buf
+    // Channel count of the source stream. >1 means the posted buffers are
+    // interleaved frames (L,R,L,R…); pos counts frames, not samples.
+    this.channels = (options && options.processorOptions && options.processorOptions.channels) || 1
+    this.buf = new Float32Array(0)  // unconsumed samples (interleaved if channels>1)
+    this.pos = 0                    // fractional read index, in frames
     this.port.onmessage = (ev) => {
       if (ev.data instanceof Float32Array) {
         const merged = new Float32Array(this.buf.length + ev.data.length)
@@ -36,22 +39,32 @@ class PcmQueueProcessor extends AudioWorkletProcessor {
   }
 
   process(_inputs, outputs) {
-    const out = outputs[0][0]
-    if (!out) return true
+    const chans = outputs[0]
+    const out0 = chans[0]
+    if (!out0) return true
     const buf = this.buf
     const step = this.step
+    const nch = this.channels
+    const frames = out0.length
+    const avail = (buf.length / nch) | 0  // whole frames buffered
     let pos = this.pos
     let i = 0
-    for (; i < out.length; i++) {
+    for (; i < frames; i++) {
       const ip = Math.floor(pos)
-      if (ip + 1 >= buf.length) break  // not enough buffered to interpolate
-      out[i] = buf[ip] + (buf[ip + 1] - buf[ip]) * (pos - ip)
+      if (ip + 1 >= avail) break  // not enough buffered to interpolate the next frame
+      const frac = pos - ip
+      const a = ip * nch
+      const b = (ip + 1) * nch
+      for (let c = 0; c < nch; c++) {
+        const oc = chans[c]
+        if (oc) oc[i] = buf[a + c] + (buf[b + c] - buf[a + c]) * frac
+      }
       pos += step
     }
-    for (; i < out.length; i++) out[i] = 0  // underrun → silence, don't glitch
-    // Drop the integer samples we've consumed; keep the fractional remainder.
+    for (; i < frames; i++) for (let c = 0; c < nch; c++) { const oc = chans[c]; if (oc) oc[i] = 0 }
+    // Drop the whole frames we've consumed; keep the fractional remainder.
     const consumed = Math.floor(pos)
-    this.buf = consumed > 0 ? buf.subarray(consumed) : buf
+    this.buf = consumed > 0 ? buf.subarray(consumed * nch) : buf
     this.pos = pos - consumed
     return true
   }
@@ -70,6 +83,10 @@ export interface AudioPushPumpOptions {
   /** Pin the AudioContext sample rate (jsnes feeds its native APU rate). Omit to
    *  use the device default (Altirra resamples internally). */
   sampleRate?: number;
+  /** Source channel count. 1 (default) = mono; 2 = interleaved stereo frames
+   *  (L,R,L,R…) — the pumped buffers must be interleaved and the worklet outputs
+   *  that many channels. */
+  channels?: number;
   /** Pump interval in ms — tight enough to keep the queue stable, below
    *  scheduler jitter. Default 5. */
   intervalMs?: number;
@@ -137,12 +154,13 @@ export class AudioPushPump {
       } finally {
         URL.revokeObjectURL(url);
       }
+      const channels = this.opts.channels ?? 1;
       const node = new AudioWorkletNode(ctx, this.processorName, {
         numberOfInputs: 0,
         numberOfOutputs: 1,
-        outputChannelCount: [1],
+        outputChannelCount: [channels],
         // The worklet resamples from the source rate to the context's native rate.
-        processorOptions: { sourceRate: this.opts.sampleRate ?? ctx.sampleRate },
+        processorOptions: { sourceRate: this.opts.sampleRate ?? ctx.sampleRate, channels },
       });
       node.connect(ctx.destination);
       this.node = node;

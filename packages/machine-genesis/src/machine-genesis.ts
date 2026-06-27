@@ -94,9 +94,13 @@ export const machineGenesis: MachinePlugin = {
     buttons: ['Up', 'Down', 'Left', 'Right', 'A', 'B', 'C', 'Start'],
     // Keyboard → 3-button pad: arrows for the D-pad, Z/X/C = A/B/C, Enter = Start.
     // Numeric codes are the button indices above; the emulator backend decodes.
+    // Player 2 reuses the same eight buttons on the numpad, offset by 8 (8..15);
+    // the backend routes index >= 8 to controller port 1.
     codeToKey: {
       ArrowUp: 0, ArrowDown: 1, ArrowLeft: 2, ArrowRight: 3,
       KeyZ: 4, KeyX: 5, KeyC: 6, Enter: 7,
+      Numpad8: 8, Numpad2: 9, Numpad4: 10, Numpad6: 11,
+      Numpad7: 12, Numpad9: 13, Numpad3: 14, NumpadEnter: 15,
     },
   },
 

@@ -122,14 +122,15 @@ class GenesisGpgxBackend implements RunBackend {
   readonly height = HEIGHT
   readonly sampleRate = SAMPLE_RATE
   readonly pixels = new Uint32Array(WIDTH * HEIGHT) // 0xAARRGGBB (xrgb8888)
-  private padState = 0
+  private readonly padState = [0, 0] // per controller port (player 1 / player 2)
   private loaded = false
   private readonly core: GpgxExports
 
-  // Mono downmix of the YM2612/PSG stereo output, drained to the worklet.
+  // Interleaved stereo (L,R,L,R…) YM2612/PSG output, drained to the worklet.
   private audioQueue: number[] = []
   private readonly audioPump = new AudioPushPump('gpgx-genesis-audio', {
     sampleRate: SAMPLE_RATE,
+    channels: 2,
     pull: () => {
       if (this.audioQueue.length === 0) return null
       const out = Float32Array.from(this.audioQueue)
@@ -177,16 +178,14 @@ class GenesisGpgxBackend implements RunBackend {
     }
   }
 
-  /** Drain one frame of YM2612/PSG audio, downmixed to mono float [-1,1). */
+  /** Drain one frame of YM2612/PSG audio as interleaved stereo float [-1,1). */
   private pumpAudio(): void {
     const frames = this.core.audio_update()
     if (frames <= 0) return
     const base = this.core.audio_ptr() >>> 1 // int16 index
     const buf = new Int16Array(this.core.memory.buffer)
     for (let i = 0; i < frames; i++) {
-      const l = buf[base + i * 2]!
-      const r = buf[base + i * 2 + 1]!
-      this.audioQueue.push((l + r) / 65536) // (L+R)/2 / 32768
+      this.audioQueue.push(buf[base + i * 2]! / 32768, buf[base + i * 2 + 1]! / 32768) // L, R
     }
   }
 
@@ -359,12 +358,14 @@ class GenesisGpgxBackend implements RunBackend {
   }
 
   sendKey(keyCode: number, _charCode: number, isDown: boolean): void {
-    // keyCode is the machine-genesis button index (0..7), mapped from the browser
-    // key by machine-genesis.input.codeToKey. Route to the player-1 pad.
-    if (keyCode < 0 || keyCode >= BUTTON_BITS.length) return
-    const bit = BUTTON_BITS[keyCode]!
-    this.padState = isDown ? this.padState | bit : this.padState & ~bit
-    this.core.set_input(0, this.padState)
+    // keyCode is the machine-genesis button index, mapped from the browser key by
+    // machine-genesis.input.codeToKey. 0..7 = player 1 (port 0), 8..15 = player 2
+    // (port 1); the low 3 bits pick the button.
+    if (keyCode < 0 || keyCode >= 16) return
+    const port = keyCode >= 8 ? 1 : 0
+    const bit = BUTTON_BITS[keyCode & 7]!
+    this.padState[port] = isDown ? this.padState[port]! | bit : this.padState[port]! & ~bit
+    this.core.set_input(port, this.padState[port]!)
   }
 
   saveState(): unknown {
