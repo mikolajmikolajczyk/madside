@@ -1,10 +1,14 @@
 // Thin LSP client for the in-repo assembly language server (@madside/lsp-asm),
-// running in a Web Worker. Worker-native transport (vscode-jsonrpc over the
-// message port), mirroring the C client (./client). One worker module serves
-// every assembler; the active dialect (mads / ca65 / z80asm) is chosen by
-// spawning the worker with the dialect id as its `name`, so switching dialect
-// respawns it. Exposes the server as CodeMirror completion + hover sources;
-// go-to-definition / references / rename / semantic tokens layer on later.
+// running in Web Workers. Worker-native transport (vscode-jsonrpc over the
+// message port), mirroring the C client (./client).
+//
+// One worker PER DIALECT (#148): a project can mix dialects (Genesis pairs M68k
+// `.asm` with a z80 `.s80` driver), so we keep a live worker for each dialect in
+// play and route a file to its dialect's worker — no terminate/respawn thrash on
+// tab switch, no wrong-dialect analysis. The dialect id rides the worker `name`
+// (read by @madside/lsp-asm/browser via self.name). Each worker holds its own
+// files; diagnostics for a shared include come from its single `owner` dialect
+// (others suppressed) so squiggles never conflict.
 
 import {
   BrowserMessageReader,
@@ -30,60 +34,52 @@ interface LspCompletionItem { label: string; kind?: number; detail?: string }
 interface LspHover { contents?: string | { value?: string } }
 interface LspLocation { uri: string; range: { start: Position; end: Position } }
 
-// LSP CompletionItemKind → CodeMirror completion `type`. The asm provider emits
-// keyword (opcode/directive), constant (equate), function (macro), variable
-// (label). (Keyword 14, Function 3, Constant 21, Variable 6.)
+// LSP CompletionItemKind → CodeMirror completion `type`. (Keyword 14, Function 3,
+// Constant 21, Variable 6.)
 const CM_TYPE: Record<number, string> = { 3: 'function', 6: 'variable', 14: 'keyword', 21: 'constant' }
 
-// Active dialect id (worker name). Switching respawns the worker bound to the
-// other dialect. Set by the editor before the lazy connect().
-let dialectId = 'mads'
-let worker: Worker | null = null
-let connection: MessageConnection | null = null
-let ready: Promise<void> | null = null
-let activePath: string | null = null
-
 interface DocEntry { uri: string; version: number; text: string }
-const docs = new Map<string, DocEntry>()
-
-/** Select the assembler dialect the worker hosts. Respawns if it changed. */
-export function setAsmDialect(id: string): void {
-  if (id === dialectId) return
-  dialectId = id
-  if (connection) {
-    worker?.terminate()
-    worker = null
-    connection.dispose()
-    connection = null
-    ready = null
-    // Drop the old dialect's diagnostics — they'd otherwise linger in the store
-    // (the store only clears a path when a clean re-analysis pushes an empty set,
-    // which never happens for a file the new dialect's worker doesn't open).
-    for (const path of docs.keys()) setLspDiagnostics(path, [])
-    docs.clear()
-  }
+interface Client {
+  worker: Worker
+  conn: MessageConnection
+  ready: Promise<void>
+  docs: Map<string, DocEntry>
+  /** Paths this dialect owns diagnostics for — a file is owned by exactly one
+   *  dialect, so the others' publishes for it are dropped (no conflict). */
+  owned: Set<string>
 }
 
-/** Mark the focused buffer — completion/hover address this doc's URI. */
-export function setAsmActiveDoc(path: string): void {
+const clients = new Map<string, Client>()
+// The focused buffer + its dialect; completion/hover/etc address this doc's URI
+// on its dialect's worker.
+let activePath: string | null = null
+let activeDialect: string | null = null
+
+/** Mark the focused buffer + its dialect — requests route to that worker. */
+export function setAsmActiveDoc(path: string, dialect: string): void {
   activePath = path
+  activeDialect = dialect
 }
 
-function connect(): { conn: MessageConnection; ready: Promise<void> } {
-  if (connection && ready) return { conn: connection, ready }
+/** Lazily spawn + handshake the worker for a dialect. Reused across edits. */
+function clientFor(dialect: string): Client {
+  const existing = clients.get(dialect)
+  if (existing) return existing
   // Static URL literal so Vite bundles the worker as its own chunk; the dialect
   // id rides the worker `name` (read by @madside/lsp-asm/browser via self.name).
-  worker = new Worker(new URL('./asm-lsp.worker.ts', import.meta.url), { type: 'module', name: dialectId })
+  const worker = new Worker(new URL('./asm-lsp.worker.ts', import.meta.url), { type: 'module', name: dialect })
   const conn = createMessageConnection(new BrowserMessageReader(worker), new BrowserMessageWriter(worker))
-  // The server publishes analysis diagnostics (undefined symbol / duplicate
-  // definition) on every edit. Map each to a BuildDiagnostic against the project
-  // path and stash them in the shared store the editor merges (#77). Registered
-  // before listen() so no early push is missed.
+  const client: Client = { worker, conn, ready: Promise.resolve(), docs: new Map(), owned: new Set() }
+  // The server publishes analysis diagnostics on every edit. Map each to a
+  // BuildDiagnostic and stash in the shared store the editor merges (#77). Only
+  // for paths this dialect OWNS, so a file synced to two workers (shared include)
+  // doesn't get conflicting squiggles. Registered before listen() so no early
+  // push is missed.
   conn.onNotification(
     'textDocument/publishDiagnostics',
     (p: { uri: string; diagnostics: { range: { start: Position }; severity?: number; message: string }[] }) => {
       const path = pathForUri(p.uri)
-      if (!path) return
+      if (!path || !client.owned.has(path)) return
       setLspDiagnostics(
         path,
         p.diagnostics.map((d) => ({
@@ -97,12 +93,18 @@ function connect(): { conn: MessageConnection; ready: Promise<void> } {
     },
   )
   conn.listen()
-  connection = conn
-  ready = (async () => {
+  client.ready = (async () => {
     await conn.sendRequest('initialize', { processId: null, rootUri: null, capabilities: {} })
     conn.sendNotification('initialized', {})
   })()
-  return { conn, ready }
+  clients.set(dialect, client)
+  return client
+}
+
+/** The client for the focused doc's dialect (lazily spawned), or null if no asm
+ *  doc is active. */
+function activeClient(): Client | null {
+  return activeDialect ? clientFor(activeDialect) : null
 }
 
 function positionOf(doc: Text, offset: number): Position {
@@ -110,14 +112,15 @@ function positionOf(doc: Text, offset: number): Position {
   return { line: line.number - 1, character: offset - line.from }
 }
 
-/** Open `path` if unseen, else didChange when its text moved; returns the URI. */
-function openOrChange(conn: MessageConnection, path: string, text: string): string {
-  const existing = docs.get(path)
+/** Open `path` if unseen on this client, else didChange when its text moved;
+ *  returns the URI. */
+function openOrChange(client: Client, path: string, text: string): string {
+  const existing = client.docs.get(path)
   if (existing) {
     if (existing.text !== text) {
       existing.version++
       existing.text = text
-      conn.sendNotification('textDocument/didChange', {
+      client.conn.sendNotification('textDocument/didChange', {
         textDocument: { uri: existing.uri, version: existing.version },
         contentChanges: [{ text }],
       })
@@ -125,30 +128,51 @@ function openOrChange(conn: MessageConnection, path: string, text: string): stri
     return existing.uri
   }
   const uri = uriFor(path)
-  docs.set(path, { uri, version: 1, text })
-  conn.sendNotification('textDocument/didOpen', {
+  client.docs.set(path, { uri, version: 1, text })
+  client.conn.sendNotification('textDocument/didOpen', {
     textDocument: { uri, languageId: 'asm', version: 1, text },
   })
   return uri
 }
 
-/** Sync the project's full source set so cross-file label resolution sees every
- *  file, not just the focused buffer. Idempotent. */
-export async function syncAsmDocs(files: { path: string; text: string }[]): Promise<void> {
-  const { conn, ready: handshake } = connect()
-  await handshake
-  const incoming = new Set(files.map((f) => f.path))
-  for (const [path, entry] of docs) {
-    if (!incoming.has(path)) {
-      conn.sendNotification('textDocument/didClose', { textDocument: { uri: entry.uri } })
-      docs.delete(path)
-      // Closing drops the doc from the worker; clear its diagnostics too, else a
-      // file dropped while carrying (now-irrelevant) diagnostics keeps stale
-      // squiggles the worker will never publish over.
-      setLspDiagnostics(path, [])
-    }
+/** A dialect's file set: the sources to sync to its worker + the subset it owns
+ *  diagnostics for. */
+export interface AsmDialectDocs {
+  dialect: string
+  files: { path: string; text: string }[]
+  owned: string[]
+}
+
+/** Sync the project's asm sources to their dialect workers (#148): cross-file
+ *  resolution sees every same-dialect file, and a shared include lands in each
+ *  dialect that uses it. A dialect with no files left is torn down. Idempotent. */
+export async function syncAsmDocs(byDialect: AsmDialectDocs[]): Promise<void> {
+  const wanted = new Set(byDialect.map((d) => d.dialect))
+  // Tear down workers for dialects no longer present (project/toolchain change).
+  for (const [dialect, client] of [...clients]) {
+    if (wanted.has(dialect)) continue
+    for (const [path] of client.docs) setLspDiagnostics(path, [])
+    client.worker.terminate()
+    client.conn.dispose()
+    clients.delete(dialect)
   }
-  for (const f of files) openOrChange(conn, f.path, f.text)
+  await Promise.all(
+    byDialect.map(async ({ dialect, files, owned }) => {
+      const client = clientFor(dialect)
+      await client.ready
+      client.owned = new Set(owned)
+      const incoming = new Set(files.map((f) => f.path))
+      for (const [path, entry] of client.docs) {
+        if (incoming.has(path)) continue
+        client.conn.sendNotification('textDocument/didClose', { textDocument: { uri: entry.uri } })
+        client.docs.delete(path)
+        // Closing drops the doc from the worker; clear its diagnostics too (the
+        // worker won't publish over them once closed).
+        setLspDiagnostics(path, [])
+      }
+      for (const f of files) openOrChange(client, f.path, f.text)
+    }),
+  )
 }
 
 /** CodeMirror completion source backed by the asm language server: CPU opcodes
@@ -156,11 +180,11 @@ export async function syncAsmDocs(files: { path: string; text: string }[]): Prom
  *  macros. Transport failure degrades to "no completions". */
 export async function asmLspComplete(ctx: CompletionContext): Promise<CompletionResult | null> {
   try {
-    if (!activePath) return null
-    const { conn, ready: handshake } = connect()
-    await handshake
-    const uri = openOrChange(conn, activePath, ctx.state.doc.toString())
-    const result = await conn.sendRequest<LspCompletionItem[] | { items: LspCompletionItem[] } | null>(
+    const client = activeClient()
+    if (!client || !activePath) return null
+    await client.ready
+    const uri = openOrChange(client, activePath, ctx.state.doc.toString())
+    const result = await client.conn.sendRequest<LspCompletionItem[] | { items: LspCompletionItem[] } | null>(
       'textDocument/completion',
       { textDocument: { uri }, position: positionOf(ctx.state.doc, ctx.pos) },
     )
@@ -201,11 +225,11 @@ function renderAsmHover(markdown: string): HTMLElement {
  *  addressing modes, or a symbol's kind + value + definition site. */
 export const asmLspHover = hoverTooltip(async (view, pos): Promise<Tooltip | null> => {
   try {
-    if (!activePath) return null
-    const { conn, ready: handshake } = connect()
-    await handshake
-    const uri = openOrChange(conn, activePath, view.state.doc.toString())
-    const res = await conn.sendRequest<LspHover | null>('textDocument/hover', {
+    const client = activeClient()
+    if (!client || !activePath) return null
+    await client.ready
+    const uri = openOrChange(client, activePath, view.state.doc.toString())
+    const res = await client.conn.sendRequest<LspHover | null>('textDocument/hover', {
       textDocument: { uri },
       position: positionOf(view.state.doc, pos),
     })
@@ -229,11 +253,11 @@ const targetOf = (loc: LspLocation): DefinitionTarget => ({
  *  miss / transport failure. */
 export async function asmDefinition(doc: Text, pos: number): Promise<DefinitionTarget | null> {
   try {
-    if (!activePath) return null
-    const { conn, ready: handshake } = connect()
-    await handshake
-    const uri = openOrChange(conn, activePath, doc.toString())
-    const res = await conn.sendRequest<LspLocation | LspLocation[] | null>('textDocument/definition', {
+    const client = activeClient()
+    if (!client || !activePath) return null
+    await client.ready
+    const uri = openOrChange(client, activePath, doc.toString())
+    const res = await client.conn.sendRequest<LspLocation | LspLocation[] | null>('textDocument/definition', {
       textDocument: { uri },
       position: positionOf(doc, pos),
     })
@@ -248,11 +272,11 @@ export async function asmDefinition(doc: Text, pos: number): Promise<DefinitionT
  *  open source. Empty on miss / transport failure. */
 export async function asmReferences(doc: Text, pos: number): Promise<ReferenceLocation[]> {
   try {
-    if (!activePath) return []
-    const { conn, ready: handshake } = connect()
-    await handshake
-    const uri = openOrChange(conn, activePath, doc.toString())
-    const res = await conn.sendRequest<LspLocation[] | null>('textDocument/references', {
+    const client = activeClient()
+    if (!client || !activePath) return []
+    await client.ready
+    const uri = openOrChange(client, activePath, doc.toString())
+    const res = await client.conn.sendRequest<LspLocation[] | null>('textDocument/references', {
       textDocument: { uri },
       position: positionOf(doc, pos),
       context: { includeDeclaration: true },
@@ -279,11 +303,11 @@ function positionOfText(text: string, offset: number): Position {
  *  per project path. Null when not renameable / on failure. */
 export async function asmRename(text: string, pos: number, newName: string): Promise<RenameChanges | null> {
   try {
-    if (!activePath) return null
-    const { conn, ready: handshake } = connect()
-    await handshake
-    const uri = openOrChange(conn, activePath, text)
-    const res = await conn.sendRequest<{ changes?: Record<string, RenameTextEdit[]> } | null>(
+    const client = activeClient()
+    if (!client || !activePath) return null
+    await client.ready
+    const uri = openOrChange(client, activePath, text)
+    const res = await client.conn.sendRequest<{ changes?: Record<string, RenameTextEdit[]> } | null>(
       'textDocument/rename',
       { textDocument: { uri }, position: positionOfText(text, pos), newName },
     )
@@ -304,11 +328,11 @@ export async function asmRename(text: string, pos: number, newName: string): Pro
  *  miss / transport failure. */
 export async function asmSemanticTokensFull(doc: Text): Promise<number[] | null> {
   try {
-    if (!activePath) return null
-    const { conn, ready: handshake } = connect()
-    await handshake
-    const uri = openOrChange(conn, activePath, doc.toString())
-    const res = await conn.sendRequest<{ data: number[] } | null>('textDocument/semanticTokens/full', {
+    const client = activeClient()
+    if (!client || !activePath) return null
+    await client.ready
+    const uri = openOrChange(client, activePath, doc.toString())
+    const res = await client.conn.sendRequest<{ data: number[] } | null>('textDocument/semanticTokens/full', {
       textDocument: { uri },
     })
     return res?.data ?? null

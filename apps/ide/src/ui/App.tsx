@@ -344,7 +344,6 @@ export default function App() {
   useProjectAsmDocuments(
     project.loaded ? project.files : null,
     project.loaded ? project.manifest.toolchain : undefined,
-    project.loaded ? project.activePath : undefined,
   );
 
   // Welcome screen needs each project's course stamp to split "Your projects"

@@ -176,8 +176,7 @@ async function loadLanguagePack(
       import("../../codemirror/lsp/asm-client"),
       import("../../codemirror/lsp/asmSemanticTokens"),
     ]);
-    asm.setAsmDialect(dialect);
-    asm.setAsmActiveDoc(path);
+    asm.setAsmActiveDoc(path, dialect);
     return [base, asmSemanticTokens(), autocompletion({ override: [asm.asmLspComplete] }), asm.asmLspHover];
   }
   return [];
