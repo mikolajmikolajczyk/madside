@@ -386,6 +386,37 @@ function parseCmd(cmd: string): ParsedCmd {
   return { args: args.map(normPathPart), inF: inF && normPathPart(inF), outF: outF && normPathPart(outF), append }
 }
 
+/** True if a copt-pass output has a label that can't resolve: an alias chain
+ *  (`defc A = B`) that cycles or dead-ends without reaching a real definition
+ *  (`.label` / `label:`). Catches the z80rules.1 circular-equate bug (#105)
+ *  where two co-located labels alias each other and lose both definitions. A
+ *  `defc A = <expr/number>` counts A as concretely defined. */
+function coptOutputBroken(text: string): boolean {
+  const defined = new Set<string>()
+  const alias = new Map<string, string>()
+  for (const l of text.split('\n')) {
+    let m = /^\s*\.([A-Za-z_]\w*)\s*$/.exec(l) ?? /^\s*([A-Za-z_]\w*):/.exec(l)
+    if (m) { defined.add(m[1]!); continue }
+    m = /^\s*defc\s+([A-Za-z_]\w*)\s*=\s*(.+?)\s*$/.exec(l)
+    if (m) {
+      const t = /^([A-Za-z_]\w*)$/.exec(m[2]!) // bare-label target vs expression
+      if (t) alias.set(m[1]!, t[1]!)
+      else defined.add(m[1]!)
+    }
+  }
+  for (const start of alias.keys()) {
+    let cur: string | undefined = start
+    const seen = new Set<string>()
+    while (cur !== undefined && !defined.has(cur)) {
+      if (seen.has(cur)) return true // cycle
+      seen.add(cur)
+      cur = alias.get(cur)
+    }
+    if (cur === undefined) return true // dead-end: aliased to nothing defined
+  }
+  return false
+}
+
 /** Run one sub-tool synchronously over the shared root, wiring file-backed
  *  stdin/stdout for `< >`-redirected commands (zpragma, sccz80, copt). The tool's
  *  stderr (sccz80/z80asm diagnostics) is captured into `log` so the toolchain can
@@ -491,15 +522,6 @@ export async function buildZ88dkC(main: string, files: Z88dkFile[], opts: Z88dkO
       placeFile(root.dir, outF!, merged)
       return 0
     }
-    if (tool === 'z88dk-copt') {
-      // Peephole optimiser run as passthrough (unoptimised). The real copt.wasm
-      // regresses on non-trivial sccz80 output: its regex peephole drops `i_N:`
-      // label definitions while keeping the references, so z80asm fails the link
-      // with `undefined symbol: i_2/i_4`. Passthrough is the known-good chain
-      // that links + boots; re-enabling real copt is tracked separately (#87).
-      if (inF && outF) placeFile(root.dir, outF, readFile(root.dir, inF) ?? new Uint8Array())
-      return 0
-    }
     const mod = tool ? toolModule[tool] : undefined
     if (!mod) {
       log.push(`[zcc] internal: no wasm for sub-tool '${tool ?? '(empty)'}' — ${cmd}`)
@@ -507,7 +529,21 @@ export async function buildZ88dkC(main: string, files: Z88dkFile[], opts: Z88dkO
     }
     // z80asm: emit a list + map per object so we can build a C source map.
     const finalArgs = tool === 'z88dk-z80asm' ? injectListMap(args) : args
+    // copt peephole guard (#105): the real copt.wasm optimises correctly almost
+    // always, but z80rules.1 has an upstream bug where two co-located labels
+    // collapse into a *circular* equate (`defc A = B` + `defc B = A`), dropping
+    // both real definitions so z80asm can't resolve them. Snapshot the input; if
+    // a pass leaves a label unresolvable that the input resolved, revert that one
+    // pass to unoptimised (the rest of the chain still optimises).
+    const coptIn = tool === 'z88dk-copt' && inF ? (readFile(root.dir, inF) ?? new Uint8Array()) : null
     const code = runSubTool(mod, root, finalArgs, inF, outF, log)
+    if (tool === 'z88dk-copt' && coptIn && outF) {
+      const after = readFile(root.dir, outF) ?? new Uint8Array()
+      if (coptOutputBroken(dbgDec.decode(after)) && !coptOutputBroken(dbgDec.decode(coptIn))) {
+        placeFile(root.dir, outF, coptIn)
+        log.push(`[copt] ${args[args.length - 1]} left labels unresolvable (upstream z80rules circular-equate bug, #105) — kept this pass unoptimised`)
+      }
+    }
     if (tool === 'z88dk-z80asm') {
       // Per-object assemble: keep any listing that carries C_LINE (the compiled
       // .c). The listing is named after the input source (`<stem>.lis`).
