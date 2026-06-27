@@ -95,24 +95,17 @@ export function Emulator({ breakpoints, onState, blockedMsg }: Props) {
   }, [status, machineWidth, machineHeight]);
 
   const emit = (emu: RunBackend) => {
-    // Project raw cpuState() into the descriptor-keyed shape Debug consumes.
-    // Atari's Altirra backend reports a flat 6502 shape; non-6502 machines
-    // will route this through their own DebugAdapter in the EmulatorPlugin
-    // follow-up so this conversion moves into the adapter itself.
-    const raw = emu.cpuState() as {
-      a: number; x: number; y: number; pc: number; sp: number;
-      flags: Record<string, boolean>;
-    };
-    // On a multi-CPU machine (Genesis 68000 + Z80) the current-line highlight
-    // must track the FOCUSED CPU's PC, not the primary's — `pcLine` resolves it
-    // against the focused CPU's source map. Read the aux CPU's PC when focused.
+    // App only consumes the PC (current-line highlight, PC-follow, status bar);
+    // register *values* are self-fetched per-machine by the RegistersPanel via
+    // DebugService.registers() (descriptor-keyed by the active DebugAdapter). So
+    // push just the CPU-agnostic PC — no 6502-shaped cast of cpuState() (#149;
+    // the old cast crammed the 68000 address-register *array* into `a`).
+    // On a multi-CPU machine (Genesis 68000 + Z80) the highlight tracks the
+    // FOCUSED CPU's PC, not the primary's.
     const focused = workbench.debug.focusedCpu();
     const aux = focused ? emu.auxCpu?.(focused) : undefined;
-    const pc = aux ? aux.getPC() : raw.pc;
-    onState?.({
-      regs: { a: raw.a, x: raw.x, y: raw.y, pc, sp: raw.sp },
-      flags: { ...raw.flags },
-    });
+    const pc = aux ? aux.getPC() : emu.getPC();
+    onState?.({ regs: { pc }, flags: {} });
   };
 
   const pixelFormat = machine.display.pixelFormat;
