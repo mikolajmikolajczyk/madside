@@ -219,6 +219,9 @@ importers:
       '@madside/panel-variables':
         specifier: workspace:*
         version: link:../../packages/panel-variables
+      '@madside/panel-vdp':
+        specifier: workspace:*
+        version: link:../../packages/panel-vdp
       '@madside/storage-idb':
         specifier: workspace:*
         version: link:../../packages/storage-idb
@@ -512,6 +515,15 @@ importers:
         version: link:../ports
 
   packages/panel-variables:
+    dependencies:
+      '@madside/core':
+        specifier: workspace:*
+        version: link:../core
+      '@madside/ports':
+        specifier: workspace:*
+        version: link:../ports
+
+  packages/panel-vdp:
     dependencies:
       '@madside/core':
         specifier: workspace:*

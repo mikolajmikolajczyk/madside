@@ -99,7 +99,7 @@ export const machineGenesis: MachinePlugin = {
     },
   },
 
-  defaultPanels: ['memory', 'registers', 'variables', 'output'],
+  defaultPanels: ['memory', 'registers', 'variables', 'vdp', 'output'],
   compatibleToolchains: ['clownassembler'],
   // gpgx (full system: VDP/sound/Z80/IO) is the Genesis backend (#145, Phase B),
   // resolved through the PluginRegistry at runtime.

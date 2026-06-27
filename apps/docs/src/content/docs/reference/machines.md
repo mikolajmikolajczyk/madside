@@ -80,4 +80,4 @@ Machines recommend a default panel set (dockable — drag, float, or toggle from
 | `nes` | `memory`, `registers`, `variables`, `ppu`, `output` |
 | `c64` | `memory`, `registers`, `variables`, `output` |
 | `zx-spectrum` | `memory`, `registers`, `variables`, `output` |
-| `genesis` | `memory`, `registers`, `variables`, `output` |
+| `genesis` | `memory`, `registers`, `variables`, `vdp`, `output` |

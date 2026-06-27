@@ -43,6 +43,7 @@
     "@madside/panel-memory": "workspace:*",
     "@madside/panel-output": "workspace:*",
     "@madside/panel-ppu": "workspace:*",
+    "@madside/panel-vdp": "workspace:*",
     "@madside/panel-registers": "workspace:*",
     "@madside/panel-variables": "workspace:*",
     "@madside/storage-idb": "workspace:*",

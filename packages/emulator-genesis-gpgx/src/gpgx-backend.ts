@@ -63,6 +63,15 @@ interface GpgxExports {
   z80_get_reg(r: number): number
   z80_read_byte(addr: number): number
   z80_bank(): number
+  // VDP-internal memories for the tile/palette/sprite viewers (#146). Raw base
+  // pointers into wasm memory; stored host-endian (byteswapped per word), so the
+  // host applies addr^1 to hand back Genesis (big-endian) byte order.
+  vram_ptr(): number
+  vram_size(): number
+  cram_ptr(): number
+  cram_size(): number
+  vsram_ptr(): number
+  vsram_size(): number
   // Z80 breakpoints + single-step (#146) — same shape as the 68000's.
   z80_bp_ptr(): number
   z80_bp_capacity(): number
@@ -291,11 +300,35 @@ class GenesisGpgxBackend implements RunBackend {
   }
 
   readMem(addr: number, len: number, space = 'cpu'): Uint8Array {
-    if (space !== 'cpu') {
-      throw new Error(`GenesisGpgxBackend.readMem: unknown space '${space}' (VDP-space reads are a Phase-B follow-up)`)
+    if (space === 'cpu') {
+      const out = new Uint8Array(len)
+      for (let i = 0; i < len; i++) out[i] = this.core.read_byte((addr + i) >>> 0) & 0xff
+      return out
     }
+    if (space === 'vram' || space === 'cram' || space === 'vsram') {
+      return this.readVdpSpace(space, addr, len)
+    }
+    throw new Error(`GenesisGpgxBackend.readMem: unknown space '${space}'`)
+  }
+
+  /** Read a VDP-internal memory (VRAM/CRAM/VSRAM, #146). The core stores each as
+   *  a host-endian byte array (byteswapped per 16-bit word vs. the Genesis's
+   *  big-endian layout), so we read array[a^1] to return Genesis byte order — a
+   *  palette/tile viewer can then decode words big-endian. VRAM bytes are raw
+   *  tile data and VSRAM raw 11-bit v-scroll words; CRAM, however, is stored
+   *  gpgx-packed as 9-bit `BBBGGGRRR` (the core repacks the raw bus value on
+   *  write), so a CRAM word here is the packed colour, not the raw `BBB0GGG0RRR0`
+   *  bus form — the VDP panel decodes accordingly. Out-of-range bytes read 0. */
+  private readVdpSpace(space: 'vram' | 'cram' | 'vsram', addr: number, len: number): Uint8Array {
+    const ptr = space === 'vram' ? this.core.vram_ptr() : space === 'cram' ? this.core.cram_ptr() : this.core.vsram_ptr()
+    const size = space === 'vram' ? this.core.vram_size() : space === 'cram' ? this.core.cram_size() : this.core.vsram_size()
+    // Re-derive the view each call — wasm memory growth detaches the buffer.
+    const mem = new Uint8Array(this.core.memory.buffer, ptr, size)
     const out = new Uint8Array(len)
-    for (let i = 0; i < len; i++) out[i] = this.core.read_byte((addr + i) >>> 0) & 0xff
+    for (let i = 0; i < len; i++) {
+      const a = (addr + i) ^ 1
+      out[i] = a >= 0 && a < size ? mem[a]! : 0
+    }
     return out
   }
 

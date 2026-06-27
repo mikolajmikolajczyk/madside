@@ -23,6 +23,7 @@
     "packages/panel-memory/src/**/*",
     "packages/panel-output/src/**/*",
     "packages/panel-ppu/src/**/*",
+    "packages/panel-vdp/src/**/*",
     "packages/panel-registers/src/**/*",
     "packages/panel-variables/src/**/*",
     "packages/converters/src/**/*",

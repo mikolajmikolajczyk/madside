@@ -1,0 +1,75 @@
+/* Genesis VDP panel chrome. Shares the .debug__panel / .debug__title pattern
+   used by panel-ppu; the vdp__* layout is component-local. Colours come from
+   host design tokens. */
+
+.debug__panel {
+  background: var(--bg-secondary);
+  padding: 8px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+}
+.debug__title {
+  border-bottom: 1px solid var(--border-default);
+  padding-bottom: 4px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+/* 64 CRAM entries: 4 palette lines of 16 swatches each. */
+.vdp__palette {
+  display: grid;
+  grid-template-columns: repeat(16, 1fr);
+  gap: 1px;
+}
+.vdp__swatch {
+  aspect-ratio: 1;
+  cursor: pointer;
+  border: 1px solid transparent;
+}
+.vdp__swatch:nth-child(16n + 1) {
+  /* start of a palette line — a faint left edge groups the 4 rows visually */
+  border-left-color: var(--border-muted);
+}
+.vdp__swatch--active-line {
+  outline: 1px solid var(--accent-mint);
+  outline-offset: -1px;
+}
+
+/* Palette-line picker next to the Tiles title. */
+.vdp__lines {
+  margin-left: auto;
+  display: flex;
+  gap: 3px;
+}
+.vdp__linebtn {
+  min-width: 22px;
+  height: 20px;
+  padding: 0 4px;
+  background: var(--bg-tertiary);
+  border: 1px solid var(--border-default);
+  border-radius: 4px;
+  color: var(--text-secondary);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  line-height: 1;
+  cursor: pointer;
+}
+.vdp__linebtn--active {
+  background: var(--accent-mint);
+  border-color: var(--accent-mint);
+  color: var(--bg-primary);
+}
+
+/* The tile grid scrolls (256x512 is taller than the panel). */
+.vdp__tilewrap {
+  overflow: auto;
+  max-height: 360px;
+  border: 1px solid var(--border-default);
+  background: var(--bg-primary);
+}
+.vdp__tiles {
+  display: block;
+}

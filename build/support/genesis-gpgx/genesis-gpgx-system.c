@@ -399,6 +399,21 @@ EXPORT("z80_read_byte") unsigned int sys_z80_read_byte(unsigned int a)
  * reads the 68000 byte at `z80_bank() | (addr & 0x7FFF)` (#147 Phase 3). */
 EXPORT("z80_bank") unsigned int sys_z80_bank(void) { return zbank; }
 
+/* ---- VDP-internal memories (tile/palette/sprite viewers, #146) ----
+ * VRAM/CRAM/VSRAM live inside the VDP, off the 68000 bus, so they're exposed as
+ * raw base pointers the host reads directly out of wasm memory. The arrays are
+ * stored in host (LSB_FIRST) order — each 16-bit word is byteswapped relative to
+ * the Genesis's big-endian layout — so the logical byte at address `a` is
+ * array[a ^ 1]; the JS readMem applies that swap to hand callers Genesis order.
+ * CRAM is 64 entries x 9-bit colour (0x80 bytes), VSRAM 40 entries x 11-bit
+ * v-scroll (0x80 bytes allocated), VRAM the full 64 KB. */
+EXPORT("vram_ptr")  uint8_t *sys_vram_ptr(void)  { return vram; }
+EXPORT("vram_size") int      sys_vram_size(void) { return 0x10000; }
+EXPORT("cram_ptr")  uint8_t *sys_cram_ptr(void)  { return cram; }
+EXPORT("cram_size") int      sys_cram_size(void) { return 0x80; }
+EXPORT("vsram_ptr") uint8_t *sys_vsram_ptr(void) { return vsram; }
+EXPORT("vsram_size") int     sys_vsram_size(void) { return 0x80; }
+
 /* Pull one frame of resampled stereo audio. Returns the number of stereo
  * sample frames written into audio_ptr(). */
 EXPORT("audio_ptr") int16_t *sys_audio_ptr(void) { return audio_buffer_; }
