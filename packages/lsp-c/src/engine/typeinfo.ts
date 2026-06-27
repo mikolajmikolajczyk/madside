@@ -94,6 +94,16 @@ function resolveBase(text: string, ctx: Ctx): ResolvedType {
   if (ct) return resolveCType(ct, ctx)
   const alias = ctx.index.aliases.get(typeKey(t))
   if (alias) return resolveBase(alias, ctx)
+  // Object-like type macro (`#define BYTE unsigned char`): expand the body once,
+  // but only keep it if it resolves to a real type — a value macro (`#define N 3`)
+  // stays unknown rather than masquerading as a type.
+  const macro = ctx.index.symbols.get(t)?.value
+  if (macro && macro !== t && !ctx.inProgress.has('macro:' + t)) {
+    ctx.inProgress.add('macro:' + t)
+    const expanded = resolveBase(macro, ctx)
+    ctx.inProgress.delete('macro:' + t)
+    if (expanded.kind !== 'unknown') return expanded
+  }
   return { kind: 'unknown', text: t }
 }
 
@@ -111,20 +121,59 @@ function resolveD(d: DType, ctx: Ctx): ResolvedType {
   }
 }
 
-/** Resolve an array's element count: a literal as-is, or a macro/constant size
- *  (`#define N 3` → `[N]`) looked up in the index. Follows one macro→macro hop;
- *  anything non-numeric (an expression) falls back to 0 (raw display). */
+/** Resolve an array's element count: a literal as-is, or a constant-expression
+ *  size (`[N]`, `[W*H]`, `[(ROWS+1)]`) evaluated against the macro / enum-constant
+ *  table. Non-constant or unresolvable → 0 (raw display, never a wrong layout). */
 function resolveCount(c: number | string, ctx: Ctx): number {
   if (typeof c === 'number') return c
-  let tok = c
-  for (let hop = 0; hop < 4; hop++) {
-    const n = Number(tok)
-    if (Number.isFinite(n) && n >= 0) return n
-    const v = ctx.index.symbols.get(tok)?.value
-    if (v == null) return 0
-    tok = v.trim()
+  const n = evalConstExpr(c, (name) => ctx.index.symbols.get(name)?.value ?? null)
+  return n != null && n >= 0 ? n : 0
+}
+
+// A tiny, safe integer constant-expression evaluator for array sizes (no eval()).
+// Handles + - * / %, parentheses, unary -, decimal/hex literals, and identifiers
+// resolved via `lookup` (#define bodies / enum constant values, recursively).
+function evalConstExpr(src: string, lookup: (name: string) => string | null, depth = 0): number | null {
+  if (depth > 24) return null
+  const toks = src.match(/0[xX][0-9a-fA-F]+|\d+|[A-Za-z_]\w*|[-+*/%()]/g)
+  if (!toks) return null
+  let i = 0
+  const peek = () => toks[i]
+  const eat = () => toks[i++]
+  const parseExpr = (): number | null => parseAdd()
+  function parseAdd(): number | null {
+    let l = parseMul()
+    if (l == null) return null
+    while (peek() === '+' || peek() === '-') {
+      const op = eat(); const r = parseMul(); if (r == null) return null
+      l = op === '+' ? l + r : l - r
+    }
+    return l
   }
-  return 0
+  function parseMul(): number | null {
+    let l = parseUnary()
+    if (l == null) return null
+    while (peek() === '*' || peek() === '/' || peek() === '%') {
+      const op = eat(); const r = parseUnary(); if (r == null) return null
+      l = op === '*' ? l * r : op === '/' ? (r === 0 ? null as never : Math.trunc(l / r)) : l % r
+    }
+    return l
+  }
+  function parseUnary(): number | null {
+    if (peek() === '-') { eat(); const v = parseUnary(); return v == null ? null : -v }
+    return parsePrimary()
+  }
+  function parsePrimary(): number | null {
+    const t = eat()
+    if (t == null) return null
+    if (t === '(') { const v = parseExpr(); if (peek() === ')') eat(); return v }
+    if (/^0[xX]/.test(t)) return parseInt(t, 16)
+    if (/^\d+$/.test(t)) return parseInt(t, 10)
+    if (/^[A-Za-z_]\w*$/.test(t)) { const v = lookup(t); return v == null ? null : evalConstExpr(v, lookup, depth + 1) }
+    return null
+  }
+  const out = parseExpr()
+  return i === toks.length ? out : out // tolerate trailing tokens (e.g. comments stripped already)
 }
 
 /** Resolve a structured declared type (DType) into a laid-out type. */

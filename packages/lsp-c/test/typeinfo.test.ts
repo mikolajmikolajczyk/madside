@@ -86,6 +86,24 @@ describe('arrays — exact size + struct offsets (the silent-wrong cases)', () =
     const a = typeOf('#define COUNT 4\nstruct P { int x; }; struct P items[COUNT];', 'items') as Extract<ResolvedType, { kind: 'array' }>
     expect(a).toMatchObject({ kind: 'array', count: 4, bytes: 8 })
   })
+  it('a macro-sized STRUCT FIELD keeps its own name + count', () => {
+    const t = typeOf('#define N 4\nstruct S { int buf[N]; int tail; }; struct S s;', 's') as Extract<ResolvedType, { kind: 'struct' }>
+    // The field is `buf` (not the size token `N`), sized 4, and `tail` follows it.
+    expect(t.fields.map((f) => f.name)).toEqual(['buf', 'tail'])
+    expect(t.fields[0]).toMatchObject({ name: 'buf', offset: 0 })
+    expect(t.fields[1]).toMatchObject({ name: 'tail', offset: 8 })
+  })
+  it('enum-constant and constant-expression array sizes resolve', () => {
+    expect(typeOf('enum { MAX = 5 };\nint a[MAX];', 'a')).toMatchObject({ kind: 'array', count: 5 })
+    expect(typeOf('enum { A, B, C };\nint a[C];', 'a')).toMatchObject({ kind: 'array', count: 2 })
+    expect(typeOf('#define W 4\n#define H 3\nint g[W*H];', 'g')).toMatchObject({ kind: 'array', count: 12 })
+    expect(typeOf('#define K (1+2)\nint a[K];', 'a')).toMatchObject({ kind: 'array', count: 3 })
+  })
+  it('an object-like type macro expands to its underlying type', () => {
+    expect(typeOf('#define BYTE unsigned char\nBYTE x;', 'x')).toMatchObject({ kind: 'scalar', bytes: 1, signed: false, repr: 'char' })
+    // A value macro must NOT masquerade as a type.
+    expect(typeOf('#define N 3\nN y;', 'y')).toMatchObject({ kind: 'unknown' })
+  })
 })
 
 describe('per-declarator types — no pointer/array bleed', () => {

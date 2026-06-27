@@ -271,19 +271,36 @@ function collectSymbols(
     const tag = n.getChild('TypeIdentifier')
     if (!list) return
     const enumName = tag ? slice(text, tag) : ''
+    // Track the running value so an enum constant resolves like a #define (lets
+    // `int a[MAX]` size correctly). Explicit `= N` resets the counter; a value
+    // written as an expression is stored verbatim (resolveType evaluates it).
+    let counter = 0
+    let counterKnown = true
     for (let e = list.firstChild; e; e = e.nextSibling) {
       if (e.name !== 'Enumerator') continue
       const id = e.getChild('Identifier')
-      if (id) {
-        add({
-          label: slice(text, id),
-          kind: 'macro',
-          file,
-          loc: locOf(uri, id),
-          ...(enumName ? { detail: `enum ${enumName}` } : {}),
-          ...hdr,
-        })
+      if (!id) continue
+      const raw = slice(text, e)
+      const eq = raw.indexOf('=')
+      let value: string | undefined
+      if (eq >= 0) {
+        const expr = raw.slice(eq + 1).trim()
+        const lit = /^0[xX][0-9a-fA-F]+$/.test(expr) ? parseInt(expr, 16) : /^\d+$/.test(expr) ? parseInt(expr, 10) : NaN
+        if (Number.isFinite(lit)) { counter = lit; counterKnown = true; value = String(counter) }
+        else { value = expr; counterKnown = false }
+      } else if (counterKnown) {
+        value = String(counter)
       }
+      add({
+        label: slice(text, id),
+        kind: 'macro',
+        file,
+        loc: locOf(uri, id),
+        ...(value != null ? { value } : {}),
+        ...(enumName ? { detail: `enum ${enumName}` } : {}),
+        ...hdr,
+      })
+      if (counterKnown) counter++
     }
   })
 

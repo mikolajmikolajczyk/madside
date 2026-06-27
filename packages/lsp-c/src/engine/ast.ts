@@ -102,18 +102,17 @@ export function baseSpecText(decl: SyntaxNode, text: string): string {
 // Numeric size of an ArrayDeclarator (`[10]`), or 0 when absent/non-literal
 // (`[]`, VLA) — a 0-count array decodes to nothing, never mis-sized.
 function arrayCount(node: SyntaxNode, text: string): number | string {
-  const num = node.getChild('Number')
-  if (num) {
-    const n = Number(slice(text, num))
-    return Number.isFinite(n) && n >= 0 ? n : 0
-  }
-  // A macro/constant size like `[N]` — keep the token; resolveType evaluates it
-  // against the macro table once the index is available. The size Identifier is
-  // NOT the declarator's own name Identifier, so skip the inner declarator.
+  // The size is the child that isn't the declarator's own name (the inner
+  // declarator) nor a bracket: a literal `[3]`, a macro `[N]`, or a constant
+  // expression `[W*H]` / `[(N+1)]`. Numbers resolve now; everything else is kept
+  // as text and evaluated against the macro/enum table at layout time.
   const inner = innerDeclarator(node)
   for (let ch = node.firstChild; ch; ch = ch.nextSibling) {
     if (inner && ch.from === inner.from) continue
-    if (ch.name === 'Identifier') return slice(text, ch)
+    const s = slice(text, ch)
+    if (s === '[' || s === ']') continue
+    if (ch.name === 'Number') { const n = Number(s); return Number.isFinite(n) && n >= 0 ? n : 0 }
+    return s
   }
   return 0
 }
@@ -167,6 +166,16 @@ export function buildDType(node: SyntaxNode | null, base: DType, text: string): 
   }
 }
 
+/** The identifier a declarator names, found by descending the pointer/array/init
+ *  chain to the leaf Identifier/FieldIdentifier — never an array-size identifier. */
+function declaratorNameNode(ch: SyntaxNode): SyntaxNode | null {
+  let cur: SyntaxNode | null = ch
+  while (cur && cur.name !== 'Identifier' && cur.name !== 'FieldIdentifier') {
+    cur = innerDeclarator(cur)
+  }
+  return cur
+}
+
 /** Every declared identifier of a `Declaration`/`FieldDeclaration` with its
  *  structured type (#129) — exact pointer/array per declarator, no bleed. */
 export function declaredVars(
@@ -183,9 +192,11 @@ export function declaredVars(
       ch.name === 'ArrayDeclarator' ||
       ch.name === 'InitDeclarator'
     if (!isDeclr) continue
-    const id = ch.name === 'Identifier' || ch.name === 'FieldIdentifier'
-      ? ch
-      : deepChild(ch, 'Identifier') ?? deepChild(ch, 'FieldIdentifier')
+    // The declared name is the *innermost* declarator identifier — descend the
+    // pointer/array/init chain to it. A plain deepChild('Identifier') would grab
+    // an array-size identifier (`buf[N]` → "N") instead of the field name, since
+    // a struct field's own name is a FieldIdentifier the search skips over.
+    const id = declaratorNameNode(ch)
     if (!id) continue
     out.push({ name: slice(text, id), from: id.from, to: id.to, dtype: buildDType(ch, base, text) })
   }
