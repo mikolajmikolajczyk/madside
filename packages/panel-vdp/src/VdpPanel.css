@@ -73,3 +73,26 @@
 .vdp__tiles {
   display: block;
 }
+
+/* Sprite layer on a checkerboard so transparent regions read as empty. */
+.vdp__spritewrap {
+  overflow: auto;
+  border: 1px solid var(--border-default);
+  background-color: var(--bg-primary);
+  background-image:
+    linear-gradient(45deg, var(--bg-tertiary) 25%, transparent 25%),
+    linear-gradient(-45deg, var(--bg-tertiary) 25%, transparent 25%),
+    linear-gradient(45deg, transparent 75%, var(--bg-tertiary) 75%),
+    linear-gradient(-45deg, transparent 75%, var(--bg-tertiary) 75%);
+  background-size: 12px 12px;
+  background-position: 0 0, 0 6px, 6px -6px, -6px 0;
+}
+.vdp__sprites {
+  display: block;
+}
+.vdp__count {
+  margin-left: auto;
+  color: var(--text-secondary);
+  font-family: var(--font-mono);
+  font-size: 11px;
+}

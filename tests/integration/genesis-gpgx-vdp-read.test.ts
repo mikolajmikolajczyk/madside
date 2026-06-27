@@ -63,6 +63,8 @@ describe('GenesisGpgxBackend VDP-space reads (#146)', () => {
 
     expect(backend.readMem(0, 0x10000, 'vram')).toHaveLength(0x10000)
     expect(backend.readMem(0, 0x50, 'vsram')).toHaveLength(0x50)
+    // VDP registers: the ROM set reg1 = $04 (Mode 5), readable through vdp-regs.
+    expect(backend.readMem(0, 0x20, 'vdp-regs')[1]).toBe(0x04)
     // Out-of-range tail reads zero, never throws.
     const tail = backend.readMem(0xfffe, 4, 'vram')
     expect(tail).toHaveLength(4)

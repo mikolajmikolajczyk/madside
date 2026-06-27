@@ -25,7 +25,7 @@ They refresh on their own from build and debug events — there's nothing to wir
 
 ## Machine-specific panels
 
-Machine plugins can contribute extra panels. The NES ships a **PPU viewer** that reads the machine's PPU and OAM memory spaces and renders the palette and both pattern tables. The Genesis ships a **VDP viewer** that reads the VDP's CRAM and VRAM and renders the four palette lines plus all of video memory decoded as 8×8 tiles — click a palette line (or the 0–3 buttons) to recolour the tiles with it.
+Machine plugins can contribute extra panels. The NES ships a **PPU viewer** that reads the machine's PPU and OAM memory spaces and renders the palette and both pattern tables. The Genesis ships a **VDP viewer** that reads the VDP's CRAM, VRAM, and registers and renders the four palette lines, all of video memory decoded as 8×8 tiles, and the live sprite layer (each sprite drawn at its on-screen position with its own palette and flip). Click a palette line (or the 0–3 buttons) to recolour the tiles with it.
 
 ## How the default panels are chosen
 

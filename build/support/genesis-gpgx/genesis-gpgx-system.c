@@ -413,6 +413,11 @@ EXPORT("cram_ptr")  uint8_t *sys_cram_ptr(void)  { return cram; }
 EXPORT("cram_size") int      sys_cram_size(void) { return 0x80; }
 EXPORT("vsram_ptr") uint8_t *sys_vsram_ptr(void) { return vsram; }
 EXPORT("vsram_size") int     sys_vsram_size(void) { return 0x80; }
+/* The 32 VDP control registers (byte-wide, write-only on the 68000 bus). Exposed
+ * read-only for the debugger so the sprite viewer can find the sprite attribute
+ * table base (reg[5]) + screen width (reg[12]). Plain byte array — no byteswap. */
+EXPORT("vdp_regs_ptr")  uint8_t *sys_vdp_regs_ptr(void)  { return reg; }
+EXPORT("vdp_regs_size") int      sys_vdp_regs_size(void) { return 0x20; }
 
 /* Pull one frame of resampled stereo audio. Returns the number of stereo
  * sample frames written into audio_ptr(). */

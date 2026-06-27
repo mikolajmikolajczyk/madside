@@ -72,6 +72,8 @@ interface GpgxExports {
   cram_size(): number
   vsram_ptr(): number
   vsram_size(): number
+  vdp_regs_ptr(): number
+  vdp_regs_size(): number
   // Z80 breakpoints + single-step (#146) — same shape as the 68000's.
   z80_bp_ptr(): number
   z80_bp_capacity(): number
@@ -307,6 +309,16 @@ class GenesisGpgxBackend implements RunBackend {
     }
     if (space === 'vram' || space === 'cram' || space === 'vsram') {
       return this.readVdpSpace(space, addr, len)
+    }
+    if (space === 'vdp-regs') {
+      // The 32 VDP control registers — byte-wide, read straight through (no
+      // word byteswap, unlike the VDP memories). Lets the sprite viewer find
+      // the sprite attribute table base (reg[5]) + screen mode (reg[12]).
+      const size = this.core.vdp_regs_size()
+      const mem = new Uint8Array(this.core.memory.buffer, this.core.vdp_regs_ptr(), size)
+      const out = new Uint8Array(len)
+      for (let i = 0; i < len; i++) { const a = addr + i; out[i] = a >= 0 && a < size ? mem[a]! : 0 }
+      return out
     }
     throw new Error(`GenesisGpgxBackend.readMem: unknown space '${space}'`)
   }

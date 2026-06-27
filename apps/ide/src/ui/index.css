@@ -5,8 +5,16 @@
 html, body, #root {
   margin: 0;
   padding: 0;
+  /* 100dvh tracks the *visible* viewport as iOS shows/hides its toolbars; plain
+     100vh is the large viewport, so the bottom of the app would sit under the
+     toolbar with no way to scroll to it (overflow: hidden). 100vh stays as the
+     fallback for browsers without dvh. */
   height: 100vh;
+  height: 100dvh;
   overflow: hidden;
+  /* No page-level rubber-band — a stray pan must not leave the app parked
+     off-screen with the content unreachable. */
+  overscroll-behavior: none;
 }
 
 body {

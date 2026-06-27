@@ -78,6 +78,7 @@ export const machineGenesis: MachinePlugin = {
     { id: 'vram', label: 'VDP VRAM', size: 0x10000 },   // 64 KB tiles/maps/sprites
     { id: 'cram', label: 'VDP CRAM (palette)', size: 0x80 }, // 64 entries × 2 bytes
     { id: 'vsram', label: 'VDP VSRAM (v-scroll)', size: 0x50 }, // 40 entries × 2 bytes
+    { id: 'vdp-regs', label: 'VDP registers', size: 0x20 }, // 32 byte-wide control regs
   ],
 
   devices: [

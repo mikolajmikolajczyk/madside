@@ -62,19 +62,87 @@ function drawTiles(canvas: HTMLCanvasElement | null, vram: Uint8Array, line: num
   cctx.putImageData(img, 0, 0)
 }
 
+const SCR_W = 320 // H40 max width; H32 (256) clips on the right
+const SCR_H = 224 // NTSC visible height
+
+/** Render the sprite layer: walk the sprite attribute table (in VRAM, base from
+ *  VDP reg[5]) and blit each sprite's tiles at its on-screen position, coloured
+ *  by its own palette line, honouring H/V flip. Returns the sprite count. */
+function drawSprites(canvas: HTMLCanvasElement | null, vram: Uint8Array, palette: number[], regs: Uint8Array): number {
+  if (!canvas) return 0
+  const cctx = canvas.getContext('2d')
+  if (!cctx) return 0
+  const img = cctx.createImageData(SCR_W, SCR_H)
+  const px = img.data
+  const h40 = (regs[12]! & 1) !== 0
+  const satb = ((regs[5]! << 9) & (h40 ? 0xfc00 : 0xfe00)) & 0xffff
+  const maxSprites = h40 ? 80 : 64
+
+  const plot = (x: number, y: number, rgb: number) => {
+    if (x < 0 || x >= SCR_W || y < 0 || y >= SCR_H) return
+    const o = (y * SCR_W + x) * 4
+    px[o] = (rgb >> 16) & 0xff
+    px[o + 1] = (rgb >> 8) & 0xff
+    px[o + 2] = rgb & 0xff
+    px[o + 3] = 0xff
+  }
+
+  let idx = 0
+  let count = 0
+  const seen = new Set<number>()
+  while (count < maxSprites && !seen.has(idx)) {
+    seen.add(idx)
+    const o = (satb + idx * 8) & 0xffff
+    const yPos = (((vram[o]! << 8) | vram[o + 1]!) & 0x3ff) - 128
+    const sizeByte = vram[o + 2]!
+    const hTiles = ((sizeByte >> 2) & 3) + 1
+    const vTiles = (sizeByte & 3) + 1
+    const link = vram[o + 3]! & 0x7f
+    const attr = (vram[o + 4]! << 8) | vram[o + 5]!
+    const palLineOf = (attr >> 13) & 3
+    const vflip = (attr >> 12) & 1
+    const hflip = (attr >> 11) & 1
+    const baseTile = attr & 0x7ff
+    const xPos = (((vram[o + 6]! << 8) | vram[o + 7]!) & 0x1ff) - 128
+
+    const w = hTiles * 8
+    const h = vTiles * 8
+    for (let oy = 0; oy < h; oy++) {
+      for (let ox = 0; ox < w; ox++) {
+        const sx = hflip ? w - 1 - ox : ox
+        const sy = vflip ? h - 1 - oy : oy
+        // Genesis sprite tiles increment vertically first, then horizontally.
+        const tile = (baseTile + (sx >> 3) * vTiles + (sy >> 3)) & 0x7ff
+        const byte = vram[tile * 32 + (sy & 7) * 4 + ((sx & 7) >> 1)] ?? 0
+        const v = (sx & 1) === 0 ? byte >> 4 : byte & 0x0f
+        if (v === 0) continue // colour 0 is transparent
+        plot(xPos + ox, yPos + oy, palette[palLineOf * 16 + v]!)
+      }
+    }
+    count++
+    if (link === 0) break
+    idx = link
+  }
+  cctx.putImageData(img, 0, 0)
+  return count
+}
+
 export function VdpPanel({ ctx }: { ctx: PanelContext }) {
   const canvasRef = useRef<HTMLCanvasElement | null>(null)
+  const spritesRef = useRef<HTMLCanvasElement | null>(null)
   const [palette, setPalette] = useState<number[]>(() => new Array(64).fill(0))
   const [palLine, setPalLine] = useState(0)
+  const [spriteCount, setSpriteCount] = useState(0)
 
   useEffect(() => {
     let cancelled = false
     const refresh = async () => {
       if (!ctx.debug.target()) return
       try {
-        const [cram, vram] = await Promise.all([
+        const [cram, vram, regs] = await Promise.all([
           ctx.debug.readMemory(0, 0x80, 'cram'),
           ctx.debug.readMemory(0, 0x10000, 'vram'),
+          ctx.debug.readMemory(0, 0x20, 'vdp-regs'),
         ])
         if (cancelled) return
         const colors: number[] = []
@@ -82,6 +150,7 @@ export function VdpPanel({ ctx }: { ctx: PanelContext }) {
         setPalette(colors)
         const base = palLine * 16
         drawTiles(canvasRef.current, vram, colors.slice(base, base + 16))
+        setSpriteCount(drawSprites(spritesRef.current, vram, colors, regs))
       } catch {
         // Backend not booted / wrong machine — re-fired on next event/tick.
       }
@@ -144,6 +213,19 @@ export function VdpPanel({ ctx }: { ctx: PanelContext }) {
           height={TH}
           className="vdp__tiles"
           style={{ width: TW, height: TH, imageRendering: 'pixelated' }}
+        />
+      </div>
+      <div className="debug__title label">
+        Sprites
+        <span className="vdp__count">{spriteCount}</span>
+      </div>
+      <div className="vdp__spritewrap">
+        <canvas
+          ref={spritesRef}
+          width={SCR_W}
+          height={SCR_H}
+          className="vdp__sprites"
+          style={{ width: SCR_W, height: SCR_H, imageRendering: 'pixelated' }}
         />
       </div>
     </div>
