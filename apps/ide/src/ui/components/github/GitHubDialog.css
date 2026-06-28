@@ -148,6 +148,10 @@
 .gh__repo-name {
   font-family: var(--font-mono);
   color: var(--text-primary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  min-width: 0;
 }
 .gh__repo .gh-acct__btn {
   margin-left: auto;

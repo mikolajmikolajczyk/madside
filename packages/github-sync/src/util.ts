@@ -57,6 +57,19 @@ export function encodePath(p: string): string {
   return p.split('/').map(encodeURIComponent).join('/')
 }
 
+/** Reject a repo path that could escape its subtree (path traversal) before it
+ *  reaches the Git API. Guards against a malicious slug or pulled file path
+ *  (`..`, absolute, empty/dot segments, backslash, NUL). Defense-in-depth at the
+ *  write boundary. */
+export function assertSafeTreePath(path: string): void {
+  if (!path || path.startsWith('/') || path.includes('\\') || path.includes('\0')) {
+    throw new Error(`unsafe path: ${JSON.stringify(path)}`)
+  }
+  for (const seg of path.split('/')) {
+    if (seg === '' || seg === '.' || seg === '..') throw new Error(`unsafe path segment in ${JSON.stringify(path)}`)
+  }
+}
+
 /** PATCH a ref. Returns false on 422 (non-fast-forward) so the caller can
  *  re-parent and retry; throws on other failures. */
 export async function ghPatchRef(fetch: GhFetch, path: string, body: unknown): Promise<boolean> {

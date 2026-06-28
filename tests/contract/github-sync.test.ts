@@ -17,6 +17,8 @@ interface MockOpts {
   head?: { commitSha: string; treeSha: string; tree: { path: string; type: string; sha: string }[] } | null
   /** PATCH ref returns 422 this many times before succeeding (stale-ref retry). */
   refConflicts?: number
+  /** GET trees reports the recursive tree as truncated. */
+  truncated?: boolean
 }
 
 function mockRepo(opts: MockOpts) {
@@ -38,7 +40,7 @@ function mockRepo(opts: MockOpts) {
     }
     if (method === 'GET' && url.includes('/git/commits/')) return json({ tree: { sha: opts.head!.treeSha } })
     if (method === 'GET' && url.includes('/git/trees/')) {
-      return json({ sha: opts.head!.treeSha, tree: opts.head!.tree, truncated: false })
+      return json({ sha: opts.head!.treeSha, tree: opts.head!.tree, truncated: opts.truncated ?? false })
     }
     if (method === 'POST' && url.endsWith('/git/blobs')) return json({ sha: `newblob-${blobs++}` })
     if (method === 'POST' && url.endsWith('/git/trees')) {
@@ -218,5 +220,37 @@ describe('deleteSubtree', () => {
     expect(await deleteSubtree(present.fetch, { owner: 'me', repo: 'r', branch: 'main' }, 'projects/p1', 'rm')).toBeNull()
     const empty = mockRepo({ head: null })
     expect(await deleteSubtree(empty.fetch, { owner: 'me', repo: 'r', branch: 'main' }, 'projects/p1', 'rm')).toBeNull()
+  })
+})
+
+describe('safety guards', () => {
+  const head = { commitSha: 'h', treeSha: 't', tree: [] as { path: string; type: string; sha: string }[] }
+
+  it('refuses to push when the tree is truncated (avoids stale files)', async () => {
+    const m = mockRepo({ head, truncated: true })
+    await expect(
+      pushFiles(m.fetch, { owner: 'me', repo: 'r', branch: 'main' }, 'projects/p1', [file('a.txt', 'a')], 'm'),
+    ).rejects.toThrow(/truncated/)
+  })
+
+  it('refuses to delete when the tree is truncated', async () => {
+    const m = mockRepo({ head, truncated: true })
+    await expect(
+      deleteSubtree(m.fetch, { owner: 'me', repo: 'r', branch: 'main' }, 'projects/p1', 'rm'),
+    ).rejects.toThrow(/truncated/)
+  })
+
+  it('rejects a path-traversal file path', async () => {
+    const m = mockRepo({ head })
+    await expect(
+      pushFiles(m.fetch, { owner: 'me', repo: 'r', branch: 'main' }, 'projects/p1', [file('../evil.txt', 'x')], 'm'),
+    ).rejects.toThrow(/unsafe/)
+  })
+
+  it('rejects a traversal slug in the base path', async () => {
+    const m = mockRepo({ head })
+    await expect(
+      pushFiles(m.fetch, { owner: 'me', repo: 'r', branch: 'main' }, 'projects/..', [file('a.txt', 'x')], 'm'),
+    ).rejects.toThrow(/unsafe/)
   })
 })

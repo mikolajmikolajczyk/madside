@@ -8,6 +8,7 @@
 
 import {
   GitHubApiError,
+  assertSafeTreePath,
   encodePath,
   ghGet,
   ghGetOrNull,
@@ -135,10 +136,17 @@ async function buildEntries(
     }
   }
 
+  // A truncated recursive tree can't be trusted for deletions or blob reuse —
+  // and silently degrading risks leaving stale files. Refuse rather than guess.
+  if (tree.truncated) {
+    throw new Error('repo tree is too large (truncated) — cannot push safely')
+  }
+
   const entries: TreeEntry[] = []
   const newPaths = new Set<string>()
   for (const f of files) {
     const path = prefix + f.path
+    assertSafeTreePath(path)
     newPaths.add(path)
     const sha = await gitBlobSha(f.content)
     const blobSha = existingShas.has(sha)
@@ -174,6 +182,7 @@ export async function deleteSubtree(
     const headSha = ref.object.sha
     const baseTree = (await ghGet<CommitObj>(fetch, `/repos/${owner}/${repo}/git/commits/${headSha}`)).tree.sha
     const tree = await ghGet<TreeResp>(fetch, `/repos/${owner}/${repo}/git/trees/${baseTree}?recursive=1`)
+    if (tree.truncated) throw new Error('repo tree is too large (truncated) — cannot remove safely')
     const entries: TreeEntry[] = tree.tree
       .filter((e) => e.type === 'blob' && e.path.startsWith(prefix))
       .map((e) => ({ path: e.path, mode: '100644', type: 'blob', sha: null }))
@@ -213,6 +222,7 @@ async function seedEmptyRepo(
   const { owner, repo } = target
   const seed = files[0]
   if (!seed) throw new Error('nothing to push')
+  assertSafeTreePath(`${basePath}/${seed.path}`)
   const path = encodePath(`${basePath}/${seed.path}`)
   try {
     await ghPut(fetch, `/repos/${owner}/${repo}/contents/${path}`, {

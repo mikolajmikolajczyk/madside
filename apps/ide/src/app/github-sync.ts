@@ -209,19 +209,20 @@ export async function listRemoteProjects(fetch: GhFetch, repo: string): Promise<
     const manifestSha = new Map<string, string>();
     for (const e of tree.entries) {
       const m = e.path.match(/^projects\/([^/]+)\/project\.json$/);
-      if (m && e.type === "blob") manifestSha.set(m[1]!, e.sha);
+      // Ignore traversal-y folder names defensively.
+      if (m && e.type === "blob" && m[1] !== "." && m[1] !== "..") manifestSha.set(m[1]!, e.sha);
     }
-    const out: RemoteProject[] = [];
-    for (const [slug, sha] of manifestSha) {
-      let name = slug;
-      try {
-        const bytes = await fetchBlob(fetch, target, sha);
-        name = (JSON.parse(dec.decode(bytes)) as { name?: string }).name ?? slug;
-      } catch {
-        /* keep slug as name */
-      }
-      out.push({ slug, name });
-    }
+    // Fetch manifests in parallel (name = manifest.name, slug fallback).
+    const out = await Promise.all(
+      [...manifestSha].map(async ([slug, sha]) => {
+        try {
+          const bytes = await fetchBlob(fetch, target, sha);
+          return { slug, name: (JSON.parse(dec.decode(bytes)) as { name?: string }).name ?? slug };
+        } catch {
+          return { slug, name: slug };
+        }
+      }),
+    );
     return out.sort((a, b) => a.name.localeCompare(b.name));
   });
 }
@@ -239,6 +240,9 @@ export async function pullProjectToIdb(
   return withApiErrors(async () => {
     const tree = await getRepoTree(fetch, target);
     if (!tree) throw new Error("the repo is empty");
+    // A truncated tree means pullSubtree sees only part of the project — pulling
+    // would then delete the unseen local files. Refuse rather than lose data.
+    if (tree.truncated) throw new Error("repo tree is too large (truncated) — cannot pull safely");
     const files = await pullSubtree(fetch, target, tree, `projects/${slug}`);
     if (files.length === 0) throw new Error(`no project "${slug}" in ${repo}`);
 

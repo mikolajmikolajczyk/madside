@@ -53,10 +53,14 @@ function randomString(len = 64): string {
   return b64url(arr.buffer).slice(0, len);
 }
 
+const GITHUB_API_ORIGIN = "https://api.github.com";
+
 export class GitHubAuth implements GitHubAuthProvider {
   private readonly clientId: string;
   private readonly workerUrl: string;
   private readonly redirectUri: string;
+  /** De-dupe concurrent refreshes so parallel 401s don't race sessionStorage. */
+  private refreshing: Promise<void> | null = null;
 
   constructor({ clientId, workerUrl, redirectUri }: GitHubAuthConfig) {
     this.clientId = clientId;
@@ -150,19 +154,26 @@ export class GitHubAuth implements GitHubAuthProvider {
     return true;
   }
 
-  private async refresh(): Promise<void> {
-    const t = this.tokens();
-    if (!t?.refresh_token) throw new Error("No refresh_token — log in again.");
-    const res = await fetch(`${this.workerUrl}/refresh`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ client_id: this.clientId, refresh_token: t.refresh_token }),
+  private refresh(): Promise<void> {
+    // Only one refresh in flight; concurrent callers await the same promise.
+    if (this.refreshing) return this.refreshing;
+    this.refreshing = (async () => {
+      const t = this.tokens();
+      if (!t?.refresh_token) throw new Error("No refresh_token — log in again.");
+      const res = await fetch(`${this.workerUrl}/refresh`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ client_id: this.clientId, refresh_token: t.refresh_token }),
+      });
+      if (!res.ok) {
+        this.logout();
+        throw new Error("Refresh failed — log in again.");
+      }
+      this.saveTokens((await res.json()) as TokenSet);
+    })().finally(() => {
+      this.refreshing = null;
     });
-    if (!res.ok) {
-      this.logout();
-      throw new Error("Refresh failed — log in again.");
-    }
-    this.saveTokens((await res.json()) as TokenSet);
+    return this.refreshing;
   }
 
   private async validToken(): Promise<string> {
@@ -176,8 +187,13 @@ export class GitHubAuth implements GitHubAuthProvider {
     return t.access_token;
   }
 
-  /** fetch against api.github.com with an auto-token; refreshes once on 401. */
+  /** fetch against api.github.com with an auto-token; refreshes once on 401.
+   *  Refuses any non-GitHub origin so the bearer token can never leak elsewhere. */
   async fetch(input: RequestInfo | URL, init: RequestInit = {}): Promise<Response> {
+    const href = input instanceof URL ? input.href : typeof input === "string" ? input : input.url;
+    if (new URL(href).origin !== GITHUB_API_ORIGIN) {
+      throw new Error("github auth.fetch refuses a non-api.github.com URL");
+    }
     let token = await this.validToken();
     const call = (tok: string): Promise<Response> =>
       fetch(input, {

@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   useGitHub,
   githubConfig,
@@ -178,6 +178,8 @@ function RemoteProjects({ onOpenProject }: { onOpenProject?: (projectId: string)
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
   const [refreshKey, setRefreshKey] = useState(0);
+  const mounted = useRef(true);
+  useEffect(() => () => { mounted.current = false; }, []);
 
   useEffect(() => {
     if (!gh.auth || !gh.repo) return;
@@ -211,10 +213,13 @@ function RemoteProjects({ onOpenProject }: { onOpenProject?: (projectId: string)
         gh.repo,
         slug,
       );
-      onOpenProject?.(projectId);
+      if (mounted.current) setBusy(null);
+      onOpenProject?.(projectId); // closes the dialog
     } catch (e) {
-      setError(e instanceof Error ? e.message : String(e));
-      setBusy(null);
+      if (mounted.current) {
+        setError(e instanceof Error ? e.message : String(e));
+        setBusy(null);
+      }
     }
   };
 
