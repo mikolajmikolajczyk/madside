@@ -149,6 +149,9 @@
   font-family: var(--font-mono);
   color: var(--text-primary);
 }
+.gh__repo .gh-acct__btn {
+  margin-left: auto;
+}
 .gh__repo-tag {
   font-size: 10px;
   text-transform: uppercase;

@@ -74,6 +74,14 @@ async function safeText(res: Response): Promise<string> {
   return res.text().catch(() => '')
 }
 
+/** Decode base64 (tolerating the line wrapping GitHub blob responses use). */
+export function fromBase64(s: string): Uint8Array {
+  const bin = atob(s.replace(/\s/g, ''))
+  const out = new Uint8Array(bin.length)
+  for (let i = 0; i < bin.length; i++) out[i] = bin.charCodeAt(i)
+  return out
+}
+
 /** Base64-encode bytes (chunked to dodge call-stack limits on large assets). */
 export function toBase64(bytes: Uint8Array): string {
   let bin = ''

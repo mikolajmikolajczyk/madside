@@ -55,6 +55,8 @@ export interface MenuBarProps {
   /** Push the active project to the user's repo. Present only when signed in +
    *  a repo is selected (#160); absent => no menu item. */
   onPushGitHub?: () => void;
+  /** Pull the active project from the user's repo (#161). */
+  onPullGitHub?: () => void;
   onCommandPalette?: () => void;
   /** Present only in dockview layout mode — drives the View menu (panel
    *  show/hide + reset). */
@@ -97,6 +99,9 @@ export function MenuBar(p: MenuBarProps) {
           <MenuItem data-testid="menu.file.import-zip" onSelect={p.onImportZip}>Import ZIP…</MenuItem>
           {p.onPushGitHub && (
             <MenuItem data-testid="menu.file.push-github" onSelect={p.onPushGitHub}>Save to GitHub</MenuItem>
+          )}
+          {p.onPullGitHub && (
+            <MenuItem data-testid="menu.file.pull-github" onSelect={p.onPullGitHub}>Pull from GitHub</MenuItem>
           )}
           <MenuSeparator />
           {p.onSnapshotNow && (

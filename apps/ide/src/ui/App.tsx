@@ -60,7 +60,7 @@ import { applyTheme, loadThemeId, saveThemeId, hydrateTrustedPlugins } from "@ap
 import { PluginTrustBanner } from "./components/PluginTrustBanner";
 import { PluginInventory } from "./components/PluginInventory";
 import { GitHubDialog } from "./components/github/GitHubDialog";
-import { githubAvailable, useGitHub, pushProjectToGitHub } from "@app";
+import { githubAvailable, useGitHub, pushProjectToGitHub, pullProjectToIdb, remoteSlug } from "@app";
 import { addLessonInFiles, getCourse, getDraftCourse, openLesson, readCourseMeta, refreshCourseFromGitHub, resetLessonToStarter, runChecks, saveDraftCourse, scanEquates, setLessonStarterInFiles, starterFilesForMachine } from "@app";
 import { useCourses } from "./hooks/useCourses";
 import type { CheckReport, CheckRunDeps } from "@app";
@@ -876,6 +876,21 @@ export default function App() {
     }
   }, [gh, project, workbench, toast]);
 
+  // Pull the active project's source from the repo, then reload it from storage.
+  const handlePullGitHub = useCallback(async () => {
+    if (!gh.auth || !gh.repo || !project.loaded) return;
+    const repo = gh.repo;
+    const auth = gh.auth;
+    const pid = project.projectId;
+    try {
+      await pullProjectToIdb(workbench.storage, (url, init) => auth.fetch(url, init), repo, remoteSlug(pid));
+      await project.switchProject(pid);
+      toast.push("info", `Pulled from ${repo}`);
+    } catch (e) {
+      toast.error(e);
+    }
+  }, [gh, project, workbench, toast]);
+
   // Discard a lesson's edits, restoring the (refreshed) starter files, then
   // reload the project so the editor shows them.
   const handleResetLesson = useCallback(async (courseId: string, lessonId: string) => {
@@ -1010,7 +1025,7 @@ export default function App() {
             early return, separate from the main IDE layout (#159). */}
         <Dialog open={githubOpen} onOpenChange={setGithubOpen}>
           <DialogContent title="GitHub">
-            <GitHubDialog />
+            <GitHubDialog onOpenProject={(id) => { setGithubOpen(false); void project.switchProject(id); }} />
           </DialogContent>
         </Dialog>
       </>
@@ -1308,6 +1323,7 @@ export default function App() {
         onProjectPlugins={() => setPluginsOpen(true)}
         onGitHub={githubAvailable ? () => setGithubOpen(true) : undefined}
         onPushGitHub={githubAvailable && gh.signedIn && gh.repo ? handlePushGitHub : undefined}
+        onPullGitHub={githubAvailable && gh.signedIn && gh.repo ? handlePullGitHub : undefined}
         onCommandPalette={() => setPaletteOpen(true)}
         viewMenu={viewMenu}
       />
@@ -1444,7 +1460,7 @@ export default function App() {
 
       <Dialog open={githubOpen} onOpenChange={setGithubOpen}>
         <DialogContent title="GitHub">
-          <GitHubDialog />
+          <GitHubDialog onOpenProject={(id) => { setGithubOpen(false); void project.switchProject(id); }} />
         </DialogContent>
       </Dialog>
 

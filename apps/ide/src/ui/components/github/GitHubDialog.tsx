@@ -5,14 +5,19 @@ import {
   listAccessibleRepos,
   appInstallUrl,
   repoRootHasOtherContent,
+  listRemoteProjects,
+  pullProjectToIdb,
+  useWorkbench,
   type RepoRef,
+  type RemoteProject,
 } from "@app";
 import "./GitHubDialog.css";
 
-/** GitHub account panel (#159). Optional sign-in via the gh-auth broker, then
- *  pick the dedicated repo madside reads/writes. The whole feature is gated on
- *  build-time config; this dialog is only reachable when `available` is true. */
-export function GitHubDialog() {
+/** GitHub account panel (#159, #161). Optional sign-in via the gh-auth broker,
+ *  pick the dedicated repo, and import projects from it. Gated on build-time
+ *  config; this dialog is only reachable when `available` is true. `onOpenProject`
+ *  opens an imported project. */
+export function GitHubDialog({ onOpenProject }: { onOpenProject?: (projectId: string) => void }) {
   const gh = useGitHub();
 
   if (!gh.available) {
@@ -39,6 +44,7 @@ export function GitHubDialog() {
             </button>
           </div>
           <RepoPicker />
+          {gh.repo && <RemoteProjects onOpenProject={onOpenProject} />}
         </>
       ) : (
         <>
@@ -159,6 +165,90 @@ function RepoPicker() {
           This repo already has other files at its root. A dedicated repo is recommended —
           madside will add a <code>projects/</code> folder alongside whatever is there.
         </p>
+      )}
+    </div>
+  );
+}
+
+/** Browse the projects already in the selected repo and import one into IDB. */
+function RemoteProjects({ onOpenProject }: { onOpenProject?: (projectId: string) => void }) {
+  const gh = useGitHub();
+  const workbench = useWorkbench();
+  const [projects, setProjects] = useState<RemoteProject[] | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [busy, setBusy] = useState<string | null>(null);
+  const [refreshKey, setRefreshKey] = useState(0);
+
+  useEffect(() => {
+    if (!gh.auth || !gh.repo) return;
+    const auth = gh.auth;
+    const repo = gh.repo;
+    let cancelled = false;
+    void (async () => {
+      try {
+        const list = await listRemoteProjects((url, init) => auth.fetch(url, init), repo);
+        if (!cancelled) {
+          setProjects(list);
+          setError(null);
+        }
+      } catch (e) {
+        if (!cancelled) setError(e instanceof Error ? e.message : String(e));
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [gh.auth, gh.repo, refreshKey]);
+
+  const importProject = async (slug: string) => {
+    if (!gh.auth || !gh.repo) return;
+    setBusy(slug);
+    setError(null);
+    try {
+      const { projectId } = await pullProjectToIdb(
+        workbench.storage,
+        (url, init) => gh.auth!.fetch(url, init),
+        gh.repo,
+        slug,
+      );
+      onOpenProject?.(projectId);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : String(e));
+      setBusy(null);
+    }
+  };
+
+  return (
+    <div className="gh__repos">
+      <div className="gh__repos-head">
+        <span className="gh__repos-title">Import a project</span>
+        <button type="button" className="gh__link gh__linkbtn" onClick={() => setRefreshKey((k) => k + 1)}>
+          Refresh
+        </button>
+      </div>
+      {error && <p className="gh__error">{error}</p>}
+      {projects === null && !error ? (
+        <p className="gh__muted">Loading projects…</p>
+      ) : projects && projects.length === 0 ? (
+        <p className="gh__muted">No projects in this repo yet — push one with “Save to GitHub”.</p>
+      ) : (
+        <ul className="gh__repo-list">
+          {projects?.map((p) => (
+            <li key={p.slug}>
+              <div className="gh__repo">
+                <span className="gh__repo-name">{p.name}</span>
+                <button
+                  type="button"
+                  className="gh-acct__btn"
+                  disabled={busy !== null}
+                  onClick={() => void importProject(p.slug)}
+                >
+                  {busy === p.slug ? "Importing…" : "Import"}
+                </button>
+              </div>
+            </li>
+          ))}
+        </ul>
       )}
     </div>
   );

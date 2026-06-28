@@ -1,5 +1,7 @@
 import { describe, expect, it } from 'vitest'
-import { gitBlobSha, pushFiles, type GhFetch } from '@madside/github-sync'
+import { getRepoTree, gitBlobSha, pullSubtree, pushFiles, toBase64, type GhFetch } from '@madside/github-sync'
+
+const dec = new TextDecoder()
 
 // Atomic push via the Git Data API (#160). The GhFetch is mocked with a tiny
 // scripted GitHub; we assert the request sequence + the tree GitHub is asked to
@@ -146,5 +148,48 @@ describe('pushFiles', () => {
     expect(res.commitSha).toBe('newcommit')
     // two PATCH attempts (first 422, second ok)
     expect(m.calls().filter((c) => c.startsWith('PATCH ')).length).toBe(2)
+  })
+})
+
+describe('read (browse + pull)', () => {
+  const json = (b: unknown, s = 200) =>
+    new Response(JSON.stringify(b), { status: s, headers: { 'Content-Type': 'application/json' } })
+
+  function readMock(empty = false): GhFetch {
+    return async (url, init) => {
+      const method = init?.method ?? 'GET'
+      if (method === 'GET' && /\/repos\/[^/]+\/[^/]+$/.test(url)) return json({ default_branch: 'main' })
+      if (url.includes('/git/ref/heads/')) return empty ? new Response('', { status: 404 }) : json({ object: { sha: 'c1' } })
+      if (url.includes('/git/commits/')) return json({ tree: { sha: 't1' } })
+      if (url.includes('/git/trees/')) {
+        return json({
+          sha: 't1',
+          truncated: false,
+          tree: [
+            { path: 'projects/p1/project.json', type: 'blob', sha: 'b1' },
+            { path: 'projects/p1/src/main.a65', type: 'blob', sha: 'b2' },
+            { path: 'projects/other/x.txt', type: 'blob', sha: 'b3' },
+          ],
+        })
+      }
+      if (url.endsWith('/git/blobs/b1')) return json({ content: toBase64(new TextEncoder().encode('{"name":"P"}')), encoding: 'base64' })
+      if (url.endsWith('/git/blobs/b2')) return json({ content: toBase64(new TextEncoder().encode('; code')), encoding: 'base64' })
+      throw new Error(`unmocked ${method} ${url}`)
+    }
+  }
+
+  it('getRepoTree returns null for an empty repo', async () => {
+    expect(await getRepoTree(readMock(true), { owner: 'me', repo: 'r' })).toBeNull()
+  })
+
+  it('pullSubtree strips the prefix and decodes blob bytes', async () => {
+    const fetch = readMock()
+    const tree = (await getRepoTree(fetch, { owner: 'me', repo: 'r' }))!
+    expect(tree.commitSha).toBe('c1')
+    const files = await pullSubtree(fetch, { owner: 'me', repo: 'r' }, tree, 'projects/p1')
+    const byPath = Object.fromEntries(files.map((f) => [f.path, dec.decode(f.content)]))
+    expect(Object.keys(byPath).sort()).toEqual(['project.json', 'src/main.a65']) // other/ excluded, prefix stripped
+    expect(byPath['project.json']).toBe('{"name":"P"}')
+    expect(byPath['src/main.a65']).toBe('; code')
   })
 })

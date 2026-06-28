@@ -1,4 +1,6 @@
 export { pushFiles } from './push'
 export type { SyncFile, PushTarget, PushResult } from './push'
-export { GitHubApiError, gitBlobSha, toBase64 } from './util'
+export { getRepoTree, fetchBlob, pullSubtree } from './read'
+export type { RepoTree } from './read'
+export { GitHubApiError, gitBlobSha, toBase64, fromBase64 } from './util'
 export type { GhFetch } from './util'
