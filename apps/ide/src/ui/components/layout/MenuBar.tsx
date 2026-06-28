@@ -49,6 +49,9 @@ export interface MenuBarProps {
   onSnapshotNow?: () => void;
   onAbout?: () => void;
   onProjectPlugins?: () => void;
+  /** Open the GitHub account dialog. Present only when GitHub is configured for
+   *  this build (#159); absent => no menu item. */
+  onGitHub?: () => void;
   onCommandPalette?: () => void;
   /** Present only in dockview layout mode — drives the View menu (panel
    *  show/hide + reset). */
@@ -268,6 +271,9 @@ export function MenuBar(p: MenuBarProps) {
             Command Palette
           </MenuItem>
           <MenuItem data-testid="menu.help.plugins" onSelect={p.onProjectPlugins}>Project plugins…</MenuItem>
+          {p.onGitHub && (
+            <MenuItem data-testid="menu.help.github" onSelect={p.onGitHub}>GitHub…</MenuItem>
+          )}
           <MenuItem data-testid="menu.help.about" onSelect={p.onAbout}>About</MenuItem>
         </MenuContent>
       </Menu>

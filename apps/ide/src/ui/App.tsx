@@ -59,6 +59,8 @@ import { useWorkbench } from "@app";
 import { applyTheme, loadThemeId, saveThemeId, hydrateTrustedPlugins } from "@app";
 import { PluginTrustBanner } from "./components/PluginTrustBanner";
 import { PluginInventory } from "./components/PluginInventory";
+import { GitHubDialog } from "./components/github/GitHubDialog";
+import { githubAvailable } from "@app";
 import { addLessonInFiles, getCourse, getDraftCourse, openLesson, readCourseMeta, refreshCourseFromGitHub, resetLessonToStarter, runChecks, saveDraftCourse, scanEquates, setLessonStarterInFiles, starterFilesForMachine } from "@app";
 import { useCourses } from "./hooks/useCourses";
 import type { CheckReport, CheckRunDeps } from "@app";
@@ -866,6 +868,7 @@ export default function App() {
   const [historyOpen, setHistoryOpen] = useState(false);
   const [aboutOpen, setAboutOpen] = useState(false);
   const [pluginsOpen, setPluginsOpen] = useState(false);
+  const [githubOpen, setGithubOpen] = useState(false);
 
   const handleSnapshotNow = useCallback(() => {
     if (!project.loaded) return;
@@ -972,16 +975,26 @@ export default function App() {
     // First run / last project deleted, or "New project" from the menu → the
     // welcome hub: existing projects + empty / templates / courses.
     return (
-      <Suspense fallback={<div className="app app--loading"><div className="app__loading">loading…</div></div>}>
-        <Welcome
-          projects={[...annotatedProjects].sort((a, b) => b.updatedAt - a.updatedAt)}
-          onOpen={(id) => { void project.switchProject(id); }}
-          onDeleteProject={async (id) => {
-            await workbench.storage.projects.delete(id);
-            await project.refreshProjects();
-          }}
-        />
-      </Suspense>
+      <>
+        <Suspense fallback={<div className="app app--loading"><div className="app__loading">loading…</div></div>}>
+          <Welcome
+            projects={[...annotatedProjects].sort((a, b) => b.updatedAt - a.updatedAt)}
+            onOpen={(id) => { void project.switchProject(id); }}
+            onDeleteProject={async (id) => {
+              await workbench.storage.projects.delete(id);
+              await project.refreshProjects();
+            }}
+            onManageGitHub={githubAvailable ? () => setGithubOpen(true) : undefined}
+          />
+        </Suspense>
+        {/* GitHub dialog must mount in this branch too — the Welcome hub is an
+            early return, separate from the main IDE layout (#159). */}
+        <Dialog open={githubOpen} onOpenChange={setGithubOpen}>
+          <DialogContent title="GitHub">
+            <GitHubDialog />
+          </DialogContent>
+        </Dialog>
+      </>
     );
   }
 
@@ -1274,6 +1287,7 @@ export default function App() {
         onOpenHistory={() => setHistoryOpen(true)}
         onAbout={() => setAboutOpen(true)}
         onProjectPlugins={() => setPluginsOpen(true)}
+        onGitHub={githubAvailable ? () => setGithubOpen(true) : undefined}
         onCommandPalette={() => setPaletteOpen(true)}
         viewMenu={viewMenu}
       />
@@ -1405,6 +1419,12 @@ export default function App() {
       <Dialog open={pluginsOpen} onOpenChange={setPluginsOpen}>
         <DialogContent title="Project plugins">
           <PluginInventory files={project.loaded ? project.files : null} />
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={githubOpen} onOpenChange={setGithubOpen}>
+        <DialogContent title="GitHub">
+          <GitHubDialog />
         </DialogContent>
       </Dialog>
 

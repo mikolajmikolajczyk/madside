@@ -8,4 +8,5 @@ declare const __APP_VERSION__: string;
 interface ImportMetaEnv {
   readonly VITE_GH_BROKER_URL?: string;
   readonly VITE_GH_CLIENT_ID?: string;
+  readonly VITE_GH_APP_SLUG?: string;
 }

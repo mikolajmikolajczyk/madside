@@ -69,6 +69,14 @@
   margin-bottom: 8px;
 }
 
+.welcome__head-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
 .welcome__hero {
   display: flex;
   align-items: baseline;

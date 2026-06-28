@@ -15,6 +15,10 @@ export interface GitHubConfig {
   readonly brokerUrl: string;
   /** GitHub App public client_id, e.g. "Iv1.xxxx". */
   readonly clientId: string;
+  /** GitHub App public slug (the app's URL name), for the install link
+   *  https://github.com/apps/<slug>/installations/new. Optional — without it
+   *  the UI just tells the user to install the App manually. */
+  readonly appSlug?: string;
 }
 
 /** Read a VITE_* var with the same guard the workbench uses, trimmed to undefined
@@ -33,7 +37,11 @@ export function loadGitHubConfig(): GitHubConfig | null {
   const brokerUrl = clean(env?.VITE_GH_BROKER_URL);
   const clientId = clean(env?.VITE_GH_CLIENT_ID);
   if (!brokerUrl || !clientId) return null;
-  return { brokerUrl: brokerUrl.replace(/\/+$/, ""), clientId };
+  return {
+    brokerUrl: brokerUrl.replace(/\/+$/, ""),
+    clientId,
+    appSlug: clean(env?.VITE_GH_APP_SLUG),
+  };
 }
 
 /** Resolved once at module load. */

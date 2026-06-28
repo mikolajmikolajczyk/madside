@@ -1,0 +1,171 @@
+/* GitHub account dialog (#159). */
+.gh {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.gh__intro,
+.gh__muted {
+  margin: 0;
+  color: var(--text-secondary);
+  font-size: 12px;
+}
+.gh__error {
+  margin: 0;
+  padding: 8px 10px;
+  background: var(--bg-tertiary);
+  border: 1px solid var(--accent-coral);
+  border-radius: 6px;
+  color: var(--accent-coral);
+  font-size: 12px;
+}
+.gh__user {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.gh__avatar {
+  border-radius: 50%;
+  flex: none;
+}
+.gh__login {
+  font-size: 13px;
+  color: var(--text-primary);
+}
+.gh__user .ui-dialog__btn {
+  margin-left: auto;
+}
+
+/* Inline account controls (Welcome header). */
+.gh-acct {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.gh-acct__avatar {
+  border-radius: 50%;
+  flex: none;
+}
+.gh-acct__login {
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+.gh-acct__btn {
+  font: inherit;
+  font-size: 12px;
+  padding: 4px 10px;
+  border-radius: 6px;
+  border: 1px solid var(--border-default);
+  background: var(--bg-tertiary);
+  color: var(--text-primary);
+  cursor: pointer;
+}
+.gh-acct__btn:hover {
+  border-color: var(--text-tertiary);
+}
+.gh-acct__btn--primary {
+  border-color: var(--accent-mint);
+  color: var(--accent-mint);
+}
+.gh-acct__error {
+  font-size: 11px;
+  color: var(--accent-coral);
+  cursor: help;
+}
+.gh-acct__repo {
+  font: inherit;
+  font-size: 11px;
+  font-family: var(--font-mono);
+  padding: 3px 8px;
+  border-radius: 6px;
+  border: 1px solid var(--border-default);
+  background: var(--bg-tertiary);
+  color: var(--text-secondary);
+  cursor: pointer;
+}
+.gh-acct__repo:hover {
+  border-color: var(--text-tertiary);
+  color: var(--text-primary);
+}
+
+/* Repo picker (dialog). */
+.gh__repos {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  border-top: 1px solid var(--border-default);
+  padding-top: 12px;
+}
+.gh__repos-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+}
+.gh__repos-title {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+.gh__link {
+  font-size: 11px;
+  color: var(--accent-mint);
+}
+.gh__repos-actions {
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+}
+.gh__linkbtn {
+  font: inherit;
+  font-size: 11px;
+  background: none;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+}
+.gh__repo-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  max-height: 220px;
+  overflow-y: auto;
+}
+.gh__repo {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 5px 6px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 12px;
+}
+.gh__repo:hover {
+  background: var(--bg-tertiary);
+}
+.gh__repo-name {
+  font-family: var(--font-mono);
+  color: var(--text-primary);
+}
+.gh__repo-tag {
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+  color: var(--text-tertiary);
+}
+.gh__warn {
+  margin: 0;
+  padding: 8px 10px;
+  background: var(--bg-tertiary);
+  border: 1px solid var(--border-default);
+  border-left: 3px solid var(--accent-coral);
+  border-radius: 6px;
+  color: var(--text-secondary);
+  font-size: 12px;
+}
+.gh__warn code {
+  font-family: var(--font-mono);
+  color: var(--text-primary);
+}

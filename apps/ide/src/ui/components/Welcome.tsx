@@ -9,6 +9,7 @@ import { useDisclosure } from "../hooks/useDisclosure";
 import type { AnnotatedProject } from "../hooks/useProjectsWithCourse";
 import { ManifestEditor } from "./manifest/ManifestEditor";
 import { ConfirmDialog } from "./ui/Dialog";
+import { GitHubAccountControls } from "./github/GitHubAccountControls";
 import "./Welcome.css";
 
 interface Props {
@@ -20,6 +21,9 @@ interface Props {
   /** Delete a project by id (caller removes it from storage + refreshes the
    *  list). Welcome confirms first. */
   onDeleteProject?: (id: string) => Promise<void>;
+  /** Open the GitHub dialog (repo picker). Present only when GitHub is
+   *  configured for this build (#159). */
+  onManageGitHub?: () => void;
 }
 
 const enc = new TextEncoder();
@@ -109,7 +113,7 @@ function CardFilter({ query, onQuery, machines, machine, onMachine, placeholder,
 /** First-run / no-project view. Top: an empty project with the project.json
  *  properties editor + Create. Below: bundled-template cards. Picking either
  *  creates a project into storage and opens it. */
-export function Welcome({ onOpen, projects = [], onDeleteProject }: Props) {
+export function Welcome({ onOpen, projects = [], onDeleteProject, onManageGitHub }: Props) {
   const workbench = useWorkbench();
   // Templates minus 'empty' (the empty flow is the top section).
   const templates = useMemo(() => listTemplates().filter((t) => t.id !== "empty"), []);
@@ -433,9 +437,12 @@ export function Welcome({ onOpen, projects = [], onDeleteProject }: Props) {
   return (
     <div className="welcome" data-testid="welcome">
       <div className="welcome__head">
-        <div className="welcome__hero">
-          <h1 className="welcome__title">madside<span className="welcome__title-dot" aria-hidden>_</span></h1>
-          <span className="welcome__version">v{__APP_VERSION__} · alpha</span>
+        <div className="welcome__head-top">
+          <div className="welcome__hero">
+            <h1 className="welcome__title">madside<span className="welcome__title-dot" aria-hidden>_</span></h1>
+            <span className="welcome__version">v{__APP_VERSION__} · alpha</span>
+          </div>
+          <GitHubAccountControls onManage={onManageGitHub} />
         </div>
         <p className="welcome__sub">A browser IDE for retro machines. Open a project to pick up where you left off, or start something new.</p>
       </div>
