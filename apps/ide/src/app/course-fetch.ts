@@ -44,9 +44,13 @@ export function parseGitHubRef(input: string): GitHubRef | null {
   return null
 }
 
-/** Stable id for an installed course — the registry course id + IDB key. */
-export function courseSourceId(r: GitHubRef): string {
-  return `gh:${r.owner}/${r.repo}@${r.ref ?? 'default'}`
+/** Stable id for an installed course — the registry course id + IDB key. A
+ *  multi-course repo distinguishes each course by its `courses/<slug>/` folder
+ *  (`#<slug>` fragment); a legacy single-course repo (root `course.json`) keeps
+ *  the plain id for backward-compat with already-installed rows. */
+export function courseSourceId(r: GitHubRef, slug?: string | null): string {
+  const base = `gh:${r.owner}/${r.repo}@${r.ref ?? 'default'}`
+  return slug ? `${base}#${slug}` : base
 }
 
 interface JsdelivrFlat {
@@ -66,14 +70,23 @@ async function listFiles(owner: string, repo: string, ref: string): Promise<Jsde
   return (await res.json()) as JsdelivrFlat
 }
 
-/** Fetch a course's files from GitHub via jsDelivr. Resolves the default branch
- *  (tries `main` then `master`) when no ref is given. Returns only the course
- *  files (`course.json` + `lessons/**`), course-root-relative. */
+/** A single course discovered in a repo, with course-root-relative files. */
+export interface FetchedCourse {
+  /** The `courses/<slug>/` folder name, or null for a legacy root course. */
+  slug: string | null
+  files: { path: string; content: string }[]
+}
+
+/** Fetch every course in a GitHub repo via jsDelivr. Resolves the default branch
+ *  (tries `main` then `master`) when no ref is given. Supports a multi-course
+ *  repo (`courses/<slug>/course.json`) and, for backward-compat, a legacy
+ *  single-course repo (root `course.json`). Files are returned course-root-
+ *  relative (the `courses/<slug>/` prefix is stripped). */
 export async function fetchGitHubCourse(
   owner: string,
   repo: string,
   ref?: string,
-): Promise<{ files: { path: string; content: string }[]; usedRef: string; resolvedRef?: string }> {
+): Promise<{ courses: FetchedCourse[]; usedRef: string; resolvedRef?: string }> {
   const candidates = ref ? [ref] : ['main', 'master']
   let listing: JsdelivrFlat | null = null
   let usedRef = ''
@@ -85,61 +98,109 @@ export async function fetchGitHubCourse(
     throw new Error(ref ? `ref '${ref}' not found` : 'no main/master branch — specify a ref (owner/repo@branch)')
   }
 
-  const wanted = (listing.files ?? [])
-    .map((f) => f.name.replace(/^\//, ''))
-    .filter((p) => p === 'course.json' || p.startsWith('lessons/'))
-  if (wanted.length === 0) throw new Error('repo has no course.json or lessons/ — is this a course repo?')
+  const all = (listing.files ?? []).map((f) => f.name.replace(/^\//, ''))
+
+  // Multi-course: one course per `courses/<slug>/` that has a course.json.
+  const slugs = new Set<string>()
+  for (const p of all) {
+    const m = p.match(/^courses\/([^/]+)\/course\.json$/)
+    if (m) slugs.add(m[1]!)
+  }
+
+  const groups: { slug: string | null; prefix: string; paths: string[] }[] = []
+  if (slugs.size > 0) {
+    for (const slug of [...slugs].sort()) {
+      const prefix = `courses/${slug}/`
+      groups.push({
+        slug,
+        prefix,
+        paths: all.filter((p) => p === `${prefix}course.json` || p.startsWith(`${prefix}lessons/`)),
+      })
+    }
+  } else if (all.includes('course.json')) {
+    // Legacy: the whole repo is one course at the root.
+    groups.push({
+      slug: null,
+      prefix: '',
+      paths: all.filter((p) => p === 'course.json' || p.startsWith('lessons/')),
+    })
+  }
+  if (groups.length === 0) {
+    throw new Error('no course.json (at the root or under courses/<slug>/) — is this a course repo?')
+  }
 
   const fetchRef = listing.version || usedRef
-  const files = await Promise.all(
-    wanted.map(async (path) => {
-      let res: Response
-      try {
-        res = await fetch(`${CDN}/${owner}/${repo}@${encodeURIComponent(fetchRef)}/${path}`)
-      } catch (e) {
-        throw new NetworkError(`failed to fetch ${path}`, e)
-      }
-      if (!res.ok) throw new NetworkError(`failed to fetch ${path} (${res.status})`)
-      return { path, content: await res.text() }
-    }),
+  const fetchFile = async (path: string): Promise<string> => {
+    let res: Response
+    try {
+      res = await fetch(`${CDN}/${owner}/${repo}@${encodeURIComponent(fetchRef)}/${path}`)
+    } catch (e) {
+      throw new NetworkError(`failed to fetch ${path}`, e)
+    }
+    if (!res.ok) throw new NetworkError(`failed to fetch ${path} (${res.status})`)
+    return res.text()
+  }
+
+  const courses = await Promise.all(
+    groups.map(async (g) => ({
+      slug: g.slug,
+      files: await Promise.all(
+        g.paths.map(async (path) => ({ path: path.slice(g.prefix.length), content: await fetchFile(path) })),
+      ),
+    })),
   )
-  return { files, usedRef, resolvedRef: listing.version }
+  return { courses, usedRef, resolvedRef: listing.version }
 }
 
-/** Fetch + validate + install a course from a GitHub repo reference (URL or
- *  shorthand). Returns the installed CourseInfo. Throws with a user-facing
- *  message on a bad URL, a non-course repo, a validation failure, or a network
- *  error. Re-installing the same ref overwrites (this is also `refresh`). */
-export async function installCourseFromGitHub(storage: StorageBackend, input: string): Promise<CourseInfo> {
+/** Fetch + validate + install every course in a GitHub repo (URL or shorthand).
+ *  Returns the installed CourseInfo[] — one per `courses/<slug>/`, or one for a
+ *  legacy root course. Throws with a user-facing message on a bad URL, a
+ *  non-course repo, or a network error. A repo with some bad courses still
+ *  installs the good ones; only an all-empty result throws. Re-installing the
+ *  same ref overwrites (this is also `refresh`). */
+export async function installCourseFromGitHub(storage: StorageBackend, input: string): Promise<CourseInfo[]> {
   const parsed = parseGitHubRef(input)
   if (!parsed) throw new Error('not a GitHub repo URL (expected github.com/owner/repo or owner/repo)')
 
-  const { files, resolvedRef } = await fetchGitHubCourse(parsed.owner, parsed.repo, parsed.ref)
-  const valid = validateCourseFiles(files)
-  if (!valid.ok) throw new Error(valid.error)
+  const { courses, resolvedRef } = await fetchGitHubCourse(parsed.owner, parsed.repo, parsed.ref)
 
-  const row: InstalledCourseRow = {
-    sourceId: courseSourceId(parsed),
-    kind: 'github',
-    owner: parsed.owner,
-    repo: parsed.repo,
-    ref: parsed.ref ?? '',
-    resolvedRef,
-    fetchedAt: Date.now(),
-    files,
+  const installed: CourseInfo[] = []
+  const errors: string[] = []
+  const label = (slug: string | null, msg: string) => (slug ? `${slug}: ${msg}` : msg)
+
+  for (const course of courses) {
+    const valid = validateCourseFiles(course.files)
+    if (!valid.ok) { errors.push(label(course.slug, valid.error ?? 'invalid course')); continue }
+
+    const row: InstalledCourseRow = {
+      sourceId: courseSourceId(parsed, course.slug),
+      kind: 'github',
+      owner: parsed.owner,
+      repo: parsed.repo,
+      ref: parsed.ref ?? '',
+      resolvedRef,
+      slug: course.slug ?? undefined,
+      fetchedAt: Date.now(),
+      files: course.files,
+    }
+    const info = await addRemoteCourse(storage, row)
+    if (info) installed.push(info)
+    else errors.push(label(course.slug, 'no usable lessons'))
   }
-  const info = await addRemoteCourse(storage, row)
-  if (!info) throw new Error('course could not be assembled (no usable lessons)')
-  return info
+
+  if (installed.length === 0) {
+    throw new Error(errors.length ? errors.join('; ') : 'no courses found')
+  }
+  return installed
 }
 
 /** Re-fetch an installed GitHub course from its stored ref and overwrite it
- *  (preserving learner edits — only the course *definition* updates). Returns
- *  the refreshed CourseInfo. */
+ *  (preserving learner edits — only the course *definition* updates). Refreshes
+ *  every course the repo provides. Returns the refreshed CourseInfo[]. */
 export async function refreshCourseFromGitHub(storage: StorageBackend, source: {
   owner: string
   repo: string
   ref: string
-}): Promise<CourseInfo> {
+}): Promise<CourseInfo[]> {
   return installCourseFromGitHub(storage, `${source.owner}/${source.repo}${source.ref ? `@${source.ref}` : ''}`)
 }

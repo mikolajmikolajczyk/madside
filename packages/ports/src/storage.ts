@@ -89,6 +89,9 @@ export interface InstalledCourseRow {
   ref?: string
   /** Concrete version jsDelivr resolved the ref to (for display/immutability). */
   resolvedRef?: string
+  /** `courses/<slug>/` folder in a multi-course repo; absent for a legacy root
+   *  course. Part of the sourceId (`#<slug>`). */
+  slug?: string
   fetchedAt: number
   /** Course-root-relative files (course.json + lessons/**), text content. */
   files: { path: string; content: string }[]

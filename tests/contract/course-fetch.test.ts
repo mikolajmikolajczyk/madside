@@ -124,10 +124,12 @@ describe('fetchGitHubCourse', () => {
   afterEach(() => vi.restoreAllMocks())
 
   it('fetches only course files, resolving the default branch', async () => {
-    const { files, usedRef, resolvedRef } = await fetchGitHubCourse('me', 'course')
+    const { courses, usedRef, resolvedRef } = await fetchGitHubCourse('me', 'course')
     expect(usedRef).toBe('main')
     expect(resolvedRef).toBe('deadbeef')
-    const paths = files.map((f) => f.path).sort()
+    expect(courses).toHaveLength(1)
+    expect(courses[0]!.slug).toBeNull() // legacy root course
+    const paths = courses[0]!.files.map((f) => f.path).sort()
     expect(paths).toEqual(['course.json', 'lessons/01-first/check.json', 'lessons/01-first/files/project.json', 'lessons/01-first/lesson.md'])
     expect(paths).not.toContain('README.md') // filtered out
   })
@@ -138,11 +140,11 @@ describe('installCourseFromGitHub', () => {
   afterEach(async () => { vi.restoreAllMocks(); await removeRemoteCourse(storage, 'gh:me/course@default') })
 
   it('installs, registers, and persists a remote course', async () => {
-    const info = await installCourseFromGitHub(storage, 'https://github.com/me/course')
-    expect(info.id).toBe('gh:me/course@default')
-    expect(info.title).toBe('Test Course')
-    expect(info.source.kind).toBe('github')
-    expect(info.lessons).toEqual(['01-first'])
+    const [info] = await installCourseFromGitHub(storage, 'https://github.com/me/course')
+    expect(info!.id).toBe('gh:me/course@default')
+    expect(info!.title).toBe('Test Course')
+    expect(info!.source.kind).toBe('github')
+    expect(info!.lessons).toEqual(['01-first'])
 
     // registered in the merged read API
     expect(getCourse('gh:me/course@default')?.title).toBe('Test Course')
@@ -164,9 +166,66 @@ describe('refreshCourseFromGitHub', () => {
   afterEach(async () => { vi.restoreAllMocks(); await removeRemoteCourse(storage, 'gh:me/course@main') })
 
   it('re-installs from the stored owner/repo/ref', async () => {
-    const info = await refreshCourseFromGitHub(storage, { owner: 'me', repo: 'course', ref: 'main' })
-    expect(info.id).toBe('gh:me/course@main')
-    expect(info.title).toBe('Test Course')
-    expect(info.lessons).toEqual(['01-first'])
+    const [info] = await refreshCourseFromGitHub(storage, { owner: 'me', repo: 'course', ref: 'main' })
+    expect(info!.id).toBe('gh:me/course@main')
+    expect(info!.title).toBe('Test Course')
+    expect(info!.lessons).toEqual(['01-first'])
+  })
+})
+
+// Multi-course repo: courses/<slug>/ holds several courses; one paste installs
+// them all, each with its own sourceId (#<slug>) and course-root-relative files.
+function installMultiMockFetch() {
+  const courseB = JSON.stringify({ title: 'Course B', description: 'b', machine: 'atari-xl' })
+  global.fetch = vi.fn(async (input: RequestInfo | URL) => {
+    const url = typeof input === 'string' ? input : input instanceof URL ? input.href : (input as Request).url
+    if (url.includes('data.jsdelivr.com')) {
+      if (url.includes('@main')) {
+        return new Response(
+          JSON.stringify({
+            version: 'cafe',
+            files: [
+              { name: '/projects/p1/project.json' }, // a project, ignored by course scan
+              { name: '/courses/intro/course.json' },
+              { name: '/courses/intro/lessons/01-a/lesson.md' },
+              { name: '/courses/advanced/course.json' },
+              { name: '/courses/advanced/lessons/01-b/lesson.md' },
+            ],
+          }),
+          { status: 200 },
+        )
+      }
+      return new Response('', { status: 404 })
+    }
+    if (url.includes('cdn.jsdelivr.net')) {
+      if (url.endsWith('/courses/advanced/course.json')) return new Response(courseB, { status: 200 })
+      if (url.endsWith('/course.json')) return new Response(COURSE_JSON, { status: 200 })
+      if (url.endsWith('/lesson.md')) return new Response(LESSON_MD, { status: 200 })
+      return new Response('', { status: 404 })
+    }
+    throw new Error(`unmocked fetch: ${url}`)
+  }) as typeof fetch
+}
+
+describe('multi-course repo', () => {
+  beforeEach(async () => { await __resetDb(); installMultiMockFetch() })
+  afterEach(async () => {
+    vi.restoreAllMocks()
+    await removeRemoteCourse(storage, 'gh:me/repo@default#intro')
+    await removeRemoteCourse(storage, 'gh:me/repo@default#advanced')
+  })
+
+  it('installs every courses/<slug>/ course with a per-slug source id', async () => {
+    const infos = await installCourseFromGitHub(storage, 'me/repo')
+    const ids = infos.map((i) => i.id).sort()
+    expect(ids).toEqual(['gh:me/repo@default#advanced', 'gh:me/repo@default#intro'])
+    // files are course-root-relative (courses/<slug>/ prefix stripped)
+    expect(getCourse('gh:me/repo@default#intro')?.title).toBe('Test Course')
+    expect(getCourse('gh:me/repo@default#advanced')?.title).toBe('Course B')
+    expect(getLesson('gh:me/repo@default#intro', '01-a')?.title).toBe('First Lesson')
+  })
+
+  it('builds per-slug source ids', () => {
+    expect(courseSourceId({ owner: 'me', repo: 'repo' }, 'intro')).toBe('gh:me/repo@default#intro')
   })
 })

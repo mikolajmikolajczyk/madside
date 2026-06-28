@@ -326,9 +326,9 @@ export function Welcome({ onOpen, projects = [], onDeleteProject, onManageGitHub
     setBusy(`official:${c.id}`);
     setError(null);
     try {
-      const info = await installCourseFromGitHub(workbench.storage, officialCourseRef(c));
-      const first = info.lessons[0];
-      if (!first) throw new Error("course has no lessons");
+      const [info] = await installCourseFromGitHub(workbench.storage, officialCourseRef(c));
+      const first = info?.lessons[0];
+      if (!info || !first) throw new Error("course has no lessons");
       const projectId = await openLesson(workbench.storage, info.id, first);
       onOpen(projectId);
     } catch (e) {
@@ -347,12 +347,19 @@ export function Welcome({ onOpen, projects = [], onDeleteProject, onManageGitHub
     setBusy("add-course");
     setError(null);
     try {
-      const info = await installCourseFromGitHub(workbench.storage, input);
+      const infos = await installCourseFromGitHub(workbench.storage, input);
       setRepoInput("");
-      const first = info.lessons[0];
-      if (!first) throw new Error("course has no lessons");
-      const projectId = await openLesson(workbench.storage, info.id, first);
-      onOpen(projectId);
+      // A repo can hold several courses. Auto-open only when there's exactly one;
+      // otherwise stay on Welcome so the user sees all of them in the list.
+      if (infos.length === 1) {
+        const first = infos[0]!.lessons[0];
+        if (first) {
+          const projectId = await openLesson(workbench.storage, infos[0]!.id, first);
+          onOpen(projectId);
+          return;
+        }
+      }
+      setBusy(null);
     } catch (e) {
       // Branch on the typed error: a network failure is the repo/CDN being
       // unreachable, not a bad course — give the user the right hint.
