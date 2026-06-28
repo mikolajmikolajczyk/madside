@@ -60,7 +60,7 @@ import { applyTheme, loadThemeId, saveThemeId, hydrateTrustedPlugins } from "@ap
 import { PluginTrustBanner } from "./components/PluginTrustBanner";
 import { PluginInventory } from "./components/PluginInventory";
 import { GitHubDialog } from "./components/github/GitHubDialog";
-import { githubAvailable } from "@app";
+import { githubAvailable, useGitHub, pushProjectToGitHub } from "@app";
 import { addLessonInFiles, getCourse, getDraftCourse, openLesson, readCourseMeta, refreshCourseFromGitHub, resetLessonToStarter, runChecks, saveDraftCourse, scanEquates, setLessonStarterInFiles, starterFilesForMachine } from "@app";
 import { useCourses } from "./hooks/useCourses";
 import type { CheckReport, CheckRunDeps } from "@app";
@@ -113,6 +113,7 @@ const DOCS_URL =
 export default function App() {
   const workbench = useWorkbench();
   const toast = useToast();
+  const gh = useGitHub();
   const project = useProject(workbench.storage, workbench.events);
 
   // Touch / on-screen-keyboard state (#144): mirror onto the document root so CSS
@@ -857,6 +858,24 @@ export default function App() {
     await refreshCourseFromGitHub(workbench.storage, { owner: c.source.owner, repo: c.source.repo, ref: c.source.ref });
   }, [workbench]);
 
+  // Push the active project's source to the user's repo (#160). Explicit only.
+  const handlePushGitHub = useCallback(async () => {
+    if (!gh.auth || !gh.repo || !project.loaded) return;
+    const repo = gh.repo;
+    const auth = gh.auth;
+    try {
+      const res = await pushProjectToGitHub(
+        workbench.storage,
+        (url, init) => auth.fetch(url, init),
+        repo,
+        project.projectId,
+      );
+      toast.push("info", res.created ? `Initialized ${repo} and pushed` : `Pushed to ${repo}`);
+    } catch (e) {
+      toast.error(e);
+    }
+  }, [gh, project, workbench, toast]);
+
   // Discard a lesson's edits, restoring the (refreshed) starter files, then
   // reload the project so the editor shows them.
   const handleResetLesson = useCallback(async (courseId: string, lessonId: string) => {
@@ -1288,6 +1307,7 @@ export default function App() {
         onAbout={() => setAboutOpen(true)}
         onProjectPlugins={() => setPluginsOpen(true)}
         onGitHub={githubAvailable ? () => setGithubOpen(true) : undefined}
+        onPushGitHub={githubAvailable && gh.signedIn && gh.repo ? handlePushGitHub : undefined}
         onCommandPalette={() => setPaletteOpen(true)}
         viewMenu={viewMenu}
       />

@@ -46,6 +46,7 @@
     "@madside/panel-registers": "workspace:*",
     "@madside/panel-variables": "workspace:*",
     "@madside/panel-vdp": "workspace:*",
+    "@madside/github-sync": "workspace:*",
     "@madside/storage-idb": "workspace:*",
     "@madside/storage-shared": "workspace:*",
     "@madside/theme-dark": "workspace:*",

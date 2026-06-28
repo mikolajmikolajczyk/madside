@@ -52,6 +52,9 @@ export interface MenuBarProps {
   /** Open the GitHub account dialog. Present only when GitHub is configured for
    *  this build (#159); absent => no menu item. */
   onGitHub?: () => void;
+  /** Push the active project to the user's repo. Present only when signed in +
+   *  a repo is selected (#160); absent => no menu item. */
+  onPushGitHub?: () => void;
   onCommandPalette?: () => void;
   /** Present only in dockview layout mode — drives the View menu (panel
    *  show/hide + reset). */
@@ -92,6 +95,9 @@ export function MenuBar(p: MenuBarProps) {
           >Export binary</MenuItem>
           <MenuItem data-testid="menu.file.export-zip" onSelect={p.onExportZip}>Export ZIP</MenuItem>
           <MenuItem data-testid="menu.file.import-zip" onSelect={p.onImportZip}>Import ZIP…</MenuItem>
+          {p.onPushGitHub && (
+            <MenuItem data-testid="menu.file.push-github" onSelect={p.onPushGitHub}>Save to GitHub</MenuItem>
+          )}
           <MenuSeparator />
           {p.onSnapshotNow && (
             <MenuItem data-testid="menu.file.snapshot" onSelect={p.onSnapshotNow}>Snapshot now</MenuItem>

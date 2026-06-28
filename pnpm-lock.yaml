@@ -177,6 +177,9 @@ importers:
       '@madside/emulator-zx-chips':
         specifier: workspace:*
         version: link:../../packages/emulator-zx-chips
+      '@madside/github-sync':
+        specifier: workspace:*
+        version: link:../../packages/github-sync
       '@madside/lsp-asm':
         specifier: workspace:*
         version: link:../../packages/lsp-asm
@@ -396,6 +399,8 @@ importers:
       '@madside/wasm-chips':
         specifier: workspace:*
         version: link:../wasm-chips
+
+  packages/github-sync: {}
 
   packages/lsp-asm:
     dependencies:
