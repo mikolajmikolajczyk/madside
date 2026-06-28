@@ -14,7 +14,7 @@ interface TreeEntry { path: string; mode: string; type: string; sha: string | nu
 
 interface MockOpts {
   /** null head = empty repo / unborn branch (bootstrap). */
-  head?: { commitSha: string; treeSha: string; tree: { path: string; type: string; sha: string }[] } | null
+  head?: { commitSha: string; treeSha: string; tree: { path: string; type: string; sha: string; mode?: string }[] } | null
   /** PATCH ref returns 422 this many times before succeeding (stale-ref retry). */
   refConflicts?: number
   /** GET trees reports the recursive tree as truncated. */
@@ -40,7 +40,8 @@ function mockRepo(opts: MockOpts) {
     }
     if (method === 'GET' && url.includes('/git/commits/')) return json({ tree: { sha: opts.head!.treeSha } })
     if (method === 'GET' && url.includes('/git/trees/')) {
-      return json({ sha: opts.head!.treeSha, tree: opts.head!.tree, truncated: opts.truncated ?? false })
+      const tree = opts.head!.tree.map((e) => ({ ...e, mode: e.mode ?? '100644' }))
+      return json({ sha: opts.head!.treeSha, tree, truncated: opts.truncated ?? false })
     }
     if (method === 'POST' && url.endsWith('/git/blobs')) return json({ sha: `newblob-${blobs++}` })
     if (method === 'POST' && url.endsWith('/git/trees')) {
@@ -53,6 +54,7 @@ function mockRepo(opts: MockOpts) {
       return json({ object: { sha: 'newcommit' } })
     }
     if (method === 'POST' && url.endsWith('/git/refs')) return json({ ref: 'refs/heads/main' }, 201)
+    if (method === 'DELETE' && url.includes('/contents/')) return json({ commit: { sha: 'delcommit' } })
     throw new Error(`unmocked ${method} ${url}`)
   }
 
@@ -129,14 +131,14 @@ describe('pushFiles', () => {
     expect(res.created).toBe(false)
     const tree = m.tree()!
     const byPath = Object.fromEntries(tree.map((e) => [e.path, e]))
-    // unchanged file reuses its existing blob sha (no upload for it)
+    // full tree: unchanged file reuses its existing blob sha (no upload)
     expect(byPath['projects/p1/keep.txt']!.sha).toBe(keepSha)
     // new file uploaded
     expect(byPath['projects/p1/new.txt']!.sha).toMatch(/^newblob-/)
-    // removed file deleted (sha null)
-    expect(byPath['projects/p1/gone.txt']!.sha).toBeNull()
-    // other subtree NOT in the explicit entries (inherited via base_tree)
-    expect(byPath['projects/other/x.txt']).toBeUndefined()
+    // removed file is simply ABSENT from the full tree (not a null entry)
+    expect(byPath['projects/p1/gone.txt']).toBeUndefined()
+    // other subtree preserved as a keeper (reused sha) — full tree, no base_tree
+    expect(byPath['projects/other/x.txt']!.sha).toBe('oth')
     // only the changed file was uploaded
     expect(m.blobCount()).toBe(1)
   })
@@ -209,10 +211,28 @@ describe('deleteSubtree', () => {
       },
     })
     const res = await deleteSubtree(m.fetch, { owner: 'me', repo: 'r', branch: 'main' }, 'projects/p1', 'rm')
+    expect(res?.deleted).toBe(2)
     expect(res?.commitSha).toBe('newcommit')
+    // one atomic commit; the rebuilt full tree keeps only the other subtree
     const tree = m.tree()!
-    expect(tree.map((e) => e.path).sort()).toEqual(['projects/p1/a.txt', 'projects/p1/sub/b.txt'])
-    expect(tree.every((e) => e.sha === null)).toBe(true)
+    expect(tree.map((e) => e.path)).toEqual(['projects/other/x'])
+  })
+
+  it('empties the repo without POSTing an empty tree', async () => {
+    const m = mockRepo({
+      head: {
+        commitSha: 'h', treeSha: 't',
+        tree: [
+          { path: 'projects/p1/a.txt', type: 'blob', sha: '1' },
+          { path: 'projects/p1/b.txt', type: 'blob', sha: '2' },
+        ],
+      },
+    })
+    const res = await deleteSubtree(m.fetch, { owner: 'me', repo: 'r', branch: 'main' }, 'projects/p1', 'rm')
+    expect(res?.deleted).toBe(2)
+    expect(res?.commitSha).toBe('newcommit')
+    // no create-tree call when the result is empty (uses the canonical empty tree)
+    expect(m.calls().some((c) => c === 'POST /repos/me/r/git/trees')).toBe(false)
   })
 
   it('returns null when the subtree is absent or the repo is empty', async () => {

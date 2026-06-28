@@ -932,8 +932,13 @@ export default function App() {
     const auth = gh.auth;
     if (!window.confirm(`Remove this project's folder from ${repo}? The local copy stays.`)) return;
     try {
-      const removed = await removeProjectFromGitHub((url, init) => auth.fetch(url, init), repo, project.projectId);
-      toast.push("info", removed ? `Removed from ${repo}` : "Project wasn't in the repo");
+      const n = await removeProjectFromGitHub((url, init) => auth.fetch(url, init), repo, project.projectId);
+      toast.push(
+        "info",
+        n > 0
+          ? `Removed ${n} file(s) from ${repo}`
+          : `Nothing to remove — no projects/${remoteSlug(project.projectId)} in ${repo}`,
+      );
     } catch (e) {
       toast.error(e);
     }

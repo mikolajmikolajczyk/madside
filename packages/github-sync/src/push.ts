@@ -48,7 +48,7 @@ interface CommitObj {
 }
 interface TreeResp {
   sha: string
-  tree: { path: string; type: string; sha: string }[]
+  tree: { path: string; type: string; sha: string; mode: string }[]
   truncated: boolean
 }
 interface ShaResp {
@@ -58,9 +58,17 @@ interface RepoResp {
   default_branch: string
 }
 
-type TreeEntry = { path: string; mode: '100644'; type: 'blob'; sha: string | null }
+// We always send a FULL tree of real blob refs (no base_tree, no sha:null
+// deletions — GitHub's Trees API 404s on null-sha entries here). Keepers reuse
+// their existing mode/sha; new files are 100644.
+type TreeEntry = { path: string; mode: string; type: 'blob'; sha: string }
 
 const MAX_REF_RETRIES = 3
+
+// Git's canonical empty tree object — always exists, so a commit can reference it
+// without POSTing a tree (and GitHub rejects an empty `tree: []` create as
+// "Invalid tree info"). Used when a remove empties the repo.
+const EMPTY_TREE_SHA = '4b825dc642cb6eb9a060e54bf8d69288fbee4904'
 
 /** Push `files` into `basePath` (e.g. `projects/<slug>`) as one atomic commit. */
 export async function pushFiles(
@@ -90,9 +98,10 @@ export async function pushFiles(
     const baseTree = (await ghGet<CommitObj>(fetch, `/repos/${owner}/${repo}/git/commits/${headSha}`)).tree.sha
     const tree = await ghGet<TreeResp>(fetch, `/repos/${owner}/${repo}/git/trees/${baseTree}?recursive=1`)
 
-    const entries = await buildEntries(fetch, target, basePath, files, tree)
+    const entries = await buildFullTree(fetch, target, basePath, files, tree)
+    // No base_tree: `entries` is the COMPLETE tree (keepers + this subtree's
+    // files), so removed/renamed files simply aren't included — atomic, one commit.
     const newTree = await ghPost<ShaResp>(fetch, `/repos/${owner}/${repo}/git/trees`, {
-      base_tree: baseTree,
       tree: entries,
     })
     const commit = await ghPost<ShaResp>(fetch, `/repos/${owner}/${repo}/git/commits`, {
@@ -111,10 +120,11 @@ export async function pushFiles(
   throw new Error('push failed: the branch kept moving (concurrent updates) — try again')
 }
 
-/** Rebuild the `basePath` subtree from `files`: add/replace every given file
- *  (reusing an existing blob when content is unchanged) and delete any old blob
- *  under the prefix that's gone. */
-async function buildEntries(
+/** Build the COMPLETE repo tree: every existing blob OUTSIDE `basePath/`
+ *  (preserved with its mode + sha — no upload) plus `files` under `basePath/`
+ *  (blob reused when unchanged). Omitting a previously-present subtree file
+ *  deletes it, with no base_tree and no null-sha entries. */
+async function buildFullTree(
   fetch: GhFetch,
   target: PushTarget,
   basePath: string,
@@ -123,31 +133,22 @@ async function buildEntries(
 ): Promise<TreeEntry[]> {
   const { owner, repo } = target
   const prefix = `${basePath}/`
-
-  const existingShas = new Set<string>()
-  const existingSubtree = new Set<string>()
-  // A truncated recursive tree (huge repo) can't be trusted for deletions or
-  // blob reuse — fall back to add-only.
-  if (!tree.truncated) {
-    for (const e of tree.tree) {
-      if (e.type !== 'blob') continue
-      existingShas.add(e.sha)
-      if (e.path.startsWith(prefix)) existingSubtree.add(e.path)
-    }
-  }
-
-  // A truncated recursive tree can't be trusted for deletions or blob reuse —
-  // and silently degrading risks leaving stale files. Refuse rather than guess.
-  if (tree.truncated) {
-    throw new Error('repo tree is too large (truncated) — cannot push safely')
-  }
+  // A truncated recursive tree means we can't see the whole repo — a full-tree
+  // rebuild would DROP the unseen files. Refuse rather than lose data.
+  if (tree.truncated) throw new Error('repo tree is too large (truncated) — cannot push safely')
 
   const entries: TreeEntry[] = []
-  const newPaths = new Set<string>()
+  const existingShas = new Set<string>()
+  for (const e of tree.tree) {
+    if (e.type !== 'blob') continue
+    existingShas.add(e.sha)
+    if (!e.path.startsWith(prefix)) {
+      entries.push({ path: e.path, mode: e.mode, type: 'blob', sha: e.sha }) // keep as-is
+    }
+  }
   for (const f of files) {
     const path = prefix + f.path
     assertSafeTreePath(path)
-    newPaths.add(path)
     const sha = await gitBlobSha(f.content)
     const blobSha = existingShas.has(sha)
       ? sha
@@ -157,21 +158,25 @@ async function buildEntries(
         })).sha
     entries.push({ path, mode: '100644', type: 'blob', sha: blobSha })
   }
-  for (const path of existingSubtree) {
-    if (!newPaths.has(path)) entries.push({ path, mode: '100644', type: 'blob', sha: null })
-  }
   return entries
 }
 
-/** Delete a whole subtree (`basePath/`) in one atomic commit. Returns null if
- *  the subtree (or the repo) doesn't exist — nothing to do. Same stale-ref
- *  retry as pushFiles. Explicit action only ("Remove from GitHub"). */
+/** Delete a whole subtree (`basePath/`) in ONE atomic commit. Returns null if
+ *  the subtree (or repo) doesn't exist — nothing to do. Explicit action only.
+ *  Rebuilds the full tree from the keepers (no base_tree, no null-sha). */
+export interface DeleteResult {
+  commitSha: string
+  branch: string
+  /** Number of files removed. */
+  deleted: number
+}
+
 export async function deleteSubtree(
   fetch: GhFetch,
   target: PushTarget,
   basePath: string,
   message: string,
-): Promise<PushResult | null> {
+): Promise<DeleteResult | null> {
   const { owner, repo } = target
   const branch = target.branch ?? (await ghGet<RepoResp>(fetch, `/repos/${owner}/${repo}`)).default_branch
   const prefix = `${basePath}/`
@@ -183,25 +188,32 @@ export async function deleteSubtree(
     const baseTree = (await ghGet<CommitObj>(fetch, `/repos/${owner}/${repo}/git/commits/${headSha}`)).tree.sha
     const tree = await ghGet<TreeResp>(fetch, `/repos/${owner}/${repo}/git/trees/${baseTree}?recursive=1`)
     if (tree.truncated) throw new Error('repo tree is too large (truncated) — cannot remove safely')
-    const entries: TreeEntry[] = tree.tree
-      .filter((e) => e.type === 'blob' && e.path.startsWith(prefix))
-      .map((e) => ({ path: e.path, mode: '100644', type: 'blob', sha: null }))
-    if (entries.length === 0) return null
 
-    const newTree = await ghPost<ShaResp>(fetch, `/repos/${owner}/${repo}/git/trees`, {
-      base_tree: baseTree,
-      tree: entries,
-    })
+    const kept: TreeEntry[] = []
+    let removed = 0
+    for (const e of tree.tree) {
+      if (e.type !== 'blob') continue
+      if (e.path.startsWith(prefix)) removed++
+      else kept.push({ path: e.path, mode: e.mode, type: 'blob', sha: e.sha })
+    }
+    if (removed === 0) return null
+
+    // Emptying the repo → reference the canonical empty tree (an empty `tree: []`
+    // POST is rejected as "Invalid tree info").
+    const newTreeSha =
+      kept.length === 0
+        ? EMPTY_TREE_SHA
+        : (await ghPost<ShaResp>(fetch, `/repos/${owner}/${repo}/git/trees`, { tree: kept })).sha
     const commit = await ghPost<ShaResp>(fetch, `/repos/${owner}/${repo}/git/commits`, {
       message,
-      tree: newTree.sha,
+      tree: newTreeSha,
       parents: [headSha],
     })
     const ok = await ghPatchRef(fetch, `/repos/${owner}/${repo}/git/refs/heads/${branch}`, {
       sha: commit.sha,
       force: false,
     })
-    if (ok) return { commitSha: commit.sha, branch, created: false }
+    if (ok) return { commitSha: commit.sha, branch, deleted: removed }
   }
   throw new Error('remove failed: the branch kept moving (concurrent updates) — try again')
 }

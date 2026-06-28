@@ -52,6 +52,16 @@ export async function ghPut<T>(fetch: GhFetch, path: string, body: unknown): Pro
   return (await res.json()) as T
 }
 
+export async function ghDelete<T>(fetch: GhFetch, path: string, body: unknown): Promise<T> {
+  const res = await fetch(`${BASE}${path}`, {
+    method: 'DELETE',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  })
+  if (!res.ok) throw new GitHubApiError(`DELETE ${path} → ${res.status}`, res.status, await safeText(res))
+  return (await res.json()) as T
+}
+
 /** Encode each path segment but keep the slashes (for Contents API URLs). */
 export function encodePath(p: string): string {
   return p.split('/').map(encodeURIComponent).join('/')

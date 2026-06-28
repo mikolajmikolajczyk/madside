@@ -117,6 +117,11 @@ function describeApiError(e: GitHubApiError): string {
   } catch {
     /* body wasn't JSON */
   }
+  // GitHub returns 404 on a write the App isn't permitted to make (to avoid
+  // leaking the repo's existence) — point the user at the likely cause.
+  if (e.status === 404) {
+    return `${e.message} — repo not found, or the GitHub App isn't installed with Contents: read & write on it`;
+  }
   return reason ? `${e.message} — ${reason}` : e.message;
 }
 
@@ -177,13 +182,13 @@ export async function removeProjectFromGitHub(
   fetch: GhFetch,
   repo: string,
   projectId: string,
-): Promise<boolean> {
+): Promise<number> {
   const target = parseRepo(repo);
   const slug = remoteSlug(projectId);
   const res = await withApiErrors(() =>
     deleteSubtree(fetch, target, `projects/${slug}`, `Remove ${slug} from madside`),
   );
-  return res !== null;
+  return res ? res.deleted : 0;
 }
 
 /** GitHub web URLs for a project: its folder + the commit history for that path
