@@ -154,6 +154,20 @@ export async function pushProjectToGitHub(
   return result;
 }
 
+/** Publish an authored course to the repo under `courses/<slug>/` as one atomic
+ *  commit (#165). Wholesale subtree replace — added/edited/deleted lessons all
+ *  propagate. Files are course-root-relative (course.json + lessons/**). */
+export async function publishCourseToGitHub(
+  fetch: GhFetch,
+  repo: string,
+  slug: string,
+  files: SyncFile[],
+  message: string,
+): Promise<PushResult> {
+  const target = parseRepo(repo);
+  return withApiErrors(() => pushFiles(fetch, target, `courses/${slug}`, files, message));
+}
+
 /** Remove a project's folder from the repo (one commit). Explicit + destructive.
  *  Returns false if it wasn't there. Never touches local storage. */
 export async function removeProjectFromGitHub(

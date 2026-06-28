@@ -12,10 +12,13 @@ import {
   setLessonMdInFiles,
   slugify,
   swapLessonsInFiles,
+  useGitHub,
+  publishCourseToGitHub,
   validateCourseFiles,
   zipCourse,
 } from "@app";
 import type { CourseCheck, CourseMeta, LessonInfo } from "@app";
+import { useToast } from "../ui/Toast";
 import "./CourseAuthor.css";
 
 type Files = { path: string; content: string }[];
@@ -52,6 +55,28 @@ export function CourseAuthor({ files, activeLessonId, onSaveFiles, onSelectLesso
 }) {
   const meta = readCourseMeta(files) ?? EMPTY;
   const lessons = listLessons(files);
+  const gh = useGitHub();
+  const toast = useToast();
+
+  // Publish the course to the user's repo under courses/<slug>/ (#165).
+  const publish = async () => {
+    if (!gh.auth || !gh.repo) return;
+    const check = validateCourseFiles(courseExportFiles(files));
+    if (!check.ok) {
+      toast.error(new Error(`Course not ready: ${check.error}`));
+      return;
+    }
+    const slug = slugify(meta.title) || "course";
+    const enc = new TextEncoder();
+    const syncFiles = courseExportFiles(files).map((f) => ({ path: f.path, content: enc.encode(f.content) }));
+    const auth = gh.auth;
+    try {
+      await publishCourseToGitHub((url, init) => auth.fetch(url, init), gh.repo, slug, syncFiles, `Publish course "${meta.title}"`);
+      toast.push("info", `Published “${meta.title}” to ${gh.repo}/courses/${slug}`);
+    } catch (e) {
+      toast.error(e);
+    }
+  };
 
   return (
     <div className="course-author">
@@ -65,6 +90,16 @@ export function CourseAuthor({ files, activeLessonId, onSaveFiles, onSelectLesso
         >
           ↓ Export .zip
         </button>
+        {gh.available && gh.signedIn && gh.repo && (
+          <button
+            type="button"
+            className="course-author__btn"
+            onClick={() => void publish()}
+            title="Publish this course to your GitHub repo under courses/<slug>/"
+          >
+            ↑ Publish to GitHub
+          </button>
+        )}
       </div>
       <MetaForm meta={meta} onSave={(m) => onSaveFiles(setCourseMetaInFiles(files, m))} />
 
