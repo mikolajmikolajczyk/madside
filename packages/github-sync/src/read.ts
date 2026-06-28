@@ -2,7 +2,7 @@
 // per-blob content via the blobs API (the Contents API caps content at ~1MB).
 // Used to browse projects/courses and pull a subtree back.
 
-import { fromBase64, ghGet, ghGetOrNull, type GhFetch } from './util'
+import { EMPTY_TREE_SHA, fromBase64, ghGet, ghGetOrNull, type GhFetch } from './util'
 import type { PushTarget, SyncFile } from './push'
 
 export interface RepoTree {
@@ -46,7 +46,11 @@ export async function getRepoTree(fetch: GhFetch, target: PushTarget): Promise<R
   if (!ref) return null
   const commitSha = ref.object.sha
   const baseTree = (await ghGet<CommitObj>(fetch, `/repos/${owner}/${repo}/git/commits/${commitSha}`)).tree.sha
-  const tree = await ghGet<TreeResp>(fetch, `/repos/${owner}/${repo}/git/trees/${baseTree}?recursive=1`)
+  // An emptied repo's HEAD points at the canonical empty tree, which GitHub 404s
+  // on GET — treat it (and any 404) as no files.
+  if (baseTree === EMPTY_TREE_SHA) return { branch, commitSha, entries: [], truncated: false }
+  const tree = await ghGetOrNull<TreeResp>(fetch, `/repos/${owner}/${repo}/git/trees/${baseTree}?recursive=1`)
+  if (!tree) return { branch, commitSha, entries: [], truncated: false }
   return { branch, commitSha, entries: tree.tree, truncated: tree.truncated }
 }
 

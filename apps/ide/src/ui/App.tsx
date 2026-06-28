@@ -60,6 +60,7 @@ import { applyTheme, loadThemeId, saveThemeId, hydrateTrustedPlugins } from "@ap
 import { PluginTrustBanner } from "./components/PluginTrustBanner";
 import { PluginInventory } from "./components/PluginInventory";
 import { GitHubDialog } from "./components/github/GitHubDialog";
+import { GitHubPushDialog } from "./components/github/GitHubPushDialog";
 import { githubAvailable, useGitHub, pushProjectToGitHub, pullProjectToIdb, remoteSlug, removeProjectFromGitHub, projectGitHubUrls, pullSettings } from "@app";
 import { addLessonInFiles, getCourse, getDraftCourse, openLesson, readCourseMeta, refreshCourseFromGitHub, resetLessonToStarter, runChecks, saveDraftCourse, scanEquates, setLessonStarterInFiles, starterFilesForMachine } from "@app";
 import { useCourses } from "./hooks/useCourses";
@@ -881,7 +882,7 @@ export default function App() {
   // Save opens a commit-message prompt; doPushGitHub does the push with it.
   const handlePushGitHub = useCallback(() => setPushMsgOpen(true), []);
 
-  const doPushGitHub = useCallback(async (message: string) => {
+  const doPushGitHub = useCallback(async (message: string, amend: boolean) => {
     if (!gh.auth || !gh.repo || !project.loaded) return;
     const repo = gh.repo;
     const auth = gh.auth;
@@ -892,8 +893,10 @@ export default function App() {
         repo,
         project.projectId,
         message,
+        amend,
       );
       toast.push("info", res.created ? `Initialized ${repo} and pushed` : `Pushed to ${repo}`);
+      gh.refresh();
     } catch (e) {
       toast.error(e);
     }
@@ -908,7 +911,9 @@ export default function App() {
     try {
       await pullProjectToIdb(workbench.storage, (url, init) => auth.fetch(url, init), repo, remoteSlug(pid));
       await project.switchProject(pid);
+      await project.refreshProjects();
       toast.push("info", `Pulled from ${repo} (local backed up to a snapshot)`);
+      gh.refresh();
     } catch (e) {
       toast.error(e);
     }
@@ -939,6 +944,7 @@ export default function App() {
           ? `Removed ${n} file(s) from ${repo}`
           : `Nothing to remove — no projects/${remoteSlug(project.projectId)} in ${repo}`,
       );
+      gh.refresh();
     } catch (e) {
       toast.error(e);
     }
@@ -1430,17 +1436,13 @@ export default function App() {
         onCancel={() => setRenameReq(null)}
         onConfirm={applyRename}
       />
-      <TextPromptDialog
+      <GitHubPushDialog
         open={pushMsgOpen}
-        title="Save to GitHub"
-        description="Commit message for this push."
-        placeholder="Update project"
-        initial={project.loaded ? `Save ${project.manifest.name} from madside` : ""}
-        confirmLabel="Save"
+        defaultMessage={project.loaded ? `Save ${project.manifest.name} from madside` : ""}
         onCancel={() => setPushMsgOpen(false)}
-        onConfirm={(msg) => {
+        onConfirm={(msg, amend) => {
           setPushMsgOpen(false);
-          void doPushGitHub(msg);
+          void doPushGitHub(msg, amend);
         }}
       />
       <TextPromptDialog

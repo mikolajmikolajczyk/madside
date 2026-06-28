@@ -209,7 +209,7 @@ function RemoteProjects({ onOpenProject }: { onOpenProject?: (projectId: string)
     return () => {
       cancelled = true;
     };
-  }, [gh.auth, gh.repo, refreshKey]);
+  }, [gh.auth, gh.repo, refreshKey, gh.rev]);
 
   const importProject = async (slug: string) => {
     if (!gh.auth || !gh.repo) return;
@@ -296,7 +296,7 @@ function RemoteCourses({ onOpenProject }: { onOpenProject?: (projectId: string) 
       }
     })();
     return () => { cancelled = true; };
-  }, [gh.auth, gh.repo, refreshKey]);
+  }, [gh.auth, gh.repo, refreshKey, gh.rev]);
 
   const edit = async (slug: string) => {
     if (!gh.auth || !gh.repo) return;

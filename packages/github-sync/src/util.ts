@@ -18,16 +18,20 @@ export class GitHubApiError extends Error {
 
 const BASE = 'https://api.github.com'
 
+/** Git's canonical empty tree object id. A commit can reference it without
+ *  POSTing a tree, but `GET /git/trees/<this>` 404s — so treat it as "no files". */
+export const EMPTY_TREE_SHA = '4b825dc642cb6eb9a060e54bf8d69288fbee4904'
+
 /** GET that maps 404/409 (missing ref / empty repo) to null. */
 export async function ghGetOrNull<T>(fetch: GhFetch, path: string): Promise<T | null> {
-  const res = await fetch(`${BASE}${path}`)
+  const res = await fetch(`${BASE}${path}`, { cache: 'no-store' })
   if (res.status === 404 || res.status === 409) return null
   if (!res.ok) throw new GitHubApiError(`GET ${path} → ${res.status}`, res.status, await safeText(res))
   return (await res.json()) as T
 }
 
 export async function ghGet<T>(fetch: GhFetch, path: string): Promise<T> {
-  const res = await fetch(`${BASE}${path}`)
+  const res = await fetch(`${BASE}${path}`, { cache: 'no-store' })
   if (!res.ok) throw new GitHubApiError(`GET ${path} → ${res.status}`, res.status, await safeText(res))
   return (await res.json()) as T
 }
@@ -35,6 +39,7 @@ export async function ghGet<T>(fetch: GhFetch, path: string): Promise<T> {
 export async function ghPost<T>(fetch: GhFetch, path: string, body: unknown): Promise<T> {
   const res = await fetch(`${BASE}${path}`, {
     method: 'POST',
+    cache: 'no-store',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(body),
   })
@@ -45,6 +50,7 @@ export async function ghPost<T>(fetch: GhFetch, path: string, body: unknown): Pr
 export async function ghPut<T>(fetch: GhFetch, path: string, body: unknown): Promise<T> {
   const res = await fetch(`${BASE}${path}`, {
     method: 'PUT',
+    cache: 'no-store',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(body),
   })
@@ -55,6 +61,7 @@ export async function ghPut<T>(fetch: GhFetch, path: string, body: unknown): Pro
 export async function ghDelete<T>(fetch: GhFetch, path: string, body: unknown): Promise<T> {
   const res = await fetch(`${BASE}${path}`, {
     method: 'DELETE',
+    cache: 'no-store',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(body),
   })
@@ -85,6 +92,7 @@ export function assertSafeTreePath(path: string): void {
 export async function ghPatchRef(fetch: GhFetch, path: string, body: unknown): Promise<boolean> {
   const res = await fetch(`${BASE}${path}`, {
     method: 'PATCH',
+    cache: 'no-store',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(body),
   })

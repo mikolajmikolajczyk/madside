@@ -7,6 +7,7 @@
 // wins (commit on top, never a force/history-rewrite). No merge engine.
 
 import {
+  EMPTY_TREE_SHA,
   GitHubApiError,
   assertSafeTreePath,
   encodePath,
@@ -45,6 +46,7 @@ interface RefObj {
 }
 interface CommitObj {
   tree: { sha: string }
+  parents: { sha: string }[]
 }
 interface TreeResp {
   sha: string
@@ -65,10 +67,23 @@ type TreeEntry = { path: string; mode: string; type: 'blob'; sha: string }
 
 const MAX_REF_RETRIES = 3
 
-// Git's canonical empty tree object — always exists, so a commit can reference it
-// without POSTing a tree (and GitHub rejects an empty `tree: []` create as
-// "Invalid tree info"). Used when a remove empties the repo.
-const EMPTY_TREE_SHA = '4b825dc642cb6eb9a060e54bf8d69288fbee4904'
+/** Recursive tree for a commit's tree sha, treating the canonical empty tree as
+ *  "no files". GitHub 404s `GET /git/trees/<emptyTreeSha>`, so we both recognise
+ *  the well-known sha AND fall back to empty on a 404 (defensive). */
+async function readTree(fetch: GhFetch, target: PushTarget, treeSha: string): Promise<TreeResp> {
+  const empty: TreeResp = { sha: treeSha, tree: [], truncated: false }
+  if (treeSha === EMPTY_TREE_SHA) return empty
+  const t = await ghGetOrNull<TreeResp>(fetch, `/repos/${target.owner}/${target.repo}/git/trees/${treeSha}?recursive=1`)
+  return t ?? empty
+}
+
+export interface PushOptions {
+  /** Amend (replace) the branch HEAD instead of adding a commit, but ONLY when
+   *  HEAD equals this sha — i.e. the last commit is ours and untouched. Keeps
+   *  repeated saves from piling up commits; safe cross-device (another device's
+   *  HEAD won't match, so it appends instead). */
+  amendIfHead?: string
+}
 
 /** Push `files` into `basePath` (e.g. `projects/<slug>`) as one atomic commit. */
 export async function pushFiles(
@@ -77,6 +92,7 @@ export async function pushFiles(
   basePath: string,
   files: SyncFile[],
   message: string,
+  opts: PushOptions = {},
 ): Promise<PushResult> {
   const { owner, repo } = target
   const branch = target.branch ?? (await ghGet<RepoResp>(fetch, `/repos/${owner}/${repo}`)).default_branch
@@ -95,8 +111,8 @@ export async function pushFiles(
       continue
     }
     const headSha = ref.object.sha
-    const baseTree = (await ghGet<CommitObj>(fetch, `/repos/${owner}/${repo}/git/commits/${headSha}`)).tree.sha
-    const tree = await ghGet<TreeResp>(fetch, `/repos/${owner}/${repo}/git/trees/${baseTree}?recursive=1`)
+    const headCommit = await ghGet<CommitObj>(fetch, `/repos/${owner}/${repo}/git/commits/${headSha}`)
+    const tree = await readTree(fetch, target, headCommit.tree.sha)
 
     const entries = await buildFullTree(fetch, target, basePath, files, tree)
     // No base_tree: `entries` is the COMPLETE tree (keepers + this subtree's
@@ -104,14 +120,18 @@ export async function pushFiles(
     const newTree = await ghPost<ShaResp>(fetch, `/repos/${owner}/${repo}/git/trees`, {
       tree: entries,
     })
+    // Amend only when HEAD is exactly our last commit (force-replace it); else
+    // append a normal commit (and retry on a moved ref).
+    const amend = !bootstrapped && !!opts.amendIfHead && headSha === opts.amendIfHead
+    const parents = amend ? headCommit.parents.map((p) => p.sha) : [headSha]
     const commit = await ghPost<ShaResp>(fetch, `/repos/${owner}/${repo}/git/commits`, {
       message,
       tree: newTree.sha,
-      parents: [headSha],
+      parents,
     })
     const ok = await ghPatchRef(fetch, `/repos/${owner}/${repo}/git/refs/heads/${branch}`, {
       sha: commit.sha,
-      force: false,
+      force: amend,
     })
     if (ok) return { commitSha: commit.sha, branch, created: bootstrapped }
     // 422 non-fast-forward: the ref moved under us → re-read head and rebuild
@@ -186,7 +206,7 @@ export async function deleteSubtree(
     if (!ref) return null
     const headSha = ref.object.sha
     const baseTree = (await ghGet<CommitObj>(fetch, `/repos/${owner}/${repo}/git/commits/${headSha}`)).tree.sha
-    const tree = await ghGet<TreeResp>(fetch, `/repos/${owner}/${repo}/git/trees/${baseTree}?recursive=1`)
+    const tree = await readTree(fetch, target, baseTree)
     if (tree.truncated) throw new Error('repo tree is too large (truncated) — cannot remove safely')
 
     const kept: TreeEntry[] = []

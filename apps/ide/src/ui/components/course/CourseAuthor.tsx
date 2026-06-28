@@ -73,6 +73,7 @@ export function CourseAuthor({ files, activeLessonId, onSaveFiles, onSelectLesso
     try {
       await publishCourseToGitHub((url, init) => auth.fetch(url, init), gh.repo, slug, syncFiles, `Publish course "${meta.title}"`);
       toast.push("info", `Published “${meta.title}” to ${gh.repo}/courses/${slug}`);
+      gh.refresh();
     } catch (e) {
       toast.error(e);
     }

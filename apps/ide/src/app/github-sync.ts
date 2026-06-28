@@ -144,6 +144,7 @@ export async function pushProjectToGitHub(
   repo: string,
   projectId: string,
   note?: string,
+  amend = true,
 ): Promise<PushResult> {
   const target = parseRepo(repo);
   const loaded = await storage.projects.load(projectId);
@@ -155,8 +156,13 @@ export async function pushProjectToGitHub(
 
   const message = note?.trim() ? note.trim() : `Save ${loaded.project.name} from madside`;
   const basePath = `projects/${remoteSlug(projectId)}`;
+  // Amend our own last commit (if HEAD still points at it) so repeated saves
+  // don't pile up commits; pushFiles only amends when HEAD === this sha.
+  const amendIfHead = amend ? (lastSyncedSha(projectId) ?? undefined) : undefined;
 
-  const result = await withApiErrors(() => pushFiles(fetch, target, basePath, files, message));
+  const result = await withApiErrors(() =>
+    pushFiles(fetch, target, basePath, files, message, { amendIfHead }),
+  );
   setSynced(projectId, result.commitSha);
   setBranch(projectId, result.branch);
   return result;

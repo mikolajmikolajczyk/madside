@@ -35,6 +35,10 @@ export interface GitHubState {
   /** Selected dedicated repo ("owner/repo"), persisted per device. */
   repo: string | null;
   setRepo: (repo: string | null) => void;
+  /** Bumped after any git write (push/pull/remove/import/publish) so repo-content
+   *  views (project/course lists) refetch. */
+  rev: number;
+  refresh: () => void;
   /** Start the OAuth redirect. No-op when unavailable. */
   signIn: () => void;
   signOut: () => void;
@@ -74,6 +78,8 @@ export function GitHubProvider({ children }: { children: ReactNode }) {
   const [repo, setRepoState] = useState<string | null>(() =>
     typeof localStorage !== "undefined" ? localStorage.getItem(REPO_KEY) : null,
   );
+  const [rev, setRev] = useState(0);
+  const refresh = useCallback(() => setRev((r) => r + 1), []);
 
   const setRepo = useCallback((next: string | null) => {
     setRepoState(next);
@@ -126,11 +132,13 @@ export function GitHubProvider({ children }: { children: ReactNode }) {
       error,
       repo,
       setRepo,
+      rev,
+      refresh,
       signIn,
       signOut,
       auth,
     }),
-    [auth, ready, user, error, repo, setRepo, signIn, signOut],
+    [auth, ready, user, error, repo, setRepo, rev, refresh, signIn, signOut],
   );
 
   return <GitHubContext.Provider value={value}>{children}</GitHubContext.Provider>;

@@ -14,7 +14,12 @@ interface TreeEntry { path: string; mode: string; type: string; sha: string | nu
 
 interface MockOpts {
   /** null head = empty repo / unborn branch (bootstrap). */
-  head?: { commitSha: string; treeSha: string; tree: { path: string; type: string; sha: string; mode?: string }[] } | null
+  head?: {
+    commitSha: string
+    treeSha: string
+    tree: { path: string; type: string; sha: string; mode?: string }[]
+    parents?: { sha: string }[]
+  } | null
   /** PATCH ref returns 422 this many times before succeeding (stale-ref retry). */
   refConflicts?: number
   /** GET trees reports the recursive tree as truncated. */
@@ -26,6 +31,8 @@ function mockRepo(opts: MockOpts) {
   const calls: string[] = []
   let blobs = 0
   let lastTree: TreeEntry[] | null = null
+  let lastCommit: { parents: string[] } | null = null
+  let lastForce: boolean | null = null
 
   const json = (body: unknown, status = 200) =>
     new Response(JSON.stringify(body), { status, headers: { 'Content-Type': 'application/json' } })
@@ -38,7 +45,9 @@ function mockRepo(opts: MockOpts) {
     if (method === 'GET' && url.includes('/git/ref/heads/')) {
       return opts.head ? json({ object: { sha: opts.head.commitSha } }) : new Response('', { status: 404 })
     }
-    if (method === 'GET' && url.includes('/git/commits/')) return json({ tree: { sha: opts.head!.treeSha } })
+    if (method === 'GET' && url.includes('/git/commits/')) {
+      return json({ tree: { sha: opts.head!.treeSha }, parents: opts.head!.parents ?? [] })
+    }
     if (method === 'GET' && url.includes('/git/trees/')) {
       const tree = opts.head!.tree.map((e) => ({ ...e, mode: e.mode ?? '100644' }))
       return json({ sha: opts.head!.treeSha, tree, truncated: opts.truncated ?? false })
@@ -48,8 +57,12 @@ function mockRepo(opts: MockOpts) {
       lastTree = (JSON.parse(init!.body as string) as { tree: TreeEntry[] }).tree
       return json({ sha: 'newtree' })
     }
-    if (method === 'POST' && url.endsWith('/git/commits')) return json({ sha: 'newcommit' })
+    if (method === 'POST' && url.endsWith('/git/commits')) {
+      lastCommit = JSON.parse(init!.body as string) as { parents: string[] }
+      return json({ sha: 'newcommit' })
+    }
     if (method === 'PATCH' && url.includes('/git/refs/heads/')) {
+      lastForce = (JSON.parse(init!.body as string) as { force: boolean }).force
       if (conflicts > 0) { conflicts--; return new Response('', { status: 422 }) }
       return json({ object: { sha: 'newcommit' } })
     }
@@ -58,7 +71,14 @@ function mockRepo(opts: MockOpts) {
     throw new Error(`unmocked ${method} ${url}`)
   }
 
-  return { fetch, calls: () => calls, blobCount: () => blobs, tree: () => lastTree }
+  return {
+    fetch,
+    calls: () => calls,
+    blobCount: () => blobs,
+    tree: () => lastTree,
+    commitBody: () => lastCommit,
+    force: () => lastForce,
+  }
 }
 
 describe('pushFiles', () => {
@@ -297,5 +317,30 @@ describe('contents (settings.json upsert)', () => {
       expect(putBody!.sha).toBe(exists ? 'old' : undefined) // sha only on update
       expect(putBody!.content).toBe(toBase64(enc.encode('{"theme":"dark"}')))
     }
+  })
+})
+
+describe('amend', () => {
+  const head = { commitSha: 'h', treeSha: 't', tree: [] as { path: string; type: string; sha: string }[], parents: [{ sha: 'p0' }] }
+
+  it('amends when HEAD is our last commit (force, reparent to HEAD parent)', async () => {
+    const m = mockRepo({ head })
+    await pushFiles(m.fetch, { owner: 'me', repo: 'r', branch: 'main' }, 'projects/p1', [file('a.txt', 'a')], 'm', { amendIfHead: 'h' })
+    expect(m.commitBody()!.parents).toEqual(['p0']) // amend → parent = HEAD's parent
+    expect(m.force()).toBe(true)
+  })
+
+  it('appends (no amend) when HEAD is not our last commit', async () => {
+    const m = mockRepo({ head })
+    await pushFiles(m.fetch, { owner: 'me', repo: 'r', branch: 'main' }, 'projects/p1', [file('a.txt', 'a')], 'm', { amendIfHead: 'other' })
+    expect(m.commitBody()!.parents).toEqual(['h']) // append → parent = HEAD
+    expect(m.force()).toBe(false)
+  })
+
+  it('appends when amend is not requested', async () => {
+    const m = mockRepo({ head })
+    await pushFiles(m.fetch, { owner: 'me', repo: 'r', branch: 'main' }, 'projects/p1', [file('a.txt', 'a')], 'm')
+    expect(m.commitBody()!.parents).toEqual(['h'])
+    expect(m.force()).toBe(false)
   })
 })
