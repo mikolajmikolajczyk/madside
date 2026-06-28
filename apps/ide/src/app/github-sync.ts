@@ -37,6 +37,10 @@ const branchKey = (projectId: string) => `madside.github.branch.${projectId}`;
 const defBranchKey = (repo: string) => `madside.github.defbranch.${repo}`;
 const subtreeKey = (projectId: string) => `madside.github.subtree.${projectId}`;
 const AUTOSYNC_KEY = "madside.github.autosync";
+const DEBOUNCE_KEY = "madside.github.autosync.debounce";
+/** Default idle delay before an auto-push — gentle on GitHub rate limits. */
+export const AUTOSYNC_DEBOUNCE_DEFAULT_MS = 30_000;
+const AUTOSYNC_DEBOUNCE_MIN_MS = 2_000;
 
 function setLS(key: string, value: string | null): void {
   try {
@@ -47,16 +51,32 @@ function setLS(key: string, value: string | null): void {
   }
 }
 
-/** Auto-sync on by default once a repo is connected; user can turn it off. */
+/** Auto-sync is OFF by default; opt in per device (e.g. on the iPad used for
+ *  evening sessions, where remembering manual commits is the real pain). */
 export function autoSyncEnabled(): boolean {
   try {
-    return localStorage.getItem(AUTOSYNC_KEY) !== "0";
+    return localStorage.getItem(AUTOSYNC_KEY) === "1";
   } catch {
-    return true;
+    return false;
   }
 }
 export function setAutoSyncEnabled(on: boolean): void {
   setLS(AUTOSYNC_KEY, on ? "1" : "0");
+}
+
+/** Idle delay (ms) before an auto-push; per device, default 30s, floored at 2s. */
+export function autoSyncDebounceMs(): number {
+  try {
+    const raw = localStorage.getItem(DEBOUNCE_KEY);
+    const n = raw == null ? NaN : Number(raw);
+    if (!Number.isFinite(n)) return AUTOSYNC_DEBOUNCE_DEFAULT_MS;
+    return Math.max(AUTOSYNC_DEBOUNCE_MIN_MS, Math.round(n));
+  } catch {
+    return AUTOSYNC_DEBOUNCE_DEFAULT_MS;
+  }
+}
+export function setAutoSyncDebounceMs(ms: number): void {
+  setLS(DEBOUNCE_KEY, String(Math.max(AUTOSYNC_DEBOUNCE_MIN_MS, Math.round(ms))));
 }
 
 /** Git tree sha of this project's folder at last sync — per-project conflict

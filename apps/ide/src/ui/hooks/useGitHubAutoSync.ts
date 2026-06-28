@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef } from "react";
 import type { EventBus, StorageBackend } from "@ports";
 import {
+  autoSyncDebounceMs,
   autoSyncEnabled,
   pullProjectToIdb,
   pushProjectToGitHub,
@@ -17,8 +18,6 @@ import {
 // changed remotely while we have local edits, or diverged) auto-sync PAUSES for
 // that project and toasts — nothing is clobbered, no merge engine. It auto-
 // resumes once a manual pull/push makes remote == synced.
-
-const PUSH_DEBOUNCE_MS = 8000;
 
 interface ToastLike {
   push: (kind: "error" | "info", message: string) => void;
@@ -53,64 +52,71 @@ export function useGitHubAutoSync(deps: Deps) {
 
   const attemptPush = useCallback(async () => {
     const d = ref.current;
-    if (!ready(d) || !dirty.current) return;
+    if (!ready(d)) { d.gh.setSyncStatus("off"); return; }
+    if (!dirty.current) return;
     const pid = d.projectId;
     const repo = d.gh.repo!;
     const auth = d.gh.auth!;
     const fetch = (url: string, init?: RequestInit) => auth.fetch(url, init);
     try {
+      d.gh.setSyncStatus("syncing");
       const remote = await remoteSubtreeSha(fetch, repo, pid);
       // Safe iff our project's remote state matches what we last synced (both
       // null = new project; same sha = unchanged remotely).
       if (remote !== syncedSubtreeSha(pid)) {
-        if (!paused.current.has(pid)) {
-          paused.current.add(pid);
-          d.toast.push("info", "Auto-sync paused — this project changed on GitHub. Pull or push via File ▸ GitHub.");
-        }
+        paused.current.add(pid);
+        d.gh.setSyncStatus("paused");
+        d.toast.push("info", "Auto-sync paused — this project changed on GitHub. Pull or push via File ▸ GitHub.");
         return;
       }
       paused.current.delete(pid);
       await pushProjectToGitHub(d.storage, fetch, repo, pid); // amend default; updates synced subtree
       dirty.current = false;
+      d.gh.setSyncStatus("idle");
     } catch (e) {
+      d.gh.setSyncStatus("error");
       d.toast.error(e);
     }
   }, []);
 
   const schedulePush = useCallback(() => {
     dirty.current = true;
+    ref.current.gh.setSyncStatus("pending"); // show "unsynced" immediately on edit
     if (timer.current != null) clearTimeout(timer.current);
     timer.current = window.setTimeout(() => {
       timer.current = null;
       void attemptPush();
-    }, PUSH_DEBOUNCE_MS);
+    }, autoSyncDebounceMs());
   }, [attemptPush]);
 
   const attemptPull = useCallback(async () => {
     const d = ref.current;
-    if (!ready(d)) return;
+    if (!ready(d)) { d.gh.setSyncStatus("off"); return; }
     const pid = d.projectId;
     const repo = d.gh.repo!;
     const auth = d.gh.auth!;
     const fetch = (url: string, init?: RequestInit) => auth.fetch(url, init);
     try {
+      d.gh.setSyncStatus("syncing");
       const remote = await remoteSubtreeSha(fetch, repo, pid);
       if (remote === syncedSubtreeSha(pid)) {
         paused.current.delete(pid); // nothing new (and any conflict is resolved)
+        d.gh.setSyncStatus("idle");
         return;
       }
       if (dirty.current) {
-        if (!paused.current.has(pid)) {
-          paused.current.add(pid);
-          d.toast.push("info", "Auto-sync paused — this project changed on GitHub and you have local edits. Resolve via File ▸ GitHub.");
-        }
+        paused.current.add(pid);
+        d.gh.setSyncStatus("paused");
+        d.toast.push("info", "Auto-sync paused — this project changed on GitHub and you have local edits. Resolve via File ▸ GitHub.");
         return;
       }
       paused.current.delete(pid);
       await pullProjectToIdb(d.storage, fetch, repo, remoteSlug(pid));
       await d.reloadProject();
       d.onPulled();
+      d.gh.setSyncStatus("idle");
     } catch (e) {
+      d.gh.setSyncStatus("error");
       d.toast.error(e);
     }
   }, []);

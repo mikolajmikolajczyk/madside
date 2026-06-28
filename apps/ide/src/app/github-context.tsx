@@ -23,6 +23,9 @@ export interface GitHubUser {
 
 const REPO_KEY = "madside.github.repo";
 
+/** Coarse auto-sync state for the status indicator. */
+export type GitHubSyncStatus = "off" | "idle" | "pending" | "syncing" | "paused" | "error";
+
 export interface GitHubState {
   /** Build configured for GitHub at all (githubAvailable). */
   available: boolean;
@@ -39,6 +42,9 @@ export interface GitHubState {
    *  views (project/course lists) refetch. */
   rev: number;
   refresh: () => void;
+  /** Auto-sync status (for the status bar); driven by the auto-sync hook. */
+  syncStatus: GitHubSyncStatus;
+  setSyncStatus: (s: GitHubSyncStatus) => void;
   /** Start the OAuth redirect. No-op when unavailable. */
   signIn: () => void;
   signOut: () => void;
@@ -80,6 +86,7 @@ export function GitHubProvider({ children }: { children: ReactNode }) {
   );
   const [rev, setRev] = useState(0);
   const refresh = useCallback(() => setRev((r) => r + 1), []);
+  const [syncStatus, setSyncStatus] = useState<GitHubSyncStatus>("off");
 
   const setRepo = useCallback((next: string | null) => {
     setRepoState(next);
@@ -113,6 +120,29 @@ export function GitHubProvider({ children }: { children: ReactNode }) {
     void cacheRepoDefaultBranch((url, init) => auth.fetch(url, init), repo).catch(() => {});
   }, [auth, repo]);
 
+  // Re-probe auth when the tab regains focus — a sessionStorage token can expire
+  // silently (notably on iPad), and without this the UI would still claim
+  // "signed in" while every sync 401s. Flips to signed-out so it's visible.
+  useEffect(() => {
+    if (!auth) return;
+    const recheck = () => {
+      void (async () => {
+        try {
+          setUser(await probeUser(auth));
+        } catch {
+          setUser(null);
+        }
+      })();
+    };
+    const onVis = () => { if (document.visibilityState === "visible") recheck(); };
+    window.addEventListener("focus", recheck);
+    document.addEventListener("visibilitychange", onVis);
+    return () => {
+      window.removeEventListener("focus", recheck);
+      document.removeEventListener("visibilitychange", onVis);
+    };
+  }, [auth]);
+
   const signIn = useCallback(() => {
     setError(null);
     void auth?.login();
@@ -134,11 +164,13 @@ export function GitHubProvider({ children }: { children: ReactNode }) {
       setRepo,
       rev,
       refresh,
+      syncStatus,
+      setSyncStatus,
       signIn,
       signOut,
       auth,
     }),
-    [auth, ready, user, error, repo, setRepo, rev, refresh, signIn, signOut],
+    [auth, ready, user, error, repo, setRepo, rev, refresh, syncStatus, signIn, signOut],
   );
 
   return <GitHubContext.Provider value={value}>{children}</GitHubContext.Provider>;

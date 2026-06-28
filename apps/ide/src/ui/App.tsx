@@ -1444,6 +1444,7 @@ export default function App() {
         running={running}
         pc={cpu?.regs.pc ?? null}
         brokeOn={brokeOn}
+        github={githubAvailable ? { signedIn: gh.signedIn, user: gh.user?.login ?? null, status: gh.syncStatus, onClick: () => setGithubOpen(true) } : null}
       />
 
       <TextPromptDialog

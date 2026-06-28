@@ -14,6 +14,8 @@ import {
   loadThemeId,
   autoSyncEnabled,
   setAutoSyncEnabled,
+  autoSyncDebounceMs,
+  setAutoSyncDebounceMs,
   useWorkbench,
   type RepoRef,
   type RemoteProject,
@@ -364,6 +366,7 @@ function SettingsSync() {
   const toast = useToast();
   const [busy, setBusy] = useState(false);
   const [autoSync, setAutoSync] = useState(autoSyncEnabled());
+  const [debounceSec, setDebounceSec] = useState(() => Math.round(autoSyncDebounceMs() / 1000));
   const save = async () => {
     if (!gh.auth || !gh.repo) return;
     setBusy(true);
@@ -385,6 +388,24 @@ function SettingsSync() {
           onChange={(e) => { setAutoSync(e.target.checked); setAutoSyncEnabled(e.target.checked); }}
         />
         Auto-sync to GitHub (push on idle, pull on open)
+      </label>
+      <p className="gh__muted">Off by default. Turn it on per device — handy on a tablet where remembering to save is the hard part.</p>
+      <label className="gh__muted" style={{ display: "flex", alignItems: "center", gap: 8 }}>
+        Push after
+        <input
+          type="number"
+          min={2}
+          step={1}
+          value={debounceSec}
+          disabled={!autoSync}
+          onChange={(e) => {
+            const sec = Math.max(2, Math.round(Number(e.target.value) || 0));
+            setDebounceSec(sec);
+            setAutoSyncDebounceMs(sec * 1000);
+          }}
+          style={{ width: 64 }}
+        />
+        seconds idle
       </label>
       <button type="button" className="ui-dialog__btn" disabled={busy} onClick={() => void save()}>
         {busy ? "Saving…" : "Save settings (theme) to GitHub"}
