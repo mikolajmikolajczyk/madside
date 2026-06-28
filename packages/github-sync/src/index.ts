@@ -1,6 +1,6 @@
 export { pushFiles, deleteSubtree } from './push'
 export type { SyncFile, PushTarget, PushResult, DeleteResult, PushOptions } from './push'
-export { getRepoTree, getDefaultBranch, fetchBlob, pullSubtree } from './read'
+export { getRepoTree, getDefaultBranch, getHeadSha, getSubtreeSha, subtreeSha, fetchBlob, pullSubtree } from './read'
 export type { RepoTree } from './read'
 export { getContentsFile, upsertContentsFile } from './contents'
 export { GitHubApiError, gitBlobSha, toBase64, fromBase64 } from './util'

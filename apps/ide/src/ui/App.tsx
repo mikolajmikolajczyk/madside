@@ -61,6 +61,7 @@ import { PluginTrustBanner } from "./components/PluginTrustBanner";
 import { PluginInventory } from "./components/PluginInventory";
 import { GitHubDialog } from "./components/github/GitHubDialog";
 import { GitHubPushDialog } from "./components/github/GitHubPushDialog";
+import { useGitHubAutoSync } from "./hooks/useGitHubAutoSync";
 import { githubAvailable, useGitHub, pushProjectToGitHub, pullProjectToIdb, remoteSlug, removeProjectFromGitHub, projectGitHubUrls, pullSettings } from "@app";
 import { addLessonInFiles, getCourse, getDraftCourse, openLesson, readCourseMeta, refreshCourseFromGitHub, resetLessonToStarter, runChecks, saveDraftCourse, scanEquates, setLessonStarterInFiles, starterFilesForMachine } from "@app";
 import { useCourses } from "./hooks/useCourses";
@@ -117,6 +118,18 @@ export default function App() {
   const gh = useGitHub();
   const [pushMsgOpen, setPushMsgOpen] = useState(false);
   const project = useProject(workbench.storage, workbench.events);
+
+  // Auto-continue across devices (#166): debounced push + pull-on-open/focus,
+  // per-project conflict detection (pauses + toasts, never clobbers).
+  useGitHubAutoSync({
+    gh,
+    events: workbench.events,
+    storage: workbench.storage,
+    projectId: project.loaded ? project.projectId : null,
+    reloadProject: async () => { if (project.loaded) await project.switchProject(project.projectId); },
+    onPulled: () => { gh.refresh(); void project.refreshProjects(); },
+    toast,
+  });
 
   // Touch / on-screen-keyboard state (#144): mirror onto the document root so CSS
   // can adapt, and drive the floating symbol bar below.

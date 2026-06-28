@@ -12,6 +12,8 @@ import {
   pushSettings,
   openLesson,
   loadThemeId,
+  autoSyncEnabled,
+  setAutoSyncEnabled,
   useWorkbench,
   type RepoRef,
   type RemoteProject,
@@ -361,6 +363,7 @@ function SettingsSync() {
   const gh = useGitHub();
   const toast = useToast();
   const [busy, setBusy] = useState(false);
+  const [autoSync, setAutoSync] = useState(autoSyncEnabled());
   const save = async () => {
     if (!gh.auth || !gh.repo) return;
     setBusy(true);
@@ -375,6 +378,14 @@ function SettingsSync() {
   };
   return (
     <div className="gh__repos">
+      <label className="gh-push__amend">
+        <input
+          type="checkbox"
+          checked={autoSync}
+          onChange={(e) => { setAutoSync(e.target.checked); setAutoSyncEnabled(e.target.checked); }}
+        />
+        Auto-sync to GitHub (push on idle, pull on open)
+      </label>
       <button type="button" className="ui-dialog__btn" disabled={busy} onClick={() => void save()}>
         {busy ? "Saving…" : "Save settings (theme) to GitHub"}
       </button>

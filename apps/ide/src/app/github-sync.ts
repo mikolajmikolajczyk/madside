@@ -15,6 +15,8 @@ import {
   getContentsFile,
   getDefaultBranch,
   getRepoTree,
+  getSubtreeSha,
+  subtreeSha,
   pullSubtree,
   pushFiles,
   upsertContentsFile,
@@ -33,6 +35,38 @@ const syncedKey = (projectId: string) => `madside.github.synced.${projectId}`;
 const slugKey = (projectId: string) => `madside.github.slug.${projectId}`;
 const branchKey = (projectId: string) => `madside.github.branch.${projectId}`;
 const defBranchKey = (repo: string) => `madside.github.defbranch.${repo}`;
+const subtreeKey = (projectId: string) => `madside.github.subtree.${projectId}`;
+const AUTOSYNC_KEY = "madside.github.autosync";
+
+function setLS(key: string, value: string | null): void {
+  try {
+    if (value === null) localStorage.removeItem(key);
+    else localStorage.setItem(key, value);
+  } catch {
+    /* best-effort */
+  }
+}
+
+/** Auto-sync on by default once a repo is connected; user can turn it off. */
+export function autoSyncEnabled(): boolean {
+  try {
+    return localStorage.getItem(AUTOSYNC_KEY) !== "0";
+  } catch {
+    return true;
+  }
+}
+export function setAutoSyncEnabled(on: boolean): void {
+  setLS(AUTOSYNC_KEY, on ? "1" : "0");
+}
+
+/** Git tree sha of this project's folder at last sync — per-project conflict
+ *  marker (changes iff the project's content changed remotely). */
+export function syncedSubtreeSha(projectId: string): string | null {
+  return readLS(subtreeKey(projectId));
+}
+function setSyncedSubtree(projectId: string, sha: string | null): void {
+  setLS(subtreeKey(projectId), sha);
+}
 
 function setBranch(projectId: string, branch: string): void {
   try {
@@ -165,7 +199,18 @@ export async function pushProjectToGitHub(
   );
   setSynced(projectId, result.commitSha);
   setBranch(projectId, result.branch);
+  // Record our project's new subtree sha (per-project conflict marker).
+  try {
+    setSyncedSubtree(projectId, await getSubtreeSha(fetch, target, basePath));
+  } catch {
+    /* best-effort */
+  }
   return result;
+}
+
+/** Current remote subtree sha for a project's folder (cheap-ish: one tree read). */
+export async function remoteSubtreeSha(fetch: GhFetch, repo: string, projectId: string): Promise<string | null> {
+  return withApiErrors(() => getSubtreeSha(fetch, parseRepo(repo), `projects/${remoteSlug(projectId)}`));
 }
 
 /** Publish an authored course to the repo under `courses/<slug>/` as one atomic
@@ -290,6 +335,7 @@ export async function pullProjectToIdb(
       setRemoteSlug(existing.id, slug);
       setSynced(existing.id, tree.commitSha);
       setBranch(existing.id, tree.branch);
+      setSyncedSubtree(existing.id, subtreeSha(tree, `projects/${slug}`));
       return { projectId: existing.id, created: false };
     }
 
@@ -301,6 +347,7 @@ export async function pullProjectToIdb(
     setRemoteSlug(row.id, slug);
     setSynced(row.id, tree.commitSha);
     setBranch(row.id, tree.branch);
+    setSyncedSubtree(row.id, subtreeSha(tree, `projects/${slug}`));
     return { projectId: row.id, created: true };
   });
 }

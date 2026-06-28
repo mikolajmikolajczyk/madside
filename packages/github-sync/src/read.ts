@@ -37,6 +37,15 @@ export async function getDefaultBranch(fetch: GhFetch, target: PushTarget): Prom
   return (await ghGet<RepoResp>(fetch, `/repos/${target.owner}/${target.repo}`)).default_branch
 }
 
+/** The branch HEAD commit sha, or null if the branch/repo is empty. Cheap (one
+ *  ref read) — used by auto-sync to detect remote movement. */
+export async function getHeadSha(fetch: GhFetch, target: PushTarget): Promise<string | null> {
+  const { owner, repo } = target
+  const branch = target.branch ?? (await ghGet<RepoResp>(fetch, `/repos/${owner}/${repo}`)).default_branch
+  const ref = await ghGetOrNull<RefObj>(fetch, `/repos/${owner}/${repo}/git/ref/heads/${branch}`)
+  return ref?.object.sha ?? null
+}
+
 /** The repo's full tree (recursive) at the branch head, or null if the repo /
  *  branch is empty (no commits). */
 export async function getRepoTree(fetch: GhFetch, target: PushTarget): Promise<RepoTree | null> {
@@ -52,6 +61,23 @@ export async function getRepoTree(fetch: GhFetch, target: PushTarget): Promise<R
   const tree = await ghGetOrNull<TreeResp>(fetch, `/repos/${owner}/${repo}/git/trees/${baseTree}?recursive=1`)
   if (!tree) return { branch, commitSha, entries: [], truncated: false }
   return { branch, commitSha, entries: tree.tree, truncated: tree.truncated }
+}
+
+/** The git tree sha of `basePath/` within a fetched repo tree (a folder's
+ *  content fingerprint), or null if absent. Used for per-project conflict
+ *  detection: our project's subtree sha changes iff our project changed. */
+export function subtreeSha(tree: RepoTree, basePath: string): string | null {
+  return tree.entries.find((e) => e.path === basePath && e.type === 'tree')?.sha ?? null
+}
+
+/** Fetch the current subtree sha for `basePath/` (one recursive tree call). */
+export async function getSubtreeSha(
+  fetch: GhFetch,
+  target: PushTarget,
+  basePath: string,
+): Promise<string | null> {
+  const tree = await getRepoTree(fetch, target)
+  return tree ? subtreeSha(tree, basePath) : null
 }
 
 /** Fetch one blob's bytes by sha (blobs API — no 1MB cap). */
