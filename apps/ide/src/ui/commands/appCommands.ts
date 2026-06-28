@@ -22,12 +22,16 @@ export interface AppCommandOps {
   formatActive: () => Promise<void> | void
   onSnapshot: () => void
   openPalette: () => void
+  /** Open the Save-to-GitHub dialog (#160). */
+  pushGitHub: () => void
 }
 
 export interface AppCommandState {
   canRun: boolean
   running: boolean
   hasEmu: boolean
+  /** GitHub configured + signed in + a repo selected + a project open. */
+  canPushGitHub: boolean
 }
 
 export interface AppCommandEnv {
@@ -45,6 +49,7 @@ export function buildAppCommands(get: () => AppCommandEnv): Command[] {
     { id: PALETTE_COMMAND_ID, title: 'Command Palette', shortcut: 'Ctrl+K', run: () => ops().openPalette() },
     { id: 'build.assemble', title: 'Build', shortcut: 'Ctrl+B', run: () => { void ops().runAssemble() } },
     { id: 'file.save', title: 'Save + Build + Snapshot', shortcut: 'Ctrl+S', run: () => { void (async () => { await ops().formatActive(); await ops().runAssemble(); ops().onSnapshot() })() } },
+    { id: 'file.pushGitHub', title: 'Save to GitHub', shortcut: 'Ctrl+Shift+S', when: () => st().canPushGitHub, run: () => ops().pushGitHub() },
     { id: 'run.start', title: 'Run', shortcut: 'Ctrl+Enter', when: () => st().canRun && !st().running, run: () => { void ops().onRun() } },
     { id: 'run.restart', title: 'Restart', shortcut: 'Ctrl+Shift+Enter', when: () => st().canRun, run: () => { void ops().onReset() } },
     { id: 'run.pause', title: 'Pause', shortcut: 'Ctrl+.', when: () => st().running, run: () => ops().onPause() },

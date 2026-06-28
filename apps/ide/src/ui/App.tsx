@@ -1016,8 +1016,9 @@ export default function App() {
         toggleBpAtCursor, formatActive: onFormatActive,
         onSnapshot: () => { if (project.loaded) void project.createSnapshotNow("manual"); },
         openPalette: () => setPaletteOpen(true),
+        pushGitHub: handlePushGitHub,
       },
-      state: { canRun, running, hasEmu },
+      state: { canRun, running, hasEmu, canPushGitHub: githubAvailable && gh.signedIn && !!gh.repo && project.loaded },
     };
   });
   useEffect(() => {
@@ -1410,6 +1411,10 @@ export default function App() {
         onFrame={onStepFrame}
         onReset={onReset}
         onToggleBp={toggleBpAtCursor}
+        onSnapshot={project.loaded ? handleSnapshotNow : undefined}
+        onHistory={project.loaded ? () => setHistoryOpen(true) : undefined}
+        onPushGitHub={githubAvailable && gh.signedIn && gh.repo && project.loaded ? handlePushGitHub : undefined}
+        onPullGitHub={githubAvailable && gh.signedIn && gh.repo && project.loaded ? handlePullGitHub : undefined}
       />
       <DockLayout
         surfaces={dockSurfaces}

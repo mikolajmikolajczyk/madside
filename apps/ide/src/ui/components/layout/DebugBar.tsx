@@ -15,6 +15,12 @@ interface Props {
   onReset: () => void;
   onToggleBp: () => void;
   onAssemble: () => void;
+  onSnapshot?: () => void;
+  onHistory?: () => void;
+  /** GitHub push/pull — present only when GitHub is configured + signed in + a
+   *  repo is selected (#160/#161). */
+  onPushGitHub?: () => void;
+  onPullGitHub?: () => void;
 }
 
 export function DebugBar(p: Props) {
@@ -62,6 +68,42 @@ export function DebugBar(p: Props) {
       <IconBtn testid="dbg.bp-toggle" label="Toggle breakpoint (F9)" onClick={p.onToggleBp}>
         <svg viewBox="0 0 16 16" width={14} height={14}><circle cx="8" cy="8" r="4.5" fill="var(--accent-coral)"/></svg>
       </IconBtn>
+
+      {(p.onSnapshot || p.onHistory) && <div className="dbgbar__sep" />}
+      {p.onSnapshot && (
+        <IconBtn testid="dbg.snapshot" label="Snapshot now" onClick={p.onSnapshot}>
+          <svg viewBox="0 0 16 16" width={14} height={14}>
+            <circle cx="8" cy="8" r="6.2" stroke="currentColor" strokeWidth="1.4" fill="none"/>
+            <circle cx="8" cy="8" r="2.4" fill="currentColor"/>
+          </svg>
+        </IconBtn>
+      )}
+      {p.onHistory && (
+        <IconBtn testid="dbg.history" label="History…" onClick={p.onHistory}>
+          <svg viewBox="0 0 16 16" width={14} height={14}>
+            <circle cx="8" cy="8" r="6" stroke="currentColor" strokeWidth="1.4" fill="none"/>
+            <path d="M8 4.5 L8 8 L10.5 9.5" stroke="currentColor" strokeWidth="1.4" fill="none" strokeLinecap="round" strokeLinejoin="round"/>
+          </svg>
+        </IconBtn>
+      )}
+
+      {(p.onPushGitHub || p.onPullGitHub) && <div className="dbgbar__sep" />}
+      {p.onPushGitHub && (
+        <IconBtn testid="dbg.gh-push" label="Save to GitHub (Ctrl+Shift+S)" onClick={p.onPushGitHub}>
+          <svg viewBox="0 0 16 16" width={14} height={14}>
+            <path d="M8 13 L8 4 M5 7 L8 4 L11 7" stroke="currentColor" strokeWidth="1.6" fill="none" strokeLinecap="round" strokeLinejoin="round"/>
+            <path d="M3 3 L13 3" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round"/>
+          </svg>
+        </IconBtn>
+      )}
+      {p.onPullGitHub && (
+        <IconBtn testid="dbg.gh-pull" label="Pull from GitHub" onClick={p.onPullGitHub}>
+          <svg viewBox="0 0 16 16" width={14} height={14}>
+            <path d="M8 3 L8 12 M5 9 L8 12 L11 9" stroke="currentColor" strokeWidth="1.6" fill="none" strokeLinecap="round" strokeLinejoin="round"/>
+            <path d="M3 13 L13 13" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round"/>
+          </svg>
+        </IconBtn>
+      )}
     </div>
   );
 }
