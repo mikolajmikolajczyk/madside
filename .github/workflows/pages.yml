@@ -41,7 +41,13 @@ jobs:
 
       # Builds @madside/ide (-> apps/ide/dist, base '/') and @madside/docs
       # (-> apps/docs/dist, base '/docs').
+      # GitHub persistence (#158) is opt-in: when these repo *variables* are set
+      # the IDE lights up the GitHub layer; absent => browser-only (forks build
+      # fine with no setup). Both are PUBLIC (no secrets — the broker holds those).
       - name: Build (app + docs)
+        env:
+          VITE_GH_BROKER_URL: ${{ vars.GH_BROKER_URL }}
+          VITE_GH_CLIENT_ID: ${{ vars.GH_CLIENT_ID }}
         run: pnpm -r build
 
       # Assemble one Pages artifact: IDE at the root, docs nested under /docs/
