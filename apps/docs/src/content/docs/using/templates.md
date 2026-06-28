@@ -2,7 +2,7 @@
 title: Templates
 description: Starting a project from a bundled template.
 sidebar:
-  order: 9
+  order: 10
 ---
 
 A **template** is a ready-made starting project — a manifest plus source files — bundled into madside. Templates are always available offline; there's nothing to download.

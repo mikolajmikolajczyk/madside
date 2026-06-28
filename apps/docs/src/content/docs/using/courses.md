@@ -2,7 +2,7 @@
 title: Courses
 description: Taking an interactive, guided course inside madside.
 sidebar:
-  order: 10
+  order: 11
 ---
 
 :::note

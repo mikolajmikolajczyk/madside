@@ -5,7 +5,7 @@ sidebar:
   order: 1
 ---
 
-A **project** is a tree of files plus a manifest. madside keeps your projects in the browser (IndexedDB); there is no server.
+A **project** is a tree of files plus a manifest. madside keeps your projects in the browser (IndexedDB); there is no server. If you want a backup you control, or to continue work on another device, you can connect your own repo — see [GitHub sync](/docs/using/github/).
 
 ## Creating projects
 
