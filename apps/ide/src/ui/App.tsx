@@ -60,7 +60,7 @@ import { applyTheme, loadThemeId, saveThemeId, hydrateTrustedPlugins } from "@ap
 import { PluginTrustBanner } from "./components/PluginTrustBanner";
 import { PluginInventory } from "./components/PluginInventory";
 import { GitHubDialog } from "./components/github/GitHubDialog";
-import { githubAvailable, useGitHub, pushProjectToGitHub, pullProjectToIdb, remoteSlug } from "@app";
+import { githubAvailable, useGitHub, pushProjectToGitHub, pullProjectToIdb, remoteSlug, removeProjectFromGitHub, projectGitHubUrls } from "@app";
 import { addLessonInFiles, getCourse, getDraftCourse, openLesson, readCourseMeta, refreshCourseFromGitHub, resetLessonToStarter, runChecks, saveDraftCourse, scanEquates, setLessonStarterInFiles, starterFilesForMachine } from "@app";
 import { useCourses } from "./hooks/useCourses";
 import type { CheckReport, CheckRunDeps } from "@app";
@@ -114,6 +114,7 @@ export default function App() {
   const workbench = useWorkbench();
   const toast = useToast();
   const gh = useGitHub();
+  const [pushMsgOpen, setPushMsgOpen] = useState(false);
   const project = useProject(workbench.storage, workbench.events);
 
   // Touch / on-screen-keyboard state (#144): mirror onto the document root so CSS
@@ -859,7 +860,10 @@ export default function App() {
   }, [workbench]);
 
   // Push the active project's source to the user's repo (#160). Explicit only.
-  const handlePushGitHub = useCallback(async () => {
+  // Save opens a commit-message prompt; doPushGitHub does the push with it.
+  const handlePushGitHub = useCallback(() => setPushMsgOpen(true), []);
+
+  const doPushGitHub = useCallback(async (message: string) => {
     if (!gh.auth || !gh.repo || !project.loaded) return;
     const repo = gh.repo;
     const auth = gh.auth;
@@ -869,6 +873,7 @@ export default function App() {
         (url, init) => auth.fetch(url, init),
         repo,
         project.projectId,
+        message,
       );
       toast.push("info", res.created ? `Initialized ${repo} and pushed` : `Pushed to ${repo}`);
     } catch (e) {
@@ -885,11 +890,36 @@ export default function App() {
     try {
       await pullProjectToIdb(workbench.storage, (url, init) => auth.fetch(url, init), repo, remoteSlug(pid));
       await project.switchProject(pid);
-      toast.push("info", `Pulled from ${repo}`);
+      toast.push("info", `Pulled from ${repo} (local backed up to a snapshot)`);
     } catch (e) {
       toast.error(e);
     }
   }, [gh, project, workbench, toast]);
+
+  // Open the project's folder / commit history on github.com.
+  const handleViewGitHub = useCallback(() => {
+    if (!gh.repo || !project.loaded) return;
+    window.open(projectGitHubUrls(gh.repo, project.projectId).folder, "_blank", "noopener,noreferrer");
+  }, [gh, project]);
+
+  const handleHistoryGitHub = useCallback(() => {
+    if (!gh.repo || !project.loaded) return;
+    window.open(projectGitHubUrls(gh.repo, project.projectId).history, "_blank", "noopener,noreferrer");
+  }, [gh, project]);
+
+  // Remove the project's folder from the repo (explicit, destructive — local stays).
+  const handleRemoveGitHub = useCallback(async () => {
+    if (!gh.auth || !gh.repo || !project.loaded) return;
+    const repo = gh.repo;
+    const auth = gh.auth;
+    if (!window.confirm(`Remove this project's folder from ${repo}? The local copy stays.`)) return;
+    try {
+      const removed = await removeProjectFromGitHub((url, init) => auth.fetch(url, init), repo, project.projectId);
+      toast.push("info", removed ? `Removed from ${repo}` : "Project wasn't in the repo");
+    } catch (e) {
+      toast.error(e);
+    }
+  }, [gh, project, toast]);
 
   // Discard a lesson's edits, restoring the (refreshed) starter files, then
   // reload the project so the editor shows them.
@@ -1324,6 +1354,9 @@ export default function App() {
         onGitHub={githubAvailable ? () => setGithubOpen(true) : undefined}
         onPushGitHub={githubAvailable && gh.signedIn && gh.repo ? handlePushGitHub : undefined}
         onPullGitHub={githubAvailable && gh.signedIn && gh.repo ? handlePullGitHub : undefined}
+        onViewGitHub={githubAvailable && gh.signedIn && gh.repo ? handleViewGitHub : undefined}
+        onHistoryGitHub={githubAvailable && gh.signedIn && gh.repo ? handleHistoryGitHub : undefined}
+        onRemoveGitHub={githubAvailable && gh.signedIn && gh.repo ? handleRemoveGitHub : undefined}
         onCommandPalette={() => setPaletteOpen(true)}
         viewMenu={viewMenu}
       />
@@ -1373,6 +1406,19 @@ export default function App() {
         confirmLabel="Rename"
         onCancel={() => setRenameReq(null)}
         onConfirm={applyRename}
+      />
+      <TextPromptDialog
+        open={pushMsgOpen}
+        title="Save to GitHub"
+        description="Commit message for this push."
+        placeholder="Update project"
+        initial={project.loaded ? `Save ${project.manifest.name} from madside` : ""}
+        confirmLabel="Save"
+        onCancel={() => setPushMsgOpen(false)}
+        onConfirm={(msg) => {
+          setPushMsgOpen(false);
+          void doPushGitHub(msg);
+        }}
       />
       <TextPromptDialog
         open={savePresetOpen}

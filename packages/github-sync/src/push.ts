@@ -155,6 +155,48 @@ async function buildEntries(
   return entries
 }
 
+/** Delete a whole subtree (`basePath/`) in one atomic commit. Returns null if
+ *  the subtree (or the repo) doesn't exist — nothing to do. Same stale-ref
+ *  retry as pushFiles. Explicit action only ("Remove from GitHub"). */
+export async function deleteSubtree(
+  fetch: GhFetch,
+  target: PushTarget,
+  basePath: string,
+  message: string,
+): Promise<PushResult | null> {
+  const { owner, repo } = target
+  const branch = target.branch ?? (await ghGet<RepoResp>(fetch, `/repos/${owner}/${repo}`)).default_branch
+  const prefix = `${basePath}/`
+
+  for (let attempt = 0; attempt < MAX_REF_RETRIES; attempt++) {
+    const ref = await ghGetOrNull<RefObj>(fetch, `/repos/${owner}/${repo}/git/ref/heads/${branch}`)
+    if (!ref) return null
+    const headSha = ref.object.sha
+    const baseTree = (await ghGet<CommitObj>(fetch, `/repos/${owner}/${repo}/git/commits/${headSha}`)).tree.sha
+    const tree = await ghGet<TreeResp>(fetch, `/repos/${owner}/${repo}/git/trees/${baseTree}?recursive=1`)
+    const entries: TreeEntry[] = tree.tree
+      .filter((e) => e.type === 'blob' && e.path.startsWith(prefix))
+      .map((e) => ({ path: e.path, mode: '100644', type: 'blob', sha: null }))
+    if (entries.length === 0) return null
+
+    const newTree = await ghPost<ShaResp>(fetch, `/repos/${owner}/${repo}/git/trees`, {
+      base_tree: baseTree,
+      tree: entries,
+    })
+    const commit = await ghPost<ShaResp>(fetch, `/repos/${owner}/${repo}/git/commits`, {
+      message,
+      tree: newTree.sha,
+      parents: [headSha],
+    })
+    const ok = await ghPatchRef(fetch, `/repos/${owner}/${repo}/git/refs/heads/${branch}`, {
+      sha: commit.sha,
+      force: false,
+    })
+    if (ok) return { commitSha: commit.sha, branch, created: false }
+  }
+  throw new Error('remove failed: the branch kept moving (concurrent updates) — try again')
+}
+
 /** Create the first commit on an empty repo via the Contents API (the Git Data
  *  API rejects object creation while the repo is empty: POST /git/blobs → 409
  *  "Git Repository is empty"). Writes a single seed file under basePath, which

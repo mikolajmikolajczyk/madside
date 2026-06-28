@@ -10,7 +10,9 @@
 
 import {
   GitHubApiError,
+  deleteSubtree,
   fetchBlob,
+  getDefaultBranch,
   getRepoTree,
   pullSubtree,
   pushFiles,
@@ -26,6 +28,42 @@ const GENERATED_DIR = "generated/";
 
 const syncedKey = (projectId: string) => `madside.github.synced.${projectId}`;
 const slugKey = (projectId: string) => `madside.github.slug.${projectId}`;
+const branchKey = (projectId: string) => `madside.github.branch.${projectId}`;
+const defBranchKey = (repo: string) => `madside.github.defbranch.${repo}`;
+
+function setBranch(projectId: string, branch: string): void {
+  try {
+    localStorage.setItem(branchKey(projectId), branch);
+  } catch {
+    /* best-effort */
+  }
+}
+
+function readLS(key: string): string | null {
+  try {
+    return localStorage.getItem(key);
+  } catch {
+    return null;
+  }
+}
+
+/** Fetch + cache a repo's real default branch (e.g. master) so GitHub links don't
+ *  guess wrong. Best-effort; call when a repo is selected. */
+export async function cacheRepoDefaultBranch(fetch: GhFetch, repo: string): Promise<string> {
+  const branch = await getDefaultBranch(fetch, parseRepo(repo));
+  try {
+    localStorage.setItem(defBranchKey(repo), branch);
+  } catch {
+    /* best-effort */
+  }
+  return branch;
+}
+
+/** Branch for a project's GitHub links: the one it last synced on, else the repo's
+ *  cached default, else 'main' as a last resort. */
+function linkBranch(repo: string, projectId: string): string {
+  return readLS(branchKey(projectId)) ?? readLS(defBranchKey(repo)) ?? "main";
+}
 
 /** Remote folder slug for a project — an explicit mapping (set on pull) or the
  *  projectId itself (projects created + first-pushed here). */
@@ -112,7 +150,35 @@ export async function pushProjectToGitHub(
 
   const result = await withApiErrors(() => pushFiles(fetch, target, basePath, files, message));
   setSynced(projectId, result.commitSha);
+  setBranch(projectId, result.branch);
   return result;
+}
+
+/** Remove a project's folder from the repo (one commit). Explicit + destructive.
+ *  Returns false if it wasn't there. Never touches local storage. */
+export async function removeProjectFromGitHub(
+  fetch: GhFetch,
+  repo: string,
+  projectId: string,
+): Promise<boolean> {
+  const target = parseRepo(repo);
+  const slug = remoteSlug(projectId);
+  const res = await withApiErrors(() =>
+    deleteSubtree(fetch, target, `projects/${slug}`, `Remove ${slug} from madside`),
+  );
+  return res !== null;
+}
+
+/** GitHub web URLs for a project: its folder + the commit history for that path
+ *  (Git's per-path history, surfaced for free). */
+export function projectGitHubUrls(repo: string, projectId: string): { folder: string; history: string } {
+  const slug = remoteSlug(projectId);
+  const branch = linkBranch(repo, projectId);
+  const base = `https://github.com/${repo}`;
+  return {
+    folder: `${base}/tree/${branch}/projects/${slug}`,
+    history: `${base}/commits/${branch}/projects/${slug}`,
+  };
 }
 
 export interface RemoteProject {
@@ -191,6 +257,7 @@ export async function pullProjectToIdb(
       }
       setRemoteSlug(existing.id, slug);
       setSynced(existing.id, tree.commitSha);
+      setBranch(existing.id, tree.branch);
       return { projectId: existing.id, created: false };
     }
 
@@ -201,6 +268,7 @@ export async function pullProjectToIdb(
     );
     setRemoteSlug(row.id, slug);
     setSynced(row.id, tree.commitSha);
+    setBranch(row.id, tree.branch);
     return { projectId: row.id, created: true };
   });
 }

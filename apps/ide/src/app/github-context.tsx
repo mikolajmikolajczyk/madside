@@ -8,6 +8,7 @@ import {
   type ReactNode,
 } from "react";
 import { githubConfig } from "./github-config";
+import { cacheRepoDefaultBranch } from "./github-sync";
 import { GitHubAuth, type GitHubAuthProvider } from "@adapters/github-auth";
 
 // GitHub auth wiring lives in @app — the composition layer that hands concrete
@@ -99,6 +100,12 @@ export function GitHubProvider({ children }: { children: ReactNode }) {
       cancelled = true;
     };
   }, [auth]);
+
+  // Cache the repo's real default branch (master vs main) so GitHub links are right.
+  useEffect(() => {
+    if (!auth || !repo) return;
+    void cacheRepoDefaultBranch((url, init) => auth.fetch(url, init), repo).catch(() => {});
+  }, [auth, repo]);
 
   const signIn = useCallback(() => {
     setError(null);

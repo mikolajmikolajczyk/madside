@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { getRepoTree, gitBlobSha, pullSubtree, pushFiles, toBase64, type GhFetch } from '@madside/github-sync'
+import { deleteSubtree, getRepoTree, gitBlobSha, pullSubtree, pushFiles, toBase64, type GhFetch } from '@madside/github-sync'
 
 const dec = new TextDecoder()
 
@@ -191,5 +191,32 @@ describe('read (browse + pull)', () => {
     expect(Object.keys(byPath).sort()).toEqual(['project.json', 'src/main.a65']) // other/ excluded, prefix stripped
     expect(byPath['project.json']).toBe('{"name":"P"}')
     expect(byPath['src/main.a65']).toBe('; code')
+  })
+})
+
+describe('deleteSubtree', () => {
+  it('deletes every blob under the prefix in one commit (others untouched)', async () => {
+    const m = mockRepo({
+      head: {
+        commitSha: 'h', treeSha: 't',
+        tree: [
+          { path: 'projects/p1/a.txt', type: 'blob', sha: '1' },
+          { path: 'projects/p1/sub/b.txt', type: 'blob', sha: '2' },
+          { path: 'projects/other/x', type: 'blob', sha: '3' },
+        ],
+      },
+    })
+    const res = await deleteSubtree(m.fetch, { owner: 'me', repo: 'r', branch: 'main' }, 'projects/p1', 'rm')
+    expect(res?.commitSha).toBe('newcommit')
+    const tree = m.tree()!
+    expect(tree.map((e) => e.path).sort()).toEqual(['projects/p1/a.txt', 'projects/p1/sub/b.txt'])
+    expect(tree.every((e) => e.sha === null)).toBe(true)
+  })
+
+  it('returns null when the subtree is absent or the repo is empty', async () => {
+    const present = mockRepo({ head: { commitSha: 'h', treeSha: 't', tree: [{ path: 'projects/other/x', type: 'blob', sha: '3' }] } })
+    expect(await deleteSubtree(present.fetch, { owner: 'me', repo: 'r', branch: 'main' }, 'projects/p1', 'rm')).toBeNull()
+    const empty = mockRepo({ head: null })
+    expect(await deleteSubtree(empty.fetch, { owner: 'me', repo: 'r', branch: 'main' }, 'projects/p1', 'rm')).toBeNull()
   })
 })

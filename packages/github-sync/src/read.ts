@@ -32,6 +32,11 @@ interface BlobResp {
   encoding: string
 }
 
+/** The repo's configured default branch (works even on an empty repo). */
+export async function getDefaultBranch(fetch: GhFetch, target: PushTarget): Promise<string> {
+  return (await ghGet<RepoResp>(fetch, `/repos/${target.owner}/${target.repo}`)).default_branch
+}
+
 /** The repo's full tree (recursive) at the branch head, or null if the repo /
  *  branch is empty (no commits). */
 export async function getRepoTree(fetch: GhFetch, target: PushTarget): Promise<RepoTree | null> {

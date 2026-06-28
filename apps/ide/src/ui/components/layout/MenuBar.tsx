@@ -52,11 +52,14 @@ export interface MenuBarProps {
   /** Open the GitHub account dialog. Present only when GitHub is configured for
    *  this build (#159); absent => no menu item. */
   onGitHub?: () => void;
-  /** Push the active project to the user's repo. Present only when signed in +
-   *  a repo is selected (#160); absent => no menu item. */
+  /** GitHub actions for the active project. Present only when signed in + a repo
+   *  is selected (#160/#161/#162); absent => no GitHub submenu. `onPushGitHub`
+   *  presence gates the whole submenu. */
   onPushGitHub?: () => void;
-  /** Pull the active project from the user's repo (#161). */
   onPullGitHub?: () => void;
+  onViewGitHub?: () => void;
+  onHistoryGitHub?: () => void;
+  onRemoveGitHub?: () => void;
   onCommandPalette?: () => void;
   /** Present only in dockview layout mode — drives the View menu (panel
    *  show/hide + reset). */
@@ -98,10 +101,25 @@ export function MenuBar(p: MenuBarProps) {
           <MenuItem data-testid="menu.file.export-zip" onSelect={p.onExportZip}>Export ZIP</MenuItem>
           <MenuItem data-testid="menu.file.import-zip" onSelect={p.onImportZip}>Import ZIP…</MenuItem>
           {p.onPushGitHub && (
-            <MenuItem data-testid="menu.file.push-github" onSelect={p.onPushGitHub}>Save to GitHub</MenuItem>
-          )}
-          {p.onPullGitHub && (
-            <MenuItem data-testid="menu.file.pull-github" onSelect={p.onPullGitHub}>Pull from GitHub</MenuItem>
+            <MenuSub>
+              <MenuSubTrigger data-testid="menu.file.github">GitHub</MenuSubTrigger>
+              <MenuSubContent>
+                <MenuItem data-testid="menu.file.push-github" onSelect={p.onPushGitHub}>Save to GitHub</MenuItem>
+                {p.onPullGitHub && (
+                  <MenuItem data-testid="menu.file.pull-github" onSelect={p.onPullGitHub}>Pull from GitHub</MenuItem>
+                )}
+                <MenuSeparator />
+                {p.onViewGitHub && (
+                  <MenuItem data-testid="menu.file.view-github" onSelect={p.onViewGitHub}>View on GitHub</MenuItem>
+                )}
+                {p.onHistoryGitHub && (
+                  <MenuItem data-testid="menu.file.history-github" onSelect={p.onHistoryGitHub}>History on GitHub</MenuItem>
+                )}
+                {p.onRemoveGitHub && (
+                  <MenuItem data-testid="menu.file.remove-github" onSelect={p.onRemoveGitHub} danger>Remove from GitHub</MenuItem>
+                )}
+              </MenuSubContent>
+            </MenuSub>
           )}
           <MenuSeparator />
           {p.onSnapshotNow && (
