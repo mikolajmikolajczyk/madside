@@ -48,6 +48,7 @@ jobs:
         env:
           VITE_GH_BROKER_URL: ${{ vars.GH_BROKER_URL }}
           VITE_GH_CLIENT_ID: ${{ vars.GH_CLIENT_ID }}
+          VITE_GH_APP_SLUG: ${{ vars.GH_APP_SLUG }}
         run: pnpm -r build
 
       # Assemble one Pages artifact: IDE at the root, docs nested under /docs/
