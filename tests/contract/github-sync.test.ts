@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { deleteSubtree, getRepoTree, gitBlobSha, pullSubtree, pushFiles, toBase64, type GhFetch } from '@madside/github-sync'
+import { deleteSubtree, getRepoTree, gitBlobSha, pullSubtree, pushFiles, toBase64, upsertContentsFile, type GhFetch } from '@madside/github-sync'
 
 const dec = new TextDecoder()
 
@@ -252,5 +252,30 @@ describe('safety guards', () => {
     await expect(
       pushFiles(m.fetch, { owner: 'me', repo: 'r', branch: 'main' }, 'projects/..', [file('a.txt', 'x')], 'm'),
     ).rejects.toThrow(/unsafe/)
+  })
+})
+
+describe('contents (settings.json upsert)', () => {
+  const json = (b: unknown, s = 200) =>
+    new Response(JSON.stringify(b), { status: s, headers: { 'Content-Type': 'application/json' } })
+
+  it('creates a new file (no sha) and updates an existing one (with sha)', async () => {
+    for (const exists of [false, true]) {
+      let putBody: { sha?: string; content: string } | null = null
+      const fetch: GhFetch = async (url, init) => {
+        const method = init?.method ?? 'GET'
+        if (method === 'GET' && url.includes('/contents/')) {
+          return exists ? json({ content: toBase64(enc.encode('{}')), sha: 'old', encoding: 'base64' }) : new Response('', { status: 404 })
+        }
+        if (method === 'PUT' && url.includes('/contents/')) {
+          putBody = JSON.parse(init!.body as string) as { sha?: string; content: string }
+          return json({ commit: { sha: 'c' } })
+        }
+        throw new Error(`unmocked ${method} ${url}`)
+      }
+      await upsertContentsFile(fetch, { owner: 'me', repo: 'r' }, 'settings.json', enc.encode('{"theme":"dark"}'), 'm')
+      expect(putBody!.sha).toBe(exists ? 'old' : undefined) // sha only on update
+      expect(putBody!.content).toBe(toBase64(enc.encode('{"theme":"dark"}')))
+    }
   })
 })

@@ -60,7 +60,7 @@ import { applyTheme, loadThemeId, saveThemeId, hydrateTrustedPlugins } from "@ap
 import { PluginTrustBanner } from "./components/PluginTrustBanner";
 import { PluginInventory } from "./components/PluginInventory";
 import { GitHubDialog } from "./components/github/GitHubDialog";
-import { githubAvailable, useGitHub, pushProjectToGitHub, pullProjectToIdb, remoteSlug, removeProjectFromGitHub, projectGitHubUrls } from "@app";
+import { githubAvailable, useGitHub, pushProjectToGitHub, pullProjectToIdb, remoteSlug, removeProjectFromGitHub, projectGitHubUrls, pullSettings } from "@app";
 import { addLessonInFiles, getCourse, getDraftCourse, openLesson, readCourseMeta, refreshCourseFromGitHub, resetLessonToStarter, runChecks, saveDraftCourse, scanEquates, setLessonStarterInFiles, starterFilesForMachine } from "@app";
 import { useCourses } from "./hooks/useCourses";
 import type { CheckReport, CheckRunDeps } from "@app";
@@ -330,6 +330,24 @@ export default function App() {
     const theme = themes.find((t) => t.id === themeId) ?? themes[0];
     if (theme) { applyTheme(theme.tokens); saveThemeId(theme.id); }
   }, [themes, themeId]);
+
+  // Apply the theme from the repo's settings.json once signed in (#162).
+  useEffect(() => {
+    if (!gh.auth || !gh.repo || !gh.signedIn) return;
+    const auth = gh.auth;
+    const repo = gh.repo;
+    let cancelled = false;
+    void (async () => {
+      try {
+        const s = await pullSettings((url, init) => auth.fetch(url, init), repo);
+        const t = typeof s?.theme === "string" ? s.theme : null;
+        if (!cancelled && t && themes.some((x) => x.id === t)) setThemeId(t);
+      } catch {
+        /* settings are optional */
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [gh.auth, gh.repo, gh.signedIn, themes]);
 
   const projectLabels = useProjectLabels(
     project.loaded ? project.files : null,

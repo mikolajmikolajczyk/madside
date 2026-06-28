@@ -12,16 +12,19 @@ import {
   GitHubApiError,
   deleteSubtree,
   fetchBlob,
+  getContentsFile,
   getDefaultBranch,
   getRepoTree,
   pullSubtree,
   pushFiles,
+  upsertContentsFile,
   type GhFetch,
   type PushResult,
   type SyncFile,
 } from "@madside/github-sync";
 import { parseProjectManifest, type StorageBackend } from "@ports";
 import { MANIFEST_PATH } from "@madside/storage-shared";
+import { importDraftCourse } from "./course-author";
 
 // Mirror project-zip.ts: publish source, skip the reproducible build output.
 const GENERATED_DIR = "generated/";
@@ -288,5 +291,81 @@ export async function pullProjectToIdb(
     setSynced(row.id, tree.commitSha);
     setBranch(row.id, tree.branch);
     return { projectId: row.id, created: true };
+  });
+}
+
+// --- Global settings (settings.json at the repo root) ---------------------
+
+/** Push the user's portable settings (theme, editor prefs) to settings.json. */
+export async function pushSettings(fetch: GhFetch, repo: string, settings: Record<string, unknown>): Promise<void> {
+  const target = parseRepo(repo);
+  const bytes = new TextEncoder().encode(JSON.stringify(settings, null, 2) + "\n");
+  await withApiErrors(() => upsertContentsFile(fetch, target, "settings.json", bytes, "Update madside settings"));
+}
+
+/** Read settings.json, or null if absent / unparseable. */
+export async function pullSettings(fetch: GhFetch, repo: string): Promise<Record<string, unknown> | null> {
+  const target = parseRepo(repo);
+  return withApiErrors(async () => {
+    const f = await getContentsFile(fetch, target, "settings.json");
+    if (!f) return null;
+    try {
+      return JSON.parse(dec.decode(f.bytes)) as Record<string, unknown>;
+    } catch {
+      return null;
+    }
+  });
+}
+
+// --- Courses in the repo (browse + pull-as-draft) -------------------------
+
+export interface RemoteCourse {
+  slug: string;
+  title: string;
+}
+
+/** List courses in the repo (folders under courses/ with a course.json). */
+export async function listRemoteCourses(fetch: GhFetch, repo: string): Promise<RemoteCourse[]> {
+  const target = parseRepo(repo);
+  return withApiErrors(async () => {
+    const tree = await getRepoTree(fetch, target);
+    if (!tree) return [];
+    const sha = new Map<string, string>();
+    for (const e of tree.entries) {
+      const m = e.path.match(/^courses\/([^/]+)\/course\.json$/);
+      if (m && e.type === "blob" && m[1] !== "." && m[1] !== "..") sha.set(m[1]!, e.sha);
+    }
+    const out = await Promise.all(
+      [...sha].map(async ([slug, s]) => {
+        try {
+          const b = await fetchBlob(fetch, target, s);
+          return { slug, title: (JSON.parse(dec.decode(b)) as { title?: string }).title ?? slug };
+        } catch {
+          return { slug, title: slug };
+        }
+      }),
+    );
+    return out.sort((a, b) => a.title.localeCompare(b.title));
+  });
+}
+
+/** Pull a course from courses/<slug>/ into a local editable draft (CourseAuthor). */
+export async function pullCourseDraft(
+  storage: StorageBackend,
+  fetch: GhFetch,
+  repo: string,
+  slug: string,
+): Promise<{ courseId: string; lessonId: string }> {
+  const target = parseRepo(repo);
+  return withApiErrors(async () => {
+    const tree = await getRepoTree(fetch, target);
+    if (!tree) throw new Error("the repo is empty");
+    if (tree.truncated) throw new Error("repo tree is too large (truncated) — cannot pull safely");
+    const files = await pullSubtree(fetch, target, tree, `courses/${slug}`);
+    if (files.length === 0) throw new Error(`no course "${slug}" in ${repo}`);
+    return importDraftCourse(
+      storage,
+      files.map((f) => ({ path: f.path, content: dec.decode(f.content) })),
+    );
   });
 }

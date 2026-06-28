@@ -7,10 +7,17 @@ import {
   repoRootHasOtherContent,
   listRemoteProjects,
   pullProjectToIdb,
+  listRemoteCourses,
+  pullCourseDraft,
+  pushSettings,
+  openLesson,
+  loadThemeId,
   useWorkbench,
   type RepoRef,
   type RemoteProject,
+  type RemoteCourse,
 } from "@app";
+import { useToast } from "../ui/Toast";
 import "./GitHubDialog.css";
 
 /** GitHub account panel (#159, #161). Optional sign-in via the gh-auth broker,
@@ -45,6 +52,8 @@ export function GitHubDialog({ onOpenProject }: { onOpenProject?: (projectId: st
           </div>
           <RepoPicker />
           {gh.repo && <RemoteProjects onOpenProject={onOpenProject} />}
+          {gh.repo && <RemoteCourses onOpenProject={onOpenProject} />}
+          {gh.repo && <SettingsSync />}
         </>
       ) : (
         <>
@@ -157,7 +166,7 @@ function RepoPicker() {
 
       {gh.repo && (
         <p className="gh__muted">
-          Selected: <strong>{gh.repo}</strong>. Push/pull arrives in the next steps.
+          Selected: <strong>{gh.repo}</strong>. Use File ▸ GitHub to push/pull.
         </p>
       )}
       {gh.repo && dirtyRoot && (
@@ -255,6 +264,120 @@ function RemoteProjects({ onOpenProject }: { onOpenProject?: (projectId: string)
           ))}
         </ul>
       )}
+    </div>
+  );
+}
+
+/** Browse courses in the repo and open one as an editable CourseAuthor draft. */
+function RemoteCourses({ onOpenProject }: { onOpenProject?: (projectId: string) => void }) {
+  const gh = useGitHub();
+  const workbench = useWorkbench();
+  const [courses, setCourses] = useState<RemoteCourse[] | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [busy, setBusy] = useState<string | null>(null);
+  const [refreshKey, setRefreshKey] = useState(0);
+  const mounted = useRef(true);
+  useEffect(() => () => { mounted.current = false; }, []);
+
+  useEffect(() => {
+    if (!gh.auth || !gh.repo) return;
+    const auth = gh.auth;
+    const repo = gh.repo;
+    let cancelled = false;
+    void (async () => {
+      try {
+        const list = await listRemoteCourses((url, init) => auth.fetch(url, init), repo);
+        if (!cancelled) {
+          setCourses(list);
+          setError(null);
+        }
+      } catch (e) {
+        if (!cancelled) setError(e instanceof Error ? e.message : String(e));
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [gh.auth, gh.repo, refreshKey]);
+
+  const edit = async (slug: string) => {
+    if (!gh.auth || !gh.repo) return;
+    setBusy(slug);
+    setError(null);
+    try {
+      const { courseId, lessonId } = await pullCourseDraft(
+        workbench.storage,
+        (url, init) => gh.auth!.fetch(url, init),
+        gh.repo,
+        slug,
+      );
+      const projectId = await openLesson(workbench.storage, courseId, lessonId);
+      if (mounted.current) setBusy(null);
+      onOpenProject?.(projectId);
+    } catch (e) {
+      if (mounted.current) {
+        setError(e instanceof Error ? e.message : String(e));
+        setBusy(null);
+      }
+    }
+  };
+
+  return (
+    <div className="gh__repos">
+      <div className="gh__repos-head">
+        <span className="gh__repos-title">Courses in repo</span>
+        <button type="button" className="gh__link gh__linkbtn" onClick={() => setRefreshKey((k) => k + 1)}>
+          Refresh
+        </button>
+      </div>
+      {error && <p className="gh__error">{error}</p>}
+      {courses === null && !error ? (
+        <p className="gh__muted">Loading courses…</p>
+      ) : courses && courses.length === 0 ? (
+        <p className="gh__muted">No courses in this repo. Publish one from the Course Author.</p>
+      ) : (
+        <ul className="gh__repo-list">
+          {courses?.map((c) => (
+            <li key={c.slug}>
+              <div className="gh__repo">
+                <span className="gh__repo-name">{c.title}</span>
+                <button
+                  type="button"
+                  className="gh-acct__btn"
+                  disabled={busy !== null}
+                  onClick={() => void edit(c.slug)}
+                >
+                  {busy === c.slug ? "Opening…" : "Edit"}
+                </button>
+              </div>
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
+  );
+}
+
+/** Save portable settings (theme) to the repo's settings.json. */
+function SettingsSync() {
+  const gh = useGitHub();
+  const toast = useToast();
+  const [busy, setBusy] = useState(false);
+  const save = async () => {
+    if (!gh.auth || !gh.repo) return;
+    setBusy(true);
+    try {
+      await pushSettings((url, init) => gh.auth!.fetch(url, init), gh.repo, { theme: loadThemeId("dark") });
+      toast.push("info", "Settings saved to GitHub");
+    } catch (e) {
+      toast.error(e);
+    } finally {
+      setBusy(false);
+    }
+  };
+  return (
+    <div className="gh__repos">
+      <button type="button" className="ui-dialog__btn" disabled={busy} onClick={() => void save()}>
+        {busy ? "Saving…" : "Save settings (theme) to GitHub"}
+      </button>
     </div>
   );
 }
