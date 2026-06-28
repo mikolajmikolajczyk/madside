@@ -1,7 +1,7 @@
 {
   "name": "madside",
   "private": true,
-  "version": "0.21.0",
+  "version": "0.22.0",
   "license": "AGPL-3.0-or-later",
   "type": "module",
   "packageManager": "pnpm@11.5.1",

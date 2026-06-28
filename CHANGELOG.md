@@ -1,3 +1,17 @@
+## [0.22.0] - 2026-06-28
+
+### 🚀 Features
+
+- *(github)* Auto-sync projects across devices (#166)
+- *(github)* Status-bar sync indicator + opt-in auto-sync controls
+
+### 📚 Documentation
+
+- Document GitHub sync (connect, save, auto-sync, conflicts)
+
+### ⚙️ Miscellaneous Tasks
+
+- *(pages)* Inject VITE_GH_APP_SLUG so the install link works in prod
 ## [0.21.0] - 2026-06-28
 
 ### 🚀 Features
@@ -17,6 +31,10 @@
 
 - *(github)* Production hardening of the sync layer
 - *(github)* Reliable atomic remove/push via full-tree rebuild
+
+### ⚙️ Miscellaneous Tasks
+
+- *(release)* V0.21.0
 ## [0.20.1] - 2026-06-27
 
 ### 🚀 Features
@@ -30,6 +48,10 @@
 ### 🚜 Refactor
 
 - *(asm-lsp)* Worker-per-dialect for mixed-dialect projects (#148)
+
+### ⚙️ Miscellaneous Tasks
+
+- *(release)* V0.20.1
 ## [0.20.0] - 2026-06-27
 
 ### 🚀 Features
@@ -46,6 +68,10 @@
 - *(z88dk)* Re-enable copt peephole with a circular-equate guard (#105)
 - *(lsp-c)* Resolve macros/enums/exprs in array sizes + macro-sized field names
 - *(lsp-c)* Resolve typedef-to-array types (typedef int Row[N])
+
+### ⚙️ Miscellaneous Tasks
+
+- *(release)* V0.20.0
 ## [0.19.0] - 2026-06-25
 
 ### 🚀 Features
@@ -64,6 +90,10 @@
 - *(genesis)* Handle BankBreakpoint objects in gpgx setBreakpoints (#146)
 - *(genesis)* Trap a breakpoint on the entry point on the first run (#146)
 - *(genesis)* Harden the dual-CPU debugger after audit (#146)
+
+### ⚙️ Miscellaneous Tasks
+
+- *(release)* V0.19.0
 ## [0.18.0] - 2026-06-25
 
 ### 🚀 Features
@@ -135,6 +165,10 @@
 - *(banking)* Full live BP-trap proof on real Altirra 130XE core (ADR-0014 Phase 1) (#134)
 - *(genesis)* De-risk the pre-built Z80 driver incbin path on the real toolchain (#147)
 - *(genesis)* Assert the Z80 sound template drives non-silent PSG audio (#147)
+
+### ⚙️ Miscellaneous Tasks
+
+- *(release)* V0.18.0
 ## [0.17.0] - 2026-06-24
 
 ### 🚀 Features
@@ -180,6 +214,7 @@
 
 - *(tsconfig)* Add the Genesis packages to the plugins project
 - *(genesis)* Remove the redundant bare-Musashi backend
+- *(release)* V0.17.0
 ## [0.16.0] - 2026-06-23
 
 ### 🚀 Features
@@ -329,21 +364,34 @@
 - Consolidate on one workspace job (build+test+lint+docs) (#99)
 - *(repo)* Post-#89 config cleanup — tsconfig.node + justfile pnpm (#108)
 - *(tooling)* Wire the repoctx skill into the repo
+- *(release)* V0.16.0
 ## [0.15.1] - 2026-06-19
 
 ### 🐛 Bug Fixes
 
 - *(c64)* Register mos6510 CPU so MADS syntax highlighting works
+
+### ⚙️ Miscellaneous Tasks
+
+- *(release)* V0.15.1
 ## [0.15.0] - 2026-06-19
 
 ### 🚀 Features
 
 - *(c64)* Commodore 64 machine, chips emulator, cc65/MADS toolchains + templates (#53)
+
+### ⚙️ Miscellaneous Tasks
+
+- *(release)* V0.15.0
 ## [0.14.0] - 2026-06-18
 
 ### 🚀 Features
 
 - *(toolchain)* Cc65 custom build options — linker config, per-tool args, mixed C/asm (#51)
+
+### ⚙️ Miscellaneous Tasks
+
+- *(release)* V0.14.0
 ## [0.13.0] - 2026-06-18
 
 ### 🚀 Features
@@ -354,6 +402,10 @@
 
 - *(editor)* Preserve cursor position on format (minimal diff, not full replace)
 - *(templates)* 4-space indent in asm templates (match editor default)
+
+### ⚙️ Miscellaneous Tasks
+
+- *(release)* V0.13.0
 ## [0.12.0] - 2026-06-18
 
 ### 🚀 Features
@@ -369,6 +421,10 @@
 ### 📚 Documentation
 
 - Full accuracy sweep — cc65/C, VFS, build trigger, and stale-claim fixes
+
+### ⚙️ Miscellaneous Tasks
+
+- *(release)* V0.12.0
 ## [0.11.0] - 2026-06-18
 
 ### 🚀 Features
@@ -467,6 +523,7 @@
 - *(lint)* Drive warnings to 0 — enforce the --max-warnings 0 gate (#26)
 - *(infra)* Production/supply-chain hardening (#21)
 - Fix security job — pin trivy/gitleaks actions to valid SHAs
+- *(release)* V0.11.0
 ## [0.10.0] - 2026-06-15
 
 ### 🚀 Features
@@ -601,6 +658,7 @@
 - GitHub-canonical README + CONTRIBUTING + issue/PR templates (15ba3ea, 8c6db67)
 - Flip forge narrative to GitHub-canonical; remove Radicle skills (6e1f8aa)
 - Storage generalization research (StorageBackend port proposal)
+- *(changelog)* Add git-cliff config + generated CHANGELOG
 
 ### ⚡ Performance
 
