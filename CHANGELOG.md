@@ -1,3 +1,22 @@
+## [0.21.0] - 2026-06-28
+
+### 🚀 Features
+
+- *(ide)* Build-time GitHub persistence capability gate (#158)
+- *(ide)* GitHub sign-in + dedicated-repo selection (#159)
+- *(courses)* Multi-course repos via courses/<slug>/ + backward-compat (#164)
+- *(github)* Push projects to the user's repo via Git Trees (#160)
+- *(github)* Pull + browse + import projects from the repo (#161)
+- *(github)* Sharing, history, remove, commit messages (#162)
+- *(courses)* Publish a course to the repo under courses/<slug>/ (#165)
+- *(github)* Settings.json theme sync + browse/edit courses in repo
+- *(github)* Amend-by-default saves + live refresh; fix stale-read 422s
+- *(ide)* Toolbar snapshot/history + GitHub push/pull, Ctrl+Shift+S to save to GitHub
+
+### 🐛 Bug Fixes
+
+- *(github)* Production hardening of the sync layer
+- *(github)* Reliable atomic remove/push via full-tree rebuild
 ## [0.20.1] - 2026-06-27
 
 ### 🚀 Features

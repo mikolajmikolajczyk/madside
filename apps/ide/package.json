@@ -1,7 +1,7 @@
 {
   "name": "@madside/ide",
   "private": true,
-  "version": "0.20.1",
+  "version": "0.21.0",
   "license": "AGPL-3.0-or-later",
   "type": "module",
   "scripts": {
@@ -31,6 +31,7 @@
     "@madside/emulator-genesis-gpgx": "workspace:*",
     "@madside/emulator-nes-jsnes": "workspace:*",
     "@madside/emulator-zx-chips": "workspace:*",
+    "@madside/github-sync": "workspace:*",
     "@madside/lsp-asm": "workspace:*",
     "@madside/lsp-cc65": "workspace:*",
     "@madside/lsp-core": "workspace:*",
@@ -46,7 +47,6 @@
     "@madside/panel-registers": "workspace:*",
     "@madside/panel-variables": "workspace:*",
     "@madside/panel-vdp": "workspace:*",
-    "@madside/github-sync": "workspace:*",
     "@madside/storage-idb": "workspace:*",
     "@madside/storage-shared": "workspace:*",
     "@madside/theme-dark": "workspace:*",
