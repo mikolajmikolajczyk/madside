@@ -209,3 +209,28 @@
   justify-content: flex-end;
   gap: 8px;
 }
+
+/* Sign-in row + a round "?" badge linking to the GitHub-sync docs. */
+.gh__signin {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.gh__help {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  border: 1px solid var(--border-default);
+  color: var(--text-secondary);
+  font-size: 12px;
+  font-weight: 600;
+  text-decoration: none;
+  flex: none;
+}
+.gh__help:hover {
+  color: var(--text-primary);
+  border-color: var(--accent-mint);
+}

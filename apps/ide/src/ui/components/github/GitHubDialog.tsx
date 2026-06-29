@@ -65,9 +65,21 @@ export function GitHubDialog({ onOpenProject }: { onOpenProject?: (projectId: st
             Sign in to sync projects to a GitHub repo you own. madside stays usable without it —
             this only adds an explicit push/pull. Your files live in your repo; we store nothing.
           </p>
-          <button type="button" className="ui-dialog__btn ui-dialog__btn--primary" onClick={gh.signIn}>
-            Sign in with GitHub
-          </button>
+          <div className="gh__signin">
+            <button type="button" className="ui-dialog__btn ui-dialog__btn--primary" onClick={gh.signIn}>
+              Sign in with GitHub
+            </button>
+            <a
+              className="gh__help"
+              href="https://madside.dev/docs/using/github/"
+              target="_blank"
+              rel="noopener noreferrer"
+              title="What is this? Read about GitHub sync"
+              aria-label="What is this? Read about GitHub sync"
+            >
+              ?
+            </a>
+          </div>
         </>
       )}
     </div>

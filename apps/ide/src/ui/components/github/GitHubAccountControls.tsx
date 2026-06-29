@@ -38,6 +38,16 @@ export function GitHubAccountControls({ onManage }: { onManage?: () => void }) {
       <button type="button" className="gh-acct__btn gh-acct__btn--primary" onClick={gh.signIn}>
         Sign in with GitHub
       </button>
+      <a
+        className="gh__help"
+        href="https://madside.dev/docs/using/github/"
+        target="_blank"
+        rel="noopener noreferrer"
+        title="What is this? Read about GitHub sync"
+        aria-label="What is this? Read about GitHub sync"
+      >
+        ?
+      </a>
       {gh.error && <span className="gh-acct__error" title={gh.error}>sign-in failed</span>}
     </div>
   );
