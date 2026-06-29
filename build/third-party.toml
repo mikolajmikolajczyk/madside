@@ -34,8 +34,8 @@ artifact   = "src/plugins/toolchain-ca65/wasm/"
 built_with = "wasi-sdk clang (wasm32-wasip1); unmodified"
 
 [source.z88dk]
-name       = "z88dk (z80asm / appmake)"
-role       = "Z80 assembler+linker & tape packager — ZX Spectrum toolchain (asm-first)"
+name       = "z88dk (sccz80 / z80asm / appmake)"
+role       = "ZX Spectrum toolchain — sccz80 C compiler + z80asm assembler/linker + appmake tape/snapshot packager"
 upstream   = "https://github.com/z88dk/z88dk"
 source     = "https://github.com/z88dk/z88dk"
 ref        = "d6ea38777b002a5888138f4c1825fe9ac1647153"
@@ -102,8 +102,8 @@ artifact   = "src/adapters/emu/wasm/altirra-core.wasm"
 built_with = "Emscripten (SDL3 embed); our AltirraEmbed fork of ilmenit/AltirraSDL (orig. Altirra by Avery Lee)"
 
 [source.chips]
-name       = "chips (C64 system core)"
-role       = "Commodore 64 emulator core — 6502 CPU + VIC-II + SID + 2× CIA"
+name       = "chips (C64 + ZX Spectrum cores)"
+role       = "Commodore 64 (6502 + VIC-II + SID + 2× CIA) and ZX Spectrum 48K/128K emulator cores"
 upstream   = "https://github.com/floooh/chips"
 source     = "https://github.com/floooh/chips"
 ref        = "9371bfcb8478aec05ad10a1293206363373c1489"
@@ -176,6 +176,19 @@ license_note = "NON-COMMERCIAL: redistributions may not be sold or used in a com
 artifact   = "packages/wasm-genesis-gpgx/genesis-gpgx.wasm"
 built_with = "wasi-sdk clang reactor (single pass — gpgx commits its m68k opcode tables, no host m68kmake) over core/*.c incl. cd_hw, excluding only cd_hw/libchdr (CHD) + sound/tremor (Vorbis). A minimal osd.h replaces libretro-common and a custom frontend harness (genesis-gpgx-system.c) replaces libretro.c (load-from-buffer / frame / bitmap→pixels / m68k_get_reg + read_byte debug / audio / input). Setjmp shim under build/support/genesis-gpgx/shim. See wiki/agents/genesis-gpgx-wasm-build.md."
 
+# Musashi is the Motorola 680x0 CPU emulator embedded in Genesis Plus GX's
+# core/m68k/ and compiled into genesis-gpgx.wasm. Separate upstream + licence
+# (MIT, Karl Stenerud) from GPGX, so it gets its own attribution row.
+[source.musashi]
+name       = "Musashi (M68k CPU core)"
+role       = "Motorola 68000 CPU emulation inside Genesis Plus GX"
+upstream   = "https://github.com/kstenerud/Musashi"
+source     = "https://github.com/kstenerud/Musashi"
+version    = "bundled with Genesis Plus GX"
+license    = "MIT"
+artifact   = "compiled into packages/wasm-genesis-gpgx/genesis-gpgx.wasm"
+built_with = "Built as part of the Genesis Plus GX core (core/m68k/); not fetched separately."
+
 [builddep.fpc]
 upstream = "https://gitlab.com/freepascal.org/fpc/source.git"
 ref      = "17c002e6460417e6980fcae2affe6e5bbb00bd6a"
@@ -219,3 +232,45 @@ name     = "idb"
 role     = "IndexedDB wrapper (project storage + asset cache)"
 npm      = "idb"
 upstream = "https://github.com/jakearchibald/idb"
+
+[bundled.react]
+name     = "React (react + react-dom)"
+role     = "UI framework + DOM renderer"
+npm      = "react"
+upstream = "https://github.com/facebook/react"
+
+[bundled.codemirror]
+name     = "CodeMirror 6"
+role     = "Code editor — view / state / commands / language / autocomplete / lint + lang-cpp/javascript/json"
+npm      = "@codemirror/view"
+upstream = "https://github.com/codemirror/dev"
+
+[bundled.lezer]
+name     = "Lezer"
+role     = "Incremental parser + syntax highlighting (highlight, common, cpp grammar)"
+npm      = "@lezer/common"
+upstream = "https://github.com/lezer-parser"
+
+[bundled.radix]
+name     = "Radix UI"
+role     = "Accessible UI primitives — dialog, dropdown-menu, context-menu, tooltip"
+npm      = "@radix-ui/react-dialog"
+upstream = "https://github.com/radix-ui/primitives"
+
+[bundled.dockview]
+name     = "dockview"
+role     = "Dockable panel layout"
+npm      = "dockview"
+upstream = "https://github.com/mathuo/dockview"
+
+[bundled.react-markdown]
+name     = "react-markdown"
+role     = "Markdown rendering (course / lesson content)"
+npm      = "react-markdown"
+upstream = "https://github.com/remarkjs/react-markdown"
+
+[bundled.vscode-lsp]
+name     = "vscode-languageserver-node"
+role     = "LSP transport + server framework (jsonrpc + languageserver + textdocument) — the @madside/lsp-* servers"
+npm      = "vscode-languageserver"
+upstream = "https://github.com/microsoft/vscode-languageserver-node"

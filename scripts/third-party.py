@@ -18,9 +18,13 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent.parent
 REGISTRY = ROOT / "build/third-party.toml"
 DOCS_PAGE = ROOT / "apps/docs/src/content/docs/reference/third-party.md"
-# Bundled npm libs are deps of the app package now, so their installed
-# package.json lives under apps/ide/node_modules.
-APP_MODULES = ROOT / "apps/ide/node_modules"
+# Bundled npm libs are deps of the app OR of a workspace package, so a lib's
+# installed package.json can live under apps/ide/node_modules, the hoisted root
+# store, or any packages/*/node_modules (e.g. idb is a dep of @madside/core).
+MODULE_ROOTS = (
+    [ROOT / "apps/ide/node_modules", ROOT / "node_modules"]
+    + sorted((ROOT / "packages").glob("*/node_modules"))
+)
 
 
 def load() -> dict:
@@ -36,11 +40,15 @@ def get(key: str) -> str:
 
 
 def npm_meta(pkg: str) -> tuple[str, str]:
-    """(version, license) from node_modules/<pkg>/package.json."""
-    pj = APP_MODULES / pkg / "package.json"
-    try:
-        data = json.loads(pj.read_text())
-    except FileNotFoundError:
+    """(version, license) from the first node_modules root that has <pkg>."""
+    data = None
+    for root in MODULE_ROOTS:
+        try:
+            data = json.loads((root / pkg / "package.json").read_text())
+            break
+        except FileNotFoundError:
+            continue
+    if data is None:
         return ("?", "?")
     lic = data.get("license") or data.get("licenses") or "?"
     if isinstance(lic, list):

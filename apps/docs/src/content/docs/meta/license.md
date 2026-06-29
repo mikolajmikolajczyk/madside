@@ -23,7 +23,9 @@ The choice is recorded in [ADR-0006](https://github.com/mikolajmikolajczyk/madsi
 ## Plugins and bundled components
 
 - **Plugins** may carry any AGPL-3.0-compatible license. The plugin manifest's `license` field is informational; the workbench does not enforce a check.
-- madside bundles several third-party tools and libraries under their own upstream licenses. The **cc65** toolchain (C compiler + ca65 + ld65) is Zlib; the **MADS** assembler is freeware; the **Altirra** emulator core is GPL-2.0-or-later. Bundled npm libraries include **jsnes** (Apache-2.0), **clang-format** (MIT wrapper / Apache-2.0-WITH-LLVM-exception), **fflate** (MIT), and **idb** (ISC) — all AGPL-3.0-compatible. The full, version-pinned list is in [Third-party software](/docs/reference/third-party/).
+- madside bundles several third-party tools and libraries under their own upstream licenses. The **cc65** toolchain (C compiler + ca65 + ld65) is Zlib; the **MADS** assembler is freeware; the **Altirra** emulator core is GPL-2.0-or-later. Bundled npm libraries include **React** / **react-dom**, **CodeMirror 6**, **Lezer**, **Radix UI**, **dockview**, **react-markdown**, the Microsoft **vscode-languageserver** family, **fflate** and **idb** (MIT/ISC), plus **jsnes** (Apache-2.0) and **clang-format** (MIT wrapper / Apache-2.0-WITH-LLVM-exception) — all AGPL-3.0-compatible.
+- **One exception — the Genesis core.** The **Genesis Plus GX** emulator core (used for the Sega Genesis machine) is **non-commercial**: it may not be sold or shipped in a commercial product. It is bundled as a separate, aggregated WebAssembly artifact the app calls over an API boundary (not linked into the AGPL code), so madside's own code stays AGPL-3.0 — but the assembled madside distribution as a whole is **not commercially redistributable**. This restricts only the IDE; games you **build** with madside contain no emulator code and are unaffected.
+- The full, version-pinned list (with the **Musashi** M68k core inside the Genesis emulator, MIT) is in [Third-party software](/docs/reference/third-party/).
 
 ## Copyright
 
