@@ -1,3 +1,8 @@
+## [0.25.0] - 2026-06-29
+
+### 🚀 Features
+
+- *(github)* Separate courses repo for authoring/publishing
 ## [0.24.0] - 2026-06-29
 
 ### 🚀 Features
