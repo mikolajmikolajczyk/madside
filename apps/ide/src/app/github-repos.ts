@@ -45,25 +45,3 @@ export async function listAccessibleRepos(auth: GitHubAuthProvider): Promise<Rep
 export function appInstallUrl(appSlug: string | undefined): string | null {
   return appSlug ? `https://github.com/apps/${appSlug}/installations/new` : null;
 }
-
-// madside owns `projects/` + an optional `settings.json` at the repo root; these
-// repo-meta names are also fine in a "dedicated" repo. Anything else at the root
-// means the repo already holds unrelated content → a soft warning (not a block).
-const ALLOWED_ROOT = new Set(["projects", "settings.json"]);
-const META_ROOT = /^(README|LICENSE|LICENCE|CONTRIBUTING|CODE_OF_CONDUCT|SECURITY)/i;
-
-/** True if the repo root already contains content unrelated to the madside
- *  layout. Empty repos and API errors return false (never nag spuriously). */
-export async function repoRootHasOtherContent(
-  auth: GitHubAuthProvider,
-  fullName: string,
-): Promise<boolean> {
-  const res = await auth.fetch(`https://api.github.com/repos/${fullName}/contents/`);
-  if (res.status === 404) return false; // empty repo
-  if (!res.ok) return false;
-  const entries = (await res.json()) as { name: string; type: string }[];
-  if (!Array.isArray(entries)) return false;
-  return entries.some(
-    (e) => !ALLOWED_ROOT.has(e.name) && !e.name.startsWith(".") && !META_ROOT.test(e.name),
-  );
-}

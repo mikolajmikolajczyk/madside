@@ -62,7 +62,7 @@ import { PluginInventory } from "./components/PluginInventory";
 import { GitHubDialog } from "./components/github/GitHubDialog";
 import { GitHubPushDialog } from "./components/github/GitHubPushDialog";
 import { useGitHubAutoSync } from "./hooks/useGitHubAutoSync";
-import { githubAvailable, useGitHub, pushProjectToGitHub, pullProjectToIdb, remoteSlug, removeProjectFromGitHub, projectGitHubUrls, pullSettings, effectiveRepo, projectRepo } from "@app";
+import { githubAvailable, useGitHub, pushProjectToGitHub, pullProjectToIdb, remoteSlug, removeProjectFromGitHub, projectGitHubUrls, projectRepo, listAccessibleRepos } from "@app";
 import { addLessonInFiles, getCourse, getDraftCourse, openLesson, readCourseMeta, refreshCourseFromGitHub, resetLessonToStarter, runChecks, saveDraftCourse, scanEquates, setLessonStarterInFiles, starterFilesForMachine } from "@app";
 import { useCourses } from "./hooks/useCourses";
 import type { CheckReport, CheckRunDeps } from "@app";
@@ -117,6 +117,7 @@ export default function App() {
   const toast = useToast();
   const gh = useGitHub();
   const [pushMsgOpen, setPushMsgOpen] = useState(false);
+  const [pushRepos, setPushRepos] = useState<string[]>([]);
   const project = useProject(workbench.storage, workbench.events);
 
   // Auto-continue across devices (#166): debounced push + pull-on-open/focus,
@@ -344,24 +345,6 @@ export default function App() {
     const theme = themes.find((t) => t.id === themeId) ?? themes[0];
     if (theme) { applyTheme(theme.tokens); saveThemeId(theme.id); }
   }, [themes, themeId]);
-
-  // Apply the theme from the repo's settings.json once signed in (#162).
-  useEffect(() => {
-    if (!gh.auth || !gh.repo || !gh.signedIn) return;
-    const auth = gh.auth;
-    const repo = gh.repo;
-    let cancelled = false;
-    void (async () => {
-      try {
-        const s = await pullSettings((url, init) => auth.fetch(url, init), repo);
-        const t = typeof s?.theme === "string" ? s.theme : null;
-        if (!cancelled && t && themes.some((x) => x.id === t)) setThemeId(t);
-      } catch {
-        /* settings are optional */
-      }
-    })();
-    return () => { cancelled = true; };
-  }, [gh.auth, gh.repo, gh.signedIn, themes]);
 
   const projectLabels = useProjectLabels(
     project.loaded ? project.files : null,
@@ -895,10 +878,26 @@ export default function App() {
   // Save opens a commit-message prompt; doPushGitHub does the push with it.
   const handlePushGitHub = useCallback(() => setPushMsgOpen(true), []);
 
-  const doPushGitHub = useCallback(async (message: string, amend: boolean) => {
-    if (!gh.auth || !project.loaded) return;
-    const repo = effectiveRepo(project.projectId, gh.repo);
-    if (!repo) return;
+  // When the Save dialog opens, load the repos you can push to (for the picker
+  // shown when the project isn't yet bound to one).
+  useEffect(() => {
+    if (!pushMsgOpen || !gh.auth) return;
+    const auth = gh.auth;
+    let cancelled = false;
+    void (async () => {
+      try {
+        const list = await listAccessibleRepos(auth);
+        if (!cancelled) setPushRepos(list.map((r) => r.fullName));
+      } catch {
+        /* picker just won't populate */
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [pushMsgOpen, gh.auth]);
+
+  // repo is chosen in the dialog (project's binding, or a pick for the first save).
+  const doPushGitHub = useCallback(async (message: string, amend: boolean, repo: string) => {
+    if (!gh.auth || !project.loaded || !repo) return;
     const auth = gh.auth;
     try {
       const res = await pushProjectToGitHub(
@@ -916,11 +915,11 @@ export default function App() {
     }
   }, [gh, project, workbench, toast]);
 
-  // Pull the active project's source from the repo, then reload it from storage.
+  // Pull the active project's source from its bound repo, then reload it.
   const handlePullGitHub = useCallback(async () => {
     if (!gh.auth || !project.loaded) return;
     const pid = project.projectId;
-    const repo = effectiveRepo(pid, gh.repo);
+    const repo = projectRepo(pid);
     if (!repo) return;
     const auth = gh.auth;
     try {
@@ -937,22 +936,22 @@ export default function App() {
   // Open the project's folder / commit history on github.com.
   const handleViewGitHub = useCallback(() => {
     if (!project.loaded) return;
-    const repo = effectiveRepo(project.projectId, gh.repo);
+    const repo = projectRepo(project.projectId);
     if (!repo) return;
     window.open(projectGitHubUrls(repo, project.projectId).folder, "_blank", "noopener,noreferrer");
-  }, [gh, project]);
+  }, [project]);
 
   const handleHistoryGitHub = useCallback(() => {
     if (!project.loaded) return;
-    const repo = effectiveRepo(project.projectId, gh.repo);
+    const repo = projectRepo(project.projectId);
     if (!repo) return;
     window.open(projectGitHubUrls(repo, project.projectId).history, "_blank", "noopener,noreferrer");
-  }, [gh, project]);
+  }, [project]);
 
-  // Remove the project's folder from the repo (explicit, destructive — local stays).
+  // Remove the project's folder from its bound repo (explicit, destructive — local stays).
   const handleRemoveGitHub = useCallback(async () => {
     if (!gh.auth || !project.loaded) return;
-    const repo = effectiveRepo(project.projectId, gh.repo);
+    const repo = projectRepo(project.projectId);
     if (!repo) return;
     const auth = gh.auth;
     if (!window.confirm(`Remove this project's folder from ${repo}? The local copy stays.`)) return;
@@ -1038,7 +1037,7 @@ export default function App() {
         openPalette: () => setPaletteOpen(true),
         pushGitHub: handlePushGitHub,
       },
-      state: { canRun, running, hasEmu, canPushGitHub: githubAvailable && gh.signedIn && project.loaded && !!effectiveRepo(project.projectId, gh.repo) },
+      state: { canRun, running, hasEmu, canPushGitHub: githubAvailable && gh.signedIn && project.loaded },
     };
   });
   useEffect(() => {
@@ -1161,6 +1160,7 @@ export default function App() {
     <Suspense fallback={<div className="app__loading">loading…</div>}>
       <CourseAuthor
         files={courseFiles}
+        courseId={course.id}
         activeLessonId={course.lesson}
         onSaveFiles={(f) => { void onSaveDraft(f); }}
         onSelectLesson={(l) => { void onSelectLesson(l); }}
@@ -1360,16 +1360,11 @@ export default function App() {
     onTheme: setThemeId,
   };
 
-  // The repo the active project actually syncs to (its per-project binding, else
-  // the device default) — gates the GitHub project actions and drives the status
-  // bar, so a project imported from another repo works even when no default is set.
-  const ghActiveRepo =
-    githubAvailable && gh.signedIn && project.loaded ? effectiveRepo(project.projectId, gh.repo) : null;
-  // Show the repo in the status bar only when it differs from the device default.
-  const ghCustomRepo =
-    project.loaded && projectRepo(project.projectId) && projectRepo(project.projectId) !== gh.repo
-      ? projectRepo(project.projectId)
-      : null;
+  // The repo a project is bound to — null until its first Save to GitHub (which
+  // picks the repo). Pull/view/history/remove need a binding; Save just needs
+  // sign-in (the push dialog chooses the repo).
+  const ghBoundRepo = project.loaded ? projectRepo(project.projectId) : null;
+  const ghCanPush = githubAvailable && gh.signedIn && project.loaded;
 
   return (
     <TooltipProvider delayDuration={300} skipDelayDuration={100}>
@@ -1413,11 +1408,11 @@ export default function App() {
         onAbout={() => setAboutOpen(true)}
         onProjectPlugins={() => setPluginsOpen(true)}
         onGitHub={githubAvailable ? () => setGithubOpen(true) : undefined}
-        onPushGitHub={ghActiveRepo ? handlePushGitHub : undefined}
-        onPullGitHub={ghActiveRepo ? handlePullGitHub : undefined}
-        onViewGitHub={ghActiveRepo ? handleViewGitHub : undefined}
-        onHistoryGitHub={ghActiveRepo ? handleHistoryGitHub : undefined}
-        onRemoveGitHub={ghActiveRepo ? handleRemoveGitHub : undefined}
+        onPushGitHub={ghCanPush ? handlePushGitHub : undefined}
+        onPullGitHub={ghBoundRepo ? handlePullGitHub : undefined}
+        onViewGitHub={ghBoundRepo ? handleViewGitHub : undefined}
+        onHistoryGitHub={ghBoundRepo ? handleHistoryGitHub : undefined}
+        onRemoveGitHub={ghBoundRepo ? handleRemoveGitHub : undefined}
         onCommandPalette={() => setPaletteOpen(true)}
         viewMenu={viewMenu}
       />
@@ -1444,8 +1439,8 @@ export default function App() {
         onToggleBp={toggleBpAtCursor}
         onSnapshot={project.loaded ? handleSnapshotNow : undefined}
         onHistory={project.loaded ? () => setHistoryOpen(true) : undefined}
-        onPushGitHub={githubAvailable && gh.signedIn && gh.repo && project.loaded ? handlePushGitHub : undefined}
-        onPullGitHub={githubAvailable && gh.signedIn && gh.repo && project.loaded ? handlePullGitHub : undefined}
+        onPushGitHub={ghCanPush ? handlePushGitHub : undefined}
+        onPullGitHub={ghBoundRepo ? handlePullGitHub : undefined}
       />
       <DockLayout
         surfaces={dockSurfaces}
@@ -1462,7 +1457,7 @@ export default function App() {
         running={running}
         pc={cpu?.regs.pc ?? null}
         brokeOn={brokeOn}
-        github={githubAvailable ? { signedIn: gh.signedIn, user: gh.user?.login ?? null, status: gh.syncStatus, repo: ghCustomRepo, onClick: () => setGithubOpen(true) } : null}
+        github={githubAvailable ? { signedIn: gh.signedIn, user: gh.user?.login ?? null, status: gh.syncStatus, repo: ghBoundRepo, onClick: () => setGithubOpen(true) } : null}
       />
 
       <TextPromptDialog
@@ -1476,10 +1471,12 @@ export default function App() {
       <GitHubPushDialog
         open={pushMsgOpen}
         defaultMessage={project.loaded ? `Save ${project.manifest.name} from madside` : ""}
+        boundRepo={ghBoundRepo}
+        repos={pushRepos}
         onCancel={() => setPushMsgOpen(false)}
-        onConfirm={(msg, amend) => {
+        onConfirm={(msg, amend, repo) => {
           setPushMsgOpen(false);
-          void doPushGitHub(msg, amend);
+          void doPushGitHub(msg, amend, repo);
         }}
       />
       <TextPromptDialog

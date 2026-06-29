@@ -5,7 +5,7 @@ sidebar:
   order: 9
 ---
 
-By default madside keeps everything in your browser — there is no server, and your work never leaves your machine. If you want a backup you control, or you want to start on your laptop and continue on a tablet, you can connect **your own** GitHub repository. madside stores nothing itself: your files live in your browser and in the repo you choose.
+By default madside keeps everything in your browser — there is no server, and your work never leaves your machine. If you want a backup you control, or you want to start on your laptop and continue on a tablet, you can connect **your own** GitHub repositories. madside stores nothing itself: your files live in your browser and in the repos you choose. Each project is bound to its own repo, so different projects can live in different repos.
 
 :::note
 Everything here is optional. If you never connect an account, madside works exactly as before — fully local, no account, no network.
@@ -13,31 +13,27 @@ Everything here is optional. If you never connect an account, madside works exac
 
 ## Connect your account
 
-Open **Help → GitHub…** and sign in with GitHub. madside only uses your GitHub identity to read and write the one repo you pick — it keeps no account of its own and no password.
+Open **Help → GitHub…** and sign in with GitHub. madside only uses your GitHub identity to read and write the repos you pick — it keeps no account of its own and no password.
 
 Once you're signed in, the **status bar** (bottom of the window) shows your GitHub username and the current sync state. If your session ever expires — common on tablets after a while — the indicator flips to **signed out** so you know to sign in again, instead of silently failing to sync.
 
-## Pick a project repo
-
-In the GitHub panel, choose the repository madside should use under **Project repo**. You can pick any repo you own (private is fine). For madside to write to it, install its GitHub app on that repo — the panel shows a link to do so.
-
-This repo holds all your synced projects, each in its own folder. One repo, many projects.
+For madside to write to a repo, install its GitHub app on that repo — the GitHub panel (**Help → GitHub…**) has an **Add a repo…** link that opens the install page. A repo can be private. You can grant as many repos as you like; each project remembers which one it belongs to.
 
 ## Save to GitHub
 
-With an account connected and a repo selected, save the current project with any of:
+Save the current project with any of:
 
 - **Ctrl+Shift+S**,
 - **File → GitHub → Save to GitHub**, or
 - the **Save to GitHub** button on the toolbar.
 
-A dialog asks for a short commit message. It also offers **Amend my last commit** (on by default): when ticked, repeated saves update your previous commit instead of piling up a new commit every time — so your history stays tidy. If someone else has committed since, it harmlessly adds a new commit instead.
+The first time you save a project, the dialog lets you **choose which repo** it goes to. After that the project is bound to that repo and saves go straight there — different projects can live in different repos. The dialog also asks for a short commit message and offers **Amend my last commit** (on by default): repeated saves update your previous commit instead of piling up a new one. If someone else has committed since, it harmlessly adds a new commit instead.
 
 Only your source files are saved. Build output is left out, the same as when you export a ZIP.
 
 ## Continue on another device
 
-On a second device, connect the same account and repo, then **File → GitHub → Pull from GitHub** to bring the project's latest files into that device.
+On a second device, sign in with the same account, then **import** the project (see below) or, if it's already local, **File → GitHub → Pull from GitHub** to bring its latest files in.
 
 :::caution
 Pulling overwrites the local copy with the repo's version. Before it does, madside takes a [snapshot](/docs/using/history/) of your current local files, so you can roll back if the pull wasn't what you wanted.
@@ -72,9 +68,9 @@ madside never merges and never overwrites silently. If a project changed in the 
 
 Auto-sync resumes for that project once the two sides match again.
 
-## Import a project from your repo
+## Import projects and courses
 
-To pull a project the repo already has onto a fresh device, open **Help → GitHub…** and use **Import a project** — pick one and it's copied into your browser as a new local project.
+Open **Help → GitHub…** → **Import from GitHub**. Pick a repo (any you can access — your own, or a collaborator's that has the app installed) and it lists that repo's **projects** and **courses**. **Import** a project to copy it into your browser (bound to that repo, so saves go back there); **Edit** a course to open it as a draft in the Course Author. This is how you pull one project from a friend's repo while your own projects keep syncing to yours.
 
 ## Other actions
 
@@ -84,9 +80,9 @@ From **File → GitHub** you can also:
 - **History on GitHub** — open the repo's commit history for the project.
 - **Remove from GitHub** — delete the project's folder from the repo (your local copy stays).
 
-## Courses and settings
+## Courses
 
-If you author [courses](/docs/using/courses/), you can publish them to GitHub and edit them later via **Courses in repo** in the GitHub panel. By default courses go to your main repo, but you can set a **separate courses repo** (GitHub panel → **Courses repo**) — handy for keeping your projects repo private while publishing courses to a public one, with no switching. You can also save your **theme** to the repo so it follows you between devices.
+If you author [courses](/docs/using/courses/), the Course Author's **↑ Publish to GitHub** lets you pick which repo to publish to (remembered per course, like projects). Publish a course to a public repo while your projects stay in a private one — no switching. Edit a published course later via **Import from GitHub → Courses → Edit**.
 
 :::note
 madside is not a storage service. It holds none of your data — your projects live in your browser and in the GitHub repo you own and control.

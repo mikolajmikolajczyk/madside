@@ -4,14 +4,13 @@ import {
   githubConfig,
   listAccessibleRepos,
   appInstallUrl,
-  repoRootHasOtherContent,
   listRemoteProjects,
   pullProjectToIdb,
   listRemoteCourses,
   pullCourseDraft,
-  pushSettings,
+  projectRepo,
+  remoteSlug,
   openLesson,
-  loadThemeId,
   autoSyncEnabled,
   setAutoSyncEnabled,
   autoSyncDebounceMs,
@@ -21,13 +20,12 @@ import {
   type RemoteProject,
   type RemoteCourse,
 } from "@app";
-import { useToast } from "../ui/Toast";
 import "./GitHubDialog.css";
 
-/** GitHub account panel (#159, #161). Optional sign-in via the gh-auth broker,
- *  pick the dedicated repo, and import projects from it. Gated on build-time
- *  config; this dialog is only reachable when `available` is true. `onOpenProject`
- *  opens an imported project. */
+/** GitHub account panel (#159, #161). Sign in via the gh-auth broker, then import
+ *  projects and courses from any repo you can access. Projects bind to the repo
+ *  they're imported from / first saved to — there is no single "default repo".
+ *  Gated on build-time config; reachable only when `available` is true. */
 export function GitHubDialog({ onOpenProject }: { onOpenProject?: (projectId: string) => void }) {
   const gh = useGitHub();
 
@@ -54,11 +52,8 @@ export function GitHubDialog({ onOpenProject }: { onOpenProject?: (projectId: st
               Sign out
             </button>
           </div>
-          <RepoPicker />
-          {gh.repo && <RemoteProjects onOpenProject={onOpenProject} />}
-          <CoursesRepoPicker />
-          {(gh.coursesRepo ?? gh.repo) && <RemoteCourses onOpenProject={onOpenProject} />}
-          {gh.repo && <SettingsSync />}
+          <ImportFromGitHub onOpenProject={onOpenProject} />
+          <AutoSyncSettings />
         </>
       ) : (
         <>
@@ -87,62 +82,107 @@ export function GitHubDialog({ onOpenProject }: { onOpenProject?: (projectId: st
   );
 }
 
-/** Lists the repos the user installed the App on, lets them pick the dedicated
- *  one, with a Refresh + a link to the install page. */
-function RepoPicker() {
+/** Browse a repo you can access and import its projects (→ local, bound to that
+ *  repo) or open its courses as editable drafts. One repo picker drives both. */
+function ImportFromGitHub({ onOpenProject }: { onOpenProject?: (projectId: string) => void }) {
   const gh = useGitHub();
+  const workbench = useWorkbench();
   const [repos, setRepos] = useState<RepoRef[] | null>(null);
-  const [listError, setListError] = useState<string | null>(null);
+  const [repo, setRepo] = useState<string>("");
+  const [projects, setProjects] = useState<RemoteProject[] | null>(null);
+  const [courses, setCourses] = useState<RemoteCourse[] | null>(null);
+  const [localBySlug, setLocalBySlug] = useState<Record<string, string>>({});
+  const [error, setError] = useState<string | null>(null);
+  const [busy, setBusy] = useState<string | null>(null);
   const [refreshKey, setRefreshKey] = useState(0);
-  const [dirtyRoot, setDirtyRoot] = useState(false);
   const installUrl = appInstallUrl(githubConfig?.appSlug);
+  const mounted = useRef(true);
+  useEffect(() => () => { mounted.current = false; }, []);
 
+  // Repos you can import from (your installations + collaborator repos).
   useEffect(() => {
     if (!gh.auth) return;
+    const auth = gh.auth;
     let cancelled = false;
     void (async () => {
       try {
-        const list = await listAccessibleRepos(gh.auth!);
-        if (!cancelled) {
-          setRepos(list);
-          setListError(null);
-        }
+        const list = await listAccessibleRepos(auth);
+        if (cancelled) return;
+        setRepos(list);
+        setRepo((cur) => cur || list[0]?.fullName || "");
       } catch (e) {
-        if (!cancelled) setListError(e instanceof Error ? e.message : String(e));
+        if (!cancelled) setError(e instanceof Error ? e.message : String(e));
       }
     })();
-    return () => {
-      cancelled = true;
-    };
-  }, [gh.auth, refreshKey]);
+    return () => { cancelled = true; };
+  }, [gh.auth, gh.rev]);
 
-  // Soft check: does the selected repo's root already hold unrelated content?
+  // List the chosen repo's projects + courses.
   useEffect(() => {
-    if (!gh.auth || !gh.repo) return;
+    if (!gh.auth || !repo) return;
+    const auth = gh.auth;
+    const f = (url: string, init?: RequestInit) => auth.fetch(url, init);
     let cancelled = false;
     void (async () => {
       try {
-        const dirty = await repoRootHasOtherContent(gh.auth!, gh.repo!);
-        if (!cancelled) setDirtyRoot(dirty);
-      } catch {
-        /* never nag on errors */
+        const [ps, cs] = await Promise.all([listRemoteProjects(f, repo), listRemoteCourses(f, repo)]);
+        if (!cancelled) { setProjects(ps); setCourses(cs); setError(null); }
+      } catch (e) {
+        if (!cancelled) setError(e instanceof Error ? e.message : String(e));
       }
     })();
-    return () => {
-      cancelled = true;
-    };
-  }, [gh.auth, gh.repo]);
+    return () => { cancelled = true; };
+  }, [gh.auth, repo, refreshKey, gh.rev]);
+
+  // Which of this repo's projects are already imported locally (slug → local id),
+  // so we can label them instead of offering a confusing duplicate import.
+  useEffect(() => {
+    if (!repo) return;
+    let cancelled = false;
+    void (async () => {
+      const list = await workbench.storage.projects.list();
+      if (cancelled) return;
+      const m: Record<string, string> = {};
+      for (const p of list) if (projectRepo(p.id) === repo) m[remoteSlug(p.id)] = p.id;
+      setLocalBySlug(m);
+    })();
+    return () => { cancelled = true; };
+  }, [repo, refreshKey, gh.rev, workbench]);
+
+  const importProject = async (slug: string) => {
+    if (!gh.auth || !repo) return;
+    setBusy(`p:${slug}`);
+    setError(null);
+    try {
+      const { projectId } = await pullProjectToIdb(workbench.storage, (u, i) => gh.auth!.fetch(u, i), repo, slug);
+      gh.refresh();
+      if (mounted.current) setBusy(null);
+      onOpenProject?.(projectId); // closes the dialog
+    } catch (e) {
+      if (mounted.current) { setError(e instanceof Error ? e.message : String(e)); setBusy(null); }
+    }
+  };
+
+  const editCourse = async (slug: string) => {
+    if (!gh.auth || !repo) return;
+    setBusy(`c:${slug}`);
+    setError(null);
+    try {
+      const { courseId, lessonId } = await pullCourseDraft(workbench.storage, (u, i) => gh.auth!.fetch(u, i), repo, slug);
+      const projectId = await openLesson(workbench.storage, courseId, lessonId);
+      if (mounted.current) setBusy(null);
+      onOpenProject?.(projectId);
+    } catch (e) {
+      if (mounted.current) { setError(e instanceof Error ? e.message : String(e)); setBusy(null); }
+    }
+  };
 
   return (
     <div className="gh__repos">
       <div className="gh__repos-head">
-        <span className="gh__repos-title">Project repo</span>
+        <span className="gh__repos-title">Import from GitHub</span>
         <span className="gh__repos-actions">
-          <button
-            type="button"
-            className="gh__link gh__linkbtn"
-            onClick={() => setRefreshKey((k) => k + 1)}
-          >
+          <button type="button" className="gh__link gh__linkbtn" onClick={() => setRefreshKey((k) => k + 1)}>
             Refresh
           </button>
           {installUrl && (
@@ -153,333 +193,94 @@ function RepoPicker() {
         </span>
       </div>
 
-      {repos === null && !listError && <p className="gh__muted">Loading your repos…</p>}
-
-      {repos && repos.length > 0 && (
-        <ul className="gh__repo-list">
-          {repos.map((r) => (
-            <li key={r.fullName}>
-              <label className="gh__repo">
-                <input
-                  type="radio"
-                  name="gh-repo"
-                  checked={gh.repo === r.fullName}
-                  onChange={() => gh.setRepo(r.fullName)}
-                />
-                <span className="gh__repo-name">{r.fullName}</span>
-                {r.private && <span className="gh__repo-tag">private</span>}
-              </label>
-            </li>
-          ))}
-        </ul>
-      )}
-      {repos !== null && repos.length === 0 && !listError && (
+      {repos !== null && repos.length === 0 ? (
         <p className="gh__muted">
-          No repos granted yet. Install the App
-          {installUrl ? " via “Add a repo…”" : ""}, then Refresh.
+          No repos granted yet. Install the App{installUrl ? " via “Add a repo…”" : ""}, then Refresh.
         </p>
-      )}
-      {listError && <p className="gh__error">Couldn’t list repos: {listError}. Try Refresh.</p>}
-
-      {gh.repo && (
-        <p className="gh__muted">
-          Selected: <strong>{gh.repo}</strong>. Use File ▸ GitHub to push/pull.
-        </p>
-      )}
-      {gh.repo && dirtyRoot && (
-        <p className="gh__warn">
-          This repo already has other files at its root. A dedicated repo is recommended —
-          madside will add a <code>projects/</code> folder alongside whatever is there.
-        </p>
-      )}
-    </div>
-  );
-}
-
-/** Browse the projects in a repo and import one into IDB. The repo defaults to the
- *  device's selected one, but you can switch to any repo you can access (e.g. a
- *  collaborator's) — the imported project is then bound to that repo, so it syncs
- *  there while the rest of your projects keep using your default. */
-function RemoteProjects({ onOpenProject }: { onOpenProject?: (projectId: string) => void }) {
-  const gh = useGitHub();
-  const workbench = useWorkbench();
-  const [browseRepo, setBrowseRepo] = useState<string | null>(gh.repo);
-  const [repos, setRepos] = useState<RepoRef[] | null>(null);
-  const [projects, setProjects] = useState<RemoteProject[] | null>(null);
-  const [error, setError] = useState<string | null>(null);
-  const [busy, setBusy] = useState<string | null>(null);
-  const [refreshKey, setRefreshKey] = useState(0);
-  const mounted = useRef(true);
-  useEffect(() => () => { mounted.current = false; }, []);
-
-  // The repos you can import from (your installations + collaborator repos).
-  useEffect(() => {
-    if (!gh.auth) return;
-    const auth = gh.auth;
-    let cancelled = false;
-    void (async () => {
-      try {
-        const list = await listAccessibleRepos(auth);
-        if (!cancelled) setRepos(list);
-      } catch {
-        /* dropdown just won't populate; the default repo still works */
-      }
-    })();
-    return () => { cancelled = true; };
-  }, [gh.auth, gh.rev]);
-
-  useEffect(() => {
-    if (!gh.auth || !browseRepo) return;
-    const auth = gh.auth;
-    const repo = browseRepo;
-    let cancelled = false;
-    void (async () => {
-      try {
-        const list = await listRemoteProjects((url, init) => auth.fetch(url, init), repo);
-        if (!cancelled) {
-          setProjects(list);
-          setError(null);
-        }
-      } catch (e) {
-        if (!cancelled) setError(e instanceof Error ? e.message : String(e));
-      }
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, [gh.auth, browseRepo, refreshKey, gh.rev]);
-
-  const importProject = async (slug: string) => {
-    if (!gh.auth || !browseRepo) return;
-    setBusy(slug);
-    setError(null);
-    try {
-      const { projectId } = await pullProjectToIdb(
-        workbench.storage,
-        (url, init) => gh.auth!.fetch(url, init),
-        browseRepo, // pullProjectToIdb binds the project to this repo
-        slug,
-      );
-      gh.refresh();
-      if (mounted.current) setBusy(null);
-      onOpenProject?.(projectId); // closes the dialog
-    } catch (e) {
-      if (mounted.current) {
-        setError(e instanceof Error ? e.message : String(e));
-        setBusy(null);
-      }
-    }
-  };
-
-  return (
-    <div className="gh__repos">
-      <div className="gh__repos-head">
-        <span className="gh__repos-title">Import a project</span>
-        <button type="button" className="gh__link gh__linkbtn" onClick={() => setRefreshKey((k) => k + 1)}>
-          Refresh
-        </button>
-      </div>
-      <label className="gh__muted" style={{ display: "flex", alignItems: "center", gap: 8 }}>
-        From repo
-        <select
-          value={browseRepo ?? ""}
-          onChange={(e) => setBrowseRepo(e.target.value || null)}
-        >
-          {!browseRepo && <option value="">Choose a repo…</option>}
-          {(repos ?? (browseRepo ? [{ fullName: browseRepo, private: false }] : [])).map((r) => (
-            <option key={r.fullName} value={r.fullName}>
-              {r.fullName}
-              {r.fullName === gh.repo ? " (default)" : ""}
-            </option>
-          ))}
-        </select>
-      </label>
-      {error && <p className="gh__error">{error}</p>}
-      {projects === null && !error ? (
-        <p className="gh__muted">Loading projects…</p>
-      ) : projects && projects.length === 0 ? (
-        <p className="gh__muted">No projects in this repo yet — push one with “Save to GitHub”.</p>
       ) : (
-        <ul className="gh__repo-list">
-          {projects?.map((p) => (
-            <li key={p.slug}>
-              <div className="gh__repo">
-                <span className="gh__repo-name">{p.name}</span>
-                <button
-                  type="button"
-                  className="gh-acct__btn"
-                  disabled={busy !== null}
-                  onClick={() => void importProject(p.slug)}
-                >
-                  {busy === p.slug ? "Importing…" : "Import"}
-                </button>
-              </div>
-            </li>
-          ))}
-        </ul>
+        <label className="gh__muted gh__field">
+          Repo
+          <select value={repo} onChange={(e) => setRepo(e.target.value)}>
+            {repos === null && <option value="">Loading…</option>}
+            {(repos ?? []).map((r) => (
+              <option key={r.fullName} value={r.fullName}>
+                {r.fullName}{r.private ? " (private)" : ""}
+              </option>
+            ))}
+          </select>
+        </label>
       )}
-    </div>
-  );
-}
 
-/** Pick a separate repo for courses (e.g. a public one) so authoring/publishing
- *  courses doesn't touch — or require switching — the main projects repo. Empty
- *  = use the main repo. */
-function CoursesRepoPicker() {
-  const gh = useGitHub();
-  const [repos, setRepos] = useState<RepoRef[] | null>(null);
-  useEffect(() => {
-    if (!gh.auth) return;
-    const auth = gh.auth;
-    let cancelled = false;
-    void (async () => {
-      try {
-        const list = await listAccessibleRepos(auth);
-        if (!cancelled) setRepos(list);
-      } catch {
-        /* dropdown just won't populate */
-      }
-    })();
-    return () => { cancelled = true; };
-  }, [gh.auth, gh.rev]);
-
-  const options = repos ?? (gh.coursesRepo ? [{ fullName: gh.coursesRepo, private: false }] : []);
-  return (
-    <div className="gh__repos">
-      <div className="gh__repos-head">
-        <span className="gh__repos-title">Courses repo</span>
-      </div>
-      <label className="gh__muted" style={{ display: "flex", alignItems: "center", gap: 8 }}>
-        Publish courses to
-        <select
-          value={gh.coursesRepo ?? ""}
-          onChange={(e) => { gh.setCoursesRepo(e.target.value || null); gh.refresh(); }}
-        >
-          <option value="">Same as my main repo{gh.repo ? ` (${gh.repo})` : ""}</option>
-          {options.map((r) => (
-            <option key={r.fullName} value={r.fullName}>
-              {r.fullName}
-              {r.private ? " (private)" : ""}
-            </option>
-          ))}
-        </select>
-      </label>
-      <p className="gh__muted">Keep your projects repo private and publish courses to a public one — no switching.</p>
-    </div>
-  );
-}
-
-/** Browse courses in the repo and open one as an editable CourseAuthor draft. */
-function RemoteCourses({ onOpenProject }: { onOpenProject?: (projectId: string) => void }) {
-  const gh = useGitHub();
-  const workbench = useWorkbench();
-  const [courses, setCourses] = useState<RemoteCourse[] | null>(null);
-  const [error, setError] = useState<string | null>(null);
-  const [busy, setBusy] = useState<string | null>(null);
-  const [refreshKey, setRefreshKey] = useState(0);
-  const mounted = useRef(true);
-  useEffect(() => () => { mounted.current = false; }, []);
-
-  const coursesRepo = gh.coursesRepo ?? gh.repo;
-
-  useEffect(() => {
-    if (!gh.auth || !coursesRepo) return;
-    const auth = gh.auth;
-    const repo = coursesRepo;
-    let cancelled = false;
-    void (async () => {
-      try {
-        const list = await listRemoteCourses((url, init) => auth.fetch(url, init), repo);
-        if (!cancelled) {
-          setCourses(list);
-          setError(null);
-        }
-      } catch (e) {
-        if (!cancelled) setError(e instanceof Error ? e.message : String(e));
-      }
-    })();
-    return () => { cancelled = true; };
-  }, [gh.auth, coursesRepo, refreshKey, gh.rev]);
-
-  const edit = async (slug: string) => {
-    if (!gh.auth || !coursesRepo) return;
-    setBusy(slug);
-    setError(null);
-    try {
-      const { courseId, lessonId } = await pullCourseDraft(
-        workbench.storage,
-        (url, init) => gh.auth!.fetch(url, init),
-        coursesRepo,
-        slug,
-      );
-      const projectId = await openLesson(workbench.storage, courseId, lessonId);
-      if (mounted.current) setBusy(null);
-      onOpenProject?.(projectId);
-    } catch (e) {
-      if (mounted.current) {
-        setError(e instanceof Error ? e.message : String(e));
-        setBusy(null);
-      }
-    }
-  };
-
-  return (
-    <div className="gh__repos">
-      <div className="gh__repos-head">
-        <span className="gh__repos-title">Courses in {coursesRepo}</span>
-        <button type="button" className="gh__link gh__linkbtn" onClick={() => setRefreshKey((k) => k + 1)}>
-          Refresh
-        </button>
-      </div>
       {error && <p className="gh__error">{error}</p>}
-      {courses === null && !error ? (
-        <p className="gh__muted">Loading courses…</p>
-      ) : courses && courses.length === 0 ? (
-        <p className="gh__muted">No courses in this repo. Publish one from the Course Author.</p>
-      ) : (
-        <ul className="gh__repo-list">
-          {courses?.map((c) => (
-            <li key={c.slug}>
-              <div className="gh__repo">
-                <span className="gh__repo-name">{c.title}</span>
-                <button
-                  type="button"
-                  className="gh-acct__btn"
-                  disabled={busy !== null}
-                  onClick={() => void edit(c.slug)}
-                >
-                  {busy === c.slug ? "Opening…" : "Edit"}
-                </button>
-              </div>
-            </li>
-          ))}
-        </ul>
+
+      {repo && (
+        <>
+          <div className="gh__subhead">Projects</div>
+          {projects === null && !error ? (
+            <p className="gh__muted">Loading projects…</p>
+          ) : projects && projects.length === 0 ? (
+            <p className="gh__muted">No projects in this repo yet.</p>
+          ) : (
+            <ul className="gh__repo-list">
+              {projects?.map((p) => {
+                const localId = localBySlug[p.slug];
+                return (
+                  <li key={p.slug}>
+                    <div className="gh__repo">
+                      <span className="gh__repo-name">
+                        {p.name}
+                        {localId && <span className="gh__repo-tag">imported</span>}
+                      </span>
+                      {localId ? (
+                        <button type="button" className="gh-acct__btn" onClick={() => onOpenProject?.(localId)}>
+                          Open
+                        </button>
+                      ) : (
+                        <button type="button" className="gh-acct__btn" disabled={busy !== null} onClick={() => void importProject(p.slug)}>
+                          {busy === `p:${p.slug}` ? "Importing…" : "Import"}
+                        </button>
+                      )}
+                    </div>
+                  </li>
+                );
+              })}
+            </ul>
+          )}
+
+          <div className="gh__subhead">Courses</div>
+          {courses === null && !error ? (
+            <p className="gh__muted">Loading courses…</p>
+          ) : courses && courses.length === 0 ? (
+            <p className="gh__muted">No courses in this repo. Publish one from the Course Author.</p>
+          ) : (
+            <ul className="gh__repo-list">
+              {courses?.map((c) => (
+                <li key={c.slug}>
+                  <div className="gh__repo">
+                    <span className="gh__repo-name">{c.title}</span>
+                    <button type="button" className="gh-acct__btn" disabled={busy !== null} onClick={() => void editCourse(c.slug)}>
+                      {busy === `c:${c.slug}` ? "Opening…" : "Edit"}
+                    </button>
+                  </div>
+                </li>
+              ))}
+            </ul>
+          )}
+        </>
       )}
     </div>
   );
 }
 
-/** Save portable settings (theme) to the repo's settings.json. */
-function SettingsSync() {
-  const gh = useGitHub();
-  const toast = useToast();
-  const [busy, setBusy] = useState(false);
+/** Auto-sync controls (per device): toggle + idle-push delay. */
+function AutoSyncSettings() {
   const [autoSync, setAutoSync] = useState(autoSyncEnabled());
   const [debounceSec, setDebounceSec] = useState(() => Math.round(autoSyncDebounceMs() / 1000));
-  const save = async () => {
-    if (!gh.auth || !gh.repo) return;
-    setBusy(true);
-    try {
-      await pushSettings((url, init) => gh.auth!.fetch(url, init), gh.repo, { theme: loadThemeId("dark") });
-      toast.push("info", "Settings saved to GitHub");
-    } catch (e) {
-      toast.error(e);
-    } finally {
-      setBusy(false);
-    }
-  };
   return (
     <div className="gh__repos">
+      <div className="gh__repos-head">
+        <span className="gh__repos-title">Auto-sync</span>
+      </div>
       <label className="gh-push__amend">
         <input
           type="checkbox"
@@ -489,7 +290,7 @@ function SettingsSync() {
         Auto-sync to GitHub (push on idle, pull on open)
       </label>
       <p className="gh__muted">Off by default. Turn it on per device — handy on a tablet where remembering to save is the hard part.</p>
-      <label className="gh__muted" style={{ display: "flex", alignItems: "center", gap: 8 }}>
+      <label className="gh__muted gh__field">
         Push after
         <input
           type="number"
@@ -506,9 +307,6 @@ function SettingsSync() {
         />
         seconds idle
       </label>
-      <button type="button" className="ui-dialog__btn" disabled={busy} onClick={() => void save()}>
-        {busy ? "Saving…" : "Save settings (theme) to GitHub"}
-      </button>
     </div>
   );
 }

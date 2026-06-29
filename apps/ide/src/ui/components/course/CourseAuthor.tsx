@@ -14,10 +14,13 @@ import {
   swapLessonsInFiles,
   useGitHub,
   publishCourseToGitHub,
+  listAccessibleRepos,
+  courseRepo,
+  setCourseRepo,
   validateCourseFiles,
   zipCourse,
 } from "@app";
-import type { CourseCheck, CourseMeta, LessonInfo } from "@app";
+import type { CourseCheck, CourseMeta, LessonInfo, RepoRef } from "@app";
 import { useToast } from "../ui/Toast";
 import "./CourseAuthor.css";
 
@@ -46,8 +49,9 @@ function downloadCourse(files: Files, title: string): void {
 
 const EMPTY: CourseMeta = { title: "", description: "", machine: AUTHORABLE_MACHINES[0]! };
 
-export function CourseAuthor({ files, activeLessonId, onSaveFiles, onSelectLesson, onAddLesson }: {
+export function CourseAuthor({ files, courseId, activeLessonId, onSaveFiles, onSelectLesson, onAddLesson }: {
   files: Files;
+  courseId: string;
   activeLessonId: string | null;
   onSaveFiles: (files: Files) => void;
   onSelectLesson: (lessonId: string) => void;
@@ -58,12 +62,29 @@ export function CourseAuthor({ files, activeLessonId, onSaveFiles, onSelectLesso
   const gh = useGitHub();
   const toast = useToast();
 
-  // Publish the course under courses/<slug>/ — to the dedicated courses repo when
-  // set, else the main repo (#165). Lets a public courses repo coexist with a
-  // private projects repo without switching the default.
-  const coursesRepo = gh.coursesRepo ?? gh.repo;
+  // Publish target is per-course: chosen here on first publish, then remembered
+  // (a course pulled from a repo is already bound to it). No global default repo.
+  const [repos, setRepos] = useState<RepoRef[] | null>(null);
+  const [repo, setRepo] = useState<string>(courseRepo(courseId) ?? "");
+  useEffect(() => {
+    if (!gh.auth) return;
+    const auth = gh.auth;
+    let cancelled = false;
+    void (async () => {
+      try {
+        const list = await listAccessibleRepos(auth);
+        if (cancelled) return;
+        setRepos(list);
+        setRepo((cur) => cur || courseRepo(courseId) || list[0]?.fullName || "");
+      } catch {
+        /* picker just won't populate */
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [gh.auth, courseId]);
+
   const publish = async () => {
-    if (!gh.auth || !coursesRepo) return;
+    if (!gh.auth || !repo) return;
     const check = validateCourseFiles(courseExportFiles(files));
     if (!check.ok) {
       toast.error(new Error(`Course not ready: ${check.error}`));
@@ -74,8 +95,9 @@ export function CourseAuthor({ files, activeLessonId, onSaveFiles, onSelectLesso
     const syncFiles = courseExportFiles(files).map((f) => ({ path: f.path, content: enc.encode(f.content) }));
     const auth = gh.auth;
     try {
-      await publishCourseToGitHub((url, init) => auth.fetch(url, init), coursesRepo, slug, syncFiles, `Publish course "${meta.title}"`);
-      toast.push("info", `Published “${meta.title}” to ${coursesRepo}/courses/${slug}`);
+      await publishCourseToGitHub((url, init) => auth.fetch(url, init), repo, slug, syncFiles, `Publish course "${meta.title}"`);
+      setCourseRepo(courseId, repo); // remember where this course publishes
+      toast.push("info", `Published “${meta.title}” to ${repo}/courses/${slug}`);
       gh.refresh();
     } catch (e) {
       toast.error(e);
@@ -94,15 +116,32 @@ export function CourseAuthor({ files, activeLessonId, onSaveFiles, onSelectLesso
         >
           ↓ Export .zip
         </button>
-        {gh.available && gh.signedIn && coursesRepo && (
-          <button
-            type="button"
-            className="course-author__btn"
-            onClick={() => void publish()}
-            title={`Publish this course to ${coursesRepo} under courses/<slug>/`}
-          >
-            ↑ Publish to GitHub
-          </button>
+        {gh.available && gh.signedIn && (
+          <>
+            <select
+              className="course-author__select"
+              value={repo}
+              onChange={(e) => setRepo(e.target.value)}
+              title="Repo to publish this course to"
+            >
+              {repos === null && <option value="">Loading repos…</option>}
+              {repos !== null && repo === "" && <option value="">Choose a repo…</option>}
+              {(repos ?? []).map((r) => (
+                <option key={r.fullName} value={r.fullName}>
+                  {r.fullName}{r.private ? " (private)" : ""}
+                </option>
+              ))}
+            </select>
+            <button
+              type="button"
+              className="course-author__btn"
+              disabled={!repo}
+              onClick={() => void publish()}
+              title={repo ? `Publish this course to ${repo} under courses/<slug>/` : "Choose a repo first"}
+            >
+              ↑ Publish to GitHub
+            </button>
+          </>
         )}
       </div>
       <MetaForm meta={meta} onSave={(m) => onSaveFiles(setCourseMetaInFiles(files, m))} />

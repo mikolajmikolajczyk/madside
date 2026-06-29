@@ -72,21 +72,6 @@
   color: var(--accent-coral);
   cursor: help;
 }
-.gh-acct__repo {
-  font: inherit;
-  font-size: 11px;
-  font-family: var(--font-mono);
-  padding: 3px 8px;
-  border-radius: 6px;
-  border: 1px solid var(--border-default);
-  background: var(--bg-tertiary);
-  color: var(--text-secondary);
-  cursor: pointer;
-}
-.gh-acct__repo:hover {
-  border-color: var(--text-tertiary);
-  color: var(--text-primary);
-}
 
 /* Repo picker (dialog). */
 .gh__repos {
@@ -162,21 +147,6 @@
   letter-spacing: 0.4px;
   color: var(--text-tertiary);
 }
-.gh__warn {
-  margin: 0;
-  padding: 8px 10px;
-  background: var(--bg-tertiary);
-  border: 1px solid var(--border-default);
-  border-left: 3px solid var(--accent-coral);
-  border-radius: 6px;
-  color: var(--text-secondary);
-  font-size: 12px;
-}
-.gh__warn code {
-  font-family: var(--font-mono);
-  color: var(--text-primary);
-}
-
 /* Save-to-GitHub dialog (#160). */
 .gh-push {
   display: flex;
@@ -233,4 +203,28 @@
 .gh__help:hover {
   color: var(--text-primary);
   border-color: var(--accent-mint);
+}
+
+/* Form rows (repo pickers, debounce) — keep selects inside the panel: the field
+ * shrinks and the native control truncates long option text instead of overflowing. */
+.gh__field {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.gh__field select {
+  flex: 1 1 12ch;
+  min-width: 0;
+  max-width: 100%;
+  box-sizing: border-box;
+}
+
+/* Sub-heading inside a section (Projects / Courses under Import). */
+.gh__subhead {
+  margin-top: 8px;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text-tertiary);
 }

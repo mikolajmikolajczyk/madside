@@ -12,14 +12,11 @@ import {
   GitHubApiError,
   deleteSubtree,
   fetchBlob,
-  getContentsFile,
-  getDefaultBranch,
   getRepoTree,
   getSubtreeSha,
   subtreeSha,
   pullSubtree,
   pushFiles,
-  upsertContentsFile,
   type GhFetch,
   type PushResult,
   type SyncFile,
@@ -34,8 +31,8 @@ const GENERATED_DIR = "generated/";
 const syncedKey = (projectId: string) => `madside.github.synced.${projectId}`;
 const slugKey = (projectId: string) => `madside.github.slug.${projectId}`;
 const repoKey = (projectId: string) => `madside.github.repo.${projectId}`;
+const courseRepoKey = (courseId: string) => `madside.github.course-repo.${courseId}`;
 const branchKey = (projectId: string) => `madside.github.branch.${projectId}`;
-const defBranchKey = (repo: string) => `madside.github.defbranch.${repo}`;
 const subtreeKey = (projectId: string) => `madside.github.subtree.${projectId}`;
 const AUTOSYNC_KEY = "madside.github.autosync";
 const DEBOUNCE_KEY = "madside.github.autosync.debounce";
@@ -97,6 +94,15 @@ export function effectiveRepo(projectId: string, defaultRepo: string | null): st
   return projectRepo(projectId) ?? defaultRepo;
 }
 
+/** The repo a draft course publishes to (set on first publish / on pulling a
+ *  draft from a repo), or null until chosen. Mirrors per-project binding. */
+export function courseRepo(courseId: string): string | null {
+  return readLS(courseRepoKey(courseId));
+}
+export function setCourseRepo(courseId: string, repo: string | null): void {
+  setLS(courseRepoKey(courseId), repo);
+}
+
 export function syncedSubtreeSha(projectId: string): string | null {
   return readLS(subtreeKey(projectId));
 }
@@ -120,22 +126,9 @@ function readLS(key: string): string | null {
   }
 }
 
-/** Fetch + cache a repo's real default branch (e.g. master) so GitHub links don't
- *  guess wrong. Best-effort; call when a repo is selected. */
-export async function cacheRepoDefaultBranch(fetch: GhFetch, repo: string): Promise<string> {
-  const branch = await getDefaultBranch(fetch, parseRepo(repo));
-  try {
-    localStorage.setItem(defBranchKey(repo), branch);
-  } catch {
-    /* best-effort */
-  }
-  return branch;
-}
-
-/** Branch for a project's GitHub links: the one it last synced on, else the repo's
- *  cached default, else 'main' as a last resort. */
-function linkBranch(repo: string, projectId: string): string {
-  return readLS(branchKey(projectId)) ?? readLS(defBranchKey(repo)) ?? "main";
+/** Branch for a project's GitHub links: the one it last synced on, else 'main'. */
+function linkBranch(_repo: string, projectId: string): string {
+  return readLS(branchKey(projectId)) ?? "main";
 }
 
 /** Remote folder slug for a project — an explicit mapping (set on pull) or the
@@ -397,29 +390,6 @@ export async function pullProjectToIdb(
   });
 }
 
-// --- Global settings (settings.json at the repo root) ---------------------
-
-/** Push the user's portable settings (theme, editor prefs) to settings.json. */
-export async function pushSettings(fetch: GhFetch, repo: string, settings: Record<string, unknown>): Promise<void> {
-  const target = parseRepo(repo);
-  const bytes = new TextEncoder().encode(JSON.stringify(settings, null, 2) + "\n");
-  await withApiErrors(() => upsertContentsFile(fetch, target, "settings.json", bytes, "Update madside settings"));
-}
-
-/** Read settings.json, or null if absent / unparseable. */
-export async function pullSettings(fetch: GhFetch, repo: string): Promise<Record<string, unknown> | null> {
-  const target = parseRepo(repo);
-  return withApiErrors(async () => {
-    const f = await getContentsFile(fetch, target, "settings.json");
-    if (!f) return null;
-    try {
-      return JSON.parse(dec.decode(f.bytes)) as Record<string, unknown>;
-    } catch {
-      return null;
-    }
-  });
-}
-
 // --- Courses in the repo (browse + pull-as-draft) -------------------------
 
 export interface RemoteCourse {
@@ -466,9 +436,11 @@ export async function pullCourseDraft(
     if (tree.truncated) throw new Error("repo tree is too large (truncated) — cannot pull safely");
     const files = await pullSubtree(fetch, target, tree, `courses/${slug}`);
     if (files.length === 0) throw new Error(`no course "${slug}" in ${repo}`);
-    return importDraftCourse(
+    const result = await importDraftCourse(
       storage,
       files.map((f) => ({ path: f.path, content: dec.decode(f.content) })),
     );
+    setCourseRepo(result.courseId, repo); // republish goes back to the same repo
+    return result;
   });
 }

@@ -229,3 +229,10 @@
   font-size: 11px;
   font-style: italic;
 }
+
+/* Repo picker next to the Publish button. */
+.course-author__select {
+  max-width: 16ch;
+  min-width: 0;
+  font: inherit;
+}

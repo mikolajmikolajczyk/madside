@@ -4,6 +4,7 @@ import {
   autoSyncDebounceMs,
   autoSyncEnabled,
   effectiveRepo,
+  projectRepo,
   pullProjectToIdb,
   pushProjectToGitHub,
   remoteSlug,
@@ -53,7 +54,7 @@ export function useGitHubAutoSync(deps: Deps) {
     d.gh.signedIn &&
     !!d.gh.auth &&
     !!d.projectId &&
-    !!effectiveRepo(d.projectId, d.gh.repo) &&
+    !!effectiveRepo(d.projectId, null) &&
     autoSyncEnabled();
 
   const attemptPush = useCallback(async () => {
@@ -61,7 +62,7 @@ export function useGitHubAutoSync(deps: Deps) {
     if (!ready(d)) { d.gh.setSyncStatus("off"); return; }
     if (!dirty.current) return;
     const pid = d.projectId;
-    const repo = effectiveRepo(pid, d.gh.repo)!;
+    const repo = effectiveRepo(pid, null)!;
     const auth = d.gh.auth!;
     const fetch = (url: string, init?: RequestInit) => auth.fetch(url, init);
     try {
@@ -99,7 +100,7 @@ export function useGitHubAutoSync(deps: Deps) {
     const d = ref.current;
     if (!ready(d)) { d.gh.setSyncStatus("off"); return; }
     const pid = d.projectId;
-    const repo = effectiveRepo(pid, d.gh.repo)!;
+    const repo = effectiveRepo(pid, null)!;
     const auth = d.gh.auth!;
     const fetch = (url: string, init?: RequestInit) => auth.fetch(url, init);
     try {
@@ -136,10 +137,10 @@ export function useGitHubAutoSync(deps: Deps) {
   }, [schedulePush]);
 
   // Pull on project open; reset per-project edit state on switch. Also re-runs
-  // when GitHub becomes ready (signed in + repo) after mount.
+  // when the project gets bound to a repo (e.g. right after its first push).
   const projectId = deps.projectId;
   const signedIn = deps.gh.signedIn;
-  const repo = deps.gh.repo;
+  const repo = projectId ? projectRepo(projectId) : null;
   useEffect(() => {
     dirty.current = false;
     if (timer.current != null) {
