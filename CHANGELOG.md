@@ -1,3 +1,13 @@
+## [0.23.0] - 2026-06-29
+
+### 🚀 Features
+
+- *(github)* Help "?" link to the GitHub-sync docs next to sign-in
+
+### 📚 Documentation
+
+- Close feature-coverage gaps vs the actual build
+- *(third-party)* Complete the bundled-library listing
 ## [0.22.0] - 2026-06-28
 
 ### 🚀 Features
