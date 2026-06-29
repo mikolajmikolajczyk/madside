@@ -1,3 +1,8 @@
+## [0.26.0] - 2026-06-29
+
+### 🚀 Features
+
+- *(github)* Per-project repos, unified import hub, drop global default repo
 ## [0.25.0] - 2026-06-29
 
 ### 🚀 Features
