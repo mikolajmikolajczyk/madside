@@ -19,7 +19,7 @@ never disagree.
 |--------|----------|
 | Command palette | `Ctrl+K` (or `Ctrl+Shift+P`) |
 | Format + save + assemble + snapshot | `Ctrl+S` |
-| Save to GitHub (when a repo is connected) | `Ctrl+Shift+S` |
+| Save to GitHub (when signed in) | `Ctrl+Shift+S` |
 | Format Document (no build) | `Shift+Alt+F` |
 | Assemble (no save) | `Ctrl+B` |
 | Run | `Ctrl+Enter` |

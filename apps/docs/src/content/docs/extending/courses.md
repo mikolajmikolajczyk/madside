@@ -34,6 +34,9 @@ each lesson exactly as a learner will.
    markdown, lesson list, and a working **Check** button.
 5. **↓ Export .zip** validates the course and downloads it; unzip into a public
    GitHub repo and [publish](#publish-on-github). (Round-trips with Import.)
+6. **↑ Publish to GitHub** (when signed in) publishes straight to a repo you pick
+   — under `courses/<slug>/` — and remembers it per course, so updates republish
+   there. Re-edit later via the GitHub panel's **Import from GitHub → Courses → Edit**.
 
 Under the hood a draft course is held in your browser; the editor reads and writes
 the same directory layout documented below, so app-authored and hand-written
