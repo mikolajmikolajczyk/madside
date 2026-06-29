@@ -1,3 +1,8 @@
+## [0.24.0] - 2026-06-29
+
+### 🚀 Features
+
+- *(github)* Per-project repo binding — import from another repo
 ## [0.23.0] - 2026-06-29
 
 ### 🚀 Features
