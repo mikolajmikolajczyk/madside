@@ -62,7 +62,7 @@ import { PluginInventory } from "./components/PluginInventory";
 import { GitHubDialog } from "./components/github/GitHubDialog";
 import { GitHubPushDialog } from "./components/github/GitHubPushDialog";
 import { useGitHubAutoSync } from "./hooks/useGitHubAutoSync";
-import { githubAvailable, useGitHub, pushProjectToGitHub, pullProjectToIdb, remoteSlug, removeProjectFromGitHub, projectGitHubUrls, pullSettings } from "@app";
+import { githubAvailable, useGitHub, pushProjectToGitHub, pullProjectToIdb, remoteSlug, removeProjectFromGitHub, projectGitHubUrls, pullSettings, effectiveRepo, projectRepo } from "@app";
 import { addLessonInFiles, getCourse, getDraftCourse, openLesson, readCourseMeta, refreshCourseFromGitHub, resetLessonToStarter, runChecks, saveDraftCourse, scanEquates, setLessonStarterInFiles, starterFilesForMachine } from "@app";
 import { useCourses } from "./hooks/useCourses";
 import type { CheckReport, CheckRunDeps } from "@app";
@@ -896,8 +896,9 @@ export default function App() {
   const handlePushGitHub = useCallback(() => setPushMsgOpen(true), []);
 
   const doPushGitHub = useCallback(async (message: string, amend: boolean) => {
-    if (!gh.auth || !gh.repo || !project.loaded) return;
-    const repo = gh.repo;
+    if (!gh.auth || !project.loaded) return;
+    const repo = effectiveRepo(project.projectId, gh.repo);
+    if (!repo) return;
     const auth = gh.auth;
     try {
       const res = await pushProjectToGitHub(
@@ -917,10 +918,11 @@ export default function App() {
 
   // Pull the active project's source from the repo, then reload it from storage.
   const handlePullGitHub = useCallback(async () => {
-    if (!gh.auth || !gh.repo || !project.loaded) return;
-    const repo = gh.repo;
-    const auth = gh.auth;
+    if (!gh.auth || !project.loaded) return;
     const pid = project.projectId;
+    const repo = effectiveRepo(pid, gh.repo);
+    if (!repo) return;
+    const auth = gh.auth;
     try {
       await pullProjectToIdb(workbench.storage, (url, init) => auth.fetch(url, init), repo, remoteSlug(pid));
       await project.switchProject(pid);
@@ -934,19 +936,24 @@ export default function App() {
 
   // Open the project's folder / commit history on github.com.
   const handleViewGitHub = useCallback(() => {
-    if (!gh.repo || !project.loaded) return;
-    window.open(projectGitHubUrls(gh.repo, project.projectId).folder, "_blank", "noopener,noreferrer");
+    if (!project.loaded) return;
+    const repo = effectiveRepo(project.projectId, gh.repo);
+    if (!repo) return;
+    window.open(projectGitHubUrls(repo, project.projectId).folder, "_blank", "noopener,noreferrer");
   }, [gh, project]);
 
   const handleHistoryGitHub = useCallback(() => {
-    if (!gh.repo || !project.loaded) return;
-    window.open(projectGitHubUrls(gh.repo, project.projectId).history, "_blank", "noopener,noreferrer");
+    if (!project.loaded) return;
+    const repo = effectiveRepo(project.projectId, gh.repo);
+    if (!repo) return;
+    window.open(projectGitHubUrls(repo, project.projectId).history, "_blank", "noopener,noreferrer");
   }, [gh, project]);
 
   // Remove the project's folder from the repo (explicit, destructive — local stays).
   const handleRemoveGitHub = useCallback(async () => {
-    if (!gh.auth || !gh.repo || !project.loaded) return;
-    const repo = gh.repo;
+    if (!gh.auth || !project.loaded) return;
+    const repo = effectiveRepo(project.projectId, gh.repo);
+    if (!repo) return;
     const auth = gh.auth;
     if (!window.confirm(`Remove this project's folder from ${repo}? The local copy stays.`)) return;
     try {
@@ -1031,7 +1038,7 @@ export default function App() {
         openPalette: () => setPaletteOpen(true),
         pushGitHub: handlePushGitHub,
       },
-      state: { canRun, running, hasEmu, canPushGitHub: githubAvailable && gh.signedIn && !!gh.repo && project.loaded },
+      state: { canRun, running, hasEmu, canPushGitHub: githubAvailable && gh.signedIn && project.loaded && !!effectiveRepo(project.projectId, gh.repo) },
     };
   });
   useEffect(() => {
@@ -1353,6 +1360,17 @@ export default function App() {
     onTheme: setThemeId,
   };
 
+  // The repo the active project actually syncs to (its per-project binding, else
+  // the device default) — gates the GitHub project actions and drives the status
+  // bar, so a project imported from another repo works even when no default is set.
+  const ghActiveRepo =
+    githubAvailable && gh.signedIn && project.loaded ? effectiveRepo(project.projectId, gh.repo) : null;
+  // Show the repo in the status bar only when it differs from the device default.
+  const ghCustomRepo =
+    project.loaded && projectRepo(project.projectId) && projectRepo(project.projectId) !== gh.repo
+      ? projectRepo(project.projectId)
+      : null;
+
   return (
     <TooltipProvider delayDuration={300} skipDelayDuration={100}>
     <div className="app">
@@ -1395,11 +1413,11 @@ export default function App() {
         onAbout={() => setAboutOpen(true)}
         onProjectPlugins={() => setPluginsOpen(true)}
         onGitHub={githubAvailable ? () => setGithubOpen(true) : undefined}
-        onPushGitHub={githubAvailable && gh.signedIn && gh.repo ? handlePushGitHub : undefined}
-        onPullGitHub={githubAvailable && gh.signedIn && gh.repo ? handlePullGitHub : undefined}
-        onViewGitHub={githubAvailable && gh.signedIn && gh.repo ? handleViewGitHub : undefined}
-        onHistoryGitHub={githubAvailable && gh.signedIn && gh.repo ? handleHistoryGitHub : undefined}
-        onRemoveGitHub={githubAvailable && gh.signedIn && gh.repo ? handleRemoveGitHub : undefined}
+        onPushGitHub={ghActiveRepo ? handlePushGitHub : undefined}
+        onPullGitHub={ghActiveRepo ? handlePullGitHub : undefined}
+        onViewGitHub={ghActiveRepo ? handleViewGitHub : undefined}
+        onHistoryGitHub={ghActiveRepo ? handleHistoryGitHub : undefined}
+        onRemoveGitHub={ghActiveRepo ? handleRemoveGitHub : undefined}
         onCommandPalette={() => setPaletteOpen(true)}
         viewMenu={viewMenu}
       />
@@ -1444,7 +1462,7 @@ export default function App() {
         running={running}
         pc={cpu?.regs.pc ?? null}
         brokeOn={brokeOn}
-        github={githubAvailable ? { signedIn: gh.signedIn, user: gh.user?.login ?? null, status: gh.syncStatus, onClick: () => setGithubOpen(true) } : null}
+        github={githubAvailable ? { signedIn: gh.signedIn, user: gh.user?.login ?? null, status: gh.syncStatus, repo: ghCustomRepo, onClick: () => setGithubOpen(true) } : null}
       />
 
       <TextPromptDialog

@@ -195,10 +195,15 @@ function RepoPicker() {
   );
 }
 
-/** Browse the projects already in the selected repo and import one into IDB. */
+/** Browse the projects in a repo and import one into IDB. The repo defaults to the
+ *  device's selected one, but you can switch to any repo you can access (e.g. a
+ *  collaborator's) — the imported project is then bound to that repo, so it syncs
+ *  there while the rest of your projects keep using your default. */
 function RemoteProjects({ onOpenProject }: { onOpenProject?: (projectId: string) => void }) {
   const gh = useGitHub();
   const workbench = useWorkbench();
+  const [browseRepo, setBrowseRepo] = useState<string | null>(gh.repo);
+  const [repos, setRepos] = useState<RepoRef[] | null>(null);
   const [projects, setProjects] = useState<RemoteProject[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
@@ -206,10 +211,26 @@ function RemoteProjects({ onOpenProject }: { onOpenProject?: (projectId: string)
   const mounted = useRef(true);
   useEffect(() => () => { mounted.current = false; }, []);
 
+  // The repos you can import from (your installations + collaborator repos).
   useEffect(() => {
-    if (!gh.auth || !gh.repo) return;
+    if (!gh.auth) return;
     const auth = gh.auth;
-    const repo = gh.repo;
+    let cancelled = false;
+    void (async () => {
+      try {
+        const list = await listAccessibleRepos(auth);
+        if (!cancelled) setRepos(list);
+      } catch {
+        /* dropdown just won't populate; the default repo still works */
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [gh.auth, gh.rev]);
+
+  useEffect(() => {
+    if (!gh.auth || !browseRepo) return;
+    const auth = gh.auth;
+    const repo = browseRepo;
     let cancelled = false;
     void (async () => {
       try {
@@ -225,19 +246,20 @@ function RemoteProjects({ onOpenProject }: { onOpenProject?: (projectId: string)
     return () => {
       cancelled = true;
     };
-  }, [gh.auth, gh.repo, refreshKey, gh.rev]);
+  }, [gh.auth, browseRepo, refreshKey, gh.rev]);
 
   const importProject = async (slug: string) => {
-    if (!gh.auth || !gh.repo) return;
+    if (!gh.auth || !browseRepo) return;
     setBusy(slug);
     setError(null);
     try {
       const { projectId } = await pullProjectToIdb(
         workbench.storage,
         (url, init) => gh.auth!.fetch(url, init),
-        gh.repo,
+        browseRepo, // pullProjectToIdb binds the project to this repo
         slug,
       );
+      gh.refresh();
       if (mounted.current) setBusy(null);
       onOpenProject?.(projectId); // closes the dialog
     } catch (e) {
@@ -256,6 +278,21 @@ function RemoteProjects({ onOpenProject }: { onOpenProject?: (projectId: string)
           Refresh
         </button>
       </div>
+      <label className="gh__muted" style={{ display: "flex", alignItems: "center", gap: 8 }}>
+        From repo
+        <select
+          value={browseRepo ?? ""}
+          onChange={(e) => setBrowseRepo(e.target.value || null)}
+        >
+          {!browseRepo && <option value="">Choose a repo…</option>}
+          {(repos ?? (browseRepo ? [{ fullName: browseRepo, private: false }] : [])).map((r) => (
+            <option key={r.fullName} value={r.fullName}>
+              {r.fullName}
+              {r.fullName === gh.repo ? " (default)" : ""}
+            </option>
+          ))}
+        </select>
+      </label>
       {error && <p className="gh__error">{error}</p>}
       {projects === null && !error ? (
         <p className="gh__muted">Loading projects…</p>

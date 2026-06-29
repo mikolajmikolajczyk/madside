@@ -3,6 +3,7 @@ import type { EventBus, StorageBackend } from "@ports";
 import {
   autoSyncDebounceMs,
   autoSyncEnabled,
+  effectiveRepo,
   pullProjectToIdb,
   pushProjectToGitHub,
   remoteSlug,
@@ -48,14 +49,19 @@ export function useGitHubAutoSync(deps: Deps) {
   const timer = useRef<number | null>(null);
 
   const ready = (d: Deps): d is Deps & { projectId: string } =>
-    d.gh.available && d.gh.signedIn && !!d.gh.repo && !!d.gh.auth && !!d.projectId && autoSyncEnabled();
+    d.gh.available &&
+    d.gh.signedIn &&
+    !!d.gh.auth &&
+    !!d.projectId &&
+    !!effectiveRepo(d.projectId, d.gh.repo) &&
+    autoSyncEnabled();
 
   const attemptPush = useCallback(async () => {
     const d = ref.current;
     if (!ready(d)) { d.gh.setSyncStatus("off"); return; }
     if (!dirty.current) return;
     const pid = d.projectId;
-    const repo = d.gh.repo!;
+    const repo = effectiveRepo(pid, d.gh.repo)!;
     const auth = d.gh.auth!;
     const fetch = (url: string, init?: RequestInit) => auth.fetch(url, init);
     try {
@@ -93,7 +99,7 @@ export function useGitHubAutoSync(deps: Deps) {
     const d = ref.current;
     if (!ready(d)) { d.gh.setSyncStatus("off"); return; }
     const pid = d.projectId;
-    const repo = d.gh.repo!;
+    const repo = effectiveRepo(pid, d.gh.repo)!;
     const auth = d.gh.auth!;
     const fetch = (url: string, init?: RequestInit) => auth.fetch(url, init);
     try {

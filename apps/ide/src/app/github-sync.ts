@@ -33,6 +33,7 @@ const GENERATED_DIR = "generated/";
 
 const syncedKey = (projectId: string) => `madside.github.synced.${projectId}`;
 const slugKey = (projectId: string) => `madside.github.slug.${projectId}`;
+const repoKey = (projectId: string) => `madside.github.repo.${projectId}`;
 const branchKey = (projectId: string) => `madside.github.branch.${projectId}`;
 const defBranchKey = (repo: string) => `madside.github.defbranch.${repo}`;
 const subtreeKey = (projectId: string) => `madside.github.subtree.${projectId}`;
@@ -81,6 +82,21 @@ export function setAutoSyncDebounceMs(ms: number): void {
 
 /** Git tree sha of this project's folder at last sync — per-project conflict
  *  marker (changes iff the project's content changed remotely). */
+/** The repo a project is bound to (set on import/first push), or null when it
+ *  just follows the device's default repo. A binding lets one project sync to a
+ *  different repo than the rest — e.g. a project imported from a friend's repo
+ *  while you keep working against your own. */
+export function projectRepo(projectId: string): string | null {
+  return readLS(repoKey(projectId));
+}
+export function setProjectRepo(projectId: string, repo: string | null): void {
+  setLS(repoKey(projectId), repo);
+}
+/** Repo a project actually syncs to: its own binding, else the device default. */
+export function effectiveRepo(projectId: string, defaultRepo: string | null): string | null {
+  return projectRepo(projectId) ?? defaultRepo;
+}
+
 export function syncedSubtreeSha(projectId: string): string | null {
   return readLS(subtreeKey(projectId));
 }
@@ -219,6 +235,7 @@ export async function pushProjectToGitHub(
   );
   setSynced(projectId, result.commitSha);
   setBranch(projectId, result.branch);
+  setProjectRepo(projectId, repo); // bind to the repo we pushed to
   // Record our project's new subtree sha (per-project conflict marker).
   try {
     setSyncedSubtree(projectId, await getSubtreeSha(fetch, target, basePath));
@@ -331,7 +348,13 @@ export async function pullProjectToIdb(
     if (!parsed.ok) throw new Error(`project "${slug}": ${parsed.error.message}`);
     const manifest = parsed.value;
 
-    const existing = (await storage.projects.list()).find((p) => remoteSlug(p.id) === slug);
+    // Match by (repo, slug) — two different repos can hold the same slug, so the
+    // slug alone is ambiguous once projects can be bound to different repos. Fall
+    // back to an unbound legacy project with this slug and adopt it to this repo.
+    const all = await storage.projects.list();
+    const existing =
+      all.find((p) => projectRepo(p.id) === repo && remoteSlug(p.id) === slug) ??
+      all.find((p) => projectRepo(p.id) == null && remoteSlug(p.id) === slug);
     if (existing) {
       // Safety backup before remote overwrites local (no merge engine).
       const loaded = await storage.projects.load(existing.id);
@@ -353,6 +376,7 @@ export async function pullProjectToIdb(
         }
       }
       setRemoteSlug(existing.id, slug);
+      setProjectRepo(existing.id, repo);
       setSynced(existing.id, tree.commitSha);
       setBranch(existing.id, tree.branch);
       setSyncedSubtree(existing.id, subtreeSha(tree, `projects/${slug}`));
@@ -365,6 +389,7 @@ export async function pullProjectToIdb(
       manifest,
     );
     setRemoteSlug(row.id, slug);
+    setProjectRepo(row.id, repo);
     setSynced(row.id, tree.commitSha);
     setBranch(row.id, tree.branch);
     setSyncedSubtree(row.id, subtreeSha(tree, `projects/${slug}`));

@@ -5,6 +5,8 @@ interface GitHubStatus {
   signedIn: boolean;
   user: string | null;
   status: GitHubSyncStatus;
+  /** Repo the active project syncs to, when it differs from the device default. */
+  repo?: string | null;
   onClick: () => void;
 }
 
@@ -23,7 +25,9 @@ interface Props {
 /** Label + dot-colour class for the GitHub cell. */
 function ghCell(g: GitHubStatus): { text: string; cls: string } {
   if (!g.signedIn) return { text: "GitHub: signed out", cls: "status__gh--err" };
-  const who = g.user ?? "GitHub";
+  // Prefer the project's repo when it's bound to a non-default one, so it's clear
+  // this project syncs elsewhere (e.g. a friend's repo).
+  const who = g.repo ?? g.user ?? "GitHub";
   switch (g.status) {
     case "pending": return { text: `${who} · unsynced`, cls: "status__gh--warn" };
     case "syncing": return { text: `${who} · syncing…`, cls: "status__gh--busy" };
