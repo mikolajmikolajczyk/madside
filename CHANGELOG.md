@@ -1,3 +1,8 @@
+## [0.26.1] - 2026-06-29
+
+### 📚 Documentation
+
+- *(github)* Align with the per-project repo model
 ## [0.26.0] - 2026-06-29
 
 ### 🚀 Features
