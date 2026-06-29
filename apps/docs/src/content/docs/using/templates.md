@@ -13,13 +13,16 @@ madside ships with:
 
 - **Atari — Hello World** (`atari-hello`) — a minimal Atari (atari-xl) program in MADS assembly that writes to the screen via SAVMSC.
 - **Atari — Hello (C, cc65)** (`atari-c-hello`) — the same idea in C: cc65 compiles `main.c`, ca65 assembles it, and ld65 links against the bundled Atari runtime into a `.xex`.
+- **Atari 130XE — Memory Banking** (`atari-130xe-bank`) — MADS assembly showing the 130XE's extended-RAM banking through the PORTB select bits.
 - **NES — Hello (background colour)** (`nes-hello`) — a canonical NES warmup (two VBlank waits) in MADS assembly that sets the universal background colour and enables rendering, emitting an NROM iNES ROM.
 - **NES — Hello (C, cc65)** (`nes-c-hello`) — an NES program in C, linked with ld65 against the bundled NES runtime into an iNES ROM.
 - **NES — APU Hello (square-wave tone)** (`nes-apu-hello`) — programs the NES APU pulse channel to play a steady tone; MADS assembly, no graphics.
+- **NES — PRG Banking (UxROM)** (`nes-banking`) — C (cc65) with a banked linker config (`src/banked.cfg`) demonstrating UxROM PRG bank switching.
 - **C64 — Hello World (MADS)** (`c64-hello`) — a minimal Commodore 64 program in MADS assembly.
 - **C64 — Hello (C, cc65)** (`c64-c-hello`) — a C64 program in C, linked with cc65 into a `.prg`.
 - **ZX Spectrum — Hello World (z80asm)** (`zx-asm-hello`) — a minimal ZX Spectrum program in z80 assembly, built with z88dk.
 - **ZX Spectrum — Hello (C, z88dk)** (`zx-c-hello`) — a ZX Spectrum program in C: sccz80 compiles it and z80asm/appmake produce a `.sna`.
+- **ZX Spectrum 128K — Memory Banking** (`zx128-banking`) — z80 assembly for the 128K (`zx128`) machine, paging RAM banks into `$C000`–`$FFFF` via the `$7FFD` port; builds to a `.z80`.
 - **Sega Genesis — Hello World (M68k asm)** (`genesis-asm-hello`) — a minimal Genesis program: clownassembler assembles a vector table + ROM header + VDP init that turns on the display and shows a solid blue background, ready to extend with tiles and a palette.
 - **Sega Genesis — Z80 sound (M68k + Z80)** (`genesis-z80-sound`) — uses both of the Genesis' CPUs: the 68000 sets up the screen and boots the Z80 sound chip, and the Z80 plays a tone on the PSG. Your Z80 source (`src/sound/driver.s80`) is assembled automatically and embedded in the ROM. Extend the Z80 driver to play music or sound effects.
 - **Empty project** (`empty`) — a blank project you fill in yourself.

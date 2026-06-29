@@ -5,10 +5,6 @@ sidebar:
   order: 11
 ---
 
-:::note
-Courses are available in **v0.9.5**.
-:::
-
 Where the rest of this section documents *the IDE*, **courses** teach *the machine* — they're the guided, hands-on counterpart to these docs. A course is an ordered set of lessons; each lesson combines a written explanation with a starter project you edit in place, and most lessons end with a task madside can check for you.
 
 ## Starting a course

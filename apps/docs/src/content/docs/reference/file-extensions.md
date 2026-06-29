@@ -51,7 +51,13 @@ Spectrum and accepts:
 | `.h` | `z88dk` toolchain (C header) |
 | `.asm` | `z88dk` toolchain (z80 assembly source) |
 | `.s` | `z88dk` toolchain (z80 assembly source) |
+| `.s80` | z80 assembly source (selects the z80 dialect) |
+| `.mac` | z80 assembly source |
 | `.inc` | `z88dk` toolchain (include) |
+
+The editor and the assembly language server also recognise `.s80` and `.mac` as
+z80 assembly — `.s80` is used for embedded Z80 code such as the Genesis Z80 sound
+driver (`genesis-z80-sound` template).
 
 ### M68k assembly (clownassembler)
 
@@ -77,6 +83,7 @@ media table.
 | `.nes` | NES (`nes`) | iNES image; NES default media format. `cc65` `outputExt`; also produced by `mads` (NROM iNES). |
 | `.prg` | C64 (`c64`) | Commodore PRG (load-address-prefixed). Produced by `cc65` targeting `c64`. |
 | `.sna` | ZX Spectrum (`zx-spectrum`) | 48K snapshot. `z88dk` `outputExt`. |
+| `.z80` | ZX Spectrum 128K (`zx128`) | 128K snapshot (holds banked RAM); the 128K machine's default media format. |
 | `.bin` | Genesis (`genesis`) | Flat Mega Drive / Genesis ROM. `clownassembler` `outputExt`. |
 
 The `cc65` toolchain's declared `outputExt` is `nes`, but the real extension is

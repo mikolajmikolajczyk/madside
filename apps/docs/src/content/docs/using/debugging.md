@@ -8,7 +8,7 @@ sidebar:
 madside debugs at the source level: breakpoints are set on source lines, the editor highlights the current instruction, and the [registers, memory, and variables panels](/docs/using/panels/) update whenever the emulator stops.
 
 :::note
-Source-level debugging relies on the [source map](/docs/using/building/#the-source-map-and-labels). The **mads** toolchain emits it for assembly, and **cc65** emits it for C and ca65 (its `.dbg` maps `.c` lines to addresses) — so you can set breakpoints and step on C source lines. The **clownassembler** (Genesis) toolchain emits a line↔address source map too, so Genesis M68k assembly debugs at the source level. The **z88dk** toolchain emits one for **z80 assembly** as well, so ZX Spectrum assembly debugs at the source level (line breakpoints + current-line highlight). The sccz80 **C** path on z88dk is still binary-only (machine-level: registers, memory, stepping).
+Source-level debugging relies on the [source map](/docs/using/building/#the-source-map-and-labels). The **mads** toolchain emits it for assembly, and **cc65** emits it for C and ca65 (its `.dbg` maps `.c` lines to addresses) — so you can set breakpoints and step on C source lines. The **clownassembler** (Genesis) toolchain emits a line↔address source map too, so Genesis M68k assembly debugs at the source level. The **z88dk** toolchain emits one for **z80 assembly** and for **sccz80 C** (via the compiler's `C_LINE` records + the link map), so ZX Spectrum assembly and C both debug at the source level (line breakpoints + current-line highlight).
 :::
 
 ## Breakpoints
@@ -47,7 +47,7 @@ Add a **watch expression** in the panel's input — `pos.x`, `*ptr`, `arr[3]`, `
 Assembly builds (or any build with no type info) fall back to a flat list of symbols with their raw byte / word values.
 
 :::note
-**Locals** (function-scope variables) aren't shown yet. cc65's frameless software stack makes a local's runtime address unrecoverable from the debug info at an arbitrary stop; the reliable path is the z80 frame-pointer ABI, tracked for a future release. Globals + watch expressions cover most inspection in the meantime.
+**Locals** (function-scope variables) are shown for the **z80 / sccz80** path, which uses an `IX` frame-pointer ABI — locals resolve reliably against the current frame and appear in the Variables panel with their scope. On **cc65** locals are not shown: its frameless software stack makes a local's runtime address unrecoverable from the debug info at an arbitrary stop, so there globals + watch expressions cover inspection.
 :::
 
 ## The memory viewer
@@ -62,4 +62,4 @@ Rows are annotated with the machine's named memory regions (from the machine's m
 
 Machines with more than one address space declare them in the machine plugin, and viewer panels read them by id. The NES, for example, exposes its CPU bus plus a **PPU VRAM** space and an **OAM** space — these feed the [PPU viewer](/docs/using/panels/#machine-specific-panels). The default Memory panel reads the CPU bus.
 
-The Genesis declares its CPU bus plus three VDP spaces (**VRAM**, **CRAM**, **VSRAM**), but the emulator backend doesn't serve reads of the VDP spaces yet — only the CPU bus is readable today, and the VDP tile / palette / sprite viewers are a pending follow-up.
+The Genesis declares its CPU bus plus three VDP spaces (**VRAM**, **CRAM**, **VSRAM**); the emulator backend serves reads of all of them. These feed the [VDP viewer](/docs/using/panels/#machine-specific-panels) (tiles / palette / registers); the default Memory panel reads the CPU bus.

@@ -5,12 +5,13 @@ description: In-browser IDE for retro hardware — write, build, run, and debug 
 
 **madside** is an in-browser IDE for retro hardware. Write 6502 / Z80 / 68000 assembly or C, build it, run it on an emulator, and debug it with breakpoints, a register view, a memory inspector, and a typed variables panel — all in the browser, with nothing to install.
 
-It currently targets five machines:
+It currently targets six machines:
 
 - **Atari 8-bit** (800XL / 130XE) — builds to `.xex`, running on the Altirra core.
 - **NES** — builds to an `.nes` iNES ROM, running on the jsnes core.
 - **Commodore 64** — builds to a `.prg`, running on the Chips `c64-core`.
 - **ZX Spectrum 48K** — builds to a `.sna`, running on the Chips `zx-core`.
+- **ZX Spectrum 128K** — adds `$7FFD` RAM banking + the AY sound chip, builds to a `.z80`, running on the Chips `zx-core`.
 - **Sega Genesis** (Mega Drive) — builds to a flat `.bin` ROM, running on the Genesis Plus GX core.
 
 Four toolchains ship, all compiled to WebAssembly:

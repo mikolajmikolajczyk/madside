@@ -19,6 +19,7 @@ never disagree.
 |--------|----------|
 | Command palette | `Ctrl+K` (or `Ctrl+Shift+P`) |
 | Format + save + assemble + snapshot | `Ctrl+S` |
+| Save to GitHub (when a repo is connected) | `Ctrl+Shift+S` |
 | Format Document (no build) | `Shift+Alt+F` |
 | Assemble (no save) | `Ctrl+B` |
 | Run | `Ctrl+Enter` |
@@ -56,6 +57,7 @@ the Edit menu but are currently disabled placeholders. (Format Document is a
 | Menu item | Shortcut |
 |-----------|----------|
 | File → Save | `Ctrl+S` |
+| File → GitHub → Save to GitHub | `Ctrl+Shift+S` |
 | Edit → Undo | `Ctrl+Z` |
 | Edit → Redo | `Ctrl+Shift+Z` |
 | Run → Build | `Ctrl+B` |

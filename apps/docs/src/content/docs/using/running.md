@@ -16,7 +16,8 @@ The controls live on the toolbar and in the **Run** menu:
 | **Run** | Assembles if needed, loads the binary, and starts the emulator. From a paused state it resumes from the current PC. |
 | **Pause** | Pauses the running emulator (only enabled while running). |
 | **Stop** | Stops and unloads the emulator; the screen blanks and the next Run boots fresh. |
-| **Step** | Advances one CPU instruction (only when paused). |
+| **Step over** | Runs to the next source line, executing through library calls (only when paused). |
+| **Step instruction** | Advances exactly one CPU instruction (only when paused). |
 | **Frame** | Advances one full display frame (only when paused). |
 | **Restart** | Re-assembles and restarts from the top. |
 
