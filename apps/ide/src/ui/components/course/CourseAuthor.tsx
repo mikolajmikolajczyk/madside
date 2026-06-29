@@ -58,9 +58,12 @@ export function CourseAuthor({ files, activeLessonId, onSaveFiles, onSelectLesso
   const gh = useGitHub();
   const toast = useToast();
 
-  // Publish the course to the user's repo under courses/<slug>/ (#165).
+  // Publish the course under courses/<slug>/ — to the dedicated courses repo when
+  // set, else the main repo (#165). Lets a public courses repo coexist with a
+  // private projects repo without switching the default.
+  const coursesRepo = gh.coursesRepo ?? gh.repo;
   const publish = async () => {
-    if (!gh.auth || !gh.repo) return;
+    if (!gh.auth || !coursesRepo) return;
     const check = validateCourseFiles(courseExportFiles(files));
     if (!check.ok) {
       toast.error(new Error(`Course not ready: ${check.error}`));
@@ -71,8 +74,8 @@ export function CourseAuthor({ files, activeLessonId, onSaveFiles, onSelectLesso
     const syncFiles = courseExportFiles(files).map((f) => ({ path: f.path, content: enc.encode(f.content) }));
     const auth = gh.auth;
     try {
-      await publishCourseToGitHub((url, init) => auth.fetch(url, init), gh.repo, slug, syncFiles, `Publish course "${meta.title}"`);
-      toast.push("info", `Published “${meta.title}” to ${gh.repo}/courses/${slug}`);
+      await publishCourseToGitHub((url, init) => auth.fetch(url, init), coursesRepo, slug, syncFiles, `Publish course "${meta.title}"`);
+      toast.push("info", `Published “${meta.title}” to ${coursesRepo}/courses/${slug}`);
       gh.refresh();
     } catch (e) {
       toast.error(e);
@@ -91,12 +94,12 @@ export function CourseAuthor({ files, activeLessonId, onSaveFiles, onSelectLesso
         >
           ↓ Export .zip
         </button>
-        {gh.available && gh.signedIn && gh.repo && (
+        {gh.available && gh.signedIn && coursesRepo && (
           <button
             type="button"
             className="course-author__btn"
             onClick={() => void publish()}
-            title="Publish this course to your GitHub repo under courses/<slug>/"
+            title={`Publish this course to ${coursesRepo} under courses/<slug>/`}
           >
             ↑ Publish to GitHub
           </button>

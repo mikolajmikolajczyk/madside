@@ -86,7 +86,7 @@ From **File → GitHub** you can also:
 
 ## Courses and settings
 
-If you author [courses](/docs/using/courses/), you can publish them to the same repo and edit them later via **Courses in repo** in the GitHub panel. You can also save your **theme** to the repo so it follows you between devices.
+If you author [courses](/docs/using/courses/), you can publish them to GitHub and edit them later via **Courses in repo** in the GitHub panel. By default courses go to your main repo, but you can set a **separate courses repo** (GitHub panel → **Courses repo**) — handy for keeping your projects repo private while publishing courses to a public one, with no switching. You can also save your **theme** to the repo so it follows you between devices.
 
 :::note
 madside is not a storage service. It holds none of your data — your projects live in your browser and in the GitHub repo you own and control.

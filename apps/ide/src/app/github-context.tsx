@@ -22,6 +22,7 @@ export interface GitHubUser {
 }
 
 const REPO_KEY = "madside.github.repo";
+const COURSES_REPO_KEY = "madside.github.courses-repo";
 
 /** Coarse auto-sync state for the status indicator. */
 export type GitHubSyncStatus = "off" | "idle" | "pending" | "syncing" | "paused" | "error";
@@ -38,6 +39,10 @@ export interface GitHubState {
   /** Selected dedicated repo ("owner/repo"), persisted per device. */
   repo: string | null;
   setRepo: (repo: string | null) => void;
+  /** Separate repo for authoring/publishing courses, e.g. a public one while the
+   *  projects repo stays private. Null = fall back to `repo`. Persisted per device. */
+  coursesRepo: string | null;
+  setCoursesRepo: (repo: string | null) => void;
   /** Bumped after any git write (push/pull/remove/import/publish) so repo-content
    *  views (project/course lists) refetch. */
   rev: number;
@@ -84,6 +89,9 @@ export function GitHubProvider({ children }: { children: ReactNode }) {
   const [repo, setRepoState] = useState<string | null>(() =>
     typeof localStorage !== "undefined" ? localStorage.getItem(REPO_KEY) : null,
   );
+  const [coursesRepo, setCoursesRepoState] = useState<string | null>(() =>
+    typeof localStorage !== "undefined" ? localStorage.getItem(COURSES_REPO_KEY) : null,
+  );
   const [rev, setRev] = useState(0);
   const refresh = useCallback(() => setRev((r) => r + 1), []);
   const [syncStatus, setSyncStatus] = useState<GitHubSyncStatus>("off");
@@ -93,6 +101,13 @@ export function GitHubProvider({ children }: { children: ReactNode }) {
     if (typeof localStorage === "undefined") return;
     if (next) localStorage.setItem(REPO_KEY, next);
     else localStorage.removeItem(REPO_KEY);
+  }, []);
+
+  const setCoursesRepo = useCallback((next: string | null) => {
+    setCoursesRepoState(next);
+    if (typeof localStorage === "undefined") return;
+    if (next) localStorage.setItem(COURSES_REPO_KEY, next);
+    else localStorage.removeItem(COURSES_REPO_KEY);
   }, []);
 
   useEffect(() => {
@@ -162,6 +177,8 @@ export function GitHubProvider({ children }: { children: ReactNode }) {
       error,
       repo,
       setRepo,
+      coursesRepo,
+      setCoursesRepo,
       rev,
       refresh,
       syncStatus,
@@ -170,7 +187,7 @@ export function GitHubProvider({ children }: { children: ReactNode }) {
       signOut,
       auth,
     }),
-    [auth, ready, user, error, repo, setRepo, rev, refresh, syncStatus, signIn, signOut],
+    [auth, ready, user, error, repo, setRepo, coursesRepo, setCoursesRepo, rev, refresh, syncStatus, signIn, signOut],
   );
 
   return <GitHubContext.Provider value={value}>{children}</GitHubContext.Provider>;

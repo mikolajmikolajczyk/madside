@@ -56,7 +56,8 @@ export function GitHubDialog({ onOpenProject }: { onOpenProject?: (projectId: st
           </div>
           <RepoPicker />
           {gh.repo && <RemoteProjects onOpenProject={onOpenProject} />}
-          {gh.repo && <RemoteCourses onOpenProject={onOpenProject} />}
+          <CoursesRepoPicker />
+          {(gh.coursesRepo ?? gh.repo) && <RemoteCourses onOpenProject={onOpenProject} />}
           {gh.repo && <SettingsSync />}
         </>
       ) : (
@@ -321,6 +322,53 @@ function RemoteProjects({ onOpenProject }: { onOpenProject?: (projectId: string)
   );
 }
 
+/** Pick a separate repo for courses (e.g. a public one) so authoring/publishing
+ *  courses doesn't touch — or require switching — the main projects repo. Empty
+ *  = use the main repo. */
+function CoursesRepoPicker() {
+  const gh = useGitHub();
+  const [repos, setRepos] = useState<RepoRef[] | null>(null);
+  useEffect(() => {
+    if (!gh.auth) return;
+    const auth = gh.auth;
+    let cancelled = false;
+    void (async () => {
+      try {
+        const list = await listAccessibleRepos(auth);
+        if (!cancelled) setRepos(list);
+      } catch {
+        /* dropdown just won't populate */
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [gh.auth, gh.rev]);
+
+  const options = repos ?? (gh.coursesRepo ? [{ fullName: gh.coursesRepo, private: false }] : []);
+  return (
+    <div className="gh__repos">
+      <div className="gh__repos-head">
+        <span className="gh__repos-title">Courses repo</span>
+      </div>
+      <label className="gh__muted" style={{ display: "flex", alignItems: "center", gap: 8 }}>
+        Publish courses to
+        <select
+          value={gh.coursesRepo ?? ""}
+          onChange={(e) => { gh.setCoursesRepo(e.target.value || null); gh.refresh(); }}
+        >
+          <option value="">Same as my main repo{gh.repo ? ` (${gh.repo})` : ""}</option>
+          {options.map((r) => (
+            <option key={r.fullName} value={r.fullName}>
+              {r.fullName}
+              {r.private ? " (private)" : ""}
+            </option>
+          ))}
+        </select>
+      </label>
+      <p className="gh__muted">Keep your projects repo private and publish courses to a public one — no switching.</p>
+    </div>
+  );
+}
+
 /** Browse courses in the repo and open one as an editable CourseAuthor draft. */
 function RemoteCourses({ onOpenProject }: { onOpenProject?: (projectId: string) => void }) {
   const gh = useGitHub();
@@ -332,10 +380,12 @@ function RemoteCourses({ onOpenProject }: { onOpenProject?: (projectId: string) 
   const mounted = useRef(true);
   useEffect(() => () => { mounted.current = false; }, []);
 
+  const coursesRepo = gh.coursesRepo ?? gh.repo;
+
   useEffect(() => {
-    if (!gh.auth || !gh.repo) return;
+    if (!gh.auth || !coursesRepo) return;
     const auth = gh.auth;
-    const repo = gh.repo;
+    const repo = coursesRepo;
     let cancelled = false;
     void (async () => {
       try {
@@ -349,17 +399,17 @@ function RemoteCourses({ onOpenProject }: { onOpenProject?: (projectId: string) 
       }
     })();
     return () => { cancelled = true; };
-  }, [gh.auth, gh.repo, refreshKey, gh.rev]);
+  }, [gh.auth, coursesRepo, refreshKey, gh.rev]);
 
   const edit = async (slug: string) => {
-    if (!gh.auth || !gh.repo) return;
+    if (!gh.auth || !coursesRepo) return;
     setBusy(slug);
     setError(null);
     try {
       const { courseId, lessonId } = await pullCourseDraft(
         workbench.storage,
         (url, init) => gh.auth!.fetch(url, init),
-        gh.repo,
+        coursesRepo,
         slug,
       );
       const projectId = await openLesson(workbench.storage, courseId, lessonId);
@@ -376,7 +426,7 @@ function RemoteCourses({ onOpenProject }: { onOpenProject?: (projectId: string) 
   return (
     <div className="gh__repos">
       <div className="gh__repos-head">
-        <span className="gh__repos-title">Courses in repo</span>
+        <span className="gh__repos-title">Courses in {coursesRepo}</span>
         <button type="button" className="gh__link gh__linkbtn" onClick={() => setRefreshKey((k) => k + 1)}>
           Refresh
         </button>
