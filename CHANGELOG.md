@@ -1,3 +1,8 @@
+## [0.27.2] - 2026-06-30
+
+### 🐛 Bug Fixes
+
+- *(run)* Cold Run rebuilds current source, never runs a stale binary
 ## [0.27.1] - 2026-06-30
 
 ### 🐛 Bug Fixes
