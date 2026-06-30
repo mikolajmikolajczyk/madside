@@ -135,6 +135,10 @@ export async function fetchGitHubCourse(
   const all = (listing.files ?? []).map((f) => f.name.replace(/^\//, ''))
   const groups = discoverCourseGroups(all)
   if (groups.length === 0) {
+    // jsDelivr's branch listing can lag a fresh push (it caches the tree). When
+    // signed in, read the live tree via the GitHub API so a just-added course
+    // installs without waiting for the CDN to catch up.
+    if (ghFetch) return fetchGitHubCourseAuthed(owner, repo, ghFetch)
     throw new Error('no courses found — a course repo holds one or more courses/<slug>/course.json')
   }
 

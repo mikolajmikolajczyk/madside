@@ -25,7 +25,9 @@ const CATALOGUE_URL = `https://cdn.jsdelivr.net/gh/${OFFICIAL_COURSES_REPO}@main
 export async function fetchOfficialCatalogue(): Promise<OfficialCourse[]> {
   let res: Response
   try {
-    res = await fetch(CATALOGUE_URL)
+    // no-store: don't let the browser serve a stale catalogue (e.g. a cached 503
+    // or a pre-update index.json) — always revalidate against the CDN edge.
+    res = await fetch(CATALOGUE_URL, { cache: 'no-store' })
   } catch (e) {
     throw new NetworkError('could not reach the official course catalogue', e)
   }
