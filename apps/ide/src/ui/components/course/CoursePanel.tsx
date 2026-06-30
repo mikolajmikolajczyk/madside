@@ -36,6 +36,7 @@ export function CoursePanel({ courseId, lessonId, onOpenLesson, onCheck, onRefre
         ? { label: `${course.source.owner}/${course.source.repo}${course.source.ref ? `@${course.source.ref}` : ""}`, fetchedAt: course.source.fetchedAt }
         : undefined,
       lessons: course.lessons.map((id) => ({ id, title: getLesson(courseId, id)?.title ?? id })),
+      chapters: course.chapters,
       currentId: lessonId,
       body: lesson.body,
       checks: lesson.checks,

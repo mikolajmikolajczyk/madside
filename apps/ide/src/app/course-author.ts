@@ -55,6 +55,7 @@ export function courseMetaText(meta: CourseMeta): string {
     description: meta.description,
     machine: meta.machine,
     ...(meta.order != null ? { order: meta.order } : {}),
+    ...(meta.chapters?.length ? { chapters: meta.chapters } : {}),
   }
   return JSON.stringify(ordered, null, 2) + '\n'
 }
@@ -146,6 +147,27 @@ function upsertFile(files: readonly { path: string; content: string }[], path: s
 /** Replace course.json with new metadata. */
 export function setCourseMetaInFiles(files: readonly { path: string; content: string }[], meta: CourseMeta): { path: string; content: string }[] {
   return upsertFile(files, COURSE_FILE, courseMetaText(meta))
+}
+
+/** The chapter title a lesson belongs to, or null when ungrouped. */
+export function lessonChapter(meta: CourseMeta, lessonId: string): string | null {
+  return meta.chapters?.find((c) => c.lessons.includes(lessonId))?.title ?? null
+}
+
+/** Move a lesson into a chapter (creating it if new), or out of any chapter when
+ *  `title` is null. Pure: returns new meta. Empty chapters are pruned, and a new
+ *  chapter is appended (chapter order = creation order). */
+export function assignLessonToChapter(meta: CourseMeta, lessonId: string, title: string | null): CourseMeta {
+  const name = title?.trim() || null
+  // Drop the lesson from every chapter first.
+  let chapters = (meta.chapters ?? []).map((c) => ({ ...c, lessons: c.lessons.filter((id) => id !== lessonId) }))
+  if (name) {
+    const i = chapters.findIndex((c) => c.title === name)
+    if (i >= 0) chapters[i] = { ...chapters[i]!, lessons: [...chapters[i]!.lessons, lessonId] }
+    else chapters = [...chapters, { title: name, lessons: [lessonId] }]
+  }
+  chapters = chapters.filter((c) => c.lessons.length > 0) // prune empties
+  return { ...meta, chapters: chapters.length ? chapters : undefined }
 }
 
 /** Replace a lesson's markdown. */

@@ -236,3 +236,11 @@
   min-width: 0;
   font: inherit;
 }
+
+/* Per-lesson chapter picker in the lesson row. */
+.course-author__chapter {
+  font: inherit;
+  font-size: 11px;
+  max-width: 12ch;
+  min-width: 0;
+}

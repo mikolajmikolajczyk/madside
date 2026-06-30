@@ -7,6 +7,8 @@ import {
   listLessons,
   readCourseMeta,
   readLessonChecks,
+  lessonChapter,
+  assignLessonToChapter,
   setCourseMetaInFiles,
   setLessonChecksInFiles,
   setLessonMdInFiles,
@@ -166,6 +168,9 @@ export function CourseAuthor({ files, courseId, activeLessonId, onSaveFiles, onS
                 active={l.id === activeLessonId}
                 canUp={i > 0}
                 canDown={i < lessons.length - 1}
+                chapter={lessonChapter(meta, l.id)}
+                chapterTitles={(meta.chapters ?? []).map((c) => c.title)}
+                onAssignChapter={(title) => onSaveFiles(setCourseMetaInFiles(files, assignLessonToChapter(meta, l.id, title)))}
                 onSelect={() => onSelectLesson(l.id)}
                 onUp={() => onSaveFiles(swapLessonsInFiles(files, lessons[i - 1]!.id, l.id))}
                 onDown={() => onSaveFiles(swapLessonsInFiles(files, l.id, lessons[i + 1]!.id))}
@@ -236,12 +241,15 @@ function MetaForm({ meta, onSave }: { meta: CourseMeta; onSave: (m: CourseMeta) 
 }
 
 // ── One lesson row — click to open (active = expanded for md + check editing) ──
-function LessonRow({ lesson, files, active, canUp, canDown, onSelect, onUp, onDown, onDelete, onSaveMd, onSaveChecks }: {
+function LessonRow({ lesson, files, active, canUp, canDown, chapter, chapterTitles, onAssignChapter, onSelect, onUp, onDown, onDelete, onSaveMd, onSaveChecks }: {
   lesson: LessonInfo;
   files: Files;
   active: boolean;
   canUp: boolean;
   canDown: boolean;
+  chapter: string | null;
+  chapterTitles: string[];
+  onAssignChapter: (title: string | null) => void;
   onSelect: () => void;
   onUp: () => void;
   onDown: () => void;
@@ -249,6 +257,15 @@ function LessonRow({ lesson, files, active, canUp, canDown, onSelect, onUp, onDo
   onSaveMd: (text: string) => void;
   onSaveChecks: (checks: CourseCheck[]) => void;
 }) {
+  const NEW_CHAPTER = " new";
+  const onChapterChange = (v: string) => {
+    if (v === NEW_CHAPTER) {
+      const name = window.prompt("New chapter name:")?.trim();
+      if (name) onAssignChapter(name);
+    } else {
+      onAssignChapter(v || null);
+    }
+  };
   const mdContent = files.find((f) => f.path === `lessons/${lesson.id}/lesson.md`)?.content ?? "";
   const checks = readLessonChecks(files, lesson.id);
 
@@ -266,6 +283,16 @@ function LessonRow({ lesson, files, active, canUp, canDown, onSelect, onUp, onDo
           <span className="course-author__lesson-n">{String(lesson.n).padStart(2, "0")}</span>
           <span className="course-author__lesson-title" title={lesson.dir}>{lesson.title}</span>
         </button>
+        <select
+          className="course-author__chapter"
+          value={chapter ?? ""}
+          onChange={(e) => onChapterChange(e.target.value)}
+          title="Chapter this lesson belongs to"
+        >
+          <option value="">— No chapter</option>
+          {chapterTitles.map((t) => <option key={t} value={t}>{t}</option>)}
+          <option value={NEW_CHAPTER}>+ New chapter…</option>
+        </select>
         <button type="button" className="course-author__icon" disabled={!canUp} onClick={onUp} title="Move up">↑</button>
         <button type="button" className="course-author__icon" disabled={!canDown} onClick={onDown} title="Move down">↓</button>
         <button type="button" className="course-author__icon course-author__icon--del" onClick={onDelete} title="Delete lesson">✕</button>

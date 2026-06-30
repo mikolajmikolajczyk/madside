@@ -19,7 +19,10 @@ import {
   slugify,
   swapLessonsInFiles,
   zipCourse,
+  lessonChapter,
+  assignLessonToChapter,
 } from "./course-author";
+import type { CourseMeta } from "./courses";
 
 // #139 — course authoring helpers (draft bundle + pure file transforms).
 
@@ -34,6 +37,28 @@ describe("course-author helpers", () => {
 
     const withOrder = courseMetaText({ ...meta, order: 3 });
     expect(readCourseMeta([{ path: COURSE_FILE, content: withOrder }])).toEqual({ ...meta, order: 3 });
+  });
+
+  it("chapters: assign creates/moves/prunes, round-trips through course.json", () => {
+    const base: CourseMeta = { title: "T", description: "D", machine: "atari-xl" };
+    // assign a → "Intro" (creates the chapter)
+    let m = assignLessonToChapter(base, "a", "Intro");
+    expect(m.chapters).toEqual([{ title: "Intro", lessons: ["a"] }]);
+    expect(lessonChapter(m, "a")).toBe("Intro");
+    // assign b → "Intro" (appends)
+    m = assignLessonToChapter(m, "b", "Intro");
+    expect(m.chapters).toEqual([{ title: "Intro", lessons: ["a", "b"] }]);
+    // move a → "Deep" (new chapter, removed from Intro)
+    m = assignLessonToChapter(m, "a", "Deep");
+    expect(m.chapters).toEqual([{ title: "Intro", lessons: ["b"] }, { title: "Deep", lessons: ["a"] }]);
+    // unassign b → Intro empties and is pruned
+    m = assignLessonToChapter(m, "b", null);
+    expect(m.chapters).toEqual([{ title: "Deep", lessons: ["a"] }]);
+    expect(lessonChapter(m, "b")).toBeNull();
+    // course.json round-trip keeps chapters
+    expect(readCourseMeta([{ path: COURSE_FILE, content: courseMetaText(m) }])).toEqual(m);
+    // removing the last lesson drops chapters entirely (undefined, not [])
+    expect(assignLessonToChapter(m, "a", null).chapters).toBeUndefined();
   });
 
   it("readCourseMeta returns null when absent or malformed", () => {

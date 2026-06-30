@@ -32,6 +32,14 @@ export type CourseCheck =
   | { kind: 'memory'; addr: string; equals: string; space?: string; afterFrames?: number }
   | { kind: 'register'; reg: 'a' | 'x' | 'y' | 'sp' | 'pc'; equals: string; afterFrames?: number }
 
+/** Optional grouping of lessons under a heading. Lessons are referenced by their
+ *  directory slug; chapter order = array order; lessons in no chapter render
+ *  ungrouped (so a course with no `chapters` is a flat list, as before). */
+export interface CourseChapter {
+  title: string
+  lessons: string[]
+}
+
 /** course.json — the picker-facing course descriptor. */
 export interface CourseMeta {
   title: string
@@ -40,6 +48,8 @@ export interface CourseMeta {
   machine: string
   /** Sort hint for the listing (ascending; missing sorts last). */
   order?: number
+  /** Optional lesson grouping (headings in the lesson list). */
+  chapters?: CourseChapter[]
 }
 
 /** Where a course came from. */

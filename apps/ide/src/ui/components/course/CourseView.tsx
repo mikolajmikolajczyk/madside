@@ -1,6 +1,6 @@
 import { useState } from "react";
 import Markdown from "react-markdown";
-import type { CheckReport, CourseCheck } from "@app";
+import type { CheckReport, CourseCheck, CourseChapter } from "@app";
 import { errorMessage } from "@ports";
 import "./CoursePanel.css";
 
@@ -15,6 +15,8 @@ export interface CourseViewData {
   source?: { label: string; fetchedAt: number };
   /** All lessons in order. */
   lessons: { id: string; title: string }[];
+  /** Optional grouping of the lesson list under chapter headings. */
+  chapters?: CourseChapter[];
   /** The lesson currently shown. */
   currentId: string;
   /** Rendered markdown body of the current lesson. */
@@ -45,6 +47,24 @@ export function CourseView({ data, onOpenLesson, onCheck, onRefresh, onReset, pr
   const total = data.lessons.length;
   const prev = index > 0 ? data.lessons[index - 1]!.id : undefined;
   const next = index >= 0 && index < total - 1 ? data.lessons[index + 1]!.id : undefined;
+
+  // Group the lesson list under chapter headings (keeping each lesson's global
+  // number + flat prev/next). No chapters ⇒ a single untitled group = flat list.
+  const numOf = new Map(data.lessons.map((l, i) => [l.id, i]));
+  const groups: { title: string | null; items: { id: string; title: string; n: number }[] }[] = [];
+  if (data.chapters?.length) {
+    const grouped = new Set<string>();
+    for (const ch of data.chapters) {
+      const items = ch.lessons
+        .filter((id) => numOf.has(id))
+        .map((id) => { grouped.add(id); return { id, title: data.lessons[numOf.get(id)!]!.title, n: numOf.get(id)! }; });
+      if (items.length) groups.push({ title: ch.title, items });
+    }
+    const rest = data.lessons.filter((l) => !grouped.has(l.id)).map((l) => ({ id: l.id, title: l.title, n: numOf.get(l.id)! }));
+    if (rest.length) groups.push({ title: null, items: rest });
+  } else {
+    groups.push({ title: null, items: data.lessons.map((l) => ({ id: l.id, title: l.title, n: numOf.get(l.id)! })) });
+  }
 
   // Drop a stale report when the shown lesson changes.
   const [reportKey, setReportKey] = useState(data.currentId);
@@ -94,23 +114,30 @@ export function CourseView({ data, onOpenLesson, onCheck, onRefresh, onReset, pr
       )}
 
       <ol className="course__lessons">
-        {data.lessons.map((l, i) => {
-          const current = l.id === data.currentId;
-          return (
-            <li key={l.id}>
-              <button
-                type="button"
-                className={"course__lesson" + (current ? " course__lesson--on" : "")}
-                onClick={() => { if (!current) onOpenLesson(l.id); }}
-                aria-current={current ? "step" : undefined}
-                data-testid={`course.lesson.${l.id}`}
-              >
-                <span className="course__lesson-n">{i + 1}</span>
-                <span className="course__lesson-name">{l.title}</span>
-              </button>
-            </li>
-          );
-        })}
+        {groups.map((g, gi) => (
+          <li key={g.title ?? `__rest${gi}`} className="course__group">
+            {g.title && <div className="course__chapter">{g.title}</div>}
+            <ol className="course__group-list">
+              {g.items.map((l) => {
+                const current = l.id === data.currentId;
+                return (
+                  <li key={l.id}>
+                    <button
+                      type="button"
+                      className={"course__lesson" + (current ? " course__lesson--on" : "")}
+                      onClick={() => { if (!current) onOpenLesson(l.id); }}
+                      aria-current={current ? "step" : undefined}
+                      data-testid={`course.lesson.${l.id}`}
+                    >
+                      <span className="course__lesson-n">{l.n + 1}</span>
+                      <span className="course__lesson-name">{l.title}</span>
+                    </button>
+                  </li>
+                );
+              })}
+            </ol>
+          </li>
+        ))}
       </ol>
 
       <div className="course__body">

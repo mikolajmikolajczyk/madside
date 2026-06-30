@@ -263,3 +263,15 @@
 
 /* Preview tag (CourseView, authoring preview #139) */
 .course__preview-tag { color: var(--text-quaternary); font-weight: normal; }
+
+/* Chapter grouping in the lesson list (#chapters). */
+.course__group { list-style: none; }
+.course__group-list { list-style: none; margin: 0; padding: 0; }
+.course__chapter {
+  margin: 8px 0 2px;
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--text-tertiary);
+}
+.course__group:first-child .course__chapter { margin-top: 0; }

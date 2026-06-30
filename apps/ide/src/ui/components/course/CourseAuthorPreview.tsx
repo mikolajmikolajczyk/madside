@@ -25,6 +25,7 @@ export function CourseAuthorPreview({ files, activeLessonId, onSelectLesson, onC
   const data: CourseViewData = {
     title: meta?.title || "Untitled course",
     lessons: lessons.map((l) => ({ id: l.id, title: l.title })),
+    chapters: meta?.chapters,
     currentId,
     body: readLessonBody(files, currentId),
     checks: readLessonChecks(files, currentId),

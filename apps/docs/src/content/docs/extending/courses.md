@@ -74,7 +74,11 @@ Course-level metadata only:
   "title": "Atari Assembly Basics",
   "description": "Write your first 6502 programs for the Atari 8-bit.",
   "machine": "atari-xl",
-  "order": 1
+  "order": 1,
+  "chapters": [
+    { "title": "How the processor thinks", "lessons": ["cpu-rejestr", "cpu-petla"] },
+    { "title": "Screen", "lessons": ["ekran-tekst"] }
+  ]
 }
 ```
 
@@ -84,6 +88,7 @@ Course-level metadata only:
 | `description` | yes | One-line summary in the picker. |
 | `machine` | yes | Machine id the course targets (`atari-xl`, `nes`, …). |
 | `order` | no | Sort hint in the course list (ascending; missing sorts last). |
+| `chapters` | no | Group the lesson list under headings. Each entry is `{ "title", "lessons": [<lesson-dir-slug>, …] }`; chapter order is the array order. Lessons in no chapter render ungrouped, so omitting `chapters` keeps a flat list. In the Course Author, the per-lesson **chapter** dropdown maintains this array for you. |
 
 ## A lesson
 
