@@ -871,8 +871,9 @@ export default function App() {
   const handleRefreshCourse = useCallback(async (courseId: string) => {
     const c = getCourse(courseId);
     if (c?.source.kind !== "github") return;
-    await refreshCourseFromGitHub(workbench.storage, { owner: c.source.owner, repo: c.source.repo, ref: c.source.ref });
-  }, [workbench]);
+    const ghFetch = gh.auth ? (url: string, init?: RequestInit) => gh.auth!.fetch(url, init) : undefined;
+    await refreshCourseFromGitHub(workbench.storage, { owner: c.source.owner, repo: c.source.repo, ref: c.source.ref }, ghFetch);
+  }, [workbench, gh]);
 
   // Push the active project's source to the user's repo (#160). Explicit only.
   // Save opens a commit-message prompt; doPushGitHub does the push with it.

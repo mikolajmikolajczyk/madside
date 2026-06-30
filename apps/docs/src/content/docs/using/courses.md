@@ -13,7 +13,9 @@ Courses live on the **welcome screen** (shown on first run, or anytime via **Fil
 
 ## Following a community course
 
-Courses don't have to ship with the app — you can load one from any **public GitHub repo**. In the welcome picker's **Follow a course** section, paste a repo URL into the **Add a course from GitHub** field (`github.com/owner/repo`, or `owner/repo@branch` to pin a version) and press **Add**. The course installs into your browser, appears as a card, and opens its first lesson.
+Courses don't have to ship with the app — you can load one from a GitHub repo. In the welcome picker's **Follow a course** section, paste a repo URL into the **Add a course from GitHub** field (`github.com/owner/repo`, or `owner/repo@branch` to pin a version) and press **Add**. The course installs into your browser, appears as a card, and opens its first lesson.
+
+**Public** repos load with no account. To load from a **private** repo, [sign in](/docs/using/github/) with the madside app installed on it — madside then reads it through the GitHub API.
 
 While you're in a community course, the lesson panel shows the source repo and a **↻ Refresh** button that re-pulls the latest content. Refreshing keeps your edits — use **Reset lesson to starter** if you want a clean slate for the current lesson. Remove an installed course from its card (the **×**) in the welcome picker.
 

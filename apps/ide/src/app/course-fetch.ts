@@ -10,8 +10,32 @@
 // endpoints and need a proxy — deferred to the Phase 2 backlog (8b96cf8).
 
 import { addRemoteCourse, validateCourseFiles, type CourseInfo } from './courses'
+import { getRepoTree, fetchBlob, type GhFetch } from '@madside/github-sync'
 import { NetworkError } from '@ports'
 import type { InstalledCourseRow, StorageBackend } from '@ports'
+
+const dec = new TextDecoder()
+
+/** Find the course(s) in a flat path list: one per `courses/<slug>/` with a
+ *  course.json, else the whole repo as a legacy root course. Returns each course
+ *  root's prefix + the paths that belong to it (course.json + lessons/**). */
+function discoverCourseGroups(all: string[]): { slug: string | null; prefix: string; paths: string[] }[] {
+  const slugs = new Set<string>()
+  for (const p of all) {
+    const m = p.match(/^courses\/([^/]+)\/course\.json$/)
+    if (m) slugs.add(m[1]!)
+  }
+  if (slugs.size > 0) {
+    return [...slugs].sort().map((slug) => {
+      const prefix = `courses/${slug}/`
+      return { slug, prefix, paths: all.filter((p) => p === `${prefix}course.json` || p.startsWith(`${prefix}lessons/`)) }
+    })
+  }
+  if (all.includes('course.json')) {
+    return [{ slug: null, prefix: '', paths: all.filter((p) => p === 'course.json' || p.startsWith('lessons/')) }]
+  }
+  return []
+}
 
 export interface GitHubRef {
   owner: string
@@ -86,6 +110,7 @@ export async function fetchGitHubCourse(
   owner: string,
   repo: string,
   ref?: string,
+  ghFetch?: GhFetch,
 ): Promise<{ courses: FetchedCourse[]; usedRef: string; resolvedRef?: string }> {
   // An explicit ref is tried as-is. For the common main↔master mixup we also try
   // the sibling default-branch name (so `@master` works on a `main` repo, and
@@ -99,36 +124,19 @@ export async function fetchGitHubCourse(
     if (listing) { usedRef = c; break }
   }
   if (!listing) {
-    throw new Error(ref ? `ref '${ref}' not found` : 'no main/master branch — specify a ref (owner/repo@branch)')
+    // jsDelivr serves PUBLIC repos only. If we have an authed fetch (signed in +
+    // the app installed on the repo), fall back to the GitHub API so private
+    // repos work too — same path project import uses.
+    if (ghFetch) return fetchGitHubCourseAuthed(owner, repo, ghFetch)
+    throw new Error(
+      ref
+        ? `couldn't load ${owner}/${repo}@${ref} — public repos load here; for a private repo, sign in (Help ▸ GitHub) with the app installed on it`
+        : `couldn't load ${owner}/${repo} — public repos load here; for a private repo, sign in (Help ▸ GitHub) with the app installed on it`,
+    )
   }
 
   const all = (listing.files ?? []).map((f) => f.name.replace(/^\//, ''))
-
-  // Multi-course: one course per `courses/<slug>/` that has a course.json.
-  const slugs = new Set<string>()
-  for (const p of all) {
-    const m = p.match(/^courses\/([^/]+)\/course\.json$/)
-    if (m) slugs.add(m[1]!)
-  }
-
-  const groups: { slug: string | null; prefix: string; paths: string[] }[] = []
-  if (slugs.size > 0) {
-    for (const slug of [...slugs].sort()) {
-      const prefix = `courses/${slug}/`
-      groups.push({
-        slug,
-        prefix,
-        paths: all.filter((p) => p === `${prefix}course.json` || p.startsWith(`${prefix}lessons/`)),
-      })
-    }
-  } else if (all.includes('course.json')) {
-    // Legacy: the whole repo is one course at the root.
-    groups.push({
-      slug: null,
-      prefix: '',
-      paths: all.filter((p) => p === 'course.json' || p.startsWith('lessons/')),
-    })
-  }
+  const groups = discoverCourseGroups(all)
   if (groups.length === 0) {
     throw new Error('no course.json (at the root or under courses/<slug>/) — is this a course repo?')
   }
@@ -156,17 +164,49 @@ export async function fetchGitHubCourse(
   return { courses, usedRef, resolvedRef: listing.version }
 }
 
+/** Authed fallback for private repos — list + read via the GitHub API (the repo's
+ *  default branch), mirroring the jsDelivr discovery. */
+async function fetchGitHubCourseAuthed(
+  owner: string,
+  repo: string,
+  ghFetch: GhFetch,
+): Promise<{ courses: FetchedCourse[]; usedRef: string; resolvedRef?: string }> {
+  const target = { owner, repo }
+  const tree = await getRepoTree(ghFetch, target)
+  if (!tree) throw new Error(`couldn't load ${owner}/${repo} — empty repo, or the madside app isn't installed on it`)
+  if (tree.truncated) throw new Error(`${owner}/${repo} is too large to read in one request`)
+
+  const blobSha = new Map(tree.entries.filter((e) => e.type === 'blob').map((e) => [e.path, e.sha]))
+  const groups = discoverCourseGroups([...blobSha.keys()])
+  if (groups.length === 0) {
+    throw new Error('no course.json (at the root or under courses/<slug>/) — is this a course repo?')
+  }
+
+  const courses = await Promise.all(
+    groups.map(async (g) => ({
+      slug: g.slug,
+      files: await Promise.all(
+        g.paths.map(async (path) => ({
+          path: path.slice(g.prefix.length),
+          content: dec.decode(await fetchBlob(ghFetch, target, blobSha.get(path)!)),
+        })),
+      ),
+    })),
+  )
+  return { courses, usedRef: tree.branch, resolvedRef: tree.commitSha }
+}
+
 /** Fetch + validate + install every course in a GitHub repo (URL or shorthand).
  *  Returns the installed CourseInfo[] — one per `courses/<slug>/`, or one for a
  *  legacy root course. Throws with a user-facing message on a bad URL, a
  *  non-course repo, or a network error. A repo with some bad courses still
  *  installs the good ones; only an all-empty result throws. Re-installing the
  *  same ref overwrites (this is also `refresh`). */
-export async function installCourseFromGitHub(storage: StorageBackend, input: string): Promise<CourseInfo[]> {
+export async function installCourseFromGitHub(storage: StorageBackend, input: string, ghFetch?: GhFetch): Promise<CourseInfo[]> {
   const parsed = parseGitHubRef(input)
   if (!parsed) throw new Error('not a GitHub repo URL (expected github.com/owner/repo or owner/repo)')
 
-  const { courses, resolvedRef } = await fetchGitHubCourse(parsed.owner, parsed.repo, parsed.ref)
+  const { courses, resolvedRef } = await fetchGitHubCourse(parsed.owner, parsed.repo, parsed.ref, ghFetch)
 
   const installed: CourseInfo[] = []
   const errors: string[] = []
@@ -205,6 +245,6 @@ export async function refreshCourseFromGitHub(storage: StorageBackend, source: {
   owner: string
   repo: string
   ref: string
-}): Promise<CourseInfo[]> {
-  return installCourseFromGitHub(storage, `${source.owner}/${source.repo}${source.ref ? `@${source.ref}` : ''}`)
+}, ghFetch?: GhFetch): Promise<CourseInfo[]> {
+  return installCourseFromGitHub(storage, `${source.owner}/${source.repo}${source.ref ? `@${source.ref}` : ''}`, ghFetch)
 }

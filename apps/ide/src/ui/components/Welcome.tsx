@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { unzipSync } from "fflate";
-import { createBlankProject, createDraftCourse, getCourse, getTemplateManifestText, importDraftCourse, installCourseFromGitHub, instantiateTemplate, listTemplates, officialCourseRef, officialCourseSourceId, openLesson, removeRemoteCourse, starterFilesForMachine, useWorkbench, type OfficialCourse } from "@app";
+import { createBlankProject, createDraftCourse, getCourse, getTemplateManifestText, importDraftCourse, installCourseFromGitHub, instantiateTemplate, listTemplates, officialCourseRef, officialCourseSourceId, openLesson, removeRemoteCourse, starterFilesForMachine, useGitHub, useWorkbench, type OfficialCourse } from "@app";
 import { errorMessage, NetworkError } from "@ports";
 import { exportProjectZip } from "@app/project-zip";
 import { useCourses } from "../hooks/useCourses";
@@ -115,6 +115,10 @@ function CardFilter({ query, onQuery, machines, machine, onMachine, placeholder,
  *  creates a project into storage and opens it. */
 export function Welcome({ onOpen, projects = [], onDeleteProject, onManageGitHub }: Props) {
   const workbench = useWorkbench();
+  const gh = useGitHub();
+  // Authed fetch (when signed in) lets "Add a course" reach PRIVATE repos via the
+  // GitHub API; public repos still load over jsDelivr without it.
+  const ghFetch = gh.auth ? (url: string, init?: RequestInit) => gh.auth!.fetch(url, init) : undefined;
   // Templates minus 'empty' (the empty flow is the top section).
   const templates = useMemo(() => listTemplates().filter((t) => t.id !== "empty"), []);
   const courses = useCourses();
@@ -326,7 +330,7 @@ export function Welcome({ onOpen, projects = [], onDeleteProject, onManageGitHub
     setBusy(`official:${c.id}`);
     setError(null);
     try {
-      const [info] = await installCourseFromGitHub(workbench.storage, officialCourseRef(c));
+      const [info] = await installCourseFromGitHub(workbench.storage, officialCourseRef(c), ghFetch);
       const first = info?.lessons[0];
       if (!info || !first) throw new Error("course has no lessons");
       const projectId = await openLesson(workbench.storage, info.id, first);
@@ -347,7 +351,7 @@ export function Welcome({ onOpen, projects = [], onDeleteProject, onManageGitHub
     setBusy("add-course");
     setError(null);
     try {
-      const infos = await installCourseFromGitHub(workbench.storage, input);
+      const infos = await installCourseFromGitHub(workbench.storage, input, ghFetch);
       setRepoInput("");
       // A repo can hold several courses. Auto-open only when there's exactly one;
       // otherwise stay on Welcome so the user sees all of them in the list.
