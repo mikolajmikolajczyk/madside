@@ -87,7 +87,11 @@ export async function fetchGitHubCourse(
   repo: string,
   ref?: string,
 ): Promise<{ courses: FetchedCourse[]; usedRef: string; resolvedRef?: string }> {
-  const candidates = ref ? [ref] : ['main', 'master']
+  // An explicit ref is tried as-is. For the common main↔master mixup we also try
+  // the sibling default-branch name (so `@master` works on a `main` repo, and
+  // vice versa) — but NOT for arbitrary tags, so pinned versions stay strict.
+  const sibling = ref === 'master' ? 'main' : ref === 'main' ? 'master' : null
+  const candidates = ref ? (sibling ? [ref, sibling] : [ref]) : ['main', 'master']
   let listing: JsdelivrFlat | null = null
   let usedRef = ''
   for (const c of candidates) {
