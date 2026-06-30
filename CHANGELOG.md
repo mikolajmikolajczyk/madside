@@ -1,3 +1,8 @@
+## [0.27.3] - 2026-06-30
+
+### 🚀 Features
+
+- *(run)* Build on project open; Run clickable immediately
 ## [0.27.2] - 2026-06-30
 
 ### 🐛 Bug Fixes
