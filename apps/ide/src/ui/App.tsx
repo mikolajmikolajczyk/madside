@@ -711,7 +711,6 @@ export default function App() {
   // stale-closure footgun (see the hook).
   const { onRun, onPause, onStep, onStepFrame, onStepOver, onStop, onReset } = useRunControls({
     workbench,
-    result,
     runAssemble,
     resetEmuState,
     sourceMap,

@@ -6,7 +6,6 @@ import type { AutoAssembleOutcome } from "./useAutoAssemble";
 
 interface Args {
   workbench: Workbench;
-  result: AutoAssembleOutcome | null;
   runAssemble: () => Promise<AutoAssembleOutcome | null>;
   resetEmuState: (opts?: { keepResult?: boolean; keepMemTouched?: boolean }) => void;
   sourceMap: SourceMap | null;
@@ -32,7 +31,6 @@ export interface RunControls {
  *  identity-stable so the callbacks aren't needlessly rebuilt. */
 export function useRunControls({
   workbench,
-  result,
   runAssemble,
   resetEmuState,
   sourceMap,
@@ -51,8 +49,11 @@ export function useRunControls({
       workbench.run.run();
       return;
     }
-    let r = result;
-    if (!r) r = await runAssemble();
+    // Cold run: rebuild the CURRENT source rather than trusting the last result.
+    // The auto-assemble is debounced, so a breaking edit may not have rebuilt yet
+    // — running the cached (stale-green) binary would silently run old code. A
+    // fresh assemble means a broken source blocks here instead.
+    const r = await runAssemble();
     if (!r?.ok || !r.xex) {
       // Nothing to load — tell the user where to look, in the emulator window.
       setRunBlockedMsg("Compilation error. Check output.");
@@ -66,7 +67,7 @@ export function useRunControls({
     setBrokeOn(null);
     setRunBlockedMsg(null);
     workbench.run.run();
-  }, [result, runAssemble, workbench, setBrokeOn, setRunBlockedMsg]);
+  }, [runAssemble, workbench, setBrokeOn, setRunBlockedMsg]);
 
   const onPause = useCallback(() => {
     if (workbench.run.status === "running") workbench.run.pause();
