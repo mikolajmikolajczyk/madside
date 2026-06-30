@@ -1,3 +1,8 @@
+## [0.27.1] - 2026-06-30
+
+### 🐛 Bug Fixes
+
+- *(courses)* Add Genesis + ZX128 to Course Author machines
 ## [0.27.0] - 2026-06-30
 
 ### 🚀 Features
