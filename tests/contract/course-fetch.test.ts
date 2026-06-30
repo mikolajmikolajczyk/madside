@@ -72,8 +72,8 @@ describe('parseGitHubRef', () => {
     expect(parseGitHubRef('just-text')).toBeNull()
   })
   it('builds a stable source id', () => {
-    expect(courseSourceId({ owner: 'me', repo: 'course' })).toBe('gh:me/course@default')
-    expect(courseSourceId({ owner: 'me', repo: 'course', ref: 'v1' })).toBe('gh:me/course@v1')
+    expect(courseSourceId({ owner: 'me', repo: 'course' })).toBe('gh:me/course')
+    expect(courseSourceId({ owner: 'me', repo: 'course', ref: 'v1' })).toBe('gh:me/course')
   })
 })
 
@@ -137,23 +137,23 @@ describe('fetchGitHubCourse', () => {
 
 describe('installCourseFromGitHub', () => {
   beforeEach(async () => { await __resetDb(); installMockFetch() })
-  afterEach(async () => { vi.restoreAllMocks(); await removeRemoteCourse(storage, 'gh:me/course@default') })
+  afterEach(async () => { vi.restoreAllMocks(); await removeRemoteCourse(storage, 'gh:me/course') })
 
   it('installs, registers, and persists a remote course', async () => {
     const [info] = await installCourseFromGitHub(storage, 'https://github.com/me/course')
-    expect(info!.id).toBe('gh:me/course@default')
+    expect(info!.id).toBe('gh:me/course')
     expect(info!.title).toBe('Test Course')
     expect(info!.source.kind).toBe('github')
     expect(info!.lessons).toEqual(['01-first'])
 
     // registered in the merged read API
-    expect(getCourse('gh:me/course@default')?.title).toBe('Test Course')
-    expect(getLesson('gh:me/course@default', '01-first')?.title).toBe('First Lesson')
-    expect(listCourses().some((c) => c.id === 'gh:me/course@default')).toBe(true)
+    expect(getCourse('gh:me/course')?.title).toBe('Test Course')
+    expect(getLesson('gh:me/course', '01-first')?.title).toBe('First Lesson')
+    expect(listCourses().some((c) => c.id === 'gh:me/course')).toBe(true)
 
     // persisted to IDB
     const installed = await listInstalledCourses()
-    expect(installed.find((c) => c.sourceId === 'gh:me/course@default')).toBeTruthy()
+    expect(installed.find((c) => c.sourceId === 'gh:me/course')).toBeTruthy()
   })
 
   it('rejects a non-GitHub URL before fetching', async () => {
@@ -163,11 +163,11 @@ describe('installCourseFromGitHub', () => {
 
 describe('refreshCourseFromGitHub', () => {
   beforeEach(async () => { await __resetDb(); installMockFetch() })
-  afterEach(async () => { vi.restoreAllMocks(); await removeRemoteCourse(storage, 'gh:me/course@main') })
+  afterEach(async () => { vi.restoreAllMocks(); await removeRemoteCourse(storage, 'gh:me/course') })
 
   it('re-installs from the stored owner/repo/ref', async () => {
     const [info] = await refreshCourseFromGitHub(storage, { owner: 'me', repo: 'course', ref: 'main' })
-    expect(info!.id).toBe('gh:me/course@main')
+    expect(info!.id).toBe('gh:me/course')
     expect(info!.title).toBe('Test Course')
     expect(info!.lessons).toEqual(['01-first'])
   })
@@ -211,21 +211,21 @@ describe('multi-course repo', () => {
   beforeEach(async () => { await __resetDb(); installMultiMockFetch() })
   afterEach(async () => {
     vi.restoreAllMocks()
-    await removeRemoteCourse(storage, 'gh:me/repo@default#intro')
-    await removeRemoteCourse(storage, 'gh:me/repo@default#advanced')
+    await removeRemoteCourse(storage, 'gh:me/repo#intro')
+    await removeRemoteCourse(storage, 'gh:me/repo#advanced')
   })
 
   it('installs every courses/<slug>/ course with a per-slug source id', async () => {
     const infos = await installCourseFromGitHub(storage, 'me/repo')
     const ids = infos.map((i) => i.id).sort()
-    expect(ids).toEqual(['gh:me/repo@default#advanced', 'gh:me/repo@default#intro'])
+    expect(ids).toEqual(['gh:me/repo#advanced', 'gh:me/repo#intro'])
     // files are course-root-relative (courses/<slug>/ prefix stripped)
-    expect(getCourse('gh:me/repo@default#intro')?.title).toBe('Test Course')
-    expect(getCourse('gh:me/repo@default#advanced')?.title).toBe('Course B')
-    expect(getLesson('gh:me/repo@default#intro', '01-a')?.title).toBe('First Lesson')
+    expect(getCourse('gh:me/repo#intro')?.title).toBe('Test Course')
+    expect(getCourse('gh:me/repo#advanced')?.title).toBe('Course B')
+    expect(getLesson('gh:me/repo#intro', '01-a')?.title).toBe('First Lesson')
   })
 
   it('builds per-slug source ids', () => {
-    expect(courseSourceId({ owner: 'me', repo: 'repo' }, 'intro')).toBe('gh:me/repo@default#intro')
+    expect(courseSourceId({ owner: 'me', repo: 'repo' }, 'intro')).toBe('gh:me/repo#intro')
   })
 })

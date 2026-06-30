@@ -15,8 +15,12 @@
   padding-bottom: 4px;
   display: flex;
   align-items: center;
-  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 6px;
 }
+/* Push the publish controls (repo + button) to the right; they wrap as a unit
+   when the toolbar is tight, so the repo select keeps room to show its name. */
+.course-author__title > .course-author__select { margin-left: auto; }
 .course-author__form {
   display: flex;
   flex-direction: column;
@@ -230,17 +234,31 @@
   font-style: italic;
 }
 
-/* Repo picker next to the Publish button. */
-.course-author__select {
-  max-width: 16ch;
-  min-width: 0;
-  font: inherit;
-}
-
-/* Per-lesson chapter picker in the lesson row. */
+/* Selects styled to match the toolbar buttons (not raw browser chrome). */
+.course-author__select,
 .course-author__chapter {
   font: inherit;
-  font-size: 11px;
-  max-width: 12ch;
   min-width: 0;
+  box-sizing: border-box;
+  background: var(--bg-tertiary);
+  color: var(--text-primary);
+  border: 1px solid var(--border-default);
+  border-radius: 4px;
+  padding: 2px 6px;
+  cursor: pointer;
+}
+.course-author__select:hover,
+.course-author__chapter:hover { border-color: var(--accent-mint); }
+
+/* Repo picker: grow to fill the toolbar row so long owner/repo names are legible. */
+.course-author__select {
+  flex: 1 1 16ch;
+  max-width: 32ch;
+  font-size: 12px;
+}
+
+/* Per-lesson chapter picker — wide enough for "— No chapter". */
+.course-author__chapter {
+  font-size: 11px;
+  max-width: 18ch;
 }

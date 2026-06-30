@@ -73,7 +73,10 @@ export function parseGitHubRef(input: string): GitHubRef | null {
  *  (`#<slug>` fragment); a legacy single-course repo (root `course.json`) keeps
  *  the plain id for backward-compat with already-installed rows. */
 export function courseSourceId(r: GitHubRef, slug?: string | null): string {
-  const base = `gh:${r.owner}/${r.repo}@${r.ref ?? 'default'}`
+  // Identity is repo (+ slug) — NOT the ref. Re-adding or refreshing the same
+  // course at a different ref updates the SAME entry instead of duplicating; the
+  // ref is only a fetch pin, stored on the row.
+  const base = `gh:${r.owner}/${r.repo}`
   return slug ? `${base}#${slug}` : base
 }
 

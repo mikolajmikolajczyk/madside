@@ -63,7 +63,7 @@ import { GitHubDialog } from "./components/github/GitHubDialog";
 import { GitHubPushDialog } from "./components/github/GitHubPushDialog";
 import { useGitHubAutoSync } from "./hooks/useGitHubAutoSync";
 import { githubAvailable, useGitHub, pushProjectToGitHub, pullProjectToIdb, remoteSlug, removeProjectFromGitHub, projectGitHubUrls, projectRepo, listAccessibleRepos } from "@app";
-import { addLessonInFiles, getCourse, getDraftCourse, openLesson, readCourseMeta, refreshCourseFromGitHub, resetLessonToStarter, runChecks, saveDraftCourse, scanEquates, setLessonStarterInFiles, starterFilesForMachine } from "@app";
+import { addLessonInFiles, getCourse, getDraftCourse, openLesson, readCourseMeta, refreshCourseFromGitHub, resetLessonToStarter, runChecks, saveDraftCourse, scanEquates, setLessonStarterInFiles, starterFilesForMachine, addRemoteCourse, removeRemoteCourse, courseSourceId } from "@app";
 import { useCourses } from "./hooks/useCourses";
 import type { CheckReport, CheckRunDeps } from "@app";
 import type { CourseCheck } from "@app";
@@ -189,7 +189,25 @@ export default function App() {
   useCourses(); // subscribe so getCourse() reflects draft saves
   const course = project.loaded ? project.manifest.course : undefined;
   const courseInfo = course ? getCourse(course.id) : undefined;
-  const authoring = courseInfo?.source.kind === "local";
+  // Repos the signed-in user can push to — drives "is this course editable".
+  const [pushableRepos, setPushableRepos] = useState<Set<string>>(new Set());
+  useEffect(() => {
+    let cancelled = false;
+    void (async () => {
+      if (!gh.auth || !gh.signedIn) { if (!cancelled) setPushableRepos(new Set()); return; }
+      try {
+        const list = await listAccessibleRepos(gh.auth);
+        if (!cancelled) setPushableRepos(new Set(list.filter((r) => r.canPush).map((r) => r.fullName)));
+      } catch { /* no write access known */ }
+    })();
+    return () => { cancelled = true; };
+  }, [gh.auth, gh.signedIn, gh.rev]);
+  // A course is editable (author surface) when it's a local draft, or a GitHub
+  // course on a repo you can push to. Read-only (public/no-push) ⇒ follow only.
+  const authoring = courseInfo
+    ? courseInfo.source.kind === "local" ||
+      (courseInfo.source.kind === "github" && pushableRepos.has(`${courseInfo.source.owner}/${courseInfo.source.repo}`))
+    : false;
 
   // The draft bundle's files (course.json + every lesson) loaded for editing;
   // the active lesson's starter is the LIVE project, swapped in on read so the
@@ -875,6 +893,28 @@ export default function App() {
     await refreshCourseFromGitHub(workbench.storage, { owner: c.source.owner, repo: c.source.repo, ref: c.source.ref }, ghFetch);
   }, [workbench, gh]);
 
+  // After a course is published, adopt its GitHub identity: a local draft becomes
+  // the published `gh:owner/repo#slug` course (one entry, dedups re-imports), and
+  // the open lesson re-opens on it. Already-published courses just refresh.
+  const handleCoursePublished = useCallback(async (repo: string, slug: string) => {
+    const cur = project.loaded ? project.manifest.course : undefined;
+    if (!cur) return;
+    const [owner, name] = repo.split("/");
+    if (!owner || !name) return;
+    const newId = courseSourceId({ owner, repo: name }, slug);
+    if (newId === cur.id) { gh.refresh(); return; }
+    const files = await getDraftCourse(workbench.storage, cur.id);
+    if (!files) return;
+    await addRemoteCourse(workbench.storage, {
+      sourceId: newId, kind: "github", owner, repo: name, ref: "", slug, fetchedAt: Date.now(), files,
+    });
+    if (cur.id.startsWith("local:")) await removeRemoteCourse(workbench.storage, cur.id);
+    const proj = await openLesson(workbench.storage, newId, cur.lesson);
+    await project.switchProject(proj);
+    await project.refreshProjects();
+    gh.refresh();
+  }, [project, workbench, gh]);
+
   // Push the active project's source to the user's repo (#160). Explicit only.
   // Save opens a commit-message prompt; doPushGitHub does the push with it.
   const handlePushGitHub = useCallback(() => setPushMsgOpen(true), []);
@@ -888,7 +928,7 @@ export default function App() {
     void (async () => {
       try {
         const list = await listAccessibleRepos(auth);
-        if (!cancelled) setPushRepos(list.map((r) => r.fullName));
+        if (!cancelled) setPushRepos(list.filter((r) => r.canPush).map((r) => r.fullName));
       } catch {
         /* picker just won't populate */
       }
@@ -1166,6 +1206,7 @@ export default function App() {
         onSaveFiles={(f) => { void onSaveDraft(f); }}
         onSelectLesson={(l) => { void onSelectLesson(l); }}
         onAddLesson={() => { void onAddLesson(); }}
+        onPublished={(repo, slug) => { void handleCoursePublished(repo, slug); }}
       />
     </Suspense>
   ) : null;

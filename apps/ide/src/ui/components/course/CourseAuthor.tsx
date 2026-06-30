@@ -51,13 +51,16 @@ function downloadCourse(files: Files, title: string): void {
 
 const EMPTY: CourseMeta = { title: "", description: "", machine: AUTHORABLE_MACHINES[0]! };
 
-export function CourseAuthor({ files, courseId, activeLessonId, onSaveFiles, onSelectLesson, onAddLesson }: {
+export function CourseAuthor({ files, courseId, activeLessonId, onSaveFiles, onSelectLesson, onAddLesson, onPublished }: {
   files: Files;
   courseId: string;
   activeLessonId: string | null;
   onSaveFiles: (files: Files) => void;
   onSelectLesson: (lessonId: string) => void;
   onAddLesson: () => void;
+  /** Called after a successful publish so the host can adopt the published
+   *  identity (migrate a local draft to its GitHub course, dedup re-imports). */
+  onPublished?: (repo: string, slug: string) => void;
 }) {
   const meta = readCourseMeta(files) ?? EMPTY;
   const lessons = listLessons(files);
@@ -74,10 +77,10 @@ export function CourseAuthor({ files, courseId, activeLessonId, onSaveFiles, onS
     let cancelled = false;
     void (async () => {
       try {
-        const list = await listAccessibleRepos(auth);
+        const writable = (await listAccessibleRepos(auth)).filter((r) => r.canPush);
         if (cancelled) return;
-        setRepos(list);
-        setRepo((cur) => cur || courseRepo(courseId) || list[0]?.fullName || "");
+        setRepos(writable);
+        setRepo((cur) => cur || courseRepo(courseId) || writable[0]?.fullName || "");
       } catch {
         /* picker just won't populate */
       }
@@ -100,6 +103,7 @@ export function CourseAuthor({ files, courseId, activeLessonId, onSaveFiles, onS
       await publishCourseToGitHub((url, init) => auth.fetch(url, init), repo, slug, syncFiles, `Publish course "${meta.title}"`);
       setCourseRepo(courseId, repo); // remember where this course publishes
       toast.push("info", `Published “${meta.title}” to ${repo}/courses/${slug}`);
+      onPublished?.(repo, slug); // host adopts the published GitHub identity
       gh.refresh();
     } catch (e) {
       toast.error(e);

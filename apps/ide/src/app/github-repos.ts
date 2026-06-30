@@ -9,13 +9,15 @@ export interface RepoRef {
   /** "owner/repo". */
   fullName: string;
   private: boolean;
+  /** Whether the user can push (write). false ⇒ read-only (no Save/Publish). */
+  canPush: boolean;
 }
 
 interface InstallationsResponse {
   installations: { id: number }[];
 }
 interface ReposResponse {
-  repositories: { full_name: string; private: boolean }[];
+  repositories: { full_name: string; private: boolean; permissions?: { push?: boolean } }[];
 }
 
 export async function listAccessibleRepos(auth: GitHubAuthProvider): Promise<RepoRef[]> {
@@ -31,7 +33,7 @@ export async function listAccessibleRepos(auth: GitHubAuthProvider): Promise<Rep
     if (!r.ok) continue;
     const { repositories } = (await r.json()) as ReposResponse;
     for (const repo of repositories) {
-      repos.push({ fullName: repo.full_name, private: repo.private });
+      repos.push({ fullName: repo.full_name, private: repo.private, canPush: repo.permissions?.push ?? false });
     }
   }
   // Stable, de-duplicated by full name.

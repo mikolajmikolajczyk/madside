@@ -7,7 +7,9 @@ import {
   listRemoteProjects,
   pullProjectToIdb,
   listRemoteCourses,
-  pullCourseDraft,
+  installCourseFromGitHub,
+  courseSourceId,
+  getCourse,
   projectRepo,
   remoteSlug,
   openLesson,
@@ -163,19 +165,29 @@ function ImportFromGitHub({ onOpenProject }: { onOpenProject?: (projectId: strin
     }
   };
 
-  const editCourse = async (slug: string) => {
+  // Install the course as a GitHub course (bound to its repo) and open it. If the
+  // repo is writable it opens in the author surface (edit in-place); read-only ⇒
+  // follow. No separate local draft — re-opening updates the same entry.
+  const openCourse = async (slug: string) => {
     if (!gh.auth || !repo) return;
     setBusy(`c:${slug}`);
     setError(null);
     try {
-      const { courseId, lessonId } = await pullCourseDraft(workbench.storage, (u, i) => gh.auth!.fetch(u, i), repo, slug);
+      await installCourseFromGitHub(workbench.storage, repo, (u, i) => gh.auth!.fetch(u, i));
+      const [owner, name] = repo.split("/");
+      const courseId = courseSourceId({ owner: owner!, repo: name! }, slug);
+      const lessonId = getCourse(courseId)?.lessons[0];
+      if (!lessonId) throw new Error("course has no lessons");
       const projectId = await openLesson(workbench.storage, courseId, lessonId);
+      gh.refresh();
       if (mounted.current) setBusy(null);
       onOpenProject?.(projectId);
     } catch (e) {
       if (mounted.current) { setError(e instanceof Error ? e.message : String(e)); setBusy(null); }
     }
   };
+
+  const canPushRepo = repos?.find((r) => r.fullName === repo)?.canPush ?? false;
 
   return (
     <div className="gh__repos">
@@ -258,8 +270,8 @@ function ImportFromGitHub({ onOpenProject }: { onOpenProject?: (projectId: strin
                 <li key={c.slug}>
                   <div className="gh__repo">
                     <span className="gh__repo-name">{c.title}</span>
-                    <button type="button" className="gh-acct__btn" disabled={busy !== null} onClick={() => void editCourse(c.slug)}>
-                      {busy === `c:${c.slug}` ? "Opening…" : "Edit"}
+                    <button type="button" className="gh-acct__btn" disabled={busy !== null} onClick={() => void openCourse(c.slug)}>
+                      {busy === `c:${c.slug}` ? "Opening…" : canPushRepo ? "Edit" : "Open"}
                     </button>
                   </div>
                 </li>

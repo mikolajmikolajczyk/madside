@@ -99,7 +99,11 @@ export function draftCourseFiles(name: string, machine: string, starterFor?: Les
 /** Persist + register a draft course bundle (install or overwrite by id), so the
  *  learner read API (`getCourse`/`getLesson`) + preview see it immediately. */
 export async function saveDraftCourse(storage: StorageBackend, courseId: string, files: { path: string; content: string }[]): Promise<void> {
-  const row: InstalledCourseRow = { sourceId: courseId, kind: 'local', fetchedAt: 0, files }
+  // Preserve the row's provenance (kind/owner/repo/ref/slug) when it already
+  // exists, so editing an installed GitHub course in-place keeps it a GitHub
+  // course (and only its files change); a brand-new course starts as a local draft.
+  const existing = await storage.courses.get(courseId)
+  const row: InstalledCourseRow = existing ? { ...existing, files } : { sourceId: courseId, kind: 'local', fetchedAt: 0, files }
   await addRemoteCourse(storage, row)
 }
 

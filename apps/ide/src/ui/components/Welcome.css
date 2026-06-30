@@ -656,3 +656,16 @@
 @media (prefers-reduced-motion: reduce) {
   .welcome * { transition: none !important; animation: none !important; }
 }
+
+/* "draft" (unpublished) tag on a course card — dimmer than the machine badge. */
+.welcome .welcome__card-tag {
+  flex-shrink: 0;
+  padding: 1px 6px;
+  border: 1px solid var(--border-default);
+  border-radius: 4px;
+  font-size: 10px;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  color: var(--text-tertiary);
+  white-space: nowrap;
+}

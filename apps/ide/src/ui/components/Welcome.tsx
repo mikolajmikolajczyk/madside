@@ -713,7 +713,8 @@ export function Welcome({ onOpen, projects = [], onDeleteProject, onManageGitHub
         {filteredCourses.length > 0 && (
           <div className="welcome__grid">
             {installedD.visible.map((c) => {
-              const remote = c.source.kind === "github";
+              const draft = c.source.kind === "local"; // authored, not yet published
+              const removable = c.source.kind !== "bundled";
               return (
                 <div key={c.id} className="welcome__card-wrap">
                   <button
@@ -724,21 +725,23 @@ export function Welcome({ onOpen, projects = [], onDeleteProject, onManageGitHub
                     data-testid={`welcome.course.${c.id}`}
                   >
                     <span className="welcome__card-head">
-                      <span className="welcome__card-name">{c.title}</span>
+                      <span className="welcome__card-name">{c.title || "Untitled course"}</span>
+                      {draft && <span className="welcome__card-tag label">draft</span>}
                       <span className="welcome__card-machine label">{c.machine}</span>
                     </span>
                     <span className="welcome__card-desc">{c.description}</span>
                     <span className="welcome__card-files">
                       {c.lessons.length} lessons
                       {c.source.kind === "github" && ` · ${c.source.owner}/${c.source.repo}`}
+                      {draft && " · unpublished"}
                     </span>
                     {busy === `course:${c.id}` && <span className="welcome__card-busy">opening…</span>}
                   </button>
-                  {remote && (
+                  {removable && (
                     <button
                       type="button"
                       className="welcome__card-remove"
-                      title="Remove this course"
+                      title={draft ? "Delete this draft" : "Remove this course"}
                       disabled={busy != null}
                       onClick={() => void removeCourse(c.id)}
                       data-testid={`welcome.course-remove.${c.id}`}
