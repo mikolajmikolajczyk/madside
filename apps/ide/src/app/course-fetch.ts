@@ -16,25 +16,20 @@ import type { InstalledCourseRow, StorageBackend } from '@ports'
 
 const dec = new TextDecoder()
 
-/** Find the course(s) in a flat path list: one per `courses/<slug>/` with a
- *  course.json, else the whole repo as a legacy root course. Returns each course
- *  root's prefix + the paths that belong to it (course.json + lessons/**). */
-function discoverCourseGroups(all: string[]): { slug: string | null; prefix: string; paths: string[] }[] {
+/** Find the courses in a flat path list — one per `courses/<slug>/` that has a
+ *  course.json. A repo holds any number of courses under `courses/`; that is the
+ *  single supported layout. Returns each course root's prefix + its paths
+ *  (course.json + lessons/**). */
+function discoverCourseGroups(all: string[]): { slug: string; prefix: string; paths: string[] }[] {
   const slugs = new Set<string>()
   for (const p of all) {
     const m = p.match(/^courses\/([^/]+)\/course\.json$/)
     if (m) slugs.add(m[1]!)
   }
-  if (slugs.size > 0) {
-    return [...slugs].sort().map((slug) => {
-      const prefix = `courses/${slug}/`
-      return { slug, prefix, paths: all.filter((p) => p === `${prefix}course.json` || p.startsWith(`${prefix}lessons/`)) }
-    })
-  }
-  if (all.includes('course.json')) {
-    return [{ slug: null, prefix: '', paths: all.filter((p) => p === 'course.json' || p.startsWith('lessons/')) }]
-  }
-  return []
+  return [...slugs].sort().map((slug) => {
+    const prefix = `courses/${slug}/`
+    return { slug, prefix, paths: all.filter((p) => p === `${prefix}course.json` || p.startsWith(`${prefix}lessons/`)) }
+  })
 }
 
 export interface GitHubRef {
@@ -72,12 +67,11 @@ export function parseGitHubRef(input: string): GitHubRef | null {
  *  multi-course repo distinguishes each course by its `courses/<slug>/` folder
  *  (`#<slug>` fragment); a legacy single-course repo (root `course.json`) keeps
  *  the plain id for backward-compat with already-installed rows. */
-export function courseSourceId(r: GitHubRef, slug?: string | null): string {
-  // Identity is repo (+ slug) — NOT the ref. Re-adding or refreshing the same
-  // course at a different ref updates the SAME entry instead of duplicating; the
-  // ref is only a fetch pin, stored on the row.
-  const base = `gh:${r.owner}/${r.repo}`
-  return slug ? `${base}#${slug}` : base
+export function courseSourceId(r: GitHubRef, slug: string): string {
+  // Identity is repo + course slug, ref-less: re-adding/refreshing at a different
+  // ref updates the SAME entry (the ref is only a fetch pin). Every course lives
+  // under `courses/<slug>/`, so a slug always exists.
+  return `gh:${r.owner}/${r.repo}#${slug}`
 }
 
 interface JsdelivrFlat {
@@ -99,8 +93,8 @@ async function listFiles(owner: string, repo: string, ref: string): Promise<Jsde
 
 /** A single course discovered in a repo, with course-root-relative files. */
 export interface FetchedCourse {
-  /** The `courses/<slug>/` folder name, or null for a legacy root course. */
-  slug: string | null
+  /** The `courses/<slug>/` folder name. */
+  slug: string
   files: { path: string; content: string }[]
 }
 
@@ -141,7 +135,7 @@ export async function fetchGitHubCourse(
   const all = (listing.files ?? []).map((f) => f.name.replace(/^\//, ''))
   const groups = discoverCourseGroups(all)
   if (groups.length === 0) {
-    throw new Error('no course.json (at the root or under courses/<slug>/) — is this a course repo?')
+    throw new Error('no courses found — a course repo holds one or more courses/<slug>/course.json')
   }
 
   const fetchRef = listing.version || usedRef
@@ -182,7 +176,7 @@ async function fetchGitHubCourseAuthed(
   const blobSha = new Map(tree.entries.filter((e) => e.type === 'blob').map((e) => [e.path, e.sha]))
   const groups = discoverCourseGroups([...blobSha.keys()])
   if (groups.length === 0) {
-    throw new Error('no course.json (at the root or under courses/<slug>/) — is this a course repo?')
+    throw new Error('no courses found — a course repo holds one or more courses/<slug>/course.json')
   }
 
   const courses = await Promise.all(
@@ -205,19 +199,19 @@ async function fetchGitHubCourseAuthed(
  *  non-course repo, or a network error. A repo with some bad courses still
  *  installs the good ones; only an all-empty result throws. Re-installing the
  *  same ref overwrites (this is also `refresh`). */
-export async function installCourseFromGitHub(storage: StorageBackend, input: string, ghFetch?: GhFetch): Promise<CourseInfo[]> {
+export async function installCourseFromGitHub(storage: StorageBackend, input: string, ghFetch?: GhFetch, onlySlug?: string): Promise<CourseInfo[]> {
   const parsed = parseGitHubRef(input)
   if (!parsed) throw new Error('not a GitHub repo URL (expected github.com/owner/repo or owner/repo)')
 
   const { courses, resolvedRef } = await fetchGitHubCourse(parsed.owner, parsed.repo, parsed.ref, ghFetch)
+  const wanted = onlySlug ? courses.filter((c) => c.slug === onlySlug) : courses
 
   const installed: CourseInfo[] = []
   const errors: string[] = []
-  const label = (slug: string | null, msg: string) => (slug ? `${slug}: ${msg}` : msg)
 
-  for (const course of courses) {
+  for (const course of wanted) {
     const valid = validateCourseFiles(course.files)
-    if (!valid.ok) { errors.push(label(course.slug, valid.error ?? 'invalid course')); continue }
+    if (!valid.ok) { errors.push(`${course.slug}: ${valid.error ?? 'invalid course'}`); continue }
 
     const row: InstalledCourseRow = {
       sourceId: courseSourceId(parsed, course.slug),
@@ -226,13 +220,13 @@ export async function installCourseFromGitHub(storage: StorageBackend, input: st
       repo: parsed.repo,
       ref: parsed.ref ?? '',
       resolvedRef,
-      slug: course.slug ?? undefined,
+      slug: course.slug,
       fetchedAt: Date.now(),
       files: course.files,
     }
     const info = await addRemoteCourse(storage, row)
     if (info) installed.push(info)
-    else errors.push(label(course.slug, 'no usable lessons'))
+    else errors.push(`${course.slug}: no usable lessons`)
   }
 
   if (installed.length === 0) {
@@ -241,13 +235,36 @@ export async function installCourseFromGitHub(storage: StorageBackend, input: st
   return installed
 }
 
-/** Re-fetch an installed GitHub course from its stored ref and overwrite it
- *  (preserving learner edits — only the course *definition* updates). Refreshes
- *  every course the repo provides. Returns the refreshed CourseInfo[]. */
+/** Re-fetch an installed GitHub course and overwrite it (preserving learner edits
+ *  — only the course *definition* updates). Refreshes just `slug` when given (so
+ *  a multi-course repo doesn't re-install courses the learner didn't add). */
 export async function refreshCourseFromGitHub(storage: StorageBackend, source: {
   owner: string
   repo: string
   ref: string
+  slug?: string
 }, ghFetch?: GhFetch): Promise<CourseInfo[]> {
-  return installCourseFromGitHub(storage, `${source.owner}/${source.repo}${source.ref ? `@${source.ref}` : ''}`, ghFetch)
+  return installCourseFromGitHub(storage, `${source.owner}/${source.repo}${source.ref ? `@${source.ref}` : ''}`, ghFetch, source.slug)
+}
+
+/** Course metadata in a repo, without installing — drives the "which course?"
+ *  picker when a repo holds several. */
+export interface GitHubCoursePreview { slug: string; title: string; description: string; machine: string }
+export async function previewGitHubCourses(input: string, ghFetch?: GhFetch): Promise<GitHubCoursePreview[]> {
+  const parsed = parseGitHubRef(input)
+  if (!parsed) throw new Error('not a GitHub repo URL (expected github.com/owner/repo or owner/repo)')
+  const { courses } = await fetchGitHubCourse(parsed.owner, parsed.repo, parsed.ref, ghFetch)
+  return courses.map((c) => {
+    let title = c.slug, description = '', machine = ''
+    const meta = c.files.find((f) => f.path === 'course.json')
+    if (meta) {
+      try {
+        const m = JSON.parse(meta.content) as { title?: string; description?: string; machine?: string }
+        title = m.title ?? c.slug
+        description = m.description ?? ''
+        machine = m.machine ?? ''
+      } catch { /* keep slug fallback */ }
+    }
+    return { slug: c.slug, title, description, machine }
+  })
 }

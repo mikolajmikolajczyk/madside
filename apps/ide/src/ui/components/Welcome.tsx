@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { unzipSync } from "fflate";
-import { createBlankProject, createDraftCourse, getCourse, getTemplateManifestText, importDraftCourse, installCourseFromGitHub, instantiateTemplate, listTemplates, officialCourseRef, officialCourseSourceId, openLesson, removeRemoteCourse, starterFilesForMachine, useGitHub, useWorkbench, type OfficialCourse } from "@app";
+import { createBlankProject, createDraftCourse, getCourse, getTemplateManifestText, importDraftCourse, installCourseFromGitHub, previewGitHubCourses, instantiateTemplate, listTemplates, officialCourseRef, officialCourseSourceId, openLesson, removeRemoteCourse, starterFilesForMachine, useGitHub, useWorkbench, type OfficialCourse, type GitHubCoursePreview } from "@app";
 import { errorMessage, NetworkError } from "@ports";
 import { exportProjectZip } from "@app/project-zip";
 import { useCourses } from "../hooks/useCourses";
@@ -8,7 +8,7 @@ import { useOfficialCourses } from "../hooks/useOfficialCourses";
 import { useDisclosure } from "../hooks/useDisclosure";
 import type { AnnotatedProject } from "../hooks/useProjectsWithCourse";
 import { ManifestEditor } from "./manifest/ManifestEditor";
-import { ConfirmDialog } from "./ui/Dialog";
+import { ConfirmDialog, Dialog, DialogContent } from "./ui/Dialog";
 import { GitHubAccountControls } from "./github/GitHubAccountControls";
 import "./Welcome.css";
 
@@ -139,6 +139,7 @@ export function Welcome({ onOpen, projects = [], onDeleteProject, onManageGitHub
   const [error, setError] = useState<string | null>(null);
   // Holds one or more project ids to delete (a course group deletes every lesson).
   const [confirmDelete, setConfirmDelete] = useState<{ name: string; ids: string[] } | null>(null);
+  const [coursePicker, setCoursePicker] = useState<{ input: string; courses: GitHubCoursePreview[] } | null>(null);
 
   // Split course-lesson projects (manifest.course) out of plain projects so they
   // get their own "Started courses" section instead of cluttering "Your projects".
@@ -330,7 +331,7 @@ export function Welcome({ onOpen, projects = [], onDeleteProject, onManageGitHub
     setBusy(`official:${c.id}`);
     setError(null);
     try {
-      const [info] = await installCourseFromGitHub(workbench.storage, officialCourseRef(c), ghFetch);
+      const [info] = await installCourseFromGitHub(workbench.storage, officialCourseRef(), ghFetch, c.slug);
       const first = info?.lessons[0];
       if (!info || !first) throw new Error("course has no lessons");
       const projectId = await openLesson(workbench.storage, info.id, first);
@@ -344,33 +345,44 @@ export function Welcome({ onOpen, projects = [], onDeleteProject, onManageGitHub
     }
   };
 
-  // Install a course from a public GitHub repo, then open its first lesson.
+  const courseError = (e: unknown) =>
+    e instanceof NetworkError
+      ? "couldn't reach GitHub/jsDelivr — check the repo and your connection"
+      : errorMessage(e);
+
+  // Add a course from a GitHub repo. A repo can hold several courses under
+  // courses/<slug>/ — so we preview the list first: one course installs straight
+  // away; several pop a picker so the user chooses which to follow.
   const addCourse = async () => {
     const input = repoInput.trim();
     if (!input) return;
     setBusy("add-course");
     setError(null);
     try {
-      const infos = await installCourseFromGitHub(workbench.storage, input, ghFetch);
-      setRepoInput("");
-      // A repo can hold several courses. Auto-open only when there's exactly one;
-      // otherwise stay on Welcome so the user sees all of them in the list.
-      if (infos.length === 1) {
-        const first = infos[0]!.lessons[0];
-        if (first) {
-          const projectId = await openLesson(workbench.storage, infos[0]!.id, first);
-          onOpen(projectId);
-          return;
-        }
-      }
+      const list = await previewGitHubCourses(input, ghFetch);
+      if (list.length === 0) { setError("could not add course: no courses in this repo"); setBusy(null); return; }
+      if (list.length === 1) { await installAndOpen(input, list[0]!.slug); return; }
+      setCoursePicker({ input, courses: list });
       setBusy(null);
     } catch (e) {
-      // Branch on the typed error: a network failure is the repo/CDN being
-      // unreachable, not a bad course — give the user the right hint.
-      const detail = e instanceof NetworkError
-        ? "couldn't reach GitHub/jsDelivr — check the repo and your connection"
-        : errorMessage(e);
-      setError(`could not add course: ${detail}`);
+      setError(`could not add course: ${courseError(e)}`);
+      setBusy(null);
+    }
+  };
+
+  // Install one course (by slug) from a repo and open its first lesson.
+  const installAndOpen = async (input: string, slug: string) => {
+    setBusy("add-course");
+    setError(null);
+    try {
+      const [info] = await installCourseFromGitHub(workbench.storage, input, ghFetch, slug);
+      setRepoInput("");
+      setCoursePicker(null);
+      const first = info?.lessons[0];
+      if (info && first) { onOpen(await openLesson(workbench.storage, info.id, first)); return; }
+      setBusy(null);
+    } catch (e) {
+      setError(`could not add course: ${courseError(e)}`);
       setBusy(null);
     }
   };
@@ -714,7 +726,6 @@ export function Welcome({ onOpen, projects = [], onDeleteProject, onManageGitHub
           <div className="welcome__grid">
             {installedD.visible.map((c) => {
               const draft = c.source.kind === "local"; // authored, not yet published
-              const removable = c.source.kind !== "bundled";
               return (
                 <div key={c.id} className="welcome__card-wrap">
                   <button
@@ -737,7 +748,7 @@ export function Welcome({ onOpen, projects = [], onDeleteProject, onManageGitHub
                     </span>
                     {busy === `course:${c.id}` && <span className="welcome__card-busy">opening…</span>}
                   </button>
-                  {removable && (
+                  {(
                     <button
                       type="button"
                       className="welcome__card-remove"
@@ -782,6 +793,29 @@ export function Welcome({ onOpen, projects = [], onDeleteProject, onManageGitHub
         onCancel={() => setConfirmDelete(null)}
         onConfirm={() => void doDeleteProject()}
       />
+
+      <Dialog open={coursePicker !== null} onOpenChange={(o) => { if (!o) setCoursePicker(null); }}>
+        <DialogContent title="Choose a course" description="This repo has several courses — pick the one to follow.">
+          <ul className="welcome__course-pick">
+            {coursePicker?.courses.map((c) => (
+              <li key={c.slug}>
+                <button
+                  type="button"
+                  className="welcome__course-pick-item"
+                  disabled={busy != null}
+                  onClick={() => void installAndOpen(coursePicker.input, c.slug)}
+                >
+                  <span className="welcome__course-pick-head">
+                    <span className="welcome__course-pick-title">{c.title}</span>
+                    {c.machine && <span className="welcome__card-machine label">{c.machine}</span>}
+                  </span>
+                  {c.description && <span className="welcome__course-pick-desc">{c.description}</span>}
+                </button>
+              </li>
+            ))}
+          </ul>
+        </DialogContent>
+      </Dialog>
 
       <footer className="welcome__footer">
         <a className="welcome__footer-link" href="/docs/">Documentation</a>

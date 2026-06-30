@@ -45,7 +45,7 @@ for understanding what the editor produces, hand-editing, or publishing.
 
 ## Directory layout
 
-A course is a directory under `courses/<id>/`, bundled at build time via Vite glob (the same mechanism as [templates](/docs/extending/templates/)):
+A course is a directory of `course.json` + `lessons/`. In a GitHub repo it sits either at the **repo root** (one course per repo) or under **`courses/<slug>/`** (several courses per repo); the layout below is that directory, wherever it lives:
 
 ```
 courses/<id>/
@@ -190,9 +190,9 @@ A pure-theory lesson simply omits `check.json` (the Check button is disabled).
   learner sees it, and its **Check** button runs the open lesson's checks against
   your starter — so you verify a lesson without leaving the editor. Build & run the
   open lesson directly too (it's a normal project).
-- **A course bundled with the app:** add it under `courses/<id>/`, start the dev
-  server, and open it from the welcome screen's **Follow a course** section
-  (**File → New project** reopens that screen).
+- **From a repo:** push the course to a GitHub repo and add it via the welcome
+  screen's **Follow a course → Add a course from GitHub** (or **Import from
+  GitHub** in the GitHub panel for a private repo), then open it.
 
 Confirm each assertion reports what you expect, and keep any `solution/` assembling
 cleanly as a regression guard. Keep checks **lenient enough to not frustrate,

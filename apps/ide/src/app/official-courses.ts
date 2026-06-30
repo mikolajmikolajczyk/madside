@@ -11,8 +11,8 @@ export interface OfficialCourse {
   title: string
   description: string
   machine: string
-  /** GitHub ref (tag / commit / branch) the course lives on. */
-  ref: string
+  /** The `courses/<slug>/` folder in the catalogue repo holding this course. */
+  slug: string
 }
 
 /** The curated repo. Public — jsDelivr (the zero-backend CDN) serves it. */
@@ -32,17 +32,18 @@ export async function fetchOfficialCatalogue(): Promise<OfficialCourse[]> {
   if (!res.ok) throw new NetworkError(`official course catalogue failed (${res.status})`)
   const data = (await res.json()) as { courses?: OfficialCourse[] }
   return (data.courses ?? []).filter(
-    (c): c is OfficialCourse => !!c && typeof c.id === 'string' && typeof c.ref === 'string' && typeof c.title === 'string',
+    (c): c is OfficialCourse => !!c && typeof c.id === 'string' && typeof c.slug === 'string' && typeof c.title === 'string',
   )
 }
 
-/** The `owner/repo@ref` spec madside installs an official course from. */
-export function officialCourseRef(c: OfficialCourse): string {
-  return `${OFFICIAL_COURSES_REPO}@${c.ref}`
+/** The repo spec madside installs official courses from — the catalogue repo
+ *  (multi-course); the specific course is selected by `slug` at install. */
+export function officialCourseRef(): string {
+  return OFFICIAL_COURSES_REPO
 }
 
 /** The installed-course sourceId an official course resolves to once added, so
  *  the welcome screen can hide ones the learner already installed. */
 export function officialCourseSourceId(c: OfficialCourse): string {
-  return `gh:${OFFICIAL_COURSES_REPO}@${c.ref}`
+  return `gh:${OFFICIAL_COURSES_REPO}#${c.slug}`
 }

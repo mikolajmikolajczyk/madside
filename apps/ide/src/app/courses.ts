@@ -13,11 +13,10 @@
 //
 // Lesson order is the sorted lesson-directory name (the `<nn>-` numeric prefix).
 //
-// Courses come from two sources, merged into one read API:
-//   - `bundled`  — ship with the app under repo-root `courses/`, Vite-globbed.
-//   - `github`   — installed from a public GitHub repo (fetched via jsDelivr),
-//                  persisted in IDB, hydrated into memory at startup.
-// `listCourses`/`getCourse`/`getLesson` span both. A small subscribe/snapshot
+// Courses are installed from GitHub (`github` — fetched via jsDelivr or the
+// authed API, persisted in IDB, hydrated into memory at startup) or authored
+// in-app (`local` drafts). The official catalogue (official-courses.ts) lists
+// curated GitHub courses to install. A small subscribe/snapshot
 // store lets React re-render when remote courses are hydrated/installed/removed
 // (consumed via `useCourses`, ADR-0007 useSyncExternalStore style).
 
@@ -54,7 +53,6 @@ export interface CourseMeta {
 
 /** Where a course came from. */
 export type CourseSource =
-  | { kind: 'bundled' }
   | { kind: 'local'; sourceId: string } // an in-app draft being authored (#139)
   | {
       kind: 'github'
@@ -172,34 +170,6 @@ function assembleCourse(files: { path: string; content: string }[]): { meta: Cou
 // Bundled courses (Vite glob)
 // ---------------------------------------------------------------------------
 
-const RAW = import.meta.glob('/courses/**/*', {
-  query: '?raw',
-  eager: true,
-  import: 'default',
-}) as Record<string, string>
-
-function loadGlobBundles(): Map<string, CourseBundle> {
-  // Group glob entries by course id, course-root-relative.
-  const byCourse = new Map<string, { path: string; content: string }[]>()
-  for (const [key, content] of Object.entries(RAW)) {
-    const rel = key.replace(/^\/courses\//, '')
-    const slash = rel.indexOf('/')
-    if (slash < 0) continue
-    const courseId = rel.slice(0, slash)
-    const path = rel.slice(slash + 1)
-    const arr = byCourse.get(courseId) ?? []
-    arr.push({ path, content })
-    byCourse.set(courseId, arr)
-  }
-  const out = new Map<string, CourseBundle>()
-  for (const [courseId, files] of byCourse) {
-    const built = assembleCourse(files)
-    if (built) out.set(courseId, { id: courseId, ...built, source: { kind: 'bundled' } })
-  }
-  return out
-}
-
-const BUNDLED = loadGlobBundles()
 
 // ---------------------------------------------------------------------------
 // Remote courses (installed from GitHub) + reactive store
@@ -215,7 +185,7 @@ function toInfo(b: CourseBundle): CourseInfo {
 }
 
 function computeSnapshot(): CourseInfo[] {
-  return [...BUNDLED.values(), ...remote.values()]
+  return [...remote.values()]
     .map(toInfo)
     .sort((a, b) => (a.order ?? 99) - (b.order ?? 99) || a.title.localeCompare(b.title))
 }
@@ -289,14 +259,14 @@ export async function removeRemoteCourse(storage: StorageBackend, sourceId: stri
 }
 
 // ---------------------------------------------------------------------------
-// Merged read API (bundled + remote)
+// Read API (installed/remote courses)
 // ---------------------------------------------------------------------------
 
 function getBundle(id: string): CourseBundle | undefined {
-  return remote.get(id) ?? BUNDLED.get(id)
+  return remote.get(id)
 }
 
-/** All courses (bundled + installed-remote), sorted by `order` then title. */
+/** All installed courses, sorted by `order` then title. */
 export function listCourses(): CourseInfo[] {
   return snapshot
 }

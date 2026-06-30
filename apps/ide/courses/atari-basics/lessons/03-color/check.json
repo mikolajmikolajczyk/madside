@@ -1,6 +1,0 @@
-{
-  "checks": [
-    { "kind": "build" },
-    { "kind": "memory", "addr": "$02C6", "equals": "$94", "afterFrames": 2 }
-  ]
-}

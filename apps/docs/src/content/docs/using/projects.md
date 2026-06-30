@@ -14,7 +14,7 @@ A **project** is a tree of files plus a manifest. madside keeps your projects in
 - reopen one of **your existing projects**;
 - create an **empty project** (edit its `project.json` before creating);
 - start from a **template** (the quickest start); or
-- **follow a course** (bundled, or added from a GitHub repo).
+- **follow a course** (from the official catalogue, or added from a GitHub repo).
 
 You can also **File → Import ZIP…** to load a project you previously exported.
 

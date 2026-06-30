@@ -890,7 +890,8 @@ export default function App() {
     const c = getCourse(courseId);
     if (c?.source.kind !== "github") return;
     const ghFetch = gh.auth ? (url: string, init?: RequestInit) => gh.auth!.fetch(url, init) : undefined;
-    await refreshCourseFromGitHub(workbench.storage, { owner: c.source.owner, repo: c.source.repo, ref: c.source.ref }, ghFetch);
+    const slug = courseId.includes("#") ? courseId.split("#")[1] : undefined;
+    await refreshCourseFromGitHub(workbench.storage, { owner: c.source.owner, repo: c.source.repo, ref: c.source.ref, slug }, ghFetch);
   }, [workbench, gh]);
 
   // After a course is published, adopt its GitHub identity: a local draft becomes

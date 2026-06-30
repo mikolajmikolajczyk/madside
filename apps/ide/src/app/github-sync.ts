@@ -23,7 +23,6 @@ import {
 } from "@madside/github-sync";
 import { parseProjectManifest, type StorageBackend } from "@ports";
 import { MANIFEST_PATH } from "@madside/storage-shared";
-import { importDraftCourse } from "./course-author";
 
 // Mirror project-zip.ts: publish source, skip the reproducible build output.
 const GENERATED_DIR = "generated/";
@@ -419,28 +418,5 @@ export async function listRemoteCourses(fetch: GhFetch, repo: string): Promise<R
       }),
     );
     return out.sort((a, b) => a.title.localeCompare(b.title));
-  });
-}
-
-/** Pull a course from courses/<slug>/ into a local editable draft (CourseAuthor). */
-export async function pullCourseDraft(
-  storage: StorageBackend,
-  fetch: GhFetch,
-  repo: string,
-  slug: string,
-): Promise<{ courseId: string; lessonId: string }> {
-  const target = parseRepo(repo);
-  return withApiErrors(async () => {
-    const tree = await getRepoTree(fetch, target);
-    if (!tree) throw new Error("the repo is empty");
-    if (tree.truncated) throw new Error("repo tree is too large (truncated) — cannot pull safely");
-    const files = await pullSubtree(fetch, target, tree, `courses/${slug}`);
-    if (files.length === 0) throw new Error(`no course "${slug}" in ${repo}`);
-    const result = await importDraftCourse(
-      storage,
-      files.map((f) => ({ path: f.path, content: dec.decode(f.content) })),
-    );
-    setCourseRepo(result.courseId, repo); // republish goes back to the same repo
-    return result;
   });
 }

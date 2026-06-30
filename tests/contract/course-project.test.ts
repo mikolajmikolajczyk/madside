@@ -10,9 +10,29 @@ const storage = createIdbStorage()
 // Lesson → project instantiation (500f11c). Lessons become persistent
 // per-lesson projects; re-opening reuses the same project so edits survive.
 
+// Bundled courses were dropped (#168); install a fixture course so the lesson
+// instantiation/navigation tests have a known course + lessons to open.
+const manifest = JSON.stringify({ version: 2, name: 'l', main: 'src/main.a65', machine: 'atari-xl', toolchain: 'mads' })
+const FIXTURE: InstalledCourseRow = {
+  sourceId: 'atari-basics', kind: 'local', fetchedAt: 0,
+  files: [
+    { path: 'course.json', content: JSON.stringify({ title: 'Atari Basics (fixture)', description: 'd', machine: 'atari-xl' }) },
+    { path: 'lessons/01-hello/lesson.md', content: '# Hello' },
+    { path: 'lessons/01-hello/files/project.json', content: manifest },
+    { path: 'lessons/01-hello/files/src/main.a65', content: 'start\n' },
+    { path: 'lessons/02-loops/lesson.md', content: '# Loops' },
+    { path: 'lessons/02-loops/files/project.json', content: manifest },
+    { path: 'lessons/02-loops/files/src/main.a65', content: 'start\n' },
+    { path: 'lessons/03-color/lesson.md', content: '# Colour' },
+    { path: 'lessons/03-color/files/project.json', content: manifest },
+    { path: 'lessons/03-color/files/src/main.a65', content: 'start\n' },
+  ],
+}
+
 describe('lesson → project instantiation', () => {
   beforeEach(async () => {
     await __resetDb()
+    await addRemoteCourse(storage, FIXTURE)
   })
 
   it('instantiates a lesson into a project stamped with its course identity', async () => {

@@ -669,3 +669,25 @@
   color: var(--text-tertiary);
   white-space: nowrap;
 }
+
+/* "Choose a course" picker (a repo with several courses/<slug>/). */
+.welcome__course-pick { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
+.welcome__course-pick-item {
+  width: 100%;
+  text-align: left;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 10px 12px;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-default);
+  border-radius: 6px;
+  cursor: pointer;
+  font: inherit;
+  color: var(--text-primary);
+}
+.welcome__course-pick-item:hover:not(:disabled) { border-color: var(--accent-mint); }
+.welcome__course-pick-item:disabled { opacity: 0.5; cursor: default; }
+.welcome__course-pick-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.welcome__course-pick-title { font-weight: 600; }
+.welcome__course-pick-desc { font-size: 12px; color: var(--text-secondary); }

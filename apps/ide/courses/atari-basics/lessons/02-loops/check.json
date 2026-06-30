@@ -1,6 +1,0 @@
-{
-  "checks": [
-    { "kind": "build" },
-    { "kind": "label", "name": "fill" }
-  ]
-}

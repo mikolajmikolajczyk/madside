@@ -17,8 +17,8 @@ afterEach(() => vi.restoreAllMocks())
 const CATALOGUE = {
   version: 1,
   courses: [
-    { id: 'madside-tour', title: 'The madside Tour', description: 'Learn madside', machine: 'atari-xl', ref: 'madside-tour-v1' },
-    { id: 'bad-no-ref', title: 'Broken', description: 'x', machine: 'nes' }, // missing ref → filtered
+    { id: 'madside-tour', title: 'The madside Tour', description: 'Learn madside', machine: 'atari-xl', slug: 'madside-tour' },
+    { id: 'bad-no-slug', title: 'Broken', description: 'x', machine: 'nes' }, // missing slug → filtered
   ],
 }
 
@@ -29,9 +29,9 @@ describe('fetchOfficialCatalogue', () => {
 
     const courses = await fetchOfficialCatalogue()
     expect(seen).toContain(`gh/${OFFICIAL_COURSES_REPO}@main/index.json`)
-    expect(courses).toHaveLength(1) // the ref-less entry is filtered out
+    expect(courses).toHaveLength(1) // the slug-less entry is filtered out
     expect(courses[0]!.id).toBe('madside-tour')
-    expect(courses[0]!.ref).toBe('madside-tour-v1')
+    expect(courses[0]!.slug).toBe('madside-tour')
   })
 
   it('throws NetworkError on a non-ok response', async () => {
@@ -51,11 +51,11 @@ describe('fetchOfficialCatalogue', () => {
 })
 
 describe('official course ref helpers', () => {
-  const c = { id: 'madside-tour', title: 'T', description: 'd', machine: 'atari-xl', ref: 'madside-tour-v1' }
-  it('builds the owner/repo@ref install spec', () => {
-    expect(officialCourseRef(c)).toBe(`${OFFICIAL_COURSES_REPO}@madside-tour-v1`)
+  const c = { id: 'madside-tour', title: 'T', description: 'd', machine: 'atari-xl', slug: 'madside-tour' }
+  it('installs from the catalogue repo (multi-course)', () => {
+    expect(officialCourseRef()).toBe(OFFICIAL_COURSES_REPO)
   })
   it('builds the installed sourceId used to de-dupe', () => {
-    expect(officialCourseSourceId(c)).toBe(`gh:${OFFICIAL_COURSES_REPO}@madside-tour-v1`)
+    expect(officialCourseSourceId(c)).toBe(`gh:${OFFICIAL_COURSES_REPO}#madside-tour`)
   })
 })

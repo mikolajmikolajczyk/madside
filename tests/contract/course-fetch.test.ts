@@ -34,11 +34,11 @@ function installMockFetch() {
           JSON.stringify({
             version: 'deadbeef',
             files: [
-              { name: '/course.json' },
+              { name: '/courses/test/course.json' },
               { name: '/README.md' }, // must be ignored (not course content)
-              { name: '/lessons/01-first/lesson.md' },
-              { name: '/lessons/01-first/files/project.json' },
-              { name: '/lessons/01-first/check.json' },
+              { name: '/courses/test/lessons/01-first/lesson.md' },
+              { name: '/courses/test/lessons/01-first/files/project.json' },
+              { name: '/courses/test/lessons/01-first/check.json' },
             ],
           }),
           { status: 200 },
@@ -71,9 +71,10 @@ describe('parseGitHubRef', () => {
     expect(parseGitHubRef('https://gitlab.com/me/course')).toBeNull()
     expect(parseGitHubRef('just-text')).toBeNull()
   })
-  it('builds a stable source id', () => {
-    expect(courseSourceId({ owner: 'me', repo: 'course' })).toBe('gh:me/course')
-    expect(courseSourceId({ owner: 'me', repo: 'course', ref: 'v1' })).toBe('gh:me/course')
+  it('builds a stable source id — repo + slug, ref-less', () => {
+    expect(courseSourceId({ owner: 'me', repo: 'course' }, 'intro')).toBe('gh:me/course#intro')
+    // The ref is only a fetch pin — it doesn't change the identity.
+    expect(courseSourceId({ owner: 'me', repo: 'course', ref: 'v1' }, 'intro')).toBe('gh:me/course#intro')
   })
 })
 
@@ -128,7 +129,7 @@ describe('fetchGitHubCourse', () => {
     expect(usedRef).toBe('main')
     expect(resolvedRef).toBe('deadbeef')
     expect(courses).toHaveLength(1)
-    expect(courses[0]!.slug).toBeNull() // legacy root course
+    expect(courses[0]!.slug).toBe('test')
     const paths = courses[0]!.files.map((f) => f.path).sort()
     expect(paths).toEqual(['course.json', 'lessons/01-first/check.json', 'lessons/01-first/files/project.json', 'lessons/01-first/lesson.md'])
     expect(paths).not.toContain('README.md') // filtered out
@@ -137,23 +138,23 @@ describe('fetchGitHubCourse', () => {
 
 describe('installCourseFromGitHub', () => {
   beforeEach(async () => { await __resetDb(); installMockFetch() })
-  afterEach(async () => { vi.restoreAllMocks(); await removeRemoteCourse(storage, 'gh:me/course') })
+  afterEach(async () => { vi.restoreAllMocks(); await removeRemoteCourse(storage, 'gh:me/course#test') })
 
   it('installs, registers, and persists a remote course', async () => {
     const [info] = await installCourseFromGitHub(storage, 'https://github.com/me/course')
-    expect(info!.id).toBe('gh:me/course')
+    expect(info!.id).toBe('gh:me/course#test')
     expect(info!.title).toBe('Test Course')
     expect(info!.source.kind).toBe('github')
     expect(info!.lessons).toEqual(['01-first'])
 
     // registered in the merged read API
-    expect(getCourse('gh:me/course')?.title).toBe('Test Course')
-    expect(getLesson('gh:me/course', '01-first')?.title).toBe('First Lesson')
-    expect(listCourses().some((c) => c.id === 'gh:me/course')).toBe(true)
+    expect(getCourse('gh:me/course#test')?.title).toBe('Test Course')
+    expect(getLesson('gh:me/course#test', '01-first')?.title).toBe('First Lesson')
+    expect(listCourses().some((c) => c.id === 'gh:me/course#test')).toBe(true)
 
     // persisted to IDB
     const installed = await listInstalledCourses()
-    expect(installed.find((c) => c.sourceId === 'gh:me/course')).toBeTruthy()
+    expect(installed.find((c) => c.sourceId === 'gh:me/course#test')).toBeTruthy()
   })
 
   it('rejects a non-GitHub URL before fetching', async () => {
@@ -163,11 +164,11 @@ describe('installCourseFromGitHub', () => {
 
 describe('refreshCourseFromGitHub', () => {
   beforeEach(async () => { await __resetDb(); installMockFetch() })
-  afterEach(async () => { vi.restoreAllMocks(); await removeRemoteCourse(storage, 'gh:me/course') })
+  afterEach(async () => { vi.restoreAllMocks(); await removeRemoteCourse(storage, 'gh:me/course#test') })
 
   it('re-installs from the stored owner/repo/ref', async () => {
     const [info] = await refreshCourseFromGitHub(storage, { owner: 'me', repo: 'course', ref: 'main' })
-    expect(info!.id).toBe('gh:me/course')
+    expect(info!.id).toBe('gh:me/course#test')
     expect(info!.title).toBe('Test Course')
     expect(info!.lessons).toEqual(['01-first'])
   })
