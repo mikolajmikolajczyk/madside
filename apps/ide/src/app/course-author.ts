@@ -28,6 +28,8 @@ const SEED: Record<string, { toolchain: string; main: string }> = {
   nes: { toolchain: 'mads', main: 'src/main.a65' },
   c64: { toolchain: 'mads', main: 'src/main.a65' },
   'zx-spectrum': { toolchain: 'z88dk', main: 'src/main.asm' },
+  zx128: { toolchain: 'z88dk', main: 'src/main.asm' },
+  genesis: { toolchain: 'clownassembler', main: 'src/main.asm' },
 }
 
 const DEFAULT_MACHINE = 'atari-xl'

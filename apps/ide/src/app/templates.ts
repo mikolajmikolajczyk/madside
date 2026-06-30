@@ -114,6 +114,8 @@ const MACHINE_TEMPLATE: Record<string, string> = {
   nes: 'nes-hello',
   c64: 'c64-hello',
   'zx-spectrum': 'zx-asm-hello',
+  zx128: 'zx128-banking',
+  genesis: 'genesis-asm-hello',
 }
 
 /** A buildable starter file set for `machine` (sources + a project.json text),
