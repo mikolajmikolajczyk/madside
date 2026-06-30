@@ -183,6 +183,14 @@ export default function App() {
     storage: workbench.storage,
   });
 
+  // Stable "build on project open" — assembles the CURRENT project once when it
+  // opens without a stored build, so Output shows green/red immediately and Run
+  // is usable without a manual Build. Ref-wrapped so its identity stays stable
+  // (runAssemble changes with the file set).
+  const runAssembleRef = useRef(runAssemble);
+  useEffect(() => { runAssembleRef.current = runAssemble; });
+  const buildOnOpen = useCallback(() => { void runAssembleRef.current(); }, []);
+
   // Course authoring (#139): the active project is a lesson (stamped
   // manifest.course) whose course is a local draft. Authoring then = editing that
   // draft bundle + the open lesson is an ordinary project (builds/runs natively).
@@ -252,6 +260,7 @@ export default function App() {
     setMemBaseTouched,
     setBrokeOn,
     setRunBlockedMsg,
+    buildOnOpen,
   });
 
   const bpLinesByFile = useMemo(
@@ -1043,7 +1052,9 @@ export default function App() {
     v.focus(); redo(v);
   }, []);
 
-  const canRun = !!result?.ok || hasEmu;
+  // Run is clickable whenever a project is open — cold Run assembles first and
+  // blocks on a broken build, so there's no "must Build before Run" friction.
+  const canRun = project.loaded;
 
   const toggleBpAtCursor = useCallback(() => {
     const v = editorViewRef.current;

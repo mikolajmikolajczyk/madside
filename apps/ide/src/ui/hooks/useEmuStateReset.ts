@@ -11,6 +11,10 @@ interface Args {
   setMemBaseTouched: (b: boolean) => void;
   setBrokeOn: (n: number | null) => void;
   setRunBlockedMsg: (m: string | null) => void;
+  /** Build now when a project opens with no stored build — so the Output panel
+   *  shows status (green/red) immediately instead of a blank slate. Must be a
+   *  stable callback (it runs the latest assemble). */
+  buildOnOpen: () => void;
 }
 
 export interface EmuStateResetControls {
@@ -36,6 +40,7 @@ export function useEmuStateReset({
   setMemBaseTouched,
   setBrokeOn,
   setRunBlockedMsg,
+  buildOnOpen,
 }: Args): EmuStateResetControls {
   // FSM-side: workbench.run.unload() drops media + transitions to 'idle' so the
   // next Run boots from scratch (matches the pre-FSM Stop UX — blank canvas, no
@@ -69,12 +74,14 @@ export function useEmuStateReset({
     if (!projectId) return;
     let cancelled = false;
     void workbench.storage.builds.load(projectId).then((b) => {
-      if (!cancelled && b) setResult(outcomeFromStored(b));
+      if (cancelled) return;
+      if (b) setResult(outcomeFromStored(b));
+      else buildOnOpen(); // fresh project — build now so Output + Run reflect it
     });
     return () => {
       cancelled = true;
     };
-  }, [projectId, workbench, setResult]);
+  }, [projectId, workbench, setResult, buildOnOpen]);
 
   return { resetEmuState };
 }
