@@ -1,3 +1,16 @@
+## [0.27.0] - 2026-06-30
+
+### 🚀 Features
+
+- *(courses)* Optional chapters to group lessons
+- *(courses)* Load courses from private repos via authed GitHub API
+- *(courses)* One course identity, edit-in-place, write-aware actions (#168)
+- *(courses)* Unify on courses/<slug>/ repos + drop bundled (#168)
+
+### 🐛 Bug Fixes
+
+- *(courses)* Tolerate the main/master mixup when loading a course
+- *(courses)* Tolerate a stale jsDelivr listing after a fresh push
 ## [0.26.1] - 2026-06-29
 
 ### 📚 Documentation
