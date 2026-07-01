@@ -1,3 +1,8 @@
+## [0.27.4] - 2026-07-01
+
+### 🚀 Features
+
+- *(courses)* Per-course dock layout, applied on lesson open
 ## [0.27.3] - 2026-06-30
 
 ### 🚀 Features
