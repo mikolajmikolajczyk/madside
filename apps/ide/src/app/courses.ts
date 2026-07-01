@@ -49,6 +49,9 @@ export interface CourseMeta {
   order?: number
   /** Optional lesson grouping (headings in the lesson list). */
   chapters?: CourseChapter[]
+  /** Serialized dock layout applied when following this course (author-captured).
+   *  Absent ⇒ the built-in course layout. */
+  layout?: string
 }
 
 /** Where a course came from. */

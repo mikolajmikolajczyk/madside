@@ -58,6 +58,7 @@ export function courseMetaText(meta: CourseMeta): string {
     machine: meta.machine,
     ...(meta.order != null ? { order: meta.order } : {}),
     ...(meta.chapters?.length ? { chapters: meta.chapters } : {}),
+    ...(meta.layout ? { layout: meta.layout } : {}),
   }
   return JSON.stringify(ordered, null, 2) + '\n'
 }

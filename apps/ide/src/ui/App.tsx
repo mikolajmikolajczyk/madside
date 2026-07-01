@@ -348,6 +348,21 @@ export default function App() {
     else if (courseKey === null && isOpen) c.setPanelOpen("course", false);
   }, [courseKey, dockOpenIds]);
 
+  // Apply the course's dock layout when a course lesson opens (once per lesson,
+  // not on every panel toggle) — the author's captured layout, else the built-in
+  // course layout. This is why course steps get their own panel instead of a tab
+  // crammed into the editor group.
+  const courseLayout = authoring ? undefined : courseInfo?.layout;
+  const appliedCourseKeyRef = useRef<string | null>(null);
+  useEffect(() => {
+    const c = dockControlsRef.current;
+    if (courseKey === null) { appliedCourseKeyRef.current = null; return; }
+    if (!c || appliedCourseKeyRef.current === courseKey) return;
+    appliedCourseKeyRef.current = courseKey;
+    if (courseLayout) c.applyLayout(courseLayout);
+    else c.applyBuiltin("Course");
+  }, [courseKey, courseLayout, dockOpenIds]);
+
   // Course Author + Preview surfaces (#139) — condition-driven open/close: open +
   // focus while the project is a course being authored (carries a root course.json).
   useEffect(() => {

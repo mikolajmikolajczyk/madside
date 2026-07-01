@@ -117,11 +117,66 @@ const TABLET_LAYOUT = {
   activeGroup: '13',
 } as const
 
+// Course-mode default: the lesson (course) panel gets its own prominent left
+// column, editor centre, emulator + memory/registers right, output below — so
+// course steps aren't crammed into the editor group. Used when following a
+// course whose author didn't capture a custom layout.
+const DEFAULT_COURSE_LAYOUT = {
+  grid: {
+    root: {
+      type: 'branch',
+      data: [
+        {
+          type: 'branch',
+          data: [
+            {
+              type: 'branch',
+              data: [
+                { type: 'leaf', data: { views: ['files'], activeView: 'files', id: '15' }, size: 207 },
+                { type: 'leaf', data: { views: ['course'], activeView: 'course', id: '5' }, size: 841 },
+              ],
+              size: 381,
+            },
+            { type: 'leaf', data: { views: ['editor'], activeView: 'editor', id: '13' }, size: 868 },
+            {
+              type: 'branch',
+              data: [
+                { type: 'leaf', data: { views: ['emulator'], activeView: 'emulator', id: '1' }, size: 392 },
+                { type: 'leaf', data: { views: ['panel:memory'], activeView: 'panel:memory', id: '4' }, size: 305 },
+                { type: 'leaf', data: { views: ['panel:registers', 'panel:variables'], activeView: 'panel:registers', id: '3' }, size: 351 },
+              ],
+              size: 471,
+            },
+          ],
+          size: 1048,
+        },
+        { type: 'leaf', data: { views: ['output'], activeView: 'output', id: '2' }, size: 181 },
+      ],
+      size: 1720,
+    },
+    width: 1720,
+    height: 1229,
+    orientation: 'VERTICAL',
+  },
+  panels: {
+    files: { id: 'files', contentComponent: 'surface', params: { id: 'files' }, title: 'Files' },
+    course: { id: 'course', contentComponent: 'surface', params: { id: 'course' }, title: 'Course' },
+    editor: { id: 'editor', contentComponent: 'surface', params: { id: 'editor' }, title: 'Editor' },
+    emulator: { id: 'emulator', contentComponent: 'surface', params: { id: 'emulator' }, title: 'Emulator' },
+    'panel:memory': { id: 'panel:memory', contentComponent: 'surface', params: { id: 'panel:memory' }, title: 'Memory' },
+    'panel:registers': { id: 'panel:registers', contentComponent: 'surface', params: { id: 'panel:registers' }, title: 'Registers' },
+    'panel:variables': { id: 'panel:variables', contentComponent: 'surface', params: { id: 'panel:variables' }, title: 'Variables' },
+    output: { id: 'output', contentComponent: 'surface', params: { id: 'output' }, title: 'Output' },
+  },
+  activeGroup: '5',
+} as const
+
 // Built-in named layouts shipped in code (vs user presets in localStorage).
 // `Desktop` is the default seeded on first load + Reset.
 const BUILTIN_LAYOUTS: Record<string, unknown> = {
   Desktop: DEFAULT_LAYOUT,
   Tablet: TABLET_LAYOUT,
+  Course: DEFAULT_COURSE_LAYOUT,
 }
 // eslint-disable-next-line react-refresh/only-export-components -- a const list of built-in layout names alongside the component; splitting to its own file gains nothing
 export const builtinLayoutNames: string[] = Object.keys(BUILTIN_LAYOUTS)
@@ -151,6 +206,8 @@ export interface DockControls {
   deletePreset: (name: string) => void
   /** The current arrangement as JSON (for copy-to-clipboard / handoff). */
   exportLayout: () => string
+  /** Apply an arrangement from a serialized layout JSON (e.g. a course's). */
+  applyLayout: (json: string) => void
 }
 
 // User-saved layouts: name → serialized dockview JSON string.
@@ -331,13 +388,19 @@ export function DockLayout({ surfaces, panels, controlsRef, onOpenChange, onPres
     return api ? JSON.stringify(api.toJSON(), null, 2) : '{}'
   }, [])
 
+  const applyLayout = useCallback((json: string) => {
+    const api = apiRef.current
+    if (!api || !json) return
+    try { api.fromJSON(JSON.parse(json) as SerializedDockview); restoredRef.current = true; persist() } catch { /* ignore malformed layout */ }
+  }, [persist])
+
   // Publish the imperative handle for the View menu.
   useEffect(() => {
     if (controlsRef) {
-      controlsRef.current = { toggle, reset, applyBuiltin, float, focusPanel, setPanelOpen, saveCurrentAs, applyUserPreset, deletePreset, exportLayout }
+      controlsRef.current = { toggle, reset, applyBuiltin, float, focusPanel, setPanelOpen, saveCurrentAs, applyUserPreset, deletePreset, exportLayout, applyLayout }
     }
     return () => { if (controlsRef) controlsRef.current = null }
-  }, [controlsRef, toggle, reset, applyBuiltin, float, focusPanel, setPanelOpen, saveCurrentAs, applyUserPreset, deletePreset, exportLayout])
+  }, [controlsRef, toggle, reset, applyBuiltin, float, focusPanel, setPanelOpen, saveCurrentAs, applyUserPreset, deletePreset, exportLayout, applyLayout])
 
   // Surface the saved-preset names to the View menu on mount.
   useEffect(() => { reportPresets() }, [reportPresets])
