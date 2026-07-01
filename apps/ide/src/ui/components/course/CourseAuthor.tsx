@@ -9,6 +9,8 @@ import {
   readLessonChecks,
   lessonChapter,
   assignLessonToChapter,
+  removeChapter,
+  setLessonTitleInFiles,
   setCourseMetaInFiles,
   setLessonChecksInFiles,
   setLessonMdInFiles,
@@ -183,6 +185,7 @@ export function CourseAuthor({ files, courseId, activeLessonId, onSaveFiles, onS
                     onSaveFiles(deleteLessonInFiles(files, l.id));
                   }
                 }}
+                onRename={(title) => onSaveFiles(setLessonTitleInFiles(files, l.id, title))}
                 onSaveMd={(text) => onSaveFiles(setLessonMdInFiles(files, l.id, text))}
                 onSaveChecks={(checks) => onSaveFiles(setLessonChecksInFiles(files, l.id, checks))}
               />
@@ -190,6 +193,26 @@ export function CourseAuthor({ files, courseId, activeLessonId, onSaveFiles, onS
           </ul>
         )}
       </div>
+
+      {(meta.chapters?.length ?? 0) > 0 && (
+        <div className="course-author__section">
+          <div className="course-author__section-head"><span>Chapters</span></div>
+          <ul className="course-author__chapters">
+            {meta.chapters!.map((ch) => (
+              <li key={ch.title} className="course-author__chapter-row">
+                <span className="course-author__chapter-name">{ch.title}</span>
+                <span className="course-author__chapter-count">{ch.lessons.length}</span>
+                <button
+                  type="button"
+                  className="course-author__icon course-author__icon--del"
+                  title="Delete chapter (its lessons stay, ungrouped)"
+                  onClick={() => onSaveFiles(setCourseMetaInFiles(files, removeChapter(meta, ch.title)))}
+                >✕</button>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
 
       <p className="course-author__hint">
         Click a lesson to open it in the file tree (a normal project — build &amp; run it). Edit its text + checks here. <strong>Course Preview</strong> shows it as a learner sees it; <strong>Export .zip</strong> to publish.
@@ -245,7 +268,7 @@ function MetaForm({ meta, onSave }: { meta: CourseMeta; onSave: (m: CourseMeta) 
 }
 
 // ── One lesson row — click to open (active = expanded for md + check editing) ──
-function LessonRow({ lesson, files, active, canUp, canDown, chapter, chapterTitles, onAssignChapter, onSelect, onUp, onDown, onDelete, onSaveMd, onSaveChecks }: {
+function LessonRow({ lesson, files, active, canUp, canDown, chapter, chapterTitles, onAssignChapter, onSelect, onUp, onDown, onDelete, onRename, onSaveMd, onSaveChecks }: {
   lesson: LessonInfo;
   files: Files;
   active: boolean;
@@ -258,6 +281,7 @@ function LessonRow({ lesson, files, active, canUp, canDown, chapter, chapterTitl
   onUp: () => void;
   onDown: () => void;
   onDelete: () => void;
+  onRename: (title: string) => void;
   onSaveMd: (text: string) => void;
   onSaveChecks: (checks: CourseCheck[]) => void;
 }) {
@@ -303,6 +327,17 @@ function LessonRow({ lesson, files, active, canUp, canDown, chapter, chapterTitl
       </div>
       {active && (
         <div className="course-author__lesson-body">
+          <label className="course-author__title-field">
+            <span>Title</span>
+            <input
+              key={`${lesson.id}-title`}
+              className="course-author__title-input"
+              defaultValue={lesson.title}
+              placeholder="Lesson title"
+              onBlur={(e) => onRename(e.target.value)}
+              onKeyDown={(e) => { if (e.key === "Enter") (e.target as HTMLInputElement).blur(); }}
+            />
+          </label>
           <LessonMd key={`${lesson.id}-md`} initial={mdContent} onSave={onSaveMd} />
           <LessonChecks key={`${lesson.id}-checks`} initial={checks} onSave={onSaveChecks} />
         </div>

@@ -352,16 +352,19 @@ export default function App() {
   // not on every panel toggle) — the author's captured layout, else the built-in
   // course layout. This is why course steps get their own panel instead of a tab
   // crammed into the editor group.
-  const courseLayout = authoring ? undefined : courseInfo?.layout;
+  const courseLayout = courseInfo?.layout;
   const appliedCourseKeyRef = useRef<string | null>(null);
   useEffect(() => {
     const c = dockControlsRef.current;
-    if (courseKey === null) { appliedCourseKeyRef.current = null; return; }
+    // Only the LEARNER view gets the course layout. While authoring, never touch
+    // the layout — the author arranges the panels (incl. Course Author) freely
+    // and switching lessons must not yank them around.
+    if (courseKey === null || authoring) { appliedCourseKeyRef.current = null; return; }
     if (!c || appliedCourseKeyRef.current === courseKey) return;
     appliedCourseKeyRef.current = courseKey;
     if (courseLayout) c.applyLayout(courseLayout);
     else c.applyBuiltin("Course");
-  }, [courseKey, courseLayout, dockOpenIds]);
+  }, [courseKey, authoring, courseLayout, dockOpenIds]);
 
   // Deep link: `?course=<owner/repo>[&courseSlug=<slug>]` installs the course and
   // opens its first lesson (Pages has no path routing, so it's a query param —

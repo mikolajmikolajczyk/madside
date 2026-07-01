@@ -262,3 +262,36 @@
   font-size: 11px;
   max-width: 18ch;
 }
+
+/* Lesson title (rename) field in the expanded lesson body. */
+.course-author__title-field {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 11px;
+  color: var(--text-secondary);
+  padding: 6px;
+}
+.course-author__title-input {
+  flex: 1 1 auto;
+  min-width: 0;
+  font: inherit;
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  border: 1px solid var(--border-default);
+  border-radius: 4px;
+  padding: 3px 6px;
+}
+.course-author__title-input:focus { outline: none; border-color: var(--accent-mint); }
+
+/* Chapters list (delete). */
+.course-author__chapters { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 2px; }
+.course-author__chapter-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 2px 6px;
+  font-size: 12px;
+}
+.course-author__chapter-name { flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--text-primary); }
+.course-author__chapter-count { color: var(--text-quaternary); font-variant-numeric: tabular-nums; }

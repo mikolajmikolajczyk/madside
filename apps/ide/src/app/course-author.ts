@@ -156,6 +156,25 @@ export function setCourseMetaInFiles(files: readonly { path: string; content: st
   return upsertFile(files, COURSE_FILE, courseMetaText(meta))
 }
 
+/** Rename a lesson — its title is the first `# ` heading in lesson.md, so set
+ *  that (or prepend one). Pure: returns new files. */
+export function setLessonTitleInFiles(files: readonly { path: string; content: string }[], lessonId: string, title: string): { path: string; content: string }[] {
+  const path = `lessons/${lessonId}/lesson.md`
+  const body = files.find((f) => f.path === path)?.content ?? ''
+  const heading = `# ${title.trim() || 'Untitled lesson'}`
+  const lines = body.split('\n')
+  const i = lines.findIndex((l) => l.startsWith('# '))
+  if (i >= 0) lines[i] = heading
+  else lines.unshift(heading, '')
+  return upsertFile(files, path, lines.join('\n'))
+}
+
+/** Remove a chapter (its lessons become ungrouped). Pure: returns new meta. */
+export function removeChapter(meta: CourseMeta, title: string): CourseMeta {
+  const chapters = (meta.chapters ?? []).filter((c) => c.title !== title)
+  return { ...meta, chapters: chapters.length ? chapters : undefined }
+}
+
 /** The chapter title a lesson belongs to, or null when ungrouped. */
 export function lessonChapter(meta: CourseMeta, lessonId: string): string | null {
   return meta.chapters?.find((c) => c.lessons.includes(lessonId))?.title ?? null
