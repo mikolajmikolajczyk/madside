@@ -1,3 +1,12 @@
+## [0.27.5] - 2026-07-01
+
+### 🚀 Features
+
+- *(courses)* Shareable ?course= deep link + robust fetch
+
+### 📚 Documentation
+
+- *(panel)* Output slot is the row below the editor, not above
 ## [0.27.4] - 2026-07-01
 
 ### 🚀 Features
