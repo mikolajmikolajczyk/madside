@@ -1,7 +1,7 @@
 {
   "name": "@madside/ide",
   "private": true,
-  "version": "0.27.5",
+  "version": "0.27.6",
   "license": "AGPL-3.0-or-later",
   "type": "module",
   "scripts": {

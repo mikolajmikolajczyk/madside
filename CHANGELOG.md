@@ -1,3 +1,8 @@
+## [0.27.6] - 2026-07-01
+
+### 🐛 Bug Fixes
+
+- *(courses)* Rename lessons, delete chapters, stop layout reset while authoring
 ## [0.27.5] - 2026-07-01
 
 ### 🚀 Features
