@@ -22,7 +22,7 @@ interface PanelPluginBase {
   readonly kind: 'panel'
   readonly id: string
   readonly title: string
-  slot?: 'debug' | 'output'                    // placement: 'debug' (default, movable column) | 'output' (fixed slot above editor)
+  slot?: 'debug' | 'output'                    // placement: 'debug' (default, movable column) | 'output' (the output row below the editor)
   supports?(machine: MachinePlugin): boolean   // false ⇒ hide for the active machine
   fileExt?: readonly string[]                  // present ⇒ this panel is a file editor for these exts
 }
