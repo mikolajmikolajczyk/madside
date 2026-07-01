@@ -118,7 +118,7 @@ export function Welcome({ onOpen, projects = [], onDeleteProject, onManageGitHub
   const gh = useGitHub();
   // Authed fetch (when signed in) lets "Add a course" reach PRIVATE repos via the
   // GitHub API; public repos still load over jsDelivr without it.
-  const ghFetch = gh.auth ? (url: string, init?: RequestInit) => gh.auth!.fetch(url, init) : undefined;
+  const ghFetch = gh.signedIn && gh.auth ? (url: string, init?: RequestInit) => gh.auth!.fetch(url, init) : undefined;
   // Templates minus 'empty' (the empty flow is the top section).
   const templates = useMemo(() => listTemplates().filter((t) => t.id !== "empty"), []);
   const courses = useCourses();

@@ -35,6 +35,10 @@ export function CoursePanel({ courseId, lessonId, onOpenLesson, onCheck, onRefre
       source: course.source.kind === "github"
         ? { label: `${course.source.owner}/${course.source.repo}${course.source.ref ? `@${course.source.ref}` : ""}`, fetchedAt: course.source.fetchedAt }
         : undefined,
+      shareUrl: course.source.kind === "github"
+        ? `${location.origin}/?course=${course.source.owner}/${course.source.repo}` +
+          (courseId.includes("#") ? `&courseSlug=${courseId.split("#")[1]}` : "")
+        : undefined,
       lessons: course.lessons.map((id) => ({ id, title: getLesson(courseId, id)?.title ?? id })),
       chapters: course.chapters,
       currentId: lessonId,

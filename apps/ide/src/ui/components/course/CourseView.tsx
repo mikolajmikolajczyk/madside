@@ -13,6 +13,8 @@ export interface CourseViewData {
   title: string;
   /** GitHub provenance badge — learner view only; omit for preview. */
   source?: { label: string; fetchedAt: number };
+  /** A deep link that opens this course directly (learner, GitHub courses). */
+  shareUrl?: string;
   /** All lessons in order. */
   lessons: { id: string; title: string }[];
   /** Optional grouping of the lesson list under chapter headings. */
@@ -41,6 +43,7 @@ export interface CourseViewProps {
 export function CourseView({ data, onOpenLesson, onCheck, onRefresh, onReset, preview }: CourseViewProps) {
   const [checking, setChecking] = useState(false);
   const [report, setReport] = useState<CheckReport | null>(null);
+  const [shared, setShared] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
 
   const index = data.lessons.findIndex((l) => l.id === data.currentId);
@@ -108,6 +111,17 @@ export function CourseView({ data, onOpenLesson, onCheck, onRefresh, onReset, pr
           {onRefresh && (
             <button type="button" className="course__refresh" disabled={refreshing} onClick={() => void doRefresh()} data-testid="course.refresh">
               {refreshing ? "refreshing…" : "↻ Refresh"}
+            </button>
+          )}
+          {data.shareUrl && (
+            <button
+              type="button"
+              className="course__refresh"
+              title="Copy a link that opens this course"
+              onClick={() => { void navigator.clipboard?.writeText(data.shareUrl!); setShared(true); setTimeout(() => setShared(false), 1500); }}
+              data-testid="course.share"
+            >
+              {shared ? "copied ✓" : "🔗 Share"}
             </button>
           )}
         </div>

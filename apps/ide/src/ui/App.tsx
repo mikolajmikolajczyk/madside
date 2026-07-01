@@ -63,7 +63,7 @@ import { GitHubDialog } from "./components/github/GitHubDialog";
 import { GitHubPushDialog } from "./components/github/GitHubPushDialog";
 import { useGitHubAutoSync } from "./hooks/useGitHubAutoSync";
 import { githubAvailable, useGitHub, pushProjectToGitHub, pullProjectToIdb, remoteSlug, removeProjectFromGitHub, projectGitHubUrls, projectRepo, listAccessibleRepos } from "@app";
-import { addLessonInFiles, getCourse, getDraftCourse, openLesson, readCourseMeta, refreshCourseFromGitHub, resetLessonToStarter, runChecks, saveDraftCourse, scanEquates, setLessonStarterInFiles, starterFilesForMachine, addRemoteCourse, removeRemoteCourse, courseSourceId } from "@app";
+import { addLessonInFiles, getCourse, getDraftCourse, openLesson, readCourseMeta, refreshCourseFromGitHub, resetLessonToStarter, runChecks, saveDraftCourse, scanEquates, setLessonStarterInFiles, starterFilesForMachine, addRemoteCourse, removeRemoteCourse, courseSourceId, installCourseFromGitHub, previewGitHubCourses } from "@app";
 import { useCourses } from "./hooks/useCourses";
 import type { CheckReport, CheckRunDeps } from "@app";
 import type { CourseCheck } from "@app";
@@ -362,6 +362,48 @@ export default function App() {
     if (courseLayout) c.applyLayout(courseLayout);
     else c.applyBuiltin("Course");
   }, [courseKey, courseLayout, dockOpenIds]);
+
+  // Deep link: `?course=<owner/repo>[&courseSlug=<slug>]` installs the course and
+  // opens its first lesson (Pages has no path routing, so it's a query param —
+  // same tactic as ?project= and the OAuth callback). Runs once, after auth is
+  // ready so private-repo links can use the authed API; the params are stripped
+  // so a reload / project switch doesn't re-trigger.
+  const courseLinkDoneRef = useRef(false);
+  // Init from the URL so the loading screen shows from the first frame (no
+  // Welcome flash) when arriving via a ?course= deep link.
+  const [courseLinkLoading, setCourseLinkLoading] = useState(() =>
+    typeof window !== "undefined" && new URLSearchParams(window.location.search).has("course"),
+  );
+  useEffect(() => {
+    if (courseLinkDoneRef.current || !gh.ready) return;
+    const params = new URLSearchParams(window.location.search);
+    const ref = params.get("course");
+    if (!ref) { courseLinkDoneRef.current = true; return; }
+    courseLinkDoneRef.current = true;
+    const wantSlug = params.get("courseSlug") ?? undefined;
+    const url = new URL(window.location.href);
+    url.searchParams.delete("course");
+    url.searchParams.delete("courseSlug");
+    window.history.replaceState(null, "", url.toString());
+    void (async () => {
+      const ghFetch = gh.signedIn && gh.auth ? (u: string, i?: RequestInit) => gh.auth!.fetch(u, i) : undefined;
+      try {
+        const list = await previewGitHubCourses(ref, ghFetch);
+        const target = wantSlug ? list.find((c) => c.slug === wantSlug) : list.length === 1 ? list[0] : undefined;
+        if (!target) {
+          toast.push("info", list.length ? "That link's repo has several courses — pick one in Follow a course." : "No course found at that link.");
+          return;
+        }
+        const [info] = await installCourseFromGitHub(workbench.storage, ref, ghFetch, target.slug);
+        const first = info?.lessons[0];
+        if (info && first) await project.switchProject(await openLesson(workbench.storage, info.id, first));
+      } catch (e) {
+        toast.error(e);
+      } finally {
+        setCourseLinkLoading(false);
+      }
+    })();
+  }, [gh.ready, gh.auth, gh.signedIn, workbench, project, toast]);
 
   // Course Author + Preview surfaces (#139) — condition-driven open/close: open +
   // focus while the project is a course being authored (carries a root course.json).
@@ -912,7 +954,7 @@ export default function App() {
   const handleRefreshCourse = useCallback(async (courseId: string) => {
     const c = getCourse(courseId);
     if (c?.source.kind !== "github") return;
-    const ghFetch = gh.auth ? (url: string, init?: RequestInit) => gh.auth!.fetch(url, init) : undefined;
+    const ghFetch = gh.signedIn && gh.auth ? (url: string, init?: RequestInit) => gh.auth!.fetch(url, init) : undefined;
     const slug = courseId.includes("#") ? courseId.split("#")[1] : undefined;
     await refreshCourseFromGitHub(workbench.storage, { owner: c.source.owner, repo: c.source.repo, ref: c.source.ref, slug }, ghFetch);
   }, [workbench, gh]);
@@ -1149,6 +1191,15 @@ export default function App() {
       return (
         <div className="app app--loading">
           <div className="app__loading">loading project…</div>
+        </div>
+      );
+    }
+    // Opening a course from a ?course= deep link — show a loading screen instead
+    // of flashing the welcome hub while the course installs + its first lesson opens.
+    if (courseLinkLoading) {
+      return (
+        <div className="app app--loading">
+          <div className="app__loading">opening course…</div>
         </div>
       );
     }

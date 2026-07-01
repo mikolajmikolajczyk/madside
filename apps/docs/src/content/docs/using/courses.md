@@ -19,6 +19,8 @@ Courses don't have to ship with the app — you can load one from a GitHub repo.
 
 While you're in a community course, the lesson panel shows the source repo and a **↻ Refresh** button that re-pulls the latest content. Refreshing keeps your edits — use **Reset lesson to starter** if you want a clean slate for the current lesson. Remove an installed course from its card (the **×**) in the welcome picker.
 
+**Share a course** with the **🔗 Share** button in the lesson panel — it copies a link (`…/?course=owner/repo`) that installs the course and opens its first lesson for whoever you send it to. (A private repo needs them signed in with the app installed on it.)
+
 Anyone can publish one — see [Authoring a course](/docs/extending/courses/).
 
 ## Course mode

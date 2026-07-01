@@ -120,26 +120,14 @@ export async function fetchGitHubCourse(
     listing = await listFiles(owner, repo, c)
     if (listing) { usedRef = c; break }
   }
-  if (!listing) {
-    // jsDelivr serves PUBLIC repos only. If we have an authed fetch (signed in +
-    // the app installed on the repo), fall back to the GitHub API so private
-    // repos work too — same path project import uses.
-    if (ghFetch) return fetchGitHubCourseAuthed(owner, repo, ghFetch)
-    throw new Error(
-      ref
-        ? `couldn't load ${owner}/${repo}@${ref} — public repos load here; for a private repo, sign in (Help ▸ GitHub) with the app installed on it`
-        : `couldn't load ${owner}/${repo} — public repos load here; for a private repo, sign in (Help ▸ GitHub) with the app installed on it`,
-    )
-  }
-
-  const all = (listing.files ?? []).map((f) => f.name.replace(/^\//, ''))
-  const groups = discoverCourseGroups(all)
-  if (groups.length === 0) {
-    // jsDelivr's branch listing can lag a fresh push (it caches the tree). When
-    // signed in, read the live tree via the GitHub API so a just-added course
-    // installs without waiting for the CDN to catch up.
-    if (ghFetch) return fetchGitHubCourseAuthed(owner, repo, ghFetch)
-    throw new Error('no courses found — a course repo holds one or more courses/<slug>/course.json')
+  // jsDelivr's flat listing lags a fresh push (its branch tree caches for a long
+  // time) and 404s private repos — both leave us without a course list even
+  // though the files themselves are reachable. Fall back to the GitHub API tree
+  // (fresh; unauthenticated for public repos, authed for private).
+  const all = listing ? (listing.files ?? []).map((f) => f.name.replace(/^\//, '')) : []
+  const groups = listing ? discoverCourseGroups(all) : []
+  if (!listing || groups.length === 0) {
+    return fetchGitHubCourseViaTree(owner, repo, ghFetch)
   }
 
   const fetchRef = listing.version || usedRef
@@ -165,16 +153,26 @@ export async function fetchGitHubCourse(
   return { courses, usedRef, resolvedRef: listing.version }
 }
 
-/** Authed fallback for private repos — list + read via the GitHub API (the repo's
- *  default branch), mirroring the jsDelivr discovery. */
-async function fetchGitHubCourseAuthed(
+/** Unauthenticated GitHub REST fetch — for listing PUBLIC course repos when
+ *  jsDelivr's flat listing is stale and the user isn't signed in. */
+const anonGhFetch: GhFetch = (url, init) =>
+  fetch(url, { ...init, cache: 'no-store', headers: { Accept: 'application/vnd.github+json', ...(init?.headers as Record<string, string> | undefined) } })
+
+/** List a repo's courses via the GitHub API tree (fresh, unlike jsDelivr's
+ *  cached flat listing), then read each file. Files come from the jsDelivr CDN
+ *  pinned to the resolved commit (fresh + no API rate limit) for public repos;
+ *  a private repo (authed) reads blobs through the API. */
+async function fetchGitHubCourseViaTree(
   owner: string,
   repo: string,
-  ghFetch: GhFetch,
+  ghFetch?: GhFetch,
 ): Promise<{ courses: FetchedCourse[]; usedRef: string; resolvedRef?: string }> {
   const target = { owner, repo }
-  const tree = await getRepoTree(ghFetch, target)
-  if (!tree) throw new Error(`couldn't load ${owner}/${repo} — empty repo, or the madside app isn't installed on it`)
+  const gf = ghFetch ?? anonGhFetch
+  const tree = await getRepoTree(gf, target)
+  if (!tree) {
+    throw new Error(`couldn't load ${owner}/${repo} — not found, or it's private (sign in with the app installed on it)`)
+  }
   if (tree.truncated) throw new Error(`${owner}/${repo} is too large to read in one request`)
 
   const blobSha = new Map(tree.entries.filter((e) => e.type === 'blob').map((e) => [e.path, e.sha]))
@@ -183,15 +181,20 @@ async function fetchGitHubCourseAuthed(
     throw new Error('no courses found — a course repo holds one or more courses/<slug>/course.json')
   }
 
+  // Public repos: read files via the CDN pinned to the exact commit (fresh, no
+  // rate limit). Private (authed): read blobs through the API.
+  const readFile = ghFetch
+    ? (path: string) => fetchBlob(ghFetch, target, blobSha.get(path)!).then((b) => dec.decode(b))
+    : async (path: string) => {
+        const res = await fetch(`${CDN}/${owner}/${repo}@${encodeURIComponent(tree.commitSha)}/${path}`)
+        if (!res.ok) throw new NetworkError(`failed to fetch ${path} (${res.status})`)
+        return res.text()
+      }
+
   const courses = await Promise.all(
     groups.map(async (g) => ({
       slug: g.slug,
-      files: await Promise.all(
-        g.paths.map(async (path) => ({
-          path: path.slice(g.prefix.length),
-          content: dec.decode(await fetchBlob(ghFetch, target, blobSha.get(path)!)),
-        })),
-      ),
+      files: await Promise.all(g.paths.map(async (path) => ({ path: path.slice(g.prefix.length), content: await readFile(path) }))),
     })),
   )
   return { courses, usedRef: tree.branch, resolvedRef: tree.commitSha }
