@@ -200,7 +200,13 @@ function NodeView(p: NodeViewProps) {
           </div>
         </ContextMenu.Trigger>
         <ContextMenu.Portal>
-          <ContextMenu.Content className="ui-menu__content">
+          <ContextMenu.Content
+            className="ui-menu__content"
+            // Rename mounts an input that focuses itself; Radix's default
+            // close-autofocus would yank focus back to the row, forcing a
+            // second click. Let the input keep focus.
+            onCloseAutoFocus={(e) => e.preventDefault()}
+          >
             {isFolder ? (
               <>
                 <ContextMenu.Item className="ui-menu__item" onSelect={() => p.onCreateFile(node.path)}>New file…</ContextMenu.Item>
@@ -407,13 +413,25 @@ function NodeIcon({ isFolder, expanded, name }: { isFolder: boolean; expanded: b
 function RenameInput({ initial, onCommit, onCancel }: { initial: string; onCommit: (name: string) => void; onCancel: () => void }) {
   const [value, setValue] = useState(initial);
   const ref = useRef<HTMLInputElement | null>(null);
-  // Enter committed or Escape cancelled — the resulting blur must not re-fire a
-  // second (stale) commit.
+  // Enter committed or Escape cancelled — the resulting blur must not then fire
+  // the click-away cancel on top of it.
   const done = useRef(false);
+  // Focus after paint: when rename is triggered from the Radix context menu, the
+  // menu's close-focus runs right after mount and would beat a synchronous
+  // focus() here — so defer to the next frame to win the race.
   useEffect(() => {
-    ref.current?.focus();
-    ref.current?.select();
-  }, []);
+    const id = requestAnimationFrame(() => {
+      const el = ref.current;
+      if (!el) return;
+      el.focus();
+      // Preselect the name but not the extension (the usual rename target) —
+      // a leading dot (dotfile) or no dot ⇒ select everything.
+      const dot = initial.lastIndexOf(".");
+      if (dot > 0) el.setSelectionRange(0, dot);
+      else el.select();
+    });
+    return () => cancelAnimationFrame(id);
+  }, [initial]);
   return (
     <input
       ref={ref}
@@ -425,7 +443,7 @@ function RenameInput({ initial, onCommit, onCancel }: { initial: string; onCommi
         if (e.key === "Enter") { e.preventDefault(); done.current = true; onCommit(value.trim()); }
         else if (e.key === "Escape") { e.preventDefault(); done.current = true; onCancel(); }
       }}
-      onBlur={() => { if (!done.current) onCommit(value.trim()); }}
+      onBlur={() => { if (!done.current) onCancel(); }}
     />
   );
 }
