@@ -1,3 +1,8 @@
+## [0.27.8] - 2026-07-02
+
+### 🚀 Features
+
+- *(courses)* Memory-check range/fill (count) + documented sequence compare
 ## [0.27.7] - 2026-07-02
 
 ### 🚀 Features
