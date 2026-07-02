@@ -1,3 +1,8 @@
+## [0.28.0] - 2026-07-02
+
+### 🚀 Features
+
+- *(atari)* Opt-in keyboard joystick (STICK0/STRIG0)
 ## [0.27.14] - 2026-07-02
 
 ### 🚀 Features
