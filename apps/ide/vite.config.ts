@@ -1,4 +1,4 @@
-import { defineConfig } from 'vite'
+import { defineConfig, type PluginOption } from 'vite'
 import react, { reactCompilerPreset } from '@vitejs/plugin-react'
 import babel from '@rolldown/plugin-babel'
 import { fileURLToPath } from 'node:url'
@@ -7,6 +7,32 @@ import { readFileSync } from 'node:fs'
 const r = (p: string) => fileURLToPath(new URL(p, import.meta.url))
 
 const appVersion = (JSON.parse(readFileSync(r('./package.json'), 'utf8')) as { version: string }).version
+
+// Cloudflare Web Analytics — opt-in, injected only when VITE_CF_BEACON_TOKEN is
+// set at build time (the release/Pages build passes it from a repo variable).
+// Absent => no beacon, no network call (forks/local builds stay clean). The
+// beacon token is public (it ships in the page source), so it's a var, not a
+// secret. Cloudflare's analytics is cookieless.
+function cloudflareAnalytics(): PluginOption {
+  const token = process.env.VITE_CF_BEACON_TOKEN
+  if (!token) return null
+  return {
+    name: 'madside:cloudflare-analytics',
+    transformIndexHtml() {
+      return [
+        {
+          tag: 'script',
+          attrs: {
+            defer: true,
+            src: 'https://static.cloudflareinsights.com/beacon.min.js',
+            'data-cf-beacon': JSON.stringify({ token }),
+          },
+          injectTo: 'head',
+        },
+      ]
+    },
+  }
+}
 
 // https://vite.dev/config/
 export default defineConfig({
@@ -29,7 +55,7 @@ export default defineConfig({
   // extra runtime dep. Requires Rules-of-React compliance — enforced by the
   // react-hooks compiler-readiness eslint rules (refs / set-state-in-effect /
   // preserve-manual-memoization).
-  plugins: [react(), babel({ presets: [reactCompilerPreset()] })],
+  plugins: [react(), babel({ presets: [reactCompilerPreset()] }), cloudflareAnalytics()],
   // Pre-bundle the lazily-imported emulator dep up front. jsnes is reached only
   // through dynamic import() (createWorkbench's NES backend factory), so Vite's
   // scanner can miss it — the first NES boot would then trigger an on-the-fly
