@@ -69,12 +69,29 @@ export function CourseView({ data, onOpenLesson, onCheck, onRefresh, onReset, pr
     groups.push({ title: null, items: data.lessons.map((l) => ({ id: l.id, title: l.title, n: numOf.get(l.id)! })) });
   }
 
-  // Drop a stale report when the shown lesson changes.
+  // Collapse the lesson list to one chapter at a time (accordion) once the course
+  // has chapters — otherwise a long course's TOC crowds out the lesson text. The
+  // chapter holding the current lesson is open; clicking another title opens it.
+  const collapsible = !!data.chapters?.length;
+  const currentGroup = groups.findIndex((g) => g.items.some((it) => it.id === data.currentId));
+  const [openGroup, setOpenGroup] = useState(currentGroup < 0 ? 0 : currentGroup);
+  // The whole TOC is collapsed by default so a many-chapter course doesn't eat
+  // the panel — a one-line header shows where you are; expand to jump around.
+  const [tocOpen, setTocOpen] = useState(false);
+  const currentTitle = index >= 0 ? data.lessons[index]!.title : "";
+  const currentChapter = currentGroup >= 0 ? groups[currentGroup]!.title : null;
+
+  // Drop a stale report + re-focus the open chapter when the shown lesson changes.
   const [reportKey, setReportKey] = useState(data.currentId);
   if (reportKey !== data.currentId) {
     setReportKey(data.currentId);
     setReport(null);
+    setTocOpen(false);
+    if (currentGroup >= 0) setOpenGroup(currentGroup);
   }
+
+  const prevTitle = prev ? data.lessons[index - 1]!.title : undefined;
+  const nextTitle = next ? data.lessons[index + 1]!.title : undefined;
 
   const doRefresh = async () => {
     if (!onRefresh) return;
@@ -127,10 +144,41 @@ export function CourseView({ data, onOpenLesson, onCheck, onRefresh, onReset, pr
         </div>
       )}
 
+      <button
+        type="button"
+        className={"course__toc-toggle" + (tocOpen ? " course__toc-toggle--open" : "")}
+        onClick={() => setTocOpen((o) => !o)}
+        aria-expanded={tocOpen}
+        data-testid="course.toc"
+      >
+        <span className="course__toc-caret">{tocOpen ? "▾" : "▸"}</span>
+        <span className="course__toc-here">{currentChapter ? `${currentChapter} · ` : ""}{currentTitle}</span>
+        <span className="course__toc-count">{index < 0 ? 0 : index + 1}/{total}</span>
+      </button>
+
+      {tocOpen && (
       <ol className="course__lessons">
-        {groups.map((g, gi) => (
+        {groups.map((g, gi) => {
+          // Accordion (chaptered courses): titled chapters collapse to a header;
+          // the untitled "rest" group and non-chaptered courses stay open.
+          const open = !collapsible || g.title === null || gi === openGroup;
+          return (
           <li key={g.title ?? `__rest${gi}`} className="course__group">
-            {g.title && <div className="course__chapter">{g.title}</div>}
+            {g.title && (collapsible ? (
+              <button
+                type="button"
+                className={"course__chapter course__chapter--toggle" + (open ? " course__chapter--open" : "")}
+                onClick={() => setOpenGroup(gi)}
+                aria-expanded={open}
+              >
+                <span className="course__chapter-caret">{open ? "▾" : "▸"}</span>
+                <span className="course__chapter-name">{g.title}</span>
+                <span className="course__chapter-count">{g.items.length}</span>
+              </button>
+            ) : (
+              <div className="course__chapter">{g.title}</div>
+            ))}
+            {open && (
             <ol className="course__group-list">
               {g.items.map((l) => {
                 const current = l.id === data.currentId;
@@ -150,9 +198,12 @@ export function CourseView({ data, onOpenLesson, onCheck, onRefresh, onReset, pr
                 );
               })}
             </ol>
+            )}
           </li>
-        ))}
+          );
+        })}
       </ol>
+      )}
 
       <div className="course__body">
         <Markdown>{data.body}</Markdown>
@@ -181,7 +232,10 @@ export function CourseView({ data, onOpenLesson, onCheck, onRefresh, onReset, pr
       )}
 
       <footer className="course__nav">
-        <button type="button" className="course__navbtn" disabled={!prev} onClick={() => prev && onOpenLesson(prev)} data-testid="course.prev">‹ Prev</button>
+        <button type="button" className="course__navbtn" disabled={!prev} onClick={() => prev && onOpenLesson(prev)} title={prevTitle} data-testid="course.prev">
+          <span className="course__navarrow">‹</span>
+          <span className="course__navlabel">{prevTitle ?? "Prev"}</span>
+        </button>
         <button
           type="button"
           className="course__check"
@@ -190,7 +244,10 @@ export function CourseView({ data, onOpenLesson, onCheck, onRefresh, onReset, pr
           onClick={() => void runCheck()}
           data-testid="course.check"
         >{checking ? "Checking…" : "Check"}</button>
-        <button type="button" className="course__navbtn" disabled={!next} onClick={() => next && onOpenLesson(next)} data-testid="course.next">Next ›</button>
+        <button type="button" className="course__navbtn" disabled={!next} onClick={() => next && onOpenLesson(next)} title={nextTitle} data-testid="course.next">
+          <span className="course__navlabel">{nextTitle ?? "Next"}</span>
+          <span className="course__navarrow">›</span>
+        </button>
       </footer>
     </section>
   );
