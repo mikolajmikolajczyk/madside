@@ -1,3 +1,8 @@
+## [0.28.2] - 2026-07-02
+
+### 🐛 Bug Fixes
+
+- *(mads)* Source-map addresses for included files
 ## [0.28.1] - 2026-07-02
 
 ### 💼 Other
