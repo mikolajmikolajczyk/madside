@@ -1,3 +1,8 @@
+## [0.27.10] - 2026-07-02
+
+### 🚀 Features
+
+- *(site)* Optional Cloudflare Web Analytics beacon (env-gated)
 ## [0.27.9] - 2026-07-02
 
 ### 🚀 Features
