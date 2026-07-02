@@ -1,3 +1,9 @@
+## [0.28.1] - 2026-07-02
+
+### 💼 Other
+
+- *(altirra)* Bump pinned wasm core to the setJoystick commit
+- *(altirra)* Sync wasm core with upstream ilmenit/AltirraSDL
 ## [0.28.0] - 2026-07-02
 
 ### 🚀 Features
