@@ -149,6 +149,53 @@ describe('evaluateCheck — memory range/fill (count)', () => {
   })
 })
 
+describe('evaluateCheck — indirect (pointer follow)', () => {
+  // SAVMSC ($58) holds $9C40; the screen at $9C40 spells screen-codes 8 5 12 12 15.
+  const ctx = baseCtx({ mem: new Map<string, Uint8Array>([
+    [memKey(0x58, 2), Uint8Array.from([0x40, 0x9c])],       // pointer, little-endian
+    [memKey(0x9c40, 5), Uint8Array.from([8, 5, 12, 12, 15])], // *(ptr)
+    [memKey(0x9c42, 1), Uint8Array.from([12])],              // *(ptr)+2
+  ]) })
+
+  it('dereferences the pointer and compares the target sequence', () => {
+    expect(evaluateCheck({ kind: 'memory', addr: '$58', indirect: true, equals: '$08 $05 $0C $0C $0F' }, ctx).pass).toBe(true)
+    expect(evaluateCheck({ kind: 'memory', addr: '$58', indirect: true, equals: '$00 $00' }, ctx).pass).toBe(false)
+  })
+  it('applies the offset (the ,y)', () => {
+    expect(evaluateCheck({ kind: 'memory', addr: '$58', indirect: true, offset: 2, equals: '$0C' }, ctx).pass).toBe(true)
+  })
+  it('reports when the pointer itself was not read', () => {
+    expect(evaluateCheck({ kind: 'memory', addr: '$60', indirect: true, equals: '$00' }, ctx).message).toMatch(/pointer not read/)
+  })
+  it('labels the check with the indirect form', () => {
+    const r = evaluateCheck({ kind: 'memory', addr: '$58', indirect: true, offset: 2, equals: '$00' }, ctx)
+    expect(r.label).toMatch(/\*\(\$58\)\+2/)
+  })
+})
+
+describe('runChecks — indirect memory read', () => {
+  it('reads the pointer then the target it points to', async () => {
+    const reads: [number, number][] = []
+    const report = await runChecks(
+      [{ kind: 'memory', addr: '$58', indirect: true, offset: 1, equals: '$05' }],
+      {
+        assemble: async () => ({ ok: true, labels: new Map(), binary: new Uint8Array([1]) }),
+        run: async () => ({
+          regs: {},
+          readMem: (addr, len) => {
+            reads.push([addr, len])
+            if (addr === 0x58) return Uint8Array.from([0x40, 0x9c]) // pointer -> $9C40
+            return Uint8Array.from([0x05]) // target byte at $9C41
+          },
+        }),
+      },
+    )
+    expect(reads).toContainEqual([0x58, 2])     // pointer read
+    expect(reads).toContainEqual([0x9c41, 1])   // target = $9C40 + offset 1
+    expect(report.pass).toBe(true)
+  })
+})
+
 describe('evaluateCheck — unparseable value', () => {
   it('reports the bad value instead of NaN (label addr)', () => {
     const ctx = baseCtx({ labels: new Map([['hue', 0xcb]]) })

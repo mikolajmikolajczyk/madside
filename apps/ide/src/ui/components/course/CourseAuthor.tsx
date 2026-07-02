@@ -439,7 +439,13 @@ function CheckFields({ check, replace, persist }: {
     case "memory":
       return (
         <>
-          <input className="course-author__check-in" placeholder="addr $hex" value={check.addr} onChange={(e) => replace({ ...check, addr: e.target.value }, false)} onBlur={persist} spellCheck={false} />
+          <input className="course-author__check-in" placeholder={check.indirect ? "ptr addr $hex" : "addr $hex"} title={check.indirect ? "Zero-page location holding a 16-bit little-endian pointer (e.g. $58 = SAVMSC)." : "Absolute address to read."} value={check.addr} onChange={(e) => replace({ ...check, addr: e.target.value }, false)} onBlur={persist} spellCheck={false} />
+          <label className="course-author__check-flag" title="Follow a 16-bit pointer at addr, then read from where it points — e.g. (SAVMSC),y for the Atari screen.">
+            <input type="checkbox" checked={!!check.indirect} onChange={(e) => replace({ ...check, indirect: e.target.checked || undefined, offset: e.target.checked ? check.offset : undefined }, true)} /> ptr
+          </label>
+          {check.indirect && (
+            <input className="course-author__check-in" type="number" placeholder="+y" title="Offset added to the dereferenced pointer (the ,y)." value={check.offset ?? ""} onChange={(e) => replace({ ...check, offset: e.target.value === "" ? undefined : Number(e.target.value) }, false)} onBlur={persist} />
+          )}
           <OpSelect value={check.op} onChange={(op) => replace({ ...check, op }, true)} />
           <input className="course-author__check-in course-author__check-seq" placeholder="value(s) $hex" title="One byte, or several space/comma-separated bytes to compare a sequence in order (e.g. a sorted result)." value={check.equals} onChange={(e) => replace({ ...check, equals: e.target.value }, false)} onBlur={persist} spellCheck={false} />
           <input className="course-author__check-in" type="number" placeholder="count" title="Optional: check this many bytes from addr — each must satisfy the operator against the single value (range/fill). Leave empty to compare the sequence you typed in value(s)." value={check.count ?? ""} onChange={(e) => replace({ ...check, count: e.target.value === "" ? undefined : Number(e.target.value) }, false)} onBlur={persist} />
