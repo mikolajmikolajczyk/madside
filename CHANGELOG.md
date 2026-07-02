@@ -1,3 +1,8 @@
+## [0.27.12] - 2026-07-02
+
+### 🚀 Features
+
+- *(courses)* New lesson inherits the previous lesson's chapter
 ## [0.27.11] - 2026-07-02
 
 ### 🚀 Features
