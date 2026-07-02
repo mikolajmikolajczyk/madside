@@ -219,19 +219,34 @@ export function setLessonStarterInFiles(
   return [...kept, ...starter.map((f) => ({ path: prefix + f.path, content: f.content }))]
 }
 
-/** Append a new lesson (next numeric prefix) with a buildable starter + build
- *  check. Returns the new files + the new lesson id. */
+/** Append a new lesson (next numeric prefix). Its source files are copied from
+ *  the previous lesson (so a course that builds on one program doesn't need
+ *  manual copy+rename each time); with no previous lesson it seeds from the
+ *  machine template. Markdown + checks always start fresh. Returns the new files
+ *  + the new lesson id. */
 export function addLessonInFiles(files: readonly { path: string; content: string }[], machine: string, starterFor?: LessonStarterProvider): { files: { path: string; content: string }[]; lessonId: string } {
   const lessons = listLessons(files)
-  const n = (lessons.length ? lessons[lessons.length - 1]!.n : 0) + 1
+  const prev = lessons.length ? lessons[lessons.length - 1]! : null
+  const n = (prev ? prev.n : 0) + 1
   const id = `${pad(n)}-new-lesson`
-  const added = newLessonFiles(lessons, machine, starterFor).map((f) => ({ path: f.path, content: f.content }))
+  const dir = `lessons/${id}`
+  // Carry over the previous lesson's starter (its `files/` subtree, verbatim).
+  const prevPrefix = prev ? `${prev.dir}/files/` : null
+  const carried = prevPrefix
+    ? files.filter((f) => f.path.startsWith(prevPrefix)).map((f) => ({ path: `${dir}/files/${f.path.slice(prevPrefix.length)}`, content: f.content }))
+    : []
+  const added = carried.length
+    ? [
+        { path: `${dir}/lesson.md`, content: '# New lesson\n\nWrite the lesson here.\n' },
+        ...carried,
+        { path: `${dir}/check.json`, content: json({ checks: [{ kind: 'build' }] satisfies CourseCheck[] }) },
+      ]
+    : newLessonFiles(lessons, machine, starterFor).map((f) => ({ path: f.path, content: f.content }))
   let out: { path: string; content: string }[] = [...files, ...added]
   // Inherit the previous (last) lesson's chapter, so authoring a run of lessons
   // in one chapter doesn't need a manual re-assign after every add.
   const meta = readCourseMeta(files)
-  const prevId = lessons.length ? lessons[lessons.length - 1]!.id : null
-  const chapter = meta && prevId ? lessonChapter(meta, prevId) : null
+  const chapter = meta && prev ? lessonChapter(meta, prev.id) : null
   if (meta && chapter) out = setCourseMetaInFiles(out, assignLessonToChapter(meta, id, chapter))
   return { files: out, lessonId: id }
 }

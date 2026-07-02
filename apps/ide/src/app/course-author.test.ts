@@ -163,6 +163,30 @@ describe("lessons (phase 2)", () => {
     expect(removed.some((f) => f.path.startsWith("lessons/02-loops/"))).toBe(false);
   });
 
+  it("addLessonInFiles copies the previous lesson's files verbatim; md + checks start fresh", () => {
+    const withFiles = [
+      { path: "course.json", content: "{}" },
+      { path: "lessons/01-intro/lesson.md", content: "# Intro" },
+      { path: "lessons/01-intro/files/project.json", content: '{"main":"src/game.a65"}' },
+      { path: "lessons/01-intro/files/src/game.a65", content: "; game code" },
+      { path: "lessons/01-intro/check.json", content: '{"checks":[{"kind":"memory","addr":"$3000","equals":"$01"}]}' },
+    ];
+    const { files: added, lessonId } = addLessonInFiles(withFiles, "atari-xl");
+    expect(lessonId).toBe("02-new-lesson");
+    expect(added.find((f) => f.path === `lessons/${lessonId}/files/src/game.a65`)?.content).toBe("; game code");
+    expect(added.find((f) => f.path === `lessons/${lessonId}/files/project.json`)?.content).toBe('{"main":"src/game.a65"}');
+    expect(added.find((f) => f.path === `lessons/${lessonId}/lesson.md`)?.content).toMatch(/# New lesson/);
+    expect(JSON.parse(added.find((f) => f.path === `lessons/${lessonId}/check.json`)!.content)).toEqual({ checks: [{ kind: "build" }] });
+  });
+
+  it("addLessonInFiles falls back to the machine template when the previous lesson has no files", () => {
+    // fixture `files`: the last lesson (02-loops) has no files/ subtree
+    const { files: added, lessonId } = addLessonInFiles(files, "atari-xl");
+    expect(added.some((f) => f.path.startsWith(`lessons/${lessonId}/files/`))).toBe(true);
+    const manifest = added.find((f) => f.path === `lessons/${lessonId}/files/project.json`)!;
+    expect(JSON.parse(manifest.content)).toMatchObject({ machine: "atari-xl" });
+  });
+
   it("addLessonInFiles: a new lesson inherits the previous lesson's chapter", () => {
     // Put both existing lessons under "Basics", then add a lesson.
     const withChapters = files.map((f) =>
