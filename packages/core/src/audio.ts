@@ -19,10 +19,25 @@ class PcmQueueProcessor extends AudioWorkletProcessor {
     // audio from a context forced to a non-native rate (44100 vs the device's
     // 48000). So run the context at its native rate and resample here instead.
     const src = (options && options.processorOptions && options.processorOptions.sourceRate) || sampleRate
-    this.step = src / sampleRate
+    // Nominal resample ratio (source frames per output frame). The effective
+    // step is nudged ±a fraction around this each block to track the buffer
+    // level (adaptive resampling) — see process().
+    this.baseStep = src / sampleRate
     // Channel count of the source stream. >1 means the posted buffers are
     // interleaved frames (L,R,L,R…); pos counts frames, not samples.
     this.channels = (options && options.processorOptions && options.processorOptions.channels) || 1
+    // Adaptive resampling target: the buffer level (in frames) we steer toward.
+    // The source and the audio clock never run at exactly the same rate, so
+    // instead of dropping samples when the queue drifts (which stutters), we
+    // speed up / slow down playback by a sub-percent amount to hold the queue
+    // near this target — inaudible, and glitch-free.
+    const targetMs = (options && options.processorOptions && options.processorOptions.targetLatencyMs) || 40
+    this.targetFrames = Math.max(1, Math.floor((targetMs / 1000) * src))
+    // Hard safety cap (skip-ahead): only for gross overruns the soft control
+    // can't drain fast enough — e.g. the backlog built during a pause. Well
+    // above the target so it never fires in steady state.
+    const maxMs = (options && options.processorOptions && options.processorOptions.maxLatencyMs) || 250
+    this.maxFrames = Math.max(this.targetFrames * 2, Math.floor((maxMs / 1000) * src))
     this.buf = new Float32Array(0)  // unconsumed samples (interleaved if channels>1)
     this.pos = 0                    // fractional read index, in frames
     this.port.onmessage = (ev) => {
@@ -30,7 +45,14 @@ class PcmQueueProcessor extends AudioWorkletProcessor {
         const merged = new Float32Array(this.buf.length + ev.data.length)
         merged.set(this.buf, 0)
         merged.set(ev.data, this.buf.length)
-        this.buf = merged
+        // Safety only: discard oldest frames past the hard cap (pause recovery).
+        // Steady-state drift is handled smoothly by the adaptive step, not here.
+        const availFrames = (merged.length / this.channels) | 0
+        if (availFrames > this.maxFrames) {
+          this.buf = merged.subarray((availFrames - this.maxFrames) * this.channels)
+        } else {
+          this.buf = merged
+        }
       } else if (ev.data === 'flush') {
         this.buf = new Float32Array(0)
         this.pos = 0
@@ -43,10 +65,15 @@ class PcmQueueProcessor extends AudioWorkletProcessor {
     const out0 = chans[0]
     if (!out0) return true
     const buf = this.buf
-    const step = this.step
     const nch = this.channels
     const frames = out0.length
     const avail = (buf.length / nch) | 0  // whole frames buffered
+    // Adaptive step: nudge playback rate toward the target buffer level. Positive
+    // error (too full) ⇒ step > base ⇒ consume faster ⇒ drain; negative ⇒ slow.
+    // Clamped to ±2% so the pitch shift is inaudible; converges without drops.
+    const err = (avail - this.targetFrames) / this.targetFrames
+    const trim = Math.max(-0.02, Math.min(0.02, err * 0.1))
+    const step = this.baseStep * (1 + trim)
     let pos = this.pos
     let i = 0
     for (; i < frames; i++) {
@@ -80,8 +107,11 @@ export interface AudioPushPumpOptions {
    *  The caller must return a *copy* it no longer reads (wasm-memory views are
    *  invalidated by the next core call). */
   pull: () => Float32Array | null;
-  /** Pin the AudioContext sample rate (jsnes feeds its native APU rate). Omit to
-   *  use the device default (Altirra resamples internally). */
+  /** The source's true sample rate (Hz). The worklet resamples from this to the
+   *  device context rate — so it MUST be the rate the core actually emits at
+   *  (jsnes APU rate; Altirra's POKEY kSampleRate ≈ 63920). Omit only if the
+   *  source already emits at the context rate; a wrong/absent value plays too
+   *  fast or slow and over/under-buffers. */
   sampleRate?: number;
   /** Source channel count. 1 (default) = mono; 2 = interleaved stereo frames
    *  (L,R,L,R…) — the pumped buffers must be interleaved and the worklet outputs
@@ -90,6 +120,14 @@ export interface AudioPushPumpOptions {
   /** Pump interval in ms — tight enough to keep the queue stable, below
    *  scheduler jitter. Default 5. */
   intervalMs?: number;
+  /** Target buffered latency (ms) the worklet steers toward via adaptive
+   *  resampling (sub-percent rate nudge, no dropped samples). Lower = tighter
+   *  latency but less jitter headroom. Default 40. */
+  targetLatencyMs?: number;
+  /** Hard safety cap (ms): only past this does the worklet skip-ahead (drop
+   *  oldest) — for gross overruns like post-pause backlog the soft control can't
+   *  drain. Default 250. */
+  maxLatencyMs?: number;
 }
 
 // One shared AudioContext for every pump. iOS Safari only lets an AudioContext
@@ -160,7 +198,12 @@ export class AudioPushPump {
         numberOfOutputs: 1,
         outputChannelCount: [channels],
         // The worklet resamples from the source rate to the context's native rate.
-        processorOptions: { sourceRate: this.opts.sampleRate ?? ctx.sampleRate, channels },
+        processorOptions: {
+          sourceRate: this.opts.sampleRate ?? ctx.sampleRate,
+          channels,
+          targetLatencyMs: this.opts.targetLatencyMs ?? 40,
+          maxLatencyMs: this.opts.maxLatencyMs ?? 250,
+        },
       });
       node.connect(ctx.destination);
       this.node = node;

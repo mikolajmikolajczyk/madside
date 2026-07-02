@@ -115,6 +115,15 @@ export class AltirraBackend implements RunBackend {
     // Allocate a stable host-side buffer; per-frame copy happens in
     // advanceFrame via `this.refreshPixels()`.
     this.pixels = new Uint32Array(this.width * this.height);
+    // Tell the worklet the core's real sample rate so it resamples correctly
+    // (kSampleRate ≈ 63920 ≠ the device context rate).
+    this.audioPump = new AudioPushPump("altirra-audio", {
+      sampleRate: this.sampleRate,
+      pull: () => {
+        const fresh = this.core.getAudioSamples();
+        return fresh.length > 0 ? new Float32Array(fresh) : null;
+      },
+    });
   }
 
   loadMedia(format: string, bytes: Uint8Array) {
@@ -197,12 +206,10 @@ export class AltirraBackend implements RunBackend {
 
   // Copy out of the wasm-memory view (the next core call invalidates it); the
   // pump transfers the buffer to the worklet thread (zero-copy boundary).
-  private readonly audioPump = new AudioPushPump("altirra-audio", {
-    pull: () => {
-      const fresh = this.core.getAudioSamples();
-      return fresh.length > 0 ? new Float32Array(fresh) : null;
-    },
-  });
+  // Constructed in the constructor (needs `sampleRate` set first) so the worklet
+  // resamples from the core's true POKEY rate (kSampleRate ≈ 63920), not the
+  // context rate — otherwise it plays ~33% too fast and over-buffers.
+  private readonly audioPump: AudioPushPump;
 
   async startAudio(): Promise<void> {
     await this.audioPump.start();
