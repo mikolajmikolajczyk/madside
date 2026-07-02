@@ -1,3 +1,12 @@
+## [0.27.7] - 2026-07-02
+
+### 🚀 Features
+
+- *(courses)* Comparison operators for memory/register checks
+
+### 🐛 Bug Fixes
+
+- *(courses)* Clear message when a check value isn't a number
 ## [0.27.6] - 2026-07-01
 
 ### 🐛 Bug Fixes
