@@ -80,8 +80,10 @@ export function ManifestEditor({ value, onChange, files }: Props) {
     if (parsed && !parsed.ok) {
       return <div className="manifest__error">{parsed.error.message}</div>;
     }
-    const run = (raw.run as { default?: { audio?: boolean } } | undefined) ?? {};
+    const run = (raw.run as { default?: { audio?: boolean; input?: string } } | undefined) ?? {};
     const audio = run.default?.audio ?? false;
+    const inputMode = run.default?.input ?? "keyboard";
+    const hasJoystick = !!machines.find((m) => m.id === str("machine"))?.input.joystick;
     const build = (raw.build as { args?: string[] } | undefined) ?? {};
     const args = Array.isArray(build.args) ? build.args : [];
 
@@ -158,6 +160,23 @@ export function ManifestEditor({ value, onChange, files }: Props) {
           />
           <span className="manifest__label">Audio on run</span>
         </label>
+
+        {hasJoystick && (
+          <label className="manifest__row">
+            <span className="manifest__label">Input</span>
+            <select
+              className="manifest__input"
+              value={inputMode}
+              onChange={(e) => patch((o) => {
+                const r = (o.run as { default?: { audio?: boolean; input?: string } } | undefined) ?? {};
+                o.run = { ...r, default: { ...r.default, input: e.target.value } };
+              })}
+            >
+              <option value="keyboard">Keyboard</option>
+              <option value="joystick">Joystick (arrows + Space)</option>
+            </select>
+          </label>
+        )}
 
         <div className="manifest__row manifest__row--block">
           <span className="manifest__label">Build args</span>

@@ -35,6 +35,12 @@ which you can program in Z80 assembly and debug with a CPU switch in the debugge
 Each value comes from the machine plugin's `id`, `cpu`, `compatibleToolchains`,
 `compatibleEmulators`, and `compatibleDebugAdapters`.
 
+## Input
+
+Type into the running program by clicking the emulator screen first (it captures the keyboard only while focused, so the editor stays usable otherwise).
+
+**Atari joystick 0** is opt-in per project. Set `"run": { "default": { "input": "joystick" } }` in `project.json` (or pick **Input → Joystick** in the visual manifest editor). Then **arrow keys** move the stick and **Space** is the trigger, read at `STICK0` (`$0278`, direction bits active-low) and `STRIG0` (`$0284`, `0` = pressed). The default (`keyboard`) leaves every key on the Atari keyboard — the joystick mode reroutes only the arrows and Space, so it's opt-in to avoid losing those keys.
+
 ## Toolchains
 
 | Toolchain id | Name | Language | Input ext | Output ext |

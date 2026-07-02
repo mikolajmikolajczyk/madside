@@ -35,8 +35,21 @@ export interface InputLayout {
   /** Browser KeyboardEvent.code → machine-side numeric keycode. The numeric
    *  shape stays opaque to the workbench — emulator plugins decode it. */
   codeToKey?: Record<string, number>
+  /** Optional keyboard→digital-joystick bindings (KeyboardEvent.code → action).
+   *  A bound key drives the emulator backend's `setJoystick` instead of the
+   *  keyboard. Present only for machines with a digital joystick. Hardcoded for
+   *  now; user-remappable via the emulator settings panel later. */
+  joystick?: Record<string, JoystickBind>
   /** Optional buttons for controller-based machines. */
   buttons?: string[]
+}
+
+/** A single keyboard→joystick binding: a direction key, or a fire (trigger)
+ *  key, on a given port. */
+export interface JoystickBind {
+  port: number
+  dir?: 'up' | 'down' | 'left' | 'right'
+  fire?: boolean
 }
 
 export interface DeviceDescriptor {

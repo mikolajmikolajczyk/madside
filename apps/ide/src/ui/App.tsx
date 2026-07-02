@@ -1416,6 +1416,7 @@ export default function App() {
       breakpoints={breakpoints}
       onState={setCpu}
       blockedMsg={runBlockedMsg}
+      joystick={project.loaded && project.manifest.run?.default?.input === "joystick"}
     />
   );
 

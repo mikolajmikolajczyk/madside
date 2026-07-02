@@ -95,6 +95,17 @@ export const atariXl: MachinePlugin = {
       F5: 0x74, F6: 0x75, F7: 0x76, F8: 0x77,
       F9: 0x78, F10: 0x79, F11: 0x7a, F12: 0x7b,
     },
+    // Keyboard → joystick 0 (STICK0 $0278 / STRIG0 $0284). Arrows drive the
+    // direction lines, Space is the trigger. A bound key routes to the
+    // backend's setJoystick, not the keyboard. Hardcoded for now — the
+    // emulator settings panel will make this user-remappable.
+    joystick: {
+      ArrowUp: { port: 0, dir: 'up' },
+      ArrowDown: { port: 0, dir: 'down' },
+      ArrowLeft: { port: 0, dir: 'left' },
+      ArrowRight: { port: 0, dir: 'right' },
+      Space: { port: 0, fire: true },
+    },
   },
 
   defaultPanels: ['memory', 'registers', 'variables', 'output', 'asset'],

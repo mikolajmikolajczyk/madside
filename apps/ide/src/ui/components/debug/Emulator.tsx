@@ -23,6 +23,10 @@ interface Props {
   /** Shown as an overlay over the screen when a Run is blocked — e.g. the build
    *  failed, so there's no binary to load ("Compilation error. Check output"). */
   blockedMsg?: string | null;
+  /** Route the machine's joystick keys (Atari arrows + Space) to the digital
+   *  joystick instead of the keyboard. Off by default (manifest opt-in) so a
+   *  project keeps the full keyboard. */
+  joystick?: boolean;
   // Step + Frame go through DebugService.step / stepFrame (1e38ae3 — the
   // canonical event path). DebugService emits debug:step-done; Emulator
   // listens + blits the canvas. The frame loop is driven by RunService's
@@ -33,7 +37,7 @@ interface Props {
   // ctx.debug.readMemory polling, not through here.
 }
 
-export function Emulator({ breakpoints, onState, blockedMsg }: Props) {
+export function Emulator({ breakpoints, onState, blockedMsg, joystick }: Props) {
   const workbench = useWorkbench();
   const machine = useActiveMachine();
   const runStatus = useRunStatus();
@@ -197,6 +201,28 @@ export function Emulator({ breakpoints, onState, blockedMsg }: Props) {
     // wasm core's PushKey expects; the C++ table acts as a fallback.
     const codeToKey = machine.input.codeToKey ?? {};
 
+    // Keyboard → joystick bindings (Atari STICK0/STRIG0). A bound key drives
+    // the backend's setJoystick instead of the keyboard — only when the project
+    // opts in (manifest run.default.input === 'joystick'); otherwise the keys
+    // stay on the keyboard.
+    const joyMap = joystick ? (machine.input.joystick ?? {}) : {};
+    const joyPorts = new Set(Object.values(joyMap).map((b) => b.port));
+    const joyHeld = new Set<string>();
+    const DIR_BIT: Record<string, number> = { up: 1, down: 2, left: 4, right: 8 };
+    const applyJoystick = () => {
+      if (!emu.setJoystick) return;
+      const state = new Map<number, { mask: number; fire: boolean }>();
+      for (const p of joyPorts) state.set(p, { mask: 0, fire: false });
+      for (const code of joyHeld) {
+        const b = joyMap[code];
+        if (!b) continue;
+        const s = state.get(b.port)!;
+        if (b.dir) s.mask |= DIR_BIT[b.dir]!;
+        if (b.fire) s.fire = true;
+      }
+      for (const [port, s] of state) emu.setJoystick(port, s.mask, s.fire);
+    };
+
     // Track held keys → modifier state so we can force-release on focus
     // loss / blur (stuck Shift bug after Cmd-Tab) and report the correct
     // composite modifier byte even when a modifier release event is lost.
@@ -216,6 +242,13 @@ export function Emulator({ breakpoints, onState, blockedMsg }: Props) {
       if (e.ctrlKey || e.metaKey || e.altKey) return;
       // Prevent default for keys the browser would scroll on / use for nav.
       e.preventDefault();
+      // Joystick-bound keys drive setJoystick, not the keyboard.
+      if (joyMap[e.code]) {
+        if (down) joyHeld.add(e.code);
+        else joyHeld.delete(e.code);
+        applyJoystick();
+        return;
+      }
       const charCode = e.key.length === 1 ? e.key.charCodeAt(0) : 0;
       // Pull mapped key from MachinePlugin first; fall back to (deprecated
       // but still-supported) event.keyCode for any code not in the table.
@@ -237,6 +270,12 @@ export function Emulator({ breakpoints, onState, blockedMsg }: Props) {
         emu.sendKey(entry.key, 0, false, entry.mods);
       }
       held.clear();
+      // Release any held joystick directions/trigger too, so a direction
+      // doesn't stick after focus loss.
+      if (joyHeld.size || joyPorts.size) {
+        joyHeld.clear();
+        applyJoystick();
+      }
     };
 
     const onDown = (e: KeyboardEvent) => fwd(e, true);
@@ -252,7 +291,7 @@ export function Emulator({ breakpoints, onState, blockedMsg }: Props) {
       canvas.removeEventListener("keyup", onUp);
       canvas.removeEventListener("blur", onBlur);
     };
-  }, [status, workbench, machine]);
+  }, [status, workbench, machine, joystick]);
 
   // Audio lifecycle — deliberately separate from the frame loop below. Keyed on
   // run state only, NOT on `breakpoints`: a rebuild while running produces a new

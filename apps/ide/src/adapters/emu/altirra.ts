@@ -34,6 +34,7 @@ interface AltirraCoreInstance {
   isAtInstrBoundary(): boolean;
   readMem(addr: number, len: number): Uint8Array;
   sendKey(keyCode: number, charCode: number, isDown: boolean, modifiers: number): void;
+  setJoystick(port: number, dirMask: number, fire: boolean): void;
   pixels(): Uint32Array;
   saveState(): unknown;
   loadState(snapshot: unknown): void;
@@ -213,6 +214,10 @@ export class AltirraBackend implements RunBackend {
 
   sendKey(keyCode: number, charCode: number, isDown: boolean, modifiers = 0) {
     this.core.sendKey(keyCode, charCode, isDown, modifiers);
+  }
+
+  setJoystick(port: number, dirMask: number, fire: boolean) {
+    this.core.setJoystick(port, dirMask, fire);
   }
 
   setHardwareMode(mode: number) { this.core.setHardwareMode(mode); }

@@ -110,6 +110,10 @@ export interface RunBackend {
    *  the machine advances every CPU together. Returns undefined for unknown ids. */
   auxCpu?(id: string): AuxCpuView | undefined
   sendKey(keyCode: number, charCode: number, isDown: boolean, modifiers?: number): void
+  /** Inject digital joystick state for a port (0..3). `dirMask` bits: 0=up,
+   *  1=down, 2=left, 3=right (1 = pressed); `fire` = trigger. Optional — only
+   *  backends whose machine declares joystick input implement it. */
+  setJoystick?(port: number, dirMask: number, fire: boolean): void
   saveState(): unknown
   loadState(snapshot: unknown): void
   /** Start audio output. Lazily creates the AudioContext on first call (needs a

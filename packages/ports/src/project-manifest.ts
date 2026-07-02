@@ -30,7 +30,11 @@ export interface ProjectManifestV2 {
   /** Panel plugin ids to surface by default. Optional — falls back to
    *  MachinePlugin.defaultPanels. */
   panels?: string[]
-  run?: { default?: { audio?: boolean } }
+  /** Runtime prefs. `input` picks how the keyboard drives the machine:
+   *  `'keyboard'` (default) types into the machine; `'joystick'` routes the
+   *  machine's joystick keys (e.g. Atari arrows + Space) to the digital
+   *  joystick instead — opt-in so a project keeps the full keyboard by default. */
+  run?: { default?: { audio?: boolean; input?: 'keyboard' | 'joystick' } }
   recipes?: Recipe[]
   /** Map of file-extension (no dot, lowercase) → editor module path. */
   editors?: Record<string, string>
