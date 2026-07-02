@@ -135,10 +135,15 @@ export function parseSourceMap(lst: string, ctx?: ParseSourceMapContext): Source
   // but does NOT re-emit parent when leaving. Heuristic: when a new line
   // number is lower than the current frame's last seen line, the include
   // ended — pop until line fits.
-  const stack: { file: string; lastLine: number }[] = [];
+  const stack: { file: string; lastLine: number; lineCount: number }[] = [];
   const pushFile = (file: string) => {
     if (!locToAddr.has(file)) locToAddr.set(file, new Map());
-    stack.push({ file, lastLine: 0 });
+    // A frame's file line count bounds which line numbers can belong to it —
+    // MADS numbers per-file from 1, so a lineno past the file's end means we've
+    // returned to an ancestor (MADS doesn't re-emit `Source:` on icl return).
+    // Unknown without ctx ⇒ Infinity (falls back to the lastLine heuristics).
+    const content = ctx?.files.get(file);
+    stack.push({ file, lastLine: 0, lineCount: content ? lines(content) : Infinity });
   };
 
   const resolveSourceLine = (name: string): string => {
@@ -169,14 +174,28 @@ export function parseSourceMap(lst: string, ctx?: ParseSourceMapContext): Source
     //   (2) lineno equals (parent.lastLine + 1) — the line immediately after
     //       the icl directive — handles the common case where parent's lineno
     //       picks up at icl+1 but is still higher than included file's tail.
-    const lineNoMatch = /^\s*(\d+)\s/.exec(rawLine);
+    // Match a leading line number even on a bare blank source line ("     5"
+    // with no trailing content) — that blank line is often the DROP signal that
+    // an icl returned to the parent, and missing it delays the pop so the
+    // parent's next lines leak into the include.
+    const lineNoMatch = /^\s*(\d+)(?:\s|$)/.exec(rawLine);
     if (lineNoMatch) {
       const lineno = parseInt(lineNoMatch[1], 10);
       while (stack.length > 1) {
         const top = stack[stack.length - 1];
         const parent = stack[stack.length - 2];
+        // (1) went backwards — the include's tail was above the parent's resume.
         if (lineno < top.lastLine) { stack.pop(); continue; }
-        if (lineno === parent.lastLine + 1) { stack.pop(); continue; }
+        // (2) lineno past this file's end — it can't belong here, so an icl has
+        //     returned (handles nested includes + the normal single-level resume:
+        //     pop through every ancestor whose file ended, not just the parent).
+        if (lineno > top.lineCount) { stack.pop(); continue; }
+        // (3) FALLBACK only when the file length is unknown (no ctx). "one past
+        //     the parent's icl" is a resume signal — but it collides with the
+        //     include's OWN line number when the parent's icl sits at a low line
+        //     (icl on line 3 ⇒ include line 4 == 3+1 wrongly pops). With a known
+        //     lineCount, check (2) covers the resume, so only use this blind.
+        if (!Number.isFinite(top.lineCount) && lineno === parent.lastLine + 1) { stack.pop(); continue; }
         break;
       }
       stack[stack.length - 1].lastLine = Math.max(stack[stack.length - 1].lastLine, lineno);
