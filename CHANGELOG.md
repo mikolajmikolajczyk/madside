@@ -1,3 +1,8 @@
+## [0.27.14] - 2026-07-02
+
+### 🚀 Features
+
+- *(courses)* New lesson copies the previous lesson's files
 ## [0.27.13] - 2026-07-02
 
 ### 🐛 Bug Fixes
