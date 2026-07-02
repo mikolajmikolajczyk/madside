@@ -1,3 +1,8 @@
+## [0.28.3] - 2026-07-02
+
+### 🐛 Bug Fixes
+
+- *(audio)* Correct Altirra sample rate + adaptive resampling (latency + stutter)
 ## [0.28.2] - 2026-07-02
 
 ### 🐛 Bug Fixes
