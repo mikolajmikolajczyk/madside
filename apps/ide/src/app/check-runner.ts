@@ -32,6 +32,10 @@ export function parseBytes(s: string): number[] {
 }
 
 const hex = (n: number) => '$' + byteHex(n)
+
+/** A human hint when an authored value doesn't parse (e.g. `CB` instead of
+ *  `$CB`) — so a check reports the typo, not a cryptic `$NAN`. */
+const badNum = (s: string) => `\`${s}\` is not a number — use $hex (e.g. $CB), 0x…, or decimal`
 const hexBytes = (b: ArrayLike<number>) => Array.from(b, hex).join(' ')
 
 /** Stable key for a materialised memory read (so the pure evaluator can look up
@@ -98,6 +102,7 @@ export function evaluateCheck(check: CourseCheck, ctx: CheckContext): CheckResul
       if (addr === undefined) return no('label', label, `not defined`)
       if (check.addr !== undefined) {
         const want = parseNum(check.addr)
+        if (Number.isNaN(want)) return no('label', label, badNum(check.addr))
         return addr === want
           ? ok('label', label, `defined at ${hex(addr)}`)
           : no('label', label, `at ${hex(addr)}, expected ${hex(want)}`)
@@ -110,6 +115,7 @@ export function evaluateCheck(check: CourseCheck, ctx: CheckContext): CheckResul
       if (!ctx.regs) return no('register', label, ctx.runError ?? 'emulator state unavailable')
       const got = ctx.regs[check.reg]
       const want = parseNum(check.equals)
+      if (Number.isNaN(want)) return no('register', label, badNum(check.equals))
       if (got === undefined) return no('register', label, 'register not reported')
       return got === want
         ? ok('register', label, `= ${hex(got)}`)
@@ -120,6 +126,8 @@ export function evaluateCheck(check: CourseCheck, ctx: CheckContext): CheckResul
       const want = parseBytes(check.equals)
       const at = parseNum(check.addr)
       const label = `memory ${check.addr}${check.space ? ` (${check.space})` : ''}`
+      if (Number.isNaN(at)) return no('memory', label, badNum(check.addr))
+      if (want.some(Number.isNaN)) return no('memory', label, badNum(check.equals))
       if (!ctx.mem) return no('memory', label, ctx.runError ?? 'emulator state unavailable')
       const got = ctx.mem.get(memKey(at, want.length, check.space))
       if (!got) return no('memory', label, 'region not read')
