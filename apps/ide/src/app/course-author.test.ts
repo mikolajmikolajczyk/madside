@@ -163,6 +163,23 @@ describe("lessons (phase 2)", () => {
     expect(removed.some((f) => f.path.startsWith("lessons/02-loops/"))).toBe(false);
   });
 
+  it("addLessonInFiles: a new lesson inherits the previous lesson's chapter", () => {
+    // Put both existing lessons under "Basics", then add a lesson.
+    const withChapters = files.map((f) =>
+      f.path === "course.json"
+        ? { ...f, content: JSON.stringify({ chapters: [{ title: "Basics", lessons: ["01-intro", "02-loops"] }] }) }
+        : f,
+    );
+    const { files: added, lessonId } = addLessonInFiles(withChapters, "atari-xl");
+    const meta = readCourseMeta(added)!;
+    expect(meta.chapters).toEqual([{ title: "Basics", lessons: ["01-intro", "02-loops", lessonId] }]);
+  });
+
+  it("addLessonInFiles: no chapters ⇒ no chapter assigned (course.json untouched)", () => {
+    const { files: added } = addLessonInFiles(files, "atari-xl");
+    expect(readCourseMeta(added)?.chapters).toBeUndefined();
+  });
+
   it("newLessonFiles appends after the highest prefix with a starter + check", () => {
     const ls = listLessons(files);
     const added = newLessonFiles(ls, "atari-xl");

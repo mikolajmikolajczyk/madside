@@ -226,7 +226,14 @@ export function addLessonInFiles(files: readonly { path: string; content: string
   const n = (lessons.length ? lessons[lessons.length - 1]!.n : 0) + 1
   const id = `${pad(n)}-new-lesson`
   const added = newLessonFiles(lessons, machine, starterFor).map((f) => ({ path: f.path, content: f.content }))
-  return { files: [...files, ...added], lessonId: id }
+  let out: { path: string; content: string }[] = [...files, ...added]
+  // Inherit the previous (last) lesson's chapter, so authoring a run of lessons
+  // in one chapter doesn't need a manual re-assign after every add.
+  const meta = readCourseMeta(files)
+  const prevId = lessons.length ? lessons[lessons.length - 1]!.id : null
+  const chapter = meta && prevId ? lessonChapter(meta, prevId) : null
+  if (meta && chapter) out = setCourseMetaInFiles(out, assignLessonToChapter(meta, id, chapter))
+  return { files: out, lessonId: id }
 }
 
 /** Remove a lesson (its whole subtree). */
