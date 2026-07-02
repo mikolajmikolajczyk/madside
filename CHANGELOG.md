@@ -1,3 +1,8 @@
+## [0.27.13] - 2026-07-02
+
+### 🐛 Bug Fixes
+
+- *(files)* Rename focuses the input, selects name (not ext), cancels on click-away
 ## [0.27.12] - 2026-07-02
 
 ### 🚀 Features
