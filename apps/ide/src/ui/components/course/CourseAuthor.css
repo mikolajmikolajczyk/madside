@@ -228,6 +228,7 @@
 }
 .course-author__check-in[type="number"] { width: 11ch; }
 .course-author__check-op { width: 5em; cursor: pointer; }
+.course-author__check-seq { width: 20ch; }
 .course-author__check-in:focus { outline: none; border-color: var(--accent-mint); }
 .course-author__check-note {
   color: var(--text-tertiary);

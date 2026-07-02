@@ -89,6 +89,15 @@ describe('evaluateCheck — memory', () => {
   it('fails when the region was not read', () => {
     expect(evaluateCheck({ kind: 'memory', addr: '$0080', equals: '$94' }, ctx).pass).toBe(false)
   })
+  it('compares a multi-byte sequence in order (e.g. a sorted result)', () => {
+    const seq = new Map([[memKey(0x3000, 5), Uint8Array.from([0x01, 0x02, 0x03, 0x05, 0x08])]])
+    const c = baseCtx({ mem: seq })
+    expect(evaluateCheck({ kind: 'memory', addr: '$3000', equals: '$01 $02 $03 $05 $08' }, c).pass).toBe(true)
+    // wrong order fails
+    expect(evaluateCheck({ kind: 'memory', addr: '$3000', equals: '$01 $02 $03 $08 $05' }, c).pass).toBe(false)
+    // ne = the sequence is not exactly this
+    expect(evaluateCheck({ kind: 'memory', addr: '$3000', op: 'ne', equals: '$00 $00 $00 $00 $00' }, c).pass).toBe(true)
+  })
 })
 
 describe('evaluateCheck — comparison operators', () => {
@@ -118,6 +127,25 @@ describe('evaluateCheck — comparison operators', () => {
     // [$00,$02] little-endian = $0200 = 512
     expect(evaluateCheck({ kind: 'memory', addr: '$0080', op: 'gt', equals: '$00 $01' }, ctx).pass).toBe(true) // 512 > 256
     expect(evaluateCheck({ kind: 'memory', addr: '$0080', op: 'lt', equals: '$00 $01' }, ctx).pass).toBe(false)
+  })
+})
+
+describe('evaluateCheck — memory range/fill (count)', () => {
+  const fill = new Uint8Array(16).fill(0xaa)
+  const mixed = Uint8Array.from([0xaa, 0xaa, 0x00, 0xaa])
+  const ctx = baseCtx({ mem: new Map([[memKey(0x3000, 16), fill], [memKey(0x3000, 4), mixed]]) })
+
+  it('passes when every byte in the range equals the value', () => {
+    expect(evaluateCheck({ kind: 'memory', addr: '$3000', equals: '$AA', count: 16 }, ctx).pass).toBe(true)
+  })
+  it('fails and points at the first offending byte', () => {
+    const r = evaluateCheck({ kind: 'memory', addr: '$3000', equals: '$AA', count: 4 }, ctx)
+    expect(r.pass).toBe(false)
+    expect(r.message).toMatch(/\$3002 = \$00/) // third byte is wrong
+  })
+  it('honours the operator across the range (ne = every byte differs)', () => {
+    expect(evaluateCheck({ kind: 'memory', addr: '$3000', equals: '$00', op: 'ne', count: 16 }, ctx).pass).toBe(true)
+    expect(evaluateCheck({ kind: 'memory', addr: '$3000', equals: '$AA', op: 'ne', count: 16 }, ctx).pass).toBe(false)
   })
 })
 

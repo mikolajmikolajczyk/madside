@@ -146,13 +146,22 @@ export function evaluateCheck(check: CourseCheck, ctx: CheckContext): CheckResul
     case 'memory': {
       const want = parseBytes(check.equals)
       const at = parseNum(check.addr)
-      const label = `memory ${check.addr}${check.space ? ` (${check.space})` : ''}`
+      const op = check.op ?? 'eq'
+      const label = `memory ${check.addr}${check.count ? `..+${check.count}` : ''}${check.space ? ` (${check.space})` : ''}`
       if (Number.isNaN(at)) return no('memory', label, badNum(check.addr))
       if (want.some(Number.isNaN)) return no('memory', label, badNum(check.equals))
+      const len = check.count ?? want.length
       if (!ctx.mem) return no('memory', label, ctx.runError ?? 'emulator state unavailable')
-      const got = ctx.mem.get(memKey(at, want.length, check.space))
+      const got = ctx.mem.get(memKey(at, len, check.space))
       if (!got) return no('memory', label, 'region not read')
-      const op = check.op ?? 'eq'
+      // Range/fill: `count` bytes must EACH satisfy `op` against the single value.
+      if (check.count !== undefined) {
+        const v = want[0] ?? 0
+        const bad = Array.from(got).findIndex((b) => !applyOp(op, b, v))
+        return bad === -1
+          ? ok('memory', label, `all ${len} bytes ${opSym(op)} ${hex(v)}`)
+          : no('memory', label, `${hex(at + bad)} = ${hex(got[bad]!)}, expected ${opSym(op)} ${hex(v)}`)
+      }
       const pass = op === 'eq' || op === 'ne'
         ? seqEq(got, want) === (op === 'eq')
         : applyOp(op, leInt(got), leInt(want))
@@ -199,7 +208,7 @@ export async function runChecks(checks: CourseCheck[], deps: CheckRunDeps): Prom
       const mem = new Map<string, Uint8Array>()
       for (const c of checks) {
         if (c.kind !== 'memory') continue
-        const len = parseBytes(c.equals).length
+        const len = c.count ?? parseBytes(c.equals).length
         const at = parseNum(c.addr)
         mem.set(memKey(at, len, c.space), await r.readMem(at, len, c.space))
       }

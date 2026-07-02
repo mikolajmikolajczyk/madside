@@ -150,9 +150,11 @@ Operands are written as hex (`$94`, `$02C6`) or decimal — the way assembly aut
 | `build` | — | The project assembles cleanly. |
 | `label` | `name`, `addr?` | A label `name` exists in the assembled symbol table; if `addr` is given, it resolves to that address. (Case-insensitive — MADS uppercases its symbol table.) |
 | `register` | `reg`, `equals`, `op?`, `afterFrames?` | After running, CPU register `reg` (`a`/`x`/`y`/`sp`/`pc`) compares to `equals` per `op`. |
-| `memory` | `addr`, `equals`, `op?`, `space?`, `afterFrames?` | After running, the bytes at `addr` compare to `equals` (one or more space-separated bytes) per `op`. `space` selects a [named memory space](/docs/reference/memory-spaces/) (e.g. NES `ppu`/`oam`); default is the CPU bus. |
+| `memory` | `addr`, `equals`, `op?`, `count?`, `space?`, `afterFrames?` | After running, the bytes at `addr` compare to `equals` (one or more space-separated bytes) per `op`. `space` selects a [named memory space](/docs/reference/memory-spaces/) (e.g. NES `ppu`/`oam`); default is the CPU bus. |
 
 `op` is the comparison operator (default `eq`): `eq` (equal), `ne` (not equal), `gt`, `lt`, `ge`, `le`. `eq`/`ne` compare the whole byte sequence; the ordered operators (`gt`/`lt`/`ge`/`le`) compare a single value — a multi-byte read is taken little-endian (e.g. a 2-byte score). Use `ne` for "the learner changed it from the default", `gt` for "score is above zero", and so on.
+
+`count` (memory only) turns the check into a **range/fill** test: read `count` bytes from `addr` and require **each** to satisfy `op` against the single value in `equals`. So `{ "addr": "$3000", "equals": "$AA", "count": 16 }` asserts every byte in `$3000`–`$300F` is `$AA` — no need to paste 16 values. It composes with `op` (`ne` + `count` = "every byte differs from this", `gt` = "every byte above this"). On failure the report names the first offending address.
 
 `afterFrames` advances the emulator that many display frames **after your program starts** before reading (default `0`). `register` and `memory` checks run the program; `build` and `label` only assemble.
 
@@ -187,6 +189,12 @@ This boot allowance is automatic — the active machine reports its program's lo
 ```json
 { "checks": [
   { "kind": "memory", "addr": "$D01A", "op": "ne", "equals": "$00", "afterFrames": 2 }
+] }
+```
+
+```json
+{ "checks": [
+  { "kind": "memory", "addr": "$3000", "equals": "$AA", "count": 16, "afterFrames": 2 }
 ] }
 ```
 

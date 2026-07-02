@@ -441,7 +441,8 @@ function CheckFields({ check, replace, persist }: {
         <>
           <input className="course-author__check-in" placeholder="addr $hex" value={check.addr} onChange={(e) => replace({ ...check, addr: e.target.value }, false)} onBlur={persist} spellCheck={false} />
           <OpSelect value={check.op} onChange={(op) => replace({ ...check, op }, true)} />
-          <input className="course-author__check-in" placeholder="value $hex" value={check.equals} onChange={(e) => replace({ ...check, equals: e.target.value }, false)} onBlur={persist} spellCheck={false} />
+          <input className="course-author__check-in course-author__check-seq" placeholder="value(s) $hex" title="One byte, or several space/comma-separated bytes to compare a sequence in order (e.g. a sorted result)." value={check.equals} onChange={(e) => replace({ ...check, equals: e.target.value }, false)} onBlur={persist} spellCheck={false} />
+          <input className="course-author__check-in" type="number" placeholder="count" title="Optional: check this many bytes from addr — each must satisfy the operator against the single value (range/fill). Leave empty to compare the sequence you typed in value(s)." value={check.count ?? ""} onChange={(e) => replace({ ...check, count: e.target.value === "" ? undefined : Number(e.target.value) }, false)} onBlur={persist} />
           <input className="course-author__check-in" placeholder="space" value={check.space ?? ""} onChange={(e) => replace({ ...check, space: e.target.value || undefined }, false)} onBlur={persist} spellCheck={false} />
           <input className="course-author__check-in" type="number" placeholder="frames" value={check.afterFrames ?? ""} onChange={(e) => replace({ ...check, afterFrames: e.target.value === "" ? undefined : Number(e.target.value) }, false)} onBlur={persist} />
         </>

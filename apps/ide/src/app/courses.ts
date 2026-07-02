@@ -33,7 +33,7 @@ export type CheckOp = 'eq' | 'ne' | 'gt' | 'lt' | 'ge' | 'le'
 export type CourseCheck =
   | { kind: 'build' }
   | { kind: 'label'; name: string; addr?: string }
-  | { kind: 'memory'; addr: string; equals: string; op?: CheckOp; space?: string; afterFrames?: number }
+  | { kind: 'memory'; addr: string; equals: string; op?: CheckOp; count?: number; space?: string; afterFrames?: number }
   | { kind: 'register'; reg: 'a' | 'x' | 'y' | 'sp' | 'pc'; equals: string; op?: CheckOp; afterFrames?: number }
 
 /** Optional grouping of lessons under a heading. Lessons are referenced by their
@@ -303,6 +303,8 @@ const REGS = new Set(['a', 'x', 'y', 'sp', 'pc'])
 const OPS = new Set(['eq', 'ne', 'gt', 'lt', 'ge', 'le'])
 const opOk = (o: Record<string, unknown>): boolean =>
   o.op === undefined || (typeof o.op === 'string' && OPS.has(o.op))
+const countOk = (o: Record<string, unknown>): boolean =>
+  o.count === undefined || (typeof o.count === 'number' && Number.isInteger(o.count) && o.count > 0)
 
 function validCheck(c: unknown): boolean {
   if (!c || typeof c !== 'object') return false
@@ -311,7 +313,7 @@ function validCheck(c: unknown): boolean {
   switch (k) {
     case 'build': return true
     case 'label': return typeof o.name === 'string'
-    case 'memory': return typeof o.addr === 'string' && typeof o.equals === 'string' && opOk(o)
+    case 'memory': return typeof o.addr === 'string' && typeof o.equals === 'string' && opOk(o) && countOk(o)
     case 'register': return typeof o.reg === 'string' && REGS.has(o.reg) && typeof o.equals === 'string' && opOk(o)
     default: return false
   }
