@@ -70,7 +70,7 @@ describe('evaluateCheck — register', () => {
   it('fails on a mismatch and reports both values', () => {
     const r = evaluateCheck({ kind: 'register', reg: 'a', equals: '$00' }, ctx)
     expect(r.pass).toBe(false)
-    expect(r.message).toMatch(/\$94.*expected \$00/)
+    expect(r.message).toMatch(/\$94.*expected = \$00/)
   })
   it('fails when no register snapshot is present', () => {
     expect(evaluateCheck({ kind: 'register', reg: 'a', equals: '$94' }, baseCtx()).pass).toBe(false)
@@ -88,6 +88,52 @@ describe('evaluateCheck — memory', () => {
   })
   it('fails when the region was not read', () => {
     expect(evaluateCheck({ kind: 'memory', addr: '$0080', equals: '$94' }, ctx).pass).toBe(false)
+  })
+})
+
+describe('evaluateCheck — comparison operators', () => {
+  const regs = { a: 0x10, x: 0, y: 0, pc: 0x2010, sp: 0xff }
+  const ctx = baseCtx({ regs, mem: new Map([[memKey(0x02c6, 1), new Uint8Array([0x10])], [memKey(0x80, 2), new Uint8Array([0x00, 0x02])]]) })
+
+  it('register: ne / gt / lt / ge / le', () => {
+    expect(evaluateCheck({ kind: 'register', reg: 'a', op: 'ne', equals: '$00' }, ctx).pass).toBe(true)
+    expect(evaluateCheck({ kind: 'register', reg: 'a', op: 'ne', equals: '$10' }, ctx).pass).toBe(false)
+    expect(evaluateCheck({ kind: 'register', reg: 'a', op: 'gt', equals: '$0F' }, ctx).pass).toBe(true)
+    expect(evaluateCheck({ kind: 'register', reg: 'a', op: 'lt', equals: '$10' }, ctx).pass).toBe(false)
+    expect(evaluateCheck({ kind: 'register', reg: 'a', op: 'ge', equals: '$10' }, ctx).pass).toBe(true)
+    expect(evaluateCheck({ kind: 'register', reg: 'a', op: 'le', equals: '$10' }, ctx).pass).toBe(true)
+  })
+  it('register: op defaults to eq when omitted', () => {
+    expect(evaluateCheck({ kind: 'register', reg: 'a', equals: '$10' }, ctx).pass).toBe(true)
+  })
+  it('register: fail message shows the operator symbol', () => {
+    const r = evaluateCheck({ kind: 'register', reg: 'a', op: 'gt', equals: '$20' }, ctx)
+    expect(r.message).toMatch(/expected > \$20/)
+  })
+  it('memory: ne on a byte sequence', () => {
+    expect(evaluateCheck({ kind: 'memory', addr: '$02C6', op: 'ne', equals: '$00' }, ctx).pass).toBe(true)
+    expect(evaluateCheck({ kind: 'memory', addr: '$02C6', op: 'ne', equals: '$10' }, ctx).pass).toBe(false)
+  })
+  it('memory: gt/lt take a multi-byte read little-endian', () => {
+    // [$00,$02] little-endian = $0200 = 512
+    expect(evaluateCheck({ kind: 'memory', addr: '$0080', op: 'gt', equals: '$00 $01' }, ctx).pass).toBe(true) // 512 > 256
+    expect(evaluateCheck({ kind: 'memory', addr: '$0080', op: 'lt', equals: '$00 $01' }, ctx).pass).toBe(false)
+  })
+})
+
+describe('evaluateCheck — unparseable value', () => {
+  it('reports the bad value instead of NaN (label addr)', () => {
+    const ctx = baseCtx({ labels: new Map([['hue', 0xcb]]) })
+    const r = evaluateCheck({ kind: 'label', name: 'hue', addr: 'CB' }, ctx)
+    expect(r.pass).toBe(false)
+    expect(r.message).toMatch(/not a number/)
+    expect(r.message).not.toMatch(/NaN/)
+  })
+  it('reports the bad value for register/memory', () => {
+    const ctx = baseCtx({ regs: { a: 1, x: 0, y: 0, pc: 0, sp: 0 }, mem: new Map([[memKey(0x80, 1), new Uint8Array([1])]]) })
+    expect(evaluateCheck({ kind: 'register', reg: 'a', equals: 'ZZ' }, ctx).message).toMatch(/not a number/)
+    expect(evaluateCheck({ kind: 'memory', addr: 'GG', equals: '$01' }, ctx).message).toMatch(/not a number/)
+    expect(evaluateCheck({ kind: 'memory', addr: '$0080', equals: 'ZZ' }, ctx).message).toMatch(/not a number/)
   })
 })
 

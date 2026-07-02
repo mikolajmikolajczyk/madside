@@ -25,11 +25,16 @@ import type { InstalledCourseRow, StorageBackend } from '@ports'
 /** A declarative lesson check. The runner (`@app/check-runner`) consumes these;
  *  authored as JSON in each lesson's check.json. Hex strings (e.g. "$0080")
  *  are used for addresses/values so assembly authors read them naturally. */
+/** Comparison operator for value checks. Default `eq` (backward compatible).
+ *  `eq`/`ne` compare the whole byte sequence; `gt`/`lt`/`ge`/`le` compare a
+ *  single value (multi-byte reads are taken little-endian). */
+export type CheckOp = 'eq' | 'ne' | 'gt' | 'lt' | 'ge' | 'le'
+
 export type CourseCheck =
   | { kind: 'build' }
   | { kind: 'label'; name: string; addr?: string }
-  | { kind: 'memory'; addr: string; equals: string; space?: string; afterFrames?: number }
-  | { kind: 'register'; reg: 'a' | 'x' | 'y' | 'sp' | 'pc'; equals: string; afterFrames?: number }
+  | { kind: 'memory'; addr: string; equals: string; op?: CheckOp; space?: string; afterFrames?: number }
+  | { kind: 'register'; reg: 'a' | 'x' | 'y' | 'sp' | 'pc'; equals: string; op?: CheckOp; afterFrames?: number }
 
 /** Optional grouping of lessons under a heading. Lessons are referenced by their
  *  directory slug; chapter order = array order; lessons in no chapter render
@@ -295,6 +300,9 @@ const MAX_LESSONS = 100
 const MAX_TOTAL_BYTES = 8 * 1024 * 1024
 
 const REGS = new Set(['a', 'x', 'y', 'sp', 'pc'])
+const OPS = new Set(['eq', 'ne', 'gt', 'lt', 'ge', 'le'])
+const opOk = (o: Record<string, unknown>): boolean =>
+  o.op === undefined || (typeof o.op === 'string' && OPS.has(o.op))
 
 function validCheck(c: unknown): boolean {
   if (!c || typeof c !== 'object') return false
@@ -303,8 +311,8 @@ function validCheck(c: unknown): boolean {
   switch (k) {
     case 'build': return true
     case 'label': return typeof o.name === 'string'
-    case 'memory': return typeof o.addr === 'string' && typeof o.equals === 'string'
-    case 'register': return typeof o.reg === 'string' && REGS.has(o.reg) && typeof o.equals === 'string'
+    case 'memory': return typeof o.addr === 'string' && typeof o.equals === 'string' && opOk(o)
+    case 'register': return typeof o.reg === 'string' && REGS.has(o.reg) && typeof o.equals === 'string' && opOk(o)
     default: return false
   }
 }

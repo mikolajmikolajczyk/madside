@@ -16,7 +16,7 @@
 
 import { byteHex } from '@core/hex'
 import { errorMessage } from '@ports'
-import type { CourseCheck } from './courses'
+import type { CheckOp, CourseCheck } from './courses'
 
 /** Parse a hex (`$94`, `0x94`) or decimal (`148`) literal to a number. */
 export function parseNum(s: string): number {
@@ -36,6 +36,27 @@ const hex = (n: number) => '$' + byteHex(n)
 /** A human hint when an authored value doesn't parse (e.g. `CB` instead of
  *  `$CB`) — so a check reports the typo, not a cryptic `$NAN`. */
 const badNum = (s: string) => `\`${s}\` is not a number — use $hex (e.g. $CB), 0x…, or decimal`
+
+/** Symbol shown in a check's pass/fail message for each operator. */
+const OP_SYM: Record<CheckOp, string> = { eq: '=', ne: '≠', gt: '>', lt: '<', ge: '≥', le: '≤' }
+const opSym = (op?: CheckOp) => OP_SYM[op ?? 'eq']
+
+/** Apply a comparison operator to two numbers. */
+function applyOp(op: CheckOp | undefined, got: number, want: number): boolean {
+  switch (op) {
+    case 'ne': return got !== want
+    case 'gt': return got > want
+    case 'lt': return got < want
+    case 'ge': return got >= want
+    case 'le': return got <= want
+    default: return got === want // 'eq'
+  }
+}
+
+/** Interpret a byte region as a little-endian integer (for gt/lt/ge/le). */
+const leInt = (b: ArrayLike<number>) => Array.from(b, (x) => x).reduce((n, x, i) => n + x * 256 ** i, 0)
+const seqEq = (a: ArrayLike<number>, b: ArrayLike<number>) =>
+  a.length === b.length && Array.from(b).every((x, i) => a[i] === x)
 const hexBytes = (b: ArrayLike<number>) => Array.from(b, hex).join(' ')
 
 /** Stable key for a materialised memory read (so the pure evaluator can look up
@@ -117,9 +138,9 @@ export function evaluateCheck(check: CourseCheck, ctx: CheckContext): CheckResul
       const want = parseNum(check.equals)
       if (Number.isNaN(want)) return no('register', label, badNum(check.equals))
       if (got === undefined) return no('register', label, 'register not reported')
-      return got === want
+      return applyOp(check.op, got, want)
         ? ok('register', label, `= ${hex(got)}`)
-        : no('register', label, `= ${hex(got)}, expected ${hex(want)}`)
+        : no('register', label, `= ${hex(got)}, expected ${opSym(check.op)} ${hex(want)}`)
     }
 
     case 'memory': {
@@ -131,10 +152,13 @@ export function evaluateCheck(check: CourseCheck, ctx: CheckContext): CheckResul
       if (!ctx.mem) return no('memory', label, ctx.runError ?? 'emulator state unavailable')
       const got = ctx.mem.get(memKey(at, want.length, check.space))
       if (!got) return no('memory', label, 'region not read')
-      const equal = got.length === want.length && want.every((b, i) => got[i] === b)
-      return equal
+      const op = check.op ?? 'eq'
+      const pass = op === 'eq' || op === 'ne'
+        ? seqEq(got, want) === (op === 'eq')
+        : applyOp(op, leInt(got), leInt(want))
+      return pass
         ? ok('memory', label, `= ${hexBytes(got)}`)
-        : no('memory', label, `= ${hexBytes(got)}, expected ${hexBytes(want)}`)
+        : no('memory', label, `= ${hexBytes(got)}, expected ${opSym(op)} ${hexBytes(want)}`)
     }
   }
 }

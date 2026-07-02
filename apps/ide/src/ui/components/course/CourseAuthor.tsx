@@ -24,7 +24,7 @@ import {
   validateCourseFiles,
   zipCourse,
 } from "@app";
-import type { CourseCheck, CourseMeta, LessonInfo, RepoRef } from "@app";
+import type { CheckOp, CourseCheck, CourseMeta, LessonInfo, RepoRef } from "@app";
 import { useToast } from "../ui/Toast";
 import "./CourseAuthor.css";
 
@@ -410,6 +410,17 @@ function LessonChecks({ initial, onSave }: { initial: CourseCheck[]; onSave: (ch
   );
 }
 
+// Comparison-operator picker for memory/register checks. Discrete change →
+// persists immediately (save=true), like the register/kind selects.
+const OP_OPTS: readonly [CheckOp, string][] = [["eq", "= eq"], ["ne", "≠ ne"], ["gt", "> gt"], ["lt", "< lt"], ["ge", "≥ ge"], ["le", "≤ le"]];
+function OpSelect({ value, onChange }: { value: CheckOp | undefined; onChange: (op: CheckOp) => void }) {
+  return (
+    <select className="course-author__check-in course-author__check-op" title="comparison" value={value ?? "eq"} onChange={(e) => onChange(e.target.value as CheckOp)}>
+      {OP_OPTS.map(([v, s]) => <option key={v} value={v}>{s}</option>)}
+    </select>
+  );
+}
+
 function CheckFields({ check, replace, persist }: {
   check: CourseCheck;
   replace: (next: CourseCheck, save: boolean) => void;
@@ -429,9 +440,10 @@ function CheckFields({ check, replace, persist }: {
       return (
         <>
           <input className="course-author__check-in" placeholder="addr $hex" value={check.addr} onChange={(e) => replace({ ...check, addr: e.target.value }, false)} onBlur={persist} spellCheck={false} />
-          <input className="course-author__check-in" placeholder="equals $hex" value={check.equals} onChange={(e) => replace({ ...check, equals: e.target.value }, false)} onBlur={persist} spellCheck={false} />
-          <input className="course-author__check-in" placeholder="space (opt)" value={check.space ?? ""} onChange={(e) => replace({ ...check, space: e.target.value || undefined }, false)} onBlur={persist} spellCheck={false} />
-          <input className="course-author__check-in" type="number" placeholder="afterFrames" value={check.afterFrames ?? ""} onChange={(e) => replace({ ...check, afterFrames: e.target.value === "" ? undefined : Number(e.target.value) }, false)} onBlur={persist} />
+          <OpSelect value={check.op} onChange={(op) => replace({ ...check, op }, true)} />
+          <input className="course-author__check-in" placeholder="value $hex" value={check.equals} onChange={(e) => replace({ ...check, equals: e.target.value }, false)} onBlur={persist} spellCheck={false} />
+          <input className="course-author__check-in" placeholder="space" value={check.space ?? ""} onChange={(e) => replace({ ...check, space: e.target.value || undefined }, false)} onBlur={persist} spellCheck={false} />
+          <input className="course-author__check-in" type="number" placeholder="frames" value={check.afterFrames ?? ""} onChange={(e) => replace({ ...check, afterFrames: e.target.value === "" ? undefined : Number(e.target.value) }, false)} onBlur={persist} />
         </>
       );
     case "register":
@@ -440,8 +452,9 @@ function CheckFields({ check, replace, persist }: {
           <select className="course-author__check-in" value={check.reg} onChange={(e) => replace({ ...check, reg: e.target.value as typeof check.reg }, true)}>
             {(["a", "x", "y", "sp", "pc"] as const).map((r) => <option key={r} value={r}>{r}</option>)}
           </select>
-          <input className="course-author__check-in" placeholder="equals $hex" value={check.equals} onChange={(e) => replace({ ...check, equals: e.target.value }, false)} onBlur={persist} spellCheck={false} />
-          <input className="course-author__check-in" type="number" placeholder="afterFrames" value={check.afterFrames ?? ""} onChange={(e) => replace({ ...check, afterFrames: e.target.value === "" ? undefined : Number(e.target.value) }, false)} onBlur={persist} />
+          <OpSelect value={check.op} onChange={(op) => replace({ ...check, op }, true)} />
+          <input className="course-author__check-in" placeholder="value $hex" value={check.equals} onChange={(e) => replace({ ...check, equals: e.target.value }, false)} onBlur={persist} spellCheck={false} />
+          <input className="course-author__check-in" type="number" placeholder="frames" value={check.afterFrames ?? ""} onChange={(e) => replace({ ...check, afterFrames: e.target.value === "" ? undefined : Number(e.target.value) }, false)} onBlur={persist} />
         </>
       );
   }
