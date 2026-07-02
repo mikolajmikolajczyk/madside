@@ -1,3 +1,8 @@
+## [0.27.11] - 2026-07-02
+
+### 🚀 Features
+
+- *(courses)* Indirect (pointer-follow) memory checks
 ## [0.27.10] - 2026-07-02
 
 ### 🚀 Features
