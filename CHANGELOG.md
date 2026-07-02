@@ -1,3 +1,8 @@
+## [0.27.9] - 2026-07-02
+
+### 🚀 Features
+
+- *(courses)* Collapsible TOC so many-chapter courses leave room for lesson text
 ## [0.27.8] - 2026-07-02
 
 ### 🚀 Features
