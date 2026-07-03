@@ -28,7 +28,12 @@ import "./GitHubDialog.css";
  *  projects and courses from any repo you can access. Projects bind to the repo
  *  they're imported from / first saved to — there is no single "default repo".
  *  Gated on build-time config; reachable only when `available` is true. */
-export function GitHubDialog({ onOpenProject }: { onOpenProject?: (projectId: string) => void }) {
+export function GitHubDialog({ onOpenProject, shareProject }: {
+  onOpenProject?: (projectId: string) => void;
+  /** The active project's repo + slug, when it's bound to one — enables the
+   *  share-link row. */
+  shareProject?: { repo: string; slug: string };
+}) {
   const gh = useGitHub();
 
   if (!gh.available) {
@@ -38,6 +43,8 @@ export function GitHubDialog({ onOpenProject }: { onOpenProject?: (projectId: st
   return (
     <div className="gh">
       {gh.error && <p className="gh__error">{gh.error}</p>}
+
+      {shareProject && <ShareProjectRow repo={shareProject.repo} slug={shareProject.slug} />}
 
       {!gh.ready ? (
         <p className="gh__muted">Checking GitHub session…</p>
@@ -80,6 +87,31 @@ export function GitHubDialog({ onOpenProject }: { onOpenProject?: (projectId: st
           </div>
         </>
       )}
+    </div>
+  );
+}
+
+/** Copy a `?project=` share link for the active project. Opening it clones the
+ *  project into another browser (works for anyone when the repo is public). */
+function ShareProjectRow({ repo, slug }: { repo: string; slug: string }) {
+  const [copied, setCopied] = useState(false);
+  const link = `${window.location.origin}/?project=${encodeURIComponent(repo)}&slug=${encodeURIComponent(slug)}`;
+  return (
+    <div className="gh__share">
+      <div className="gh__share-head">
+        <span className="gh__share-title">Share this project</span>
+        <button
+          type="button"
+          className="ui-dialog__btn"
+          onClick={() => { void navigator.clipboard?.writeText(link); setCopied(true); setTimeout(() => setCopied(false), 1500); }}
+        >
+          {copied ? "copied ✓" : "🔗 Copy link"}
+        </button>
+      </div>
+      <p className="gh__muted gh__share-hint">
+        Anyone with the link can open <strong>{slug}</strong> and clone it into their own browser —
+        as long as <code>{repo}</code> is <strong>public</strong>. Push your latest changes first.
+      </p>
     </div>
   );
 }

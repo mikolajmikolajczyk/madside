@@ -62,7 +62,7 @@ import { PluginInventory } from "./components/PluginInventory";
 import { GitHubDialog } from "./components/github/GitHubDialog";
 import { GitHubPushDialog } from "./components/github/GitHubPushDialog";
 import { useGitHubAutoSync } from "./hooks/useGitHubAutoSync";
-import { githubAvailable, useGitHub, pushProjectToGitHub, pullProjectToIdb, remoteSlug, removeProjectFromGitHub, projectGitHubUrls, projectRepo, listAccessibleRepos } from "@app";
+import { githubAvailable, useGitHub, pushProjectToGitHub, pullProjectToIdb, remoteSlug, removeProjectFromGitHub, projectGitHubUrls, projectRepo, listAccessibleRepos, anonGhFetch } from "@app";
 import { addLessonInFiles, getCourse, getDraftCourse, openLesson, readCourseMeta, refreshCourseFromGitHub, resetLessonToStarter, runChecks, saveDraftCourse, scanEquates, setLessonStarterInFiles, starterFilesForMachine, addRemoteCourse, removeRemoteCourse, courseSourceId, installCourseFromGitHub, previewGitHubCourses } from "@app";
 import { useCourses } from "./hooks/useCourses";
 import type { CheckReport, CheckRunDeps } from "@app";
@@ -404,6 +404,40 @@ export default function App() {
         toast.error(e);
       } finally {
         setCourseLinkLoading(false);
+      }
+    })();
+  }, [gh.ready, gh.auth, gh.signedIn, workbench, project, toast]);
+
+  // Deep link: `?project=<owner/repo>&slug=<slug>` clones a project from a repo
+  // into this browser and opens it — the "share a project to play with" flow.
+  // Public repos import unauthenticated (anon API); a signed-in user's token is
+  // used when present (private repos, higher rate limit). Params stripped so a
+  // reload / switch doesn't re-import.
+  const projectLinkDoneRef = useRef(false);
+  const [projectLinkLoading, setProjectLinkLoading] = useState(() =>
+    typeof window !== "undefined" && new URLSearchParams(window.location.search).has("project"),
+  );
+  useEffect(() => {
+    if (projectLinkDoneRef.current || !gh.ready) return;
+    const params = new URLSearchParams(window.location.search);
+    const repo = params.get("project");
+    if (!repo) { projectLinkDoneRef.current = true; return; }
+    projectLinkDoneRef.current = true;
+    const slug = params.get("slug") ?? undefined;
+    const url = new URL(window.location.href);
+    url.searchParams.delete("project");
+    url.searchParams.delete("slug");
+    window.history.replaceState(null, "", url.toString());
+    void (async () => {
+      try {
+        if (!slug) { toast.push("info", "That share link is missing the project name (&slug=)."); return; }
+        const ghFetch = gh.signedIn && gh.auth ? (u: string, i?: RequestInit) => gh.auth!.fetch(u, i) : anonGhFetch;
+        const { projectId } = await pullProjectToIdb(workbench.storage, ghFetch, repo, slug);
+        await project.switchProject(projectId);
+      } catch (e) {
+        toast.error(e);
+      } finally {
+        setProjectLinkLoading(false);
       }
     })();
   }, [gh.ready, gh.auth, gh.signedIn, workbench, project, toast]);
@@ -988,6 +1022,17 @@ export default function App() {
   // Save opens a commit-message prompt; doPushGitHub does the push with it.
   const handlePushGitHub = useCallback(() => setPushMsgOpen(true), []);
 
+  // A share link is offered when the active project is bound to a repo — the
+  // recipient opens it via `?project=` and clones it into their own browser
+  // (works for anyone if the repo is public). localStorage reads, cheap.
+  const shareProject = project.loaded
+    ? ((): { repo: string; slug: string } | undefined => {
+        const repo = projectRepo(project.projectId);
+        const slug = remoteSlug(project.projectId);
+        return repo && slug ? { repo, slug } : undefined;
+      })()
+    : undefined;
+
   // When the Save dialog opens, load the repos you can push to (for the picker
   // shown when the project isn't yet bound to one).
   useEffect(() => {
@@ -1206,6 +1251,15 @@ export default function App() {
         </div>
       );
     }
+    // Opening a shared project from a ?project= deep link — loading screen while
+    // it clones into the browser.
+    if (projectLinkLoading) {
+      return (
+        <div className="app app--loading">
+          <div className="app__loading">opening project…</div>
+        </div>
+      );
+    }
     // First run / last project deleted, or "New project" from the menu → the
     // welcome hub: existing projects + empty / templates / courses.
     return (
@@ -1225,7 +1279,7 @@ export default function App() {
             early return, separate from the main IDE layout (#159). */}
         <Dialog open={githubOpen} onOpenChange={setGithubOpen}>
           <DialogContent title="GitHub">
-            <GitHubDialog onOpenProject={(id) => { setGithubOpen(false); void project.switchProject(id); }} />
+            <GitHubDialog shareProject={shareProject} onOpenProject={(id) => { setGithubOpen(false); void project.switchProject(id); }} />
           </DialogContent>
         </Dialog>
       </>
@@ -1688,7 +1742,7 @@ export default function App() {
 
       <Dialog open={githubOpen} onOpenChange={setGithubOpen}>
         <DialogContent title="GitHub">
-          <GitHubDialog onOpenProject={(id) => { setGithubOpen(false); void project.switchProject(id); }} />
+          <GitHubDialog shareProject={shareProject} onOpenProject={(id) => { setGithubOpen(false); void project.switchProject(id); }} />
         </DialogContent>
       </Dialog>
 

@@ -228,3 +228,21 @@
   letter-spacing: 0.05em;
   color: var(--text-tertiary);
 }
+
+/* Share-project link row (top of the dialog when the active project is bound). */
+.gh__share {
+  border: 1px solid var(--border-default);
+  border-radius: 6px;
+  padding: 8px 10px;
+  margin-bottom: 10px;
+  background: var(--bg-secondary);
+}
+.gh__share-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+.gh__share-title { font-size: 13px; color: var(--text-primary); }
+.gh__share-hint { margin: 6px 0 0; font-size: 11px; line-height: 1.5; }
+.gh__share-hint code { color: var(--accent-peach); }

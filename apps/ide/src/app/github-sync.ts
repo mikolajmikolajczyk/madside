@@ -27,6 +27,12 @@ import { MANIFEST_PATH } from "@madside/storage-shared";
 // Mirror project-zip.ts: publish source, skip the reproducible build output.
 const GENERATED_DIR = "generated/";
 
+/** Unauthenticated GitHub REST fetch — reads a PUBLIC repo without a token (60
+ *  req/hr rate limit). Lets a share link (`?project=`) import a public project
+ *  even when the recipient isn't signed in. */
+export const anonGhFetch: GhFetch = (url, init) =>
+  fetch(url, { ...init, cache: "no-store", headers: { Accept: "application/vnd.github+json", ...(init?.headers as Record<string, string> | undefined) } });
+
 const syncedKey = (projectId: string) => `madside.github.synced.${projectId}`;
 const slugKey = (projectId: string) => `madside.github.slug.${projectId}`;
 const repoKey = (projectId: string) => `madside.github.repo.${projectId}`;
