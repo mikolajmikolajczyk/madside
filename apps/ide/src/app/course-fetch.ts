@@ -210,8 +210,19 @@ export async function installCourseFromGitHub(storage: StorageBackend, input: st
   const parsed = parseGitHubRef(input)
   if (!parsed) throw new Error('not a GitHub repo URL (expected github.com/owner/repo or owner/repo)')
 
-  const { courses, resolvedRef } = await fetchGitHubCourse(parsed.owner, parsed.repo, parsed.ref, ghFetch)
-  const wanted = onlySlug ? courses.filter((c) => c.slug === onlySlug) : courses
+  let { courses, resolvedRef } = await fetchGitHubCourse(parsed.owner, parsed.repo, parsed.ref, ghFetch)
+  let wanted = onlySlug ? courses.filter((c) => c.slug === onlySlug) : courses
+  // jsDelivr's flat listing can be non-empty yet STALE — it may still list an old
+  // slug set that's missing a just-pushed or renamed course, so fetchGitHubCourse
+  // (which only falls back to the fresh tree when it finds ZERO courses) returns a
+  // set without the requested slug. Retry against the GitHub API tree (fresh)
+  // before giving up, so a rename/new course opens without waiting for the CDN.
+  if (onlySlug && wanted.length === 0) {
+    const fresh = await fetchGitHubCourseViaTree(parsed.owner, parsed.repo, ghFetch)
+    courses = fresh.courses
+    resolvedRef = fresh.resolvedRef
+    wanted = courses.filter((c) => c.slug === onlySlug)
+  }
 
   const installed: CourseInfo[] = []
   const errors: string[] = []
@@ -237,7 +248,12 @@ export async function installCourseFromGitHub(storage: StorageBackend, input: st
   }
 
   if (installed.length === 0) {
-    throw new Error(errors.length ? errors.join('; ') : 'no courses found')
+    if (errors.length) throw new Error(errors.join('; '))
+    throw new Error(
+      onlySlug
+        ? `course "${onlySlug}" not found in ${parsed.owner}/${parsed.repo}`
+        : 'no courses found',
+    )
   }
   return installed
 }

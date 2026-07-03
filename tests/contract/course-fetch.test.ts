@@ -208,6 +208,57 @@ function installMultiMockFetch() {
   }) as typeof fetch
 }
 
+// jsDelivr's flat listing is non-empty but STALE: it still lists an OLD slug,
+// missing the just-pushed one. The GitHub API tree is fresh and has the new
+// slug. Opening the new slug must retry against the tree instead of failing.
+function installStaleListingMockFetch() {
+  const jr = (o: unknown) => new Response(JSON.stringify(o), { status: 200 })
+  global.fetch = vi.fn(async (input: RequestInfo | URL) => {
+    const url = typeof input === 'string' ? input : input instanceof URL ? input.href : (input as Request).url
+    if (url.includes('data.jsdelivr.com')) {
+      if (url.includes('@main')) {
+        return jr({ version: 'stale', files: [
+          { name: '/courses/old-basics/course.json' },
+          { name: '/courses/old-basics/lessons/01-a/lesson.md' },
+        ] })
+      }
+      return new Response('', { status: 404 })
+    }
+    if (url.includes('api.github.com')) {
+      if (url.endsWith('/repos/me/repo')) return jr({ default_branch: 'main' })
+      if (url.includes('/git/ref/heads/main')) return jr({ object: { sha: 'freshsha' } })
+      if (url.includes('/git/commits/freshsha')) return jr({ tree: { sha: 'treesha' } })
+      if (url.includes('/git/trees/treesha')) return jr({ truncated: false, tree: [
+        { path: 'courses/new-basics/course.json', type: 'blob', sha: 'a' },
+        { path: 'courses/new-basics/lessons/01-a/lesson.md', type: 'blob', sha: 'b' },
+      ] })
+      return new Response('', { status: 404 })
+    }
+    if (url.includes('cdn.jsdelivr.net')) {
+      if (url.endsWith('/course.json')) return new Response(COURSE_JSON, { status: 200 })
+      if (url.endsWith('/lesson.md')) return new Response(LESSON_MD, { status: 200 })
+      return new Response('', { status: 404 })
+    }
+    throw new Error(`unmocked fetch: ${url}`)
+  }) as typeof fetch
+}
+
+describe('stale jsDelivr listing missing the requested slug', () => {
+  beforeEach(async () => { await __resetDb(); installStaleListingMockFetch() })
+  afterEach(async () => { vi.restoreAllMocks(); await removeRemoteCourse(storage, 'gh:me/repo#new-basics') })
+
+  it('retries via the fresh GitHub tree and installs the requested slug', async () => {
+    const [info] = await installCourseFromGitHub(storage, 'me/repo', undefined, 'new-basics')
+    expect(info!.id).toBe('gh:me/repo#new-basics')
+    expect(getCourse('gh:me/repo#new-basics')?.title).toBe('Test Course')
+  })
+
+  it('reports the missing slug by name when it truly is not in the repo', async () => {
+    await expect(installCourseFromGitHub(storage, 'me/repo', undefined, 'ghost'))
+      .rejects.toThrow(/course "ghost" not found in me\/repo/)
+  })
+})
+
 describe('multi-course repo', () => {
   beforeEach(async () => { await __resetDb(); installMultiMockFetch() })
   afterEach(async () => {
