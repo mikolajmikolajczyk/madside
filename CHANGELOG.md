@@ -1,3 +1,8 @@
+## [0.28.5] - 2026-07-03
+
+### 🚀 Features
+
+- *(share)* Share a project via a ?project= deep link
 ## [0.28.4] - 2026-07-03
 
 ### 🐛 Bug Fixes
