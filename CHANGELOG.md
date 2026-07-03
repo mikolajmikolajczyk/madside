@@ -1,3 +1,8 @@
+## [0.28.4] - 2026-07-03
+
+### 🐛 Bug Fixes
+
+- *(courses)* Retry via fresh GitHub tree when a stale jsDelivr listing misses the requested slug
 ## [0.28.3] - 2026-07-02
 
 ### 🐛 Bug Fixes
