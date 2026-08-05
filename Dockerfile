@@ -6,7 +6,7 @@
 # node:22-slim (glibc) avoids the sharp/esbuild musl friction of alpine.
 # Pinned to a manifest digest for reproducible builds; the tag stays for
 # readability. Dependabot (docker ecosystem) bumps the digest.
-FROM node:22-slim@sha256:e21fc383b50d5347dc7a9f1cae45b8f4e2f0d39f7ade28e4eef7d2934522b752 AS build
+FROM node:25-slim@sha256:81db02c4b671288a03915da9534dbd54f96d0e7c24d80ccc54f5b36b2e684370 AS build
 # Pin pnpm to the lockfile's version (also declared as packageManager in
 # package.json — corepack honours it, this keeps the image self-contained).
 RUN corepack enable && corepack prepare pnpm@11.5.1 --activate
